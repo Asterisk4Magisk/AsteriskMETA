@@ -9,6 +9,7 @@ val golangSource = layout.projectDirectory.dir("src/main/golang/native")
 val goModuleDir = layout.projectDirectory.dir("src/foss/golang")
 val mihomoSubmoduleDir = layout.projectDirectory.dir("src/foss/golang/clash")
 val goOutputDir = layout.buildDirectory.dir("outputs/golang")
+val rootLocalPropertiesFile = rootProject.layout.projectDirectory.file("local.properties")
 
 val syncMihomoCoreVersion by tasks.registering(SyncMihomoCoreVersionTask::class) {
     mihomoCoreVersion.set(ProjectConfig.MIHOMO_CORE_VERSION)
@@ -105,7 +106,9 @@ androidComponents.onVariants { variant ->
             goModuleDirectory.set(goModuleDir)
             goSourceDirectory.set(golangSource)
             mihomoSubmoduleDirectory.set(mihomoSubmoduleDir)
-            localPropertiesFile.set(rootProject.layout.projectDirectory.file("local.properties"))
+            if (rootLocalPropertiesFile.asFile.exists()) {
+                localPropertiesFile.set(rootLocalPropertiesFile)
+            }
             minSdk.set(ProjectConfig.MIN_SDK)
             androidAbi.set(abi)
             debugBuild.set(debug)
