@@ -1,0 +1,316 @@
+{
+    "libraries": [
+        {
+            "uniqueId": "androidx.activity:activity-compose",
+            "artifactVersion": "1.13.0",
+            "name": "Activity Compose",
+            "description": "Compose integration with Activity",
+            "website": "https://developer.android.com/jetpack/androidx/releases/activity#1.13.0",
+            "scm": {
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ]
+        },
+        {
+            "uniqueId": "androidx.navigation3:navigation3-runtime",
+            "artifactVersion": "1.1.2",
+            "name": "Androidx Navigation 3 Runtime",
+            "description": "Provides the building blocks for a Compose first Navigation solution that easily supports extensions.",
+            "website": "https://developer.android.com/jetpack/androidx/releases/navigation3#1.1.2",
+            "scm": {
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ]
+        },
+        {
+            "uniqueId": "github:MetaCubeX/ClashMetaForAndroid",
+            "artifactVersion": "v2.11.30 asterisk",
+            "name": "CMFA Mihomo wrapper",
+            "description": "Vendored CMFA Android core bridge module for Mihomo.",
+            "website": "https://github.com/MetaCubeX/ClashMetaForAndroid",
+            "scm": {
+                "url": "https://github.com/MetaCubeX/ClashMetaForAndroid"
+            },
+            "licenses": [
+                "GPL-3.0"
+            ]
+        },
+        {
+            "uniqueId": "io.coil-kt.coil3:coil",
+            "artifactVersion": "3.4.0",
+            "name": "coil",
+            "description": "An image loading library for Android and Compose Multiplatform.",
+            "website": "https://github.com/coil-kt/coil",
+            "scm": {
+                "url": "https://github.com/coil-kt/coil"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ]
+        },
+        {
+            "uniqueId": "io.coil-kt.coil3:coil-compose",
+            "artifactVersion": "3.4.0",
+            "name": "coil-compose",
+            "description": "An image loading library for Android and Compose Multiplatform.",
+            "website": "https://github.com/coil-kt/coil",
+            "scm": {
+                "url": "https://github.com/coil-kt/coil"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ]
+        },
+        {
+            "uniqueId": "org.jetbrains.compose.foundation:foundation",
+            "artifactVersion": "1.11.1",
+            "name": "Compose Foundation",
+            "description": "Higher level abstractions of the Compose UI primitives. This library is design system agnostic, providing the high-level building blocks for both application and design-system developers",
+            "website": "https://github.com/JetBrains/compose-multiplatform",
+            "scm": {
+                "url": "https://github.com/JetBrains/compose-multiplatform"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ]
+        },
+        {
+            "uniqueId": "org.jetbrains.compose.ui:ui",
+            "artifactVersion": "1.11.1",
+            "name": "Compose UI",
+            "description": "Compose UI primitives. This library contains the primitives that form the Compose UI Toolkit, such as drawing, measurement and layout.",
+            "website": "https://github.com/JetBrains/compose-multiplatform",
+            "scm": {
+                "url": "https://github.com/JetBrains/compose-multiplatform"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ]
+        },
+        {
+            "uniqueId": "androidx.core:core-ktx",
+            "artifactVersion": "1.19.0",
+            "name": "Core Kotlin Extensions",
+            "description": "Kotlin extensions for 'core' artifact",
+            "website": "https://developer.android.com/jetpack/androidx/releases/core#1.19.0",
+            "scm": {
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ]
+        },
+        {
+            "uniqueId": "github:heiher/hev-socks5-tunnel",
+            "artifactVersion": "2.15.0",
+            "name": "hev-socks5-tunnel",
+            "description": "A tun2socks tunnel that forwards TUN traffic to a SOCKS5 server.",
+            "website": "https://github.com/heiher/hev-socks5-tunnel",
+            "scm": {
+                "url": "https://github.com/heiher/hev-socks5-tunnel"
+            },
+            "licenses": [
+                "MIT"
+            ]
+        },
+        {
+            "uniqueId": "org.jetbrains.kotlin:kotlin-stdlib",
+            "artifactVersion": "2.4.0",
+            "name": "Kotlin Stdlib",
+            "description": "Kotlin Standard Library",
+            "website": "https://kotlinlang.org/",
+            "scm": {
+                "url": "https://github.com/JetBrains/kotlin"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ]
+        },
+        {
+            "uniqueId": "org.jetbrains.kotlinx:kotlinx-coroutines-android",
+            "artifactVersion": "1.11.0",
+            "name": "kotlinx-coroutines-android",
+            "description": "Coroutines support libraries for Kotlin",
+            "website": "https://github.com/Kotlin/kotlinx.coroutines",
+            "scm": {
+                "url": "https://github.com/Kotlin/kotlinx.coroutines"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ]
+        },
+        {
+            "uniqueId": "org.jetbrains.kotlinx:kotlinx-serialization-json",
+            "artifactVersion": "1.11.0",
+            "name": "kotlinx-serialization-json",
+            "description": "Kotlin multiplatform serialization runtime library",
+            "website": "https://github.com/Kotlin/kotlinx.serialization",
+            "scm": {
+                "url": "https://github.com/Kotlin/kotlinx.serialization"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ]
+        },
+        {
+            "uniqueId": "io.ktor:ktor-http",
+            "artifactVersion": "3.5.0",
+            "name": "ktor-http",
+            "description": "Ktor is a framework for quickly creating web applications in Kotlin with minimal effort.",
+            "website": "https://github.com/ktorio/ktor",
+            "scm": {
+                "url": "https://github.com/ktorio/ktor.git"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ]
+        },
+        {
+            "uniqueId": "com.github.topjohnwu.libsu:core",
+            "artifactVersion": "6.0.0",
+            "name": "libsu",
+            "description": "A complete solution for apps using root permissions.",
+            "website": "https://github.com/topjohnwu/libsu",
+            "scm": {
+                "url": "https://github.com/topjohnwu/libsu"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ]
+        },
+        {
+            "uniqueId": "github:MetaCubeX/mihomo",
+            "artifactVersion": "v1.19.27",
+            "name": "Mihomo",
+            "description": "An open platform for proxy and anti-censorship networking.",
+            "website": "https://github.com/MetaCubeX/mihomo",
+            "scm": {
+                "url": "https://github.com/MetaCubeX/mihomo"
+            },
+            "licenses": [
+                "GPL-3.0"
+            ]
+        },
+        {
+            "uniqueId": "top.yukonga.miuix.kmp:miuix-icons",
+            "artifactVersion": "0.9.2",
+            "name": "miuix-icons",
+            "description": "Extended icon library for Miuix",
+            "website": "https://github.com/compose-miuix-ui/miuix",
+            "scm": {
+                "url": "https://github.com/compose-miuix-ui/miuix"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ]
+        },
+        {
+            "uniqueId": "top.yukonga.miuix.kmp:miuix-navigation3-ui",
+            "artifactVersion": "0.9.2",
+            "name": "miuix-navigation3-ui",
+            "description": "Navigation3 UI library for Miuix",
+            "website": "https://github.com/compose-miuix-ui/miuix",
+            "scm": {
+                "url": "https://github.com/compose-miuix-ui/miuix"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ]
+        },
+        {
+            "uniqueId": "top.yukonga.miuix.kmp:miuix-preference",
+            "artifactVersion": "0.9.2",
+            "name": "miuix-preference",
+            "description": "Preference components for Miuix",
+            "website": "https://github.com/compose-miuix-ui/miuix",
+            "scm": {
+                "url": "https://github.com/compose-miuix-ui/miuix"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ]
+        },
+        {
+            "uniqueId": "top.yukonga.miuix.kmp:miuix-ui",
+            "artifactVersion": "0.9.2",
+            "name": "miuix-ui",
+            "description": "A UI library for Compose Multiplatform",
+            "website": "https://github.com/compose-miuix-ui/miuix",
+            "scm": {
+                "url": "https://github.com/compose-miuix-ui/miuix"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ]
+        },
+        {
+            "uniqueId": "org.jetbrains.androidx.navigationevent:navigationevent-compose",
+            "artifactVersion": "1.1.0",
+            "name": "NavigationEvent Compose",
+            "description": "Compose integration with NavigationEvent",
+            "website": "https://github.com/JetBrains/compose-multiplatform",
+            "scm": {
+                "url": "https://github.com/JetBrains/compose-multiplatform"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ]
+        },
+        {
+            "uniqueId": "org.mozilla:rhino",
+            "artifactVersion": "1.8.1",
+            "name": "rhino",
+            "description": "Rhino JavaScript runtime jar, excludes XML, tools, and ScriptEngine wrapper",
+            "website": "https://mozilla.github.io/rhino/",
+            "scm": {
+                "url": "git@github.com:mozilla/rhino.git"
+            },
+            "licenses": [
+                "Mozilla Public License, Version 2.0"
+            ]
+        },
+        {
+            "uniqueId": "androidx.room:room-runtime",
+            "artifactVersion": "2.8.4",
+            "name": "Room-Runtime",
+            "description": "Android Room-Runtime",
+            "website": "https://developer.android.com/jetpack/androidx/releases/room#2.8.4",
+            "scm": {
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ]
+        },
+        {
+            "uniqueId": "org.snakeyaml:snakeyaml-engine",
+            "artifactVersion": "3.0.1",
+            "name": "SnakeYAML Engine",
+            "description": "Core YAML 1.2 parser and emitter for Java",
+            "website": "https://bitbucket.org/snakeyaml/snakeyaml-engine",
+            "scm": {
+                "url": "https://bitbucket.org/snakeyaml/snakeyaml-engine/src"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ]
+        },
+        {
+            "uniqueId": "com.journeyapps:zxing-android-embedded",
+            "artifactVersion": "4.3.0",
+            "name": "zxing-android-embedded",
+            "description": "Barcode scanner library for Android, based on the ZXing decoder",
+            "website": "https://github.com/journeyapps/zxing-android-embedded",
+            "scm": {
+                "url": "https://github.com/journeyapps/zxing-android-embedded"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ]
+        }
+    ]
+}

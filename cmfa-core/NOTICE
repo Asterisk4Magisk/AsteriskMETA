@@ -1,0 +1,23 @@
+cmfa-core is vendored from MetaCubeX/ClashMetaForAndroid.
+
+Source:
+https://github.com/MetaCubeX/ClashMetaForAndroid
+
+Vendored source module:
+core
+
+Vendored compatibility sources:
+common/src/main/java/com/github/kr328/clash/common/Global.kt
+common/src/main/java/com/github/kr328/clash/common/log/Log.kt
+common/src/main/java/com/github/kr328/clash/common/util/Parcelable.kt
+
+Mihomo core submodule:
+cmfa-core/src/foss/golang/clash -> https://github.com/MetaCubeX/mihomo
+
+The submodule is intentionally checked out to ProjectConfig.MIHOMO_CORE_VERSION
+before JNI builds so root and non-root modes use the same Mihomo version.
+
+License:
+ClashMetaForAndroid and Mihomo are GPL-3.0 licensed.
+AsteriskMETA is also GPL-3.0 licensed.
+see the repository LICENSE file.

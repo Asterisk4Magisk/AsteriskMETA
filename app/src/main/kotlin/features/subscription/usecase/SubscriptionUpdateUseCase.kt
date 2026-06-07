@@ -1,0 +1,157 @@
+// Copyright 2026, AsteriskMETA contributors
+// SPDX-License-Identifier: GPL-3.0
+
+package features.subscription.usecase
+
+import app.AppState
+import app.MihomoProfileState
+import engine.network.toPortOrNull
+import features.logs.AndroidAppLogger
+import features.subscription.runtime.AndroidSubscriptionFetchOptions
+import features.subscription.runtime.AndroidSubscriptionFetcher
+import features.subscription.runtime.AndroidMihomoProviderFetcher
+import java.net.URI
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.supervisorScope
+import ui.text.formatTemplate
+import kotlin.time.Clock
+
+private const val LogTag = "SubscriptionUpdateUseCase"
+
+internal data class MihomoProfileSubscriptionUpdate(
+    val profileId: Int,
+    val content: String,
+    val subscriptionInfo: app.MihomoSubscriptionInfo,
+)
+
+internal data class MihomoProfileSubscriptionUpdateResult(
+    val updates: List<MihomoProfileSubscriptionUpdate>,
+    val failedProfileCount: Int,
+    val updatedAtMillis: Long,
+) {
+    val updatedProfileCount: Int
+        get() = updates.size
+}
+
+internal suspend fun updateSubscriptions(
+    profiles: List<MihomoProfileState>,
+    subscriptionFetcher: AndroidSubscriptionFetcher,
+    providerFetcher: AndroidMihomoProviderFetcher? = null,
+    fetchOptions: (MihomoProfileState) -> AndroidSubscriptionFetchOptions,
+): MihomoProfileSubscriptionUpdateResult = supervisorScope {
+    val results = profiles.map { profile ->
+        async {
+            updateMihomoProfile(
+                profile = profile,
+                subscriptionFetcher = subscriptionFetcher,
+                providerFetcher = providerFetcher,
+                fetchOptions = fetchOptions(profile),
+            )
+        }
+    }.awaitAll()
+    val updates = results.filterNotNull()
+    MihomoProfileSubscriptionUpdateResult(
+        updates = updates,
+        failedProfileCount = results.size - updates.size,
+        updatedAtMillis = Clock.System.now().toEpochMilliseconds(),
+    )
+}
+
+private suspend fun updateMihomoProfile(
+    profile: MihomoProfileState,
+    subscriptionFetcher: AndroidSubscriptionFetcher,
+    providerFetcher: AndroidMihomoProviderFetcher?,
+    fetchOptions: AndroidSubscriptionFetchOptions,
+): MihomoProfileSubscriptionUpdate? {
+    return runCatching {
+        val result = subscriptionFetcher.fetchWithMetadata(
+            url = profile.url,
+            userAgent = profile.userAgent,
+            options = fetchOptions,
+        )
+        providerFetcher?.fetchMissingProviders(
+            profileContent = result.content,
+            sourceUrl = profile.url,
+        )
+        MihomoProfileSubscriptionUpdate(
+            profileId = profile.id,
+            content = result.content,
+            subscriptionInfo = result.subscriptionInfo,
+        ).also { update ->
+            if (update.content.isBlank()) {
+                AndroidAppLogger.warn(
+                    LogTag,
+                    "Subscription update fetched blank profile ${profile.logIdentity()}",
+                )
+            }
+        }
+    }.onFailure { error ->
+        AndroidAppLogger.warn(
+            LogTag,
+            "Subscription update failed ${profile.logIdentity()}",
+            error,
+        )
+    }.getOrNull()
+}
+
+internal fun AppState.toSubscriptionFetchOptions(profile: MihomoProfileState): AndroidSubscriptionFetchOptions {
+    return AndroidSubscriptionFetchOptions(
+        useRunningProxy = profile.updateViaProxy,
+        fallbackProxyPort = localProxyPort.toPortOrNull(),
+        fallbackProxyUsername = localProxyUsername,
+        fallbackProxyPassword = localProxyPassword,
+    )
+}
+
+internal fun AppState.withUpdatedMihomoProfiles(
+    updates: List<MihomoProfileSubscriptionUpdate>,
+    updatedAtMillis: Long,
+): AppState {
+    if (updates.isEmpty()) return this
+    val updatesById = updates.associateBy { update -> update.profileId }
+    return copy(
+        mihomoProfiles = mihomoProfiles.map { profile ->
+            val update = updatesById[profile.id] ?: return@map profile
+            profile.copy(
+                content = update.content,
+                subscriptionInfo = update.subscriptionInfo,
+                lastUpdatedAtMillis = updatedAtMillis,
+            )
+        },
+    )
+}
+
+internal fun List<MihomoProfileState>.dueSubscriptionProfiles(nowMillis: Long): List<MihomoProfileState> {
+    return filter { profile ->
+        profile.enabled &&
+            profile.url.isNotBlank() &&
+            profile.updateInterval.toLongOrNull()?.let { hours ->
+                hours > 0 && nowMillis - profile.lastUpdatedAtMillis >= hours * 60L * 60L * 1000L
+            } == true
+    }
+}
+
+internal fun subscriptionUpdateMessage(
+    result: MihomoProfileSubscriptionUpdateResult,
+    successTemplate: String,
+    failedTemplate: String,
+): String {
+    val template = if (result.failedProfileCount > 0) failedTemplate else successTemplate
+    return template.formatTemplate(
+        "profileCount" to result.updatedProfileCount,
+        "failedCount" to result.failedProfileCount,
+    )
+}
+
+private fun MihomoProfileState.logIdentity(): String {
+    return "profileId=$id profileName=${name.ifBlank { "<blank>" }} " +
+        "urlHost=${url.toLogHost()} userAgent=${userAgent.ifBlank { "<blank>" }}"
+}
+
+private fun String.toLogHost(): String {
+    return runCatching { URI(this).host }
+        .getOrNull()
+        ?.takeIf(String::isNotBlank)
+        ?: "<unknown>"
+}

@@ -1,0 +1,125 @@
+// Copyright 2026, AsteriskMETA contributors
+// SPDX-License-Identifier: GPL-3.0
+
+package engine.proxy
+
+import app.AppState
+import app.modes.RunModeTun2Socks
+import app.modes.RunModeTproxy
+import engine.network.NetworkDefaults
+import engine.network.toPortOrNull
+import engine.tproxy.DefaultTproxyPort
+import engine.tun2socks.DefaultTun2SocksProxyPort
+import engine.vpn.VpnDefaults
+import java.net.InetAddress
+import java.net.ServerSocket
+import java.util.concurrent.atomic.AtomicReference
+
+internal const val LocalProxyLoopbackAddress = NetworkDefaults.IPV4_LOOPBACK_ADDRESS
+private const val LocalProxyAllInterfacesAddress = NetworkDefaults.IPV4_ANY_ADDRESS
+
+internal data class LocalProxyOptions(
+    val listenAddress: String,
+    val port: Int,
+    val username: String,
+    val password: String,
+)
+
+internal object LocalProxyRuntime {
+    private val currentOptions = AtomicReference<LocalProxyOptions?>()
+
+    fun update(options: LocalProxyOptions) {
+        currentOptions.set(options)
+    }
+
+    fun clear() {
+        currentOptions.set(null)
+    }
+
+    fun current(): LocalProxyOptions? {
+        return currentOptions.get()
+    }
+}
+
+internal fun AppState.withResolvedDynamicLocalProxyPort(): AppState {
+    if (!enableDynamicLocalProxyPort) return this
+
+    val configuredPort = localProxyPort.toPortOrNull()
+    val listenAddress = localProxyListenAddress()
+    val excludedPorts = localProxyExcludedPorts()
+    val currentOptions = LocalProxyRuntime.current()
+    val canKeepConfiguredPort = configuredPort != null &&
+        configuredPort !in excludedPorts &&
+        (
+            isPortAvailable(listenAddress, configuredPort) ||
+                currentOptions?.matches(listenAddress, configuredPort) == true
+            )
+    val resolvedPort = when {
+        canKeepConfiguredPort -> configuredPort
+        else -> availablePort(listenAddress, excludedPorts) ?: configuredPort ?: VpnDefaults.LOCAL_PROXY_PORT
+    }
+    val resolvedPortText = resolvedPort.toString()
+    return if (localProxyPort == resolvedPortText) this else copy(localProxyPort = resolvedPortText)
+}
+
+internal fun AppState.toLocalProxyOptions(): LocalProxyOptions {
+    return LocalProxyOptions(
+        listenAddress = localProxyListenAddress(),
+        port = localProxyPort.toPortOrNull() ?: VpnDefaults.LOCAL_PROXY_PORT,
+        username = localProxyUsername.trim(),
+        password = localProxyPassword,
+    )
+}
+
+private fun AppState.localProxyListenAddress(): String {
+    return if (localProxyListenAllInterfaces) {
+        LocalProxyAllInterfacesAddress
+    } else {
+        LocalProxyLoopbackAddress
+    }
+}
+
+private fun AppState.localProxyExcludedPorts(): Set<Int> {
+    return buildSet {
+        if (runMode == RunModeTproxy) {
+            add(transparentProxyPort.toPortOrNull() ?: DefaultTproxyPort)
+        }
+        if (runMode == RunModeTun2Socks) {
+            add(socks5ProxyPort.toPortOrNull() ?: DefaultTun2SocksProxyPort)
+        }
+    }
+}
+
+private fun LocalProxyOptions.matches(listenAddress: String, port: Int): Boolean {
+    return this.port == port &&
+        (
+            this.listenAddress == listenAddress ||
+                this.listenAddress == LocalProxyAllInterfacesAddress &&
+                listenAddress == LocalProxyLoopbackAddress
+            )
+}
+
+internal fun availablePort(
+    listenAddress: String,
+    excludedPorts: Set<Int> = emptySet(),
+): Int? {
+    return runCatching {
+        repeat(10) {
+            ServerSocket(0, 0, InetAddress.getByName(listenAddress)).use { socket ->
+                if (socket.localPort !in excludedPorts) {
+                    return@runCatching socket.localPort
+                }
+            }
+        }
+        null
+    }.getOrNull()
+}
+
+private fun isPortAvailable(
+    listenAddress: String,
+    port: Int,
+): Boolean {
+    return runCatching {
+        ServerSocket(port, 0, InetAddress.getByName(listenAddress)).use { }
+    }.isSuccess
+}

@@ -1,0 +1,44 @@
+// Copyright 2026, AsteriskMETA contributors
+// SPDX-License-Identifier: GPL-3.0
+
+package engine.tproxy
+
+import app.AppState
+import engine.proxy.LocalProxyOptions
+import engine.proxy.toLocalProxyOptions
+import engine.network.toPortOrNull
+import engine.root.RootConfigBuildContext
+import engine.root.RootIptablesConfig
+import engine.root.RootModeStartConfig
+import engine.root.RootStartConfig
+
+internal data class TproxyStartConfig(
+    override val root: RootStartConfig,
+    override val localProxyOptions: LocalProxyOptions,
+    val tproxyPort: Int,
+    val iptablesConfig: RootIptablesConfig,
+) : RootModeStartConfig
+
+internal val TproxyBaseIptablesConfig = RootIptablesConfig(
+    mark = TproxyFwmark,
+    ipv4Table = TproxyRouteTable,
+    ipv6Table = TproxyRouteTable,
+)
+
+internal fun RootConfigBuildContext.buildTproxyStartConfig(): TproxyStartConfig {
+    val appState = this.appState
+    val tproxyPort = appState.tproxyPortValue()
+    return TproxyStartConfig(
+        root = buildRootStartConfig(),
+        localProxyOptions = appState.toLocalProxyOptions(),
+        tproxyPort = tproxyPort,
+        iptablesConfig = buildRootIptablesConfig(
+            base = TproxyBaseIptablesConfig,
+            ignoredLocalInterfaceNames = setOf(TproxyDummyDevice),
+        ),
+    )
+}
+
+private fun AppState.tproxyPortValue(): Int {
+    return transparentProxyPort.toPortOrNull() ?: DefaultTproxyPort
+}

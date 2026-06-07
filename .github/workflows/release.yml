@@ -1,0 +1,498 @@
+name: Build Release APKs
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_name:
+        description: "Override output file version name, for example 1.0.1"
+        required: false
+        type: string
+      send_to_telegram:
+        description: "Send release notification to Telegram"
+        required: true
+        default: true
+        type: boolean
+  push:
+    branches:
+      - "**"
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build, Publish, And Notify
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      TELEGRAM_MESSAGE_THREAD_ID: ${{ secrets.TELEGRAM_MESSAGE_THREAD_ID }}
+      RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+      RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+      RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+      RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+      SEND_TO_TELEGRAM: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.send_to_telegram == 'true' }}
+      REQUESTED_VERSION_NAME: ${{ github.event.inputs.version_name }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.3
+        with:
+          fetch-depth: 0
+
+      - name: Read ProjectConfig version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          version_name="$(sed -n 's/^[[:space:]]*const val VERSION_NAME = "\([^"]*\)".*/\1/p' buildSrc/src/main/kotlin/BuildConfig.kt | head -n 1)"
+          if [ -z "$version_name" ]; then
+            echo "::error::Unable to read ProjectConfig.VERSION_NAME from buildSrc/src/main/kotlin/BuildConfig.kt."
+            exit 1
+          fi
+
+          is_release=false
+          if [[ "$version_name" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            is_release=true
+            echo "Detected formal release version: $version_name"
+          else
+            echo "::notice::ProjectConfig.VERSION_NAME is '$version_name', not strict x.y.z. GitHub Release creation will be skipped."
+          fi
+
+          create_github_release=false
+          if [ "$is_release" = "true" ] && { [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] || [ "$GITHUB_REF" = "refs/heads/main" ]; }; then
+            create_github_release=true
+          fi
+
+          echo "version_name=$version_name" >> "$GITHUB_OUTPUT"
+          echo "tag_name=v$version_name" >> "$GITHUB_OUTPUT"
+          echo "is_release=$is_release" >> "$GITHUB_OUTPUT"
+          echo "create_github_release=$create_github_release" >> "$GITHUB_OUTPUT"
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5.2.0
+        with:
+          distribution: temurin
+          java-version: "26"
+
+      - name: Set up Go
+        uses: actions/setup-go@v6.1.0
+        with:
+          go-version: "stable"
+          cache-dependency-path: cmfa-core/src/foss/golang/go.sum
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6.1.0
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4.0.1
+
+      - name: Install Android SDK packages
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          set +o pipefail
+          yes | sdkmanager --licenses >/dev/null
+          licenses_status="${PIPESTATUS[1]}"
+          set -o pipefail
+          if [ "$licenses_status" -ne 0 ]; then
+            echo "::error::Failed to accept Android SDK licenses."
+            exit "$licenses_status"
+          fi
+
+          target_sdk="$(sed -n 's/^[[:space:]]*const val TARGET_SDK = \([0-9]\+\).*/\1/p' buildSrc/src/main/kotlin/BuildConfig.kt | head -n 1)"
+          if [ -z "$target_sdk" ]; then
+            echo "::error::Unable to read ProjectConfig.TARGET_SDK from buildSrc/src/main/kotlin/BuildConfig.kt."
+            exit 1
+          fi
+
+          available_packages="$(sdkmanager --list | awk '{ print $1 }')"
+          platform_package="platforms;android-${target_sdk}"
+          if ! grep -Fxq "$platform_package" <<< "$available_packages"; then
+            if grep -Fxq "platforms;android-${target_sdk}.0" <<< "$available_packages"; then
+              platform_package="platforms;android-${target_sdk}.0"
+            else
+              echo "::error::No Android SDK platform package is available for TARGET_SDK=$target_sdk."
+              exit 1
+            fi
+          fi
+
+          build_tools_package="$(printf '%s\n' "$available_packages" | awk '$1 ~ /^build-tools;[0-9]/ { print $1 }' | sort -V | tail -n 1)"
+          ndk_package="$(printf '%s\n' "$available_packages" | awk '$1 ~ /^ndk;[0-9]/ { print $1 }' | sort -V | tail -n 1)"
+          cmake_package="$(printf '%s\n' "$available_packages" | awk '$1 ~ /^cmake;[0-9]/ { print $1 }' | sort -V | tail -n 1)"
+
+          if [ -z "$build_tools_package" ]; then
+            echo "::error::No Android build-tools package is available from sdkmanager."
+            exit 1
+          fi
+          if [ -z "$ndk_package" ]; then
+            echo "::error::No Android NDK package is available from sdkmanager."
+            exit 1
+          fi
+          if [ -z "$cmake_package" ]; then
+            echo "::error::No Android CMake package is available from sdkmanager."
+            exit 1
+          fi
+
+          sdkmanager --install "$platform_package" "$build_tools_package" "$ndk_package" "$cmake_package"
+
+          ndk_version="${ndk_package#ndk;}"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$ndk_version" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_ROOT=$ANDROID_HOME/ndk/$ndk_version" >> "$GITHUB_ENV"
+
+      - name: Validate signing secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${RELEASE_KEYSTORE_BASE64:-}" ]; then
+            echo "::error::Missing repository secret RELEASE_KEYSTORE_BASE64."
+            exit 1
+          fi
+          if [ -z "${RELEASE_KEYSTORE_PASSWORD:-}" ]; then
+            echo "::error::Missing repository secret RELEASE_KEYSTORE_PASSWORD."
+            exit 1
+          fi
+          if [ -z "${RELEASE_KEY_ALIAS:-}" ]; then
+            echo "::error::Missing repository secret RELEASE_KEY_ALIAS."
+            exit 1
+          fi
+
+      - name: Build release APKs
+        run: ./gradlew --no-daemon :app:assembleRelease
+
+      - name: Sign release APKs
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          keystore_path="$RUNNER_TEMP/release.keystore"
+          printf '%s' "$RELEASE_KEYSTORE_BASE64" | base64 --decode > "$keystore_path"
+
+          key_password="${RELEASE_KEY_PASSWORD:-$RELEASE_KEYSTORE_PASSWORD}"
+          export RELEASE_KEYSTORE_PASSWORD
+          export RELEASE_KEY_PASSWORD="$key_password"
+
+          zipalign="$(find "$ANDROID_HOME/build-tools" -type f -name zipalign | sort -V | tail -n 1)"
+          apksigner="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+
+          if [ -z "$zipalign" ]; then
+            echo "::error::zipalign was not found in Android build-tools."
+            exit 1
+          fi
+          if [ -z "$apksigner" ]; then
+            echo "::error::apksigner was not found in Android build-tools."
+            exit 1
+          fi
+
+          mkdir -p signed-apks
+          shopt -s nullglob
+          for apk in app/build/outputs/apk/release/*.apk; do
+            base_name="$(basename "$apk" .apk)"
+            aligned_apk="$RUNNER_TEMP/${base_name}-aligned.apk"
+            signed_apk="signed-apks/${base_name}-signed.apk"
+
+            "$zipalign" -p -f 4 "$apk" "$aligned_apk"
+            "$apksigner" sign \
+              --ks "$keystore_path" \
+              --ks-pass env:RELEASE_KEYSTORE_PASSWORD \
+              --ks-key-alias "$RELEASE_KEY_ALIAS" \
+              --key-pass env:RELEASE_KEY_PASSWORD \
+              --out "$signed_apk" \
+              "$aligned_apk"
+            "$apksigner" verify --verbose "$signed_apk"
+          done
+
+          if ! find signed-apks -type f -name "*.apk" | grep -q .; then
+            echo "::error::No signed release APKs were produced."
+            exit 1
+          fi
+
+      - name: Collect release APKs
+        id: collect
+        shell: bash
+        env:
+          CONFIG_VERSION_NAME: ${{ steps.version.outputs.version_name }}
+          CREATE_GITHUB_RELEASE: ${{ steps.version.outputs.create_github_release }}
+        run: |
+          set -euo pipefail
+
+          ref_version_name="${GITHUB_REF_NAME#v}"
+          version_name="${REQUESTED_VERSION_NAME:-}"
+
+          if [ -z "$version_name" ] && [ "${GITHUB_REF_TYPE:-}" = "tag" ] && [ "$ref_version_name" != "$GITHUB_REF_NAME" ]; then
+            version_name="$ref_version_name"
+          fi
+          if [ -z "$version_name" ]; then
+            version_name="$CONFIG_VERSION_NAME"
+          fi
+
+          version_code="$(git rev-list --count HEAD)"
+          mkdir -p release-artifacts
+
+          shopt -s nullglob
+          for apk in signed-apks/*.apk; do
+            file_name="$(basename "$apk")"
+            abi="universal"
+            case "$file_name" in
+              *arm64-v8a*) abi="arm64-v8a" ;;
+              *armeabi-v7a*) abi="armeabi-v7a" ;;
+              *x86_64*) abi="x86_64" ;;
+              *x86*) abi="x86" ;;
+              *universal*) abi="universal" ;;
+            esac
+
+            cp "$apk" "release-artifacts/AsteriskMETA_${version_name}-${version_code}-${abi}.apk"
+          done
+
+          if ! find release-artifacts -type f -name "*.apk" | grep -q .; then
+            echo "::error::No release APKs were found under signed-apks."
+            exit 1
+          fi
+
+          echo "version_name=$version_name" >> "$GITHUB_OUTPUT"
+          echo "version_code=$version_code" >> "$GITHUB_OUTPUT"
+          ls -lh release-artifacts
+
+      - name: Upload arm64-v8a APK artifact
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          path: release-artifacts/*-arm64-v8a.apk
+          if-no-files-found: error
+          archive: false
+
+      - name: Upload armeabi-v7a APK artifact
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          path: release-artifacts/*-armeabi-v7a.apk
+          if-no-files-found: error
+          archive: false
+
+      - name: Upload x86 APK artifact
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          path: release-artifacts/*-x86.apk
+          if-no-files-found: error
+          archive: false
+
+      - name: Upload x86_64 APK artifact
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          path: release-artifacts/*-x86_64.apk
+          if-no-files-found: error
+          archive: false
+
+      - name: Upload universal APK artifact
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          path: release-artifacts/*-universal.apk
+          if-no-files-found: error
+          archive: false
+
+      - name: Create tag and release notes
+        if: steps.version.outputs.create_github_release == 'true'
+        id: release_info
+        shell: bash
+        env:
+          TAG_NAME: ${{ steps.version.outputs.tag_name }}
+          VERSION_NAME: ${{ steps.version.outputs.version_name }}
+          VERSION_CODE: ${{ steps.collect.outputs.version_code }}
+        run: |
+          set -euo pipefail
+
+          current_sha="$(git rev-parse HEAD)"
+          git fetch --tags --force
+
+          if git rev-parse -q --verify "refs/tags/$TAG_NAME" >/dev/null; then
+            tag_sha="$(git rev-list -n 1 "$TAG_NAME")"
+            if [ "$tag_sha" != "$current_sha" ]; then
+              echo "::error::Tag $TAG_NAME already exists at $tag_sha, but this workflow is running at $current_sha."
+              exit 1
+            fi
+            echo "Tag $TAG_NAME already exists on the current commit."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag -a "$TAG_NAME" -m "Release $TAG_NAME" "$current_sha"
+            git push origin "refs/tags/$TAG_NAME"
+          fi
+
+          mapfile -t release_tags < <(
+            git for-each-ref --format='%(refname:short)' refs/tags |
+              grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' || true
+          )
+
+          previous_candidates="$(mktemp)"
+          for candidate in "${release_tags[@]}"; do
+            if [ "$candidate" = "$TAG_NAME" ]; then
+              continue
+            fi
+            if git merge-base --is-ancestor "$candidate" "$current_sha"; then
+              count="$(git rev-list --count "${candidate}..${current_sha}")"
+              printf '%s\t%s\n' "$count" "$candidate" >> "$previous_candidates"
+            fi
+          done
+
+          previous_tag=""
+          if [ -s "$previous_candidates" ]; then
+            previous_tag="$(sort -n "$previous_candidates" | head -n 1 | cut -f2-)"
+          fi
+
+          range="$current_sha"
+          if [ -n "$previous_tag" ]; then
+            range="${previous_tag}..${current_sha}"
+          fi
+
+          tmp_changes="$(mktemp)"
+          git log --reverse --no-merges --pretty=format:"- %s ([%h](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/%H))" "$range" > "$tmp_changes"
+          if [ ! -s "$tmp_changes" ]; then
+            git log --reverse --pretty=format:"- %s ([%h](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/%H))" "$range" > "$tmp_changes"
+          fi
+
+          {
+            echo "## AsteriskMETA $TAG_NAME"
+            echo
+            echo "- Version name: $VERSION_NAME"
+            echo "- Version code: $VERSION_CODE"
+            echo
+
+            if [ -n "$previous_tag" ]; then
+              echo "### Changes since $previous_tag"
+              echo
+              echo "[Compare $previous_tag...$TAG_NAME](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/${previous_tag}...${TAG_NAME})"
+            else
+              echo "### Changes"
+            fi
+            echo
+
+            if [ -s "$tmp_changes" ]; then
+              cat "$tmp_changes"
+              echo
+            else
+              echo "- No commit changes found."
+            fi
+
+            echo
+            echo "### APK artifacts"
+            echo
+            find release-artifacts -maxdepth 1 -type f -name "*.apk" -printf "- %f\n" | sort
+          } > release-notes.md
+
+          echo "previous_tag=$previous_tag" >> "$GITHUB_OUTPUT"
+          cat release-notes.md
+
+      - name: Create GitHub Release
+        if: steps.version.outputs.create_github_release == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ steps.version.outputs.tag_name }}
+        run: |
+          set -euo pipefail
+
+          if gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            gh release upload "$TAG_NAME" release-artifacts/*.apk --clobber
+            gh release edit "$TAG_NAME" \
+              --title "AsteriskMETA $TAG_NAME" \
+              --notes-file release-notes.md \
+              --latest
+          else
+            gh release create "$TAG_NAME" release-artifacts/*.apk \
+              --title "AsteriskMETA $TAG_NAME" \
+              --notes-file release-notes.md \
+              --latest
+          fi
+
+      - name: Validate Telegram secrets
+        if: env.SEND_TO_TELEGRAM == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${TELEGRAM_BOT_TOKEN:-}" ]; then
+            echo "::error::Missing repository secret TELEGRAM_BOT_TOKEN."
+            exit 1
+          fi
+          if [ -z "${TELEGRAM_CHAT_ID:-}" ]; then
+            echo "::error::Missing repository secret TELEGRAM_CHAT_ID."
+            exit 1
+          fi
+
+      - name: Send Telegram release notification
+        if: env.SEND_TO_TELEGRAM == 'true'
+        shell: bash
+        env:
+          CREATE_GITHUB_RELEASE: ${{ steps.version.outputs.create_github_release }}
+          TAG_NAME: ${{ steps.version.outputs.tag_name }}
+        run: |
+          set -euo pipefail
+
+          mapfile -d '' apks < <(find release-artifacts -maxdepth 1 -type f -name '*.apk' -print0 | sort -z)
+          if [ "${#apks[@]}" -eq 0 ]; then
+            echo "::error::No APK files were found in release-artifacts before Telegram notification."
+            find release-artifacts -maxdepth 1 -type f -print || true
+            exit 1
+          fi
+
+          ls -lh release-artifacts
+          commit_id="$(git rev-parse HEAD)"
+          commit_short_id="$(git rev-parse --short=12 HEAD)"
+          commit_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/commit/$commit_id"
+          workflow_run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          commit_message="$(git log -1 --pretty=%B)"
+          commit_message="${commit_message//$'\r'/}"
+          if [ -z "${commit_message//[[:space:]]/}" ]; then
+            commit_message="(empty commit message)"
+          fi
+          if [ "${#commit_message}" -gt 650 ]; then
+            commit_message="${commit_message:0:650}"$'\n...'
+          fi
+          commit_message_html="$(printf '%s' "$commit_message" | python3 -c 'import html, sys; print(html.escape(sys.stdin.read(), quote=False), end="")')"
+          artifact_list="$(
+            for apk in "${apks[@]}"; do
+              apk_name="$(basename "$apk")"
+              apk_size="$(du -h "$apk" | awk '{print $1}')"
+              printf '%s  %s\n' "$apk_size" "$apk_name"
+            done
+          )"
+          artifact_list_html="$(printf '%s' "$artifact_list" | python3 -c 'import html, sys; print(html.escape(sys.stdin.read(), quote=False), end="")')"
+
+          release_link=""
+          if [ "${CREATE_GITHUB_RELEASE:-false}" = "true" ]; then
+            release_link="$(printf ' | <a href="%s">GitHub Release</a>' "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$TAG_NAME")"
+          fi
+
+          notification="$(printf 'AsteriskMETA\n\n%s\n\n%s\n\nArtifacts:\n<pre>%s</pre>\n\n<a href="%s">Workflow artifacts</a>%s | <a href="%s">Commit</a>' \
+            "$commit_message_html" \
+            "$commit_short_id" \
+            "$artifact_list_html" \
+            "$workflow_run_url" \
+            "$release_link" \
+            "$commit_url")"
+
+          args=(
+            --fail-with-body
+            -sS
+            -X POST
+            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage"
+            --form-string "chat_id=${TELEGRAM_CHAT_ID}"
+            --form-string "text=${notification}"
+            --form-string "parse_mode=HTML"
+            --form-string "disable_web_page_preview=true"
+          )
+
+          if [ -n "${TELEGRAM_MESSAGE_THREAD_ID:-}" ]; then
+            args+=(--form-string "message_thread_id=${TELEGRAM_MESSAGE_THREAD_ID}")
+          fi
+
+          curl "${args[@]}"
