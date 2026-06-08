@@ -87,7 +87,7 @@ jobs:
           java-version: "26"
 
       - name: Set up Go
-        uses: actions/setup-go@v6.1.0
+        uses: actions/setup-go@v6.4.0
         with:
           go-version: "stable"
           cache-dependency-path: cmfa-core/src/foss/golang/go.sum
