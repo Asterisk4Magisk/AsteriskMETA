@@ -237,29 +237,33 @@ private fun SettingsContent(
                     },
                     onRunModeChange = { index ->
                         if (index != appState.runMode && !runModeSwitchInProgress) {
-                            scope.launch {
-                                runModeSwitchInProgress = true
-                                try {
-                                    when (val result = switchRunModeUseCase.switchRunMode(appState, index)) {
-                                        is SwitchRunModeResult.Success -> {
-                                            updateAppState { state ->
-                                                state.copy(
-                                                    runMode = result.runMode,
-                                                    proxyRunning = result.proxyRunning,
-                                                    enableRootBootScript = false,
-                                                )
-                                            }
-                                        }
-
-                                        is SwitchRunModeResult.RootUnavailable -> {
-                                            updateAppState { state -> state.copy(proxyRunning = result.proxyRunning) }
-                                            tipNotifier.show(rootRequiredMessage)
-                                        }
-
-                                        is SwitchRunModeResult.StopFailed -> {
-                                            tipNotifier.showError(result.error, serviceStoppedMessage)
+                            runModeSwitchInProgress = true
+                            val stateSnapshot = appState
+                            val switchJob = services.appScope.launch {
+                                when (val result = switchRunModeUseCase.switchRunMode(stateSnapshot, index)) {
+                                    is SwitchRunModeResult.Success -> {
+                                        updateAppState { state ->
+                                            state.copy(
+                                                runMode = result.runMode,
+                                                proxyRunning = result.proxyRunning,
+                                                enableRootBootScript = false,
+                                            )
                                         }
                                     }
+
+                                    is SwitchRunModeResult.RootUnavailable -> {
+                                        updateAppState { state -> state.copy(proxyRunning = result.proxyRunning) }
+                                        tipNotifier.show(rootRequiredMessage)
+                                    }
+
+                                    is SwitchRunModeResult.StopFailed -> {
+                                        tipNotifier.showError(result.error, serviceStoppedMessage)
+                                    }
+                                }
+                            }
+                            scope.launch {
+                                try {
+                                    switchJob.join()
                                 } finally {
                                     runModeSwitchInProgress = false
                                 }
@@ -285,32 +289,36 @@ private fun SettingsContent(
                     onOpenTunSettings = { sheetState.openTunSettings(appState) },
                     onEnableRootBootScriptChange = { enabled ->
                         if (!rootBootScriptSwitchInProgress) {
+                            rootBootScriptSwitchInProgress = true
+                            val stateSnapshot = appState
+                            val bootScriptState = if (enabled) {
+                                stateSnapshot.withResolvedDynamicLocalProxyPort()
+                            } else {
+                                stateSnapshot
+                            }
+                            val bootScriptJob = services.appScope.launch {
+                                when (val result = rootBootScriptUseCase.setEnabled(bootScriptState, enabled)) {
+                                    RootBootScriptResult.Success -> {
+                                        updateAppState { state ->
+                                            state.copy(
+                                                enableRootBootScript = enabled,
+                                                localProxyPort = bootScriptState.localProxyPort,
+                                            )
+                                        }
+                                    }
+
+                                    RootBootScriptResult.RootUnavailable -> {
+                                        tipNotifier.show(rootRequiredMessage)
+                                    }
+
+                                    is RootBootScriptResult.Failed -> {
+                                        tipNotifier.showError(result.error, rootBootScriptFailedMessage)
+                                    }
+                                }
+                            }
                             scope.launch {
-                                rootBootScriptSwitchInProgress = true
                                 try {
-                                    val bootScriptState = if (enabled) {
-                                        appState.withResolvedDynamicLocalProxyPort()
-                                    } else {
-                                        appState
-                                    }
-                                    when (val result = rootBootScriptUseCase.setEnabled(bootScriptState, enabled)) {
-                                        RootBootScriptResult.Success -> {
-                                            updateAppState { state ->
-                                                state.copy(
-                                                    enableRootBootScript = enabled,
-                                                    localProxyPort = bootScriptState.localProxyPort,
-                                                )
-                                            }
-                                        }
-
-                                        RootBootScriptResult.RootUnavailable -> {
-                                            tipNotifier.show(rootRequiredMessage)
-                                        }
-
-                                        is RootBootScriptResult.Failed -> {
-                                            tipNotifier.showError(result.error, rootBootScriptFailedMessage)
-                                        }
-                                    }
+                                    bootScriptJob.join()
                                 } finally {
                                     rootBootScriptSwitchInProgress = false
                                 }

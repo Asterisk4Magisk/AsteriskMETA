@@ -14,6 +14,7 @@ import app.urlFor
 import engine.proxy.LocalProxyLoopbackAddress
 import engine.proxy.LocalProxyRuntime
 import engine.network.isPort
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import features.resources.ResourceFileUpdateOptions
@@ -99,6 +100,7 @@ internal class AndroidResourceFileRepository(
                     }
                     download.applyPermissions()
                 } catch (error: Throwable) {
+                    if (error is CancellationException) throw error
                     if (error is AndroidResourceFileDownloadCancelledException) throw error
                     throw ResourceFileDownloadFailedException(download.displayName, error)
                 }
@@ -108,7 +110,9 @@ internal class AndroidResourceFileRepository(
         result.onSuccess {
             runCatching { notifier.showComplete() }
         }.onFailure { error ->
-            if (error is AndroidResourceFileDownloadCancelledException) {
+            if (error is CancellationException) {
+                throw error
+            } else if (error is AndroidResourceFileDownloadCancelledException) {
                 AndroidResourceFileLogger.info("Resource file update cancelled")
                 runCatching { notifier.showCancelled() }
             } else {
@@ -117,6 +121,9 @@ internal class AndroidResourceFileRepository(
             }
         }
         return result.getOrElse { error ->
+            if (error is CancellationException) {
+                throw error
+            }
             if (error is AndroidResourceFileDownloadCancelledException) {
                 throw AndroidResourceFileDownloadCancelledException(
                     appContext.getString(R.string.resource_file_download_notification_cancelled),

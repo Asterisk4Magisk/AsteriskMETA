@@ -205,7 +205,7 @@ fun MihomoProfileListPage(
         }
         services.mihomoProfileContentStore.delete(profile)
         if (selectedProfileDeleted) {
-            scope.launch {
+            services.appScope.launch {
                 stopProxyServiceAfterProfileChange(
                     appState = previousState,
                     services = services,
@@ -227,7 +227,7 @@ fun MihomoProfileListPage(
                 state.copy(selectedMihomoProfileId = profile.id)
             }
         }
-        scope.launch {
+        services.appScope.launch {
             stopProxyServiceAfterProfileChange(
                 appState = previousState,
                 services = services,
@@ -292,32 +292,36 @@ fun MihomoProfileListPage(
         if (!profile.hasContent || profile.id in syncingProfileIds) {
             return
         }
-        scope.launch {
-            syncingProfileIds = syncingProfileIds + profile.id
-            try {
-                runCatching {
-                    val content = withContext(Dispatchers.IO) {
-                        services.mihomoProfileContentStore.read(profile)
-                    }
-                    services.mihomoProviderFetcher.refreshProxyProviders(
-                        profileContent = content,
-                        sourceUrl = profile.url,
-                    )
-                }.onSuccess { result ->
-                    services.tipNotifier.show(
-                        if (result.totalCount == 0) {
-                            providerSyncEmptyMessage
-                        } else {
-                            providerSyncResultMessage.format(
-                                result.totalCount,
-                                result.successCount,
-                                result.failedCount,
-                            )
-                        },
-                    )
-                }.onFailure { error ->
-                    services.tipNotifier.showError(error, providerSyncFailedMessage)
+        syncingProfileIds = syncingProfileIds + profile.id
+        val syncJob = services.appScope.launch {
+            runCatching {
+                val content = withContext(Dispatchers.IO) {
+                    services.mihomoProfileContentStore.read(profile)
                 }
+                services.mihomoProviderFetcher.refreshProxyProviders(
+                    profileContent = content,
+                    sourceUrl = profile.url,
+                )
+            }.onSuccess { result ->
+                services.tipNotifier.show(
+                    if (result.totalCount == 0) {
+                        providerSyncEmptyMessage
+                    } else {
+                        providerSyncResultMessage.format(
+                            result.totalCount,
+                            result.successCount,
+                            result.failedCount,
+                        )
+                    },
+                )
+            }.onFailure { error ->
+                if (error is CancellationException) throw error
+                services.tipNotifier.showError(error, providerSyncFailedMessage)
+            }
+        }
+        scope.launch {
+            try {
+                syncJob.join()
             } finally {
                 syncingProfileIds = syncingProfileIds - profile.id
             }
@@ -345,7 +349,7 @@ fun MihomoProfileListPage(
     }
 
     fun importFile() {
-        scope.launch {
+        services.appScope.launch {
             runCatching {
                 val uri = services.mihomoProfileFilePicker() ?: return@launch
                 val imported = withContext(Dispatchers.IO) {
@@ -372,10 +376,12 @@ fun MihomoProfileListPage(
                         sourceUrl = savedProfile.url,
                     )
                 }.onFailure { error ->
+                    if (error is CancellationException) throw error
                     services.tipNotifier.showError(error, providerPrepareFailedMessage)
                 }
                 services.tipNotifier.show(importedMessage)
             }.onFailure { error ->
+                if (error is CancellationException) throw error
                 services.tipNotifier.showError(error, importFileFailedMessage)
             }
         }

@@ -10,6 +10,7 @@ import engine.mihomo.mihomoRemoteProviderFiles
 import features.resources.runtime.prepareMihomoResourceFilePaths
 import utils.writeAtomically
 import java.io.File
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
@@ -90,6 +91,8 @@ internal class AndroidMihomoProviderFetcher(
                         force = false,
                         reportStatus = {},
                     ).await()
+                }.onFailure { error ->
+                    if (error is CancellationException) throw error
                 }
                 copyProcessingProvidersBack(processingDir = processingDir, dataDir = dataDir)
 

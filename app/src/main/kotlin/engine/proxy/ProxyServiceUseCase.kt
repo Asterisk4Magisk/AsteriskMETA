@@ -5,6 +5,7 @@ package engine.proxy
 
 import app.AppState
 import engine.mihomo.requireUsableMihomoProfile
+import kotlin.coroutines.cancellation.CancellationException
 
 internal class ProxyServiceUseCase(
     private val proxyEngine: AndroidProxyEngine,
@@ -23,7 +24,7 @@ internal class ProxyServiceUseCase(
             proxyEngine.restart(ProxyEngineStartRequest(state))
         }.fold(
             onSuccess = { status -> ProxyServiceResult.Success(proxyRunning = status.running, appState = status.appState) },
-            onFailure = { error -> ProxyServiceResult.Failed(error) },
+            onFailure = { error -> error.toProxyServiceFailure() },
         )
     }
 
@@ -33,16 +34,21 @@ internal class ProxyServiceUseCase(
             proxyEngine.start(ProxyEngineStartRequest(state))
         }.fold(
             onSuccess = { status -> ProxyServiceResult.Success(proxyRunning = status.running, appState = status.appState) },
-            onFailure = { error -> ProxyServiceResult.Failed(error) },
+            onFailure = { error -> error.toProxyServiceFailure() },
         )
     }
 
     suspend fun stop(runMode: Int): ProxyServiceResult {
         return runCatching { proxyEngine.stop(runMode) }.fold(
             onSuccess = { status -> ProxyServiceResult.Success(proxyRunning = status.running, appState = status.appState) },
-            onFailure = { error -> ProxyServiceResult.Failed(error) },
+            onFailure = { error -> error.toProxyServiceFailure() },
         )
     }
+}
+
+private fun Throwable.toProxyServiceFailure(): ProxyServiceResult.Failed {
+    if (this is CancellationException) throw this
+    return ProxyServiceResult.Failed(this)
 }
 
 internal sealed interface ProxyServiceResult {

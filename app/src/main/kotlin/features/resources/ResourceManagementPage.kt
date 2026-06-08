@@ -38,6 +38,8 @@ import androidx.compose.ui.Modifier
 import app.R
 import ui.components.BackNavigationIcon
 import ui.components.NavigationIcon
+import kotlin.coroutines.cancellation.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.launch
 import androidx.compose.ui.res.stringResource
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
@@ -90,20 +92,34 @@ fun ResourceManagementPage(
         successMessage: String?,
         failureStatusCustomResourceFiles: (() -> List<CustomResourceFileState>)? = null,
     ) {
-        scope.launch {
-            updating = true
+        if (updating) return
+        updating = true
+        val result = CompletableDeferred<ResourceFilesStatus?>()
+        services.appScope.launch {
             try {
-                action()?.let {
-                    status = it
+                val nextStatus = action()
+                if (nextStatus != null) {
                     successMessage?.let { message -> tipNotifier.show(message) }
                 }
+                result.complete(nextStatus)
+            } catch (error: CancellationException) {
+                result.completeExceptionally(error)
+                throw error
             } catch (error: Throwable) {
-                failureStatusCustomResourceFiles?.let { customResourceFiles ->
+                val failureStatus = failureStatusCustomResourceFiles?.let { customResourceFiles ->
                     runCatching {
-                        status = resourceFileUseCase.status(customResourceFiles())
-                    }
+                        resourceFileUseCase.status(customResourceFiles())
+                    }.getOrNull()
                 }
                 tipNotifier.showError(error)
+                result.complete(failureStatus)
+            }
+        }
+        scope.launch {
+            try {
+                result.await()?.let {
+                    status = it
+                }
             } finally {
                 updating = false
             }

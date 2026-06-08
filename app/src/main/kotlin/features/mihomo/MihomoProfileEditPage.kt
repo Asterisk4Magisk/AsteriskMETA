@@ -52,6 +52,8 @@ import engine.mihomo.sha256Hex
 import features.subscription.toRawHttpsSubscriptionInstallConfigOrNull
 import features.subscription.usecase.launchMihomoProfileSubscriptionUpdate
 import features.subscription.usecase.subscriptionUpdateMessage
+import kotlin.coroutines.cancellation.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -214,94 +216,109 @@ fun MihomoProfileEditPage(
             saving = true
             val profileSnapshot = targetProfile
             val contentText = contentValue.text
-            scope.launch {
-                val saved = runCatching {
-                    val contentChanged = withContext(Dispatchers.IO) {
-                        profileSnapshot == null || profileSnapshot.contentSha256 != contentText.sha256Hex()
-                    }
-                    val contentRef = withContext(Dispatchers.IO) {
-                        when {
-                            contentText.isBlank() -> {
-                                if (profileSnapshot?.hasContent == true) {
-                                    services.mihomoProfileContentStore.delete(profileSnapshot)
-                                }
-                                null
-                            }
-                            contentChanged && profileSnapshot != null -> services.mihomoProfileContentStore.write(
-                                profileSnapshot,
-                                contentText,
-                            )
-                            contentChanged -> services.mihomoProfileContentStore.writeNew(contentText)
-                            else -> null
+            val shouldPop = CompletableDeferred<Boolean>()
+            services.appScope.launch {
+                try {
+                    val saved = runCatching {
+                        val contentChanged = withContext(Dispatchers.IO) {
+                            profileSnapshot == null || profileSnapshot.contentSha256 != contentText.sha256Hex()
                         }
+                        val contentRef = withContext(Dispatchers.IO) {
+                            when {
+                                contentText.isBlank() -> {
+                                    if (profileSnapshot?.hasContent == true) {
+                                        services.mihomoProfileContentStore.delete(profileSnapshot)
+                                    }
+                                    null
+                                }
+                                contentChanged && profileSnapshot != null -> services.mihomoProfileContentStore.write(
+                                    profileSnapshot,
+                                    contentText,
+                                )
+                                contentChanged -> services.mihomoProfileContentStore.writeNew(contentText)
+                                else -> null
+                            }
+                        }
+                        val localProfileModified = profileSnapshot == null ||
+                            profileSnapshot.type != MihomoProfileType.File ||
+                            profileSnapshot.name != cleanName ||
+                            contentChanged ||
+                            profileSnapshot.overrideScriptId != selectedOverrideScriptId
+                        val savedProfile = if (profileSnapshot != null) {
+                            profileSnapshot.copy(
+                                name = cleanName,
+                                type = MihomoProfileType.File,
+                                url = "",
+                                contentPath = when {
+                                    contentText.isBlank() -> ""
+                                    contentRef != null -> contentRef.path
+                                    else -> profileSnapshot.contentPath
+                                },
+                                contentSha256 = when {
+                                    contentText.isBlank() -> ""
+                                    contentRef != null -> contentRef.sha256
+                                    else -> profileSnapshot.contentSha256
+                                },
+                                contentSizeBytes = when {
+                                    contentText.isBlank() -> 0L
+                                    contentRef != null -> contentRef.sizeBytes
+                                    else -> profileSnapshot.contentSizeBytes
+                                },
+                                lastUpdatedAtMillis = if (localProfileModified) {
+                                    System.currentTimeMillis()
+                                } else {
+                                    profileSnapshot.lastUpdatedAtMillis
+                                },
+                                overrideScriptId = selectedOverrideScriptId,
+                            )
+                        } else {
+                            MihomoProfileState(
+                                id = DefaultMihomoProfileId,
+                                name = cleanName,
+                                type = MihomoProfileType.File,
+                                contentPath = contentRef?.path.orEmpty(),
+                                contentSha256 = contentRef?.sha256.orEmpty(),
+                                contentSizeBytes = contentRef?.sizeBytes ?: 0L,
+                                lastUpdatedAtMillis = System.currentTimeMillis(),
+                                overrideScriptId = selectedOverrideScriptId,
+                            )
+                        }
+                        saveProfile(savedProfile, profileSnapshot == null)
+                    }.onFailure { error ->
+                        if (error is CancellationException) throw error
+                        services.tipNotifier.showError(error, providerPrepareFailedMessage)
+                    }.getOrNull()
+                    if (saved == null) {
+                        shouldPop.complete(false)
+                        return@launch
                     }
-                    val localProfileModified = profileSnapshot == null ||
-                        profileSnapshot.type != MihomoProfileType.File ||
-                        profileSnapshot.name != cleanName ||
-                        contentChanged ||
-                        profileSnapshot.overrideScriptId != selectedOverrideScriptId
-                    val savedProfile = if (profileSnapshot != null) {
-                        profileSnapshot.copy(
-                            name = cleanName,
-                            type = MihomoProfileType.File,
-                            url = "",
-                            contentPath = when {
-                                contentText.isBlank() -> ""
-                                contentRef != null -> contentRef.path
-                                else -> profileSnapshot.contentPath
-                            },
-                            contentSha256 = when {
-                                contentText.isBlank() -> ""
-                                contentRef != null -> contentRef.sha256
-                                else -> profileSnapshot.contentSha256
-                            },
-                            contentSizeBytes = when {
-                                contentText.isBlank() -> 0L
-                                contentRef != null -> contentRef.sizeBytes
-                                else -> profileSnapshot.contentSizeBytes
-                            },
-                            lastUpdatedAtMillis = if (localProfileModified) {
-                                System.currentTimeMillis()
-                            } else {
-                                profileSnapshot.lastUpdatedAtMillis
-                            },
-                            overrideScriptId = selectedOverrideScriptId,
-                        )
-                    } else {
-                        MihomoProfileState(
-                            id = DefaultMihomoProfileId,
-                            name = cleanName,
-                            type = MihomoProfileType.File,
-                            contentPath = contentRef?.path.orEmpty(),
-                            contentSha256 = contentRef?.sha256.orEmpty(),
-                            contentSizeBytes = contentRef?.sizeBytes ?: 0L,
-                            lastUpdatedAtMillis = System.currentTimeMillis(),
-                            overrideScriptId = selectedOverrideScriptId,
-                        )
+                    if (!saved.hasContent) {
+                        shouldPop.complete(true)
+                        return@launch
                     }
-                    saveProfile(savedProfile, profileSnapshot == null)
-                }.onFailure { error ->
-                    services.tipNotifier.showError(error, providerPrepareFailedMessage)
-                }.getOrNull()
-                if (saved == null) {
+                    runCatching {
+                        services.mihomoProviderFetcher.fetchMissingProviders(
+                            profileContent = contentText,
+                            sourceUrl = saved.url,
+                        )
+                    }.onFailure { error ->
+                        if (error is CancellationException) throw error
+                        services.tipNotifier.showError(error, providerPrepareFailedMessage)
+                    }
+                    shouldPop.complete(true)
+                } catch (error: CancellationException) {
+                    shouldPop.completeExceptionally(error)
+                    throw error
+                }
+            }
+            scope.launch {
+                try {
+                    if (shouldPop.await()) {
+                        navigator.pop()
+                    }
+                } finally {
                     saving = false
-                    return@launch
                 }
-                if (!saved.hasContent) {
-                    saving = false
-                    navigator.pop()
-                    return@launch
-                }
-                runCatching {
-                    services.mihomoProviderFetcher.fetchMissingProviders(
-                        profileContent = contentText,
-                        sourceUrl = saved.url,
-                    )
-                }.onFailure { error ->
-                    services.tipNotifier.showError(error, providerPrepareFailedMessage)
-                }
-                saving = false
-                navigator.pop()
             }
             return
         }

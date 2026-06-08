@@ -162,11 +162,15 @@ fun MihomoDashboardPage(
 
     fun runProxyOperation() {
         if (operationInProgress) return
+        val stateSnapshot = appState
+        val wasRunning = stateSnapshot.proxyRunning
+        operationInProgress = true
+        val operationJob = services.appScope.launch {
+            handleProxyServiceResult(proxyServiceUseCase.toggle(stateSnapshot), wasRunning)
+        }
         scope.launch {
-            val wasRunning = appState.proxyRunning
-            operationInProgress = true
             try {
-                handleProxyServiceResult(proxyServiceUseCase.toggle(appState), wasRunning)
+                operationJob.join()
             } finally {
                 operationInProgress = false
             }
@@ -195,7 +199,7 @@ fun MihomoDashboardPage(
                 state.copy(selectedMihomoProfileId = profileId)
             }
         }
-        scope.launch {
+        services.appScope.launch {
             stopProxyServiceAfterProfileChange(
                 appState = previousState,
                 services = services,

@@ -12,6 +12,9 @@ import engine.mihomo.clearCoreLogs
 import engine.mihomo.startCoreLogTailers
 import features.logs.AndroidAppLogger
 import features.logs.CoreLogFileTailer
+import kotlin.coroutines.cancellation.CancellationException
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import system.AndroidRootShellGateway
 import java.io.File
 
@@ -50,11 +53,8 @@ internal class RootModeEngine<Config : RootModeStartConfig>(
                 runner.uninstallBootScript(config.root)
             }
         }.onFailure { error ->
-            runCatching { runner.stop(config.root.runtimeLayout) }
-                .onFailure { stopError -> AndroidAppLogger.warn(logTag, "Failed to clean up $modeName after startup failure", stopError) }
-            LocalProxyRuntime.clear()
-            logFileTailers.forEach { tailer -> tailer.stop() }
-            logFileTailers = emptyList()
+            cleanUpAfterStartupFailure(config, error)
+            if (error is CancellationException) throw error
             AndroidAppLogger.error(logTag, "Failed to start $modeName mode", error)
             throw IllegalStateException(
                 context.getString(startFailedErrorResId, error.message.orEmpty()),
@@ -70,10 +70,26 @@ internal class RootModeEngine<Config : RootModeStartConfig>(
         runCatching {
             runner.stop(context.prepareRootRuntimeLayout())
         }.onFailure { error ->
+            if (error is CancellationException) throw error
             AndroidAppLogger.warn(logTag, "Failed to stop $modeName mode", error)
         }
         LocalProxyRuntime.clear()
         return status()
+    }
+
+    private suspend fun cleanUpAfterStartupFailure(config: Config, startupError: Throwable) {
+        withContext(NonCancellable) {
+            runCatching { runner.stop(config.root.runtimeLayout) }
+                .onFailure { stopError ->
+                    AndroidAppLogger.warn(logTag, "Failed to clean up $modeName after startup failure", stopError)
+                }
+            LocalProxyRuntime.clear()
+            logFileTailers.forEach { tailer -> tailer.stop() }
+            logFileTailers = emptyList()
+            if (startupError is CancellationException) {
+                AndroidAppLogger.info(logTag, "$modeName startup cancelled")
+            }
+        }
     }
 
     suspend fun ownsRuntime(): Boolean {
