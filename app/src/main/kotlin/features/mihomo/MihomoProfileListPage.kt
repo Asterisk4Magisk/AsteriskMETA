@@ -65,10 +65,9 @@ import engine.mihomo.MihomoProfileContentStore
 import engine.mihomo.MihomoProfileFactory
 import features.subscription.SubscriptionInstallConfig
 import features.subscription.toSubscriptionInstallConfigOrNull
+import features.subscription.usecase.launchMihomoProfileSubscriptionUpdate
 import features.subscription.usecase.subscriptionUpdateMessage
-import features.subscription.usecase.toSubscriptionFetchOptions
-import features.subscription.usecase.updateSubscriptions
-import features.subscription.usecase.withUpdatedMihomoProfiles
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -254,25 +253,15 @@ fun MihomoProfileListPage(
         }
     }
 
-    fun syncProfile(profile: MihomoProfileState) {
-        if (profile.type != MihomoProfileType.Url || profile.url.isBlank() || profile.id in syncingProfileIds) return
-        scope.launch {
-            syncingProfileIds = syncingProfileIds + profile.id
-            try {
-                val snapshot = appState
-                val result = updateSubscriptions(
-                    profiles = listOf(profile),
-                    subscriptionFetcher = services.subscriptionFetcher,
-                    contentStore = services.mihomoProfileContentStore,
-                    providerFetcher = services.mihomoProviderFetcher,
-                    fetchOptions = { snapshot.toSubscriptionFetchOptions(it) },
-                )
-                updateAppState { state ->
-                    state.withUpdatedMihomoProfiles(
-                        updates = result.updates,
-                        updatedAtMillis = result.updatedAtMillis,
-                    )
-                }
+    fun launchProfileSubscriptionUpdate(profile: MihomoProfileState) =
+        services.appScope.launchMihomoProfileSubscriptionUpdate(
+            profiles = listOf(profile),
+            appStateSnapshot = appState,
+            subscriptionFetcher = services.subscriptionFetcher,
+            contentStore = services.mihomoProfileContentStore,
+            providerFetcher = services.mihomoProviderFetcher,
+            updateAppState = updateAppState,
+            onResult = { result ->
                 services.tipNotifier.show(
                     subscriptionUpdateMessage(
                         result = result,
@@ -280,6 +269,19 @@ fun MihomoProfileListPage(
                         failedTemplate = syncFailedMessage,
                     ),
                 )
+            },
+            onFailure = { error ->
+                services.tipNotifier.showError(error, syncFailedMessage)
+            },
+        )
+
+    fun syncProfile(profile: MihomoProfileState) {
+        if (profile.type != MihomoProfileType.Url || profile.url.isBlank() || profile.id in syncingProfileIds) return
+        syncingProfileIds = syncingProfileIds + profile.id
+        val syncJob = launchProfileSubscriptionUpdate(profile)
+        scope.launch {
+            try {
+                syncJob.join()
             } finally {
                 syncingProfileIds = syncingProfileIds - profile.id
             }
@@ -322,8 +324,8 @@ fun MihomoProfileListPage(
         }
     }
 
-    fun importSubscription(config: SubscriptionInstallConfig) {
-        val savedProfile = saveProfile(
+    fun saveSubscriptionProfile(config: SubscriptionInstallConfig): MihomoProfileState {
+        return saveProfile(
             profile = MihomoProfileState(
                 id = DefaultMihomoProfileId,
                 name = config.name,
@@ -335,6 +337,10 @@ fun MihomoProfileListPage(
             ),
             isNew = true,
         )
+    }
+
+    fun importSubscription(config: SubscriptionInstallConfig) {
+        val savedProfile = saveSubscriptionProfile(config)
         syncProfile(savedProfile)
     }
 
@@ -376,14 +382,16 @@ fun MihomoProfileListPage(
     }
 
     fun importQrCode() {
-        scope.launch {
+        services.appScope.launch {
             runCatching {
                 val text = services.qrCodeScanner()?.trim().orEmpty()
                 if (text.isBlank()) return@launch
                 val config = text.toSubscriptionInstallConfigOrNull()
                     ?: error(invalidQrMessage)
-                importSubscription(config)
+                val savedProfile = saveSubscriptionProfile(config)
+                launchProfileSubscriptionUpdate(savedProfile)
             }.onFailure { error ->
+                if (error is CancellationException) throw error
                 services.tipNotifier.showError(error, importQrFailedMessage)
             }
         }

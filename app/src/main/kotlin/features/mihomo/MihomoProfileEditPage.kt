@@ -50,10 +50,8 @@ import app.collectAppState
 import app.nextAvailableMihomoProfileId
 import engine.mihomo.sha256Hex
 import features.subscription.toRawHttpsSubscriptionInstallConfigOrNull
+import features.subscription.usecase.launchMihomoProfileSubscriptionUpdate
 import features.subscription.usecase.subscriptionUpdateMessage
-import features.subscription.usecase.toSubscriptionFetchOptions
-import features.subscription.usecase.updateSubscriptions
-import features.subscription.usecase.withUpdatedMihomoProfiles
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -183,30 +181,27 @@ fun MihomoProfileEditPage(
         return savedProfile
     }
 
-    suspend fun syncProfile(profile: MihomoProfileState) {
-        if (profile.type != MihomoProfileType.Url || profile.url.isBlank()) return
-        val snapshot = appState
-        val result = updateSubscriptions(
+    fun launchProfileSubscriptionUpdate(profile: MihomoProfileState) =
+        services.appScope.launchMihomoProfileSubscriptionUpdate(
             profiles = listOf(profile),
+            appStateSnapshot = appState,
             subscriptionFetcher = services.subscriptionFetcher,
             contentStore = services.mihomoProfileContentStore,
             providerFetcher = services.mihomoProviderFetcher,
-            fetchOptions = { snapshot.toSubscriptionFetchOptions(it) },
+            updateAppState = updateAppState,
+            onResult = { result ->
+                services.tipNotifier.show(
+                    subscriptionUpdateMessage(
+                        result = result,
+                        successTemplate = syncSuccessMessage,
+                        failedTemplate = syncFailedMessage,
+                    ),
+                )
+            },
+            onFailure = { error ->
+                services.tipNotifier.showError(error, syncFailedMessage)
+            },
         )
-        updateAppState { state ->
-            state.withUpdatedMihomoProfiles(
-                updates = result.updates,
-                updatedAtMillis = result.updatedAtMillis,
-            )
-        }
-        services.tipNotifier.show(
-            subscriptionUpdateMessage(
-                result = result,
-                successTemplate = syncSuccessMessage,
-                failedTemplate = syncFailedMessage,
-            ),
-        )
-    }
 
     fun onSave() {
         val cleanName = nameState.text.toString().trim()
@@ -359,14 +354,14 @@ fun MihomoProfileEditPage(
             return
         }
         saving = true
+        val syncJob = launchProfileSubscriptionUpdate(saved)
         scope.launch {
-            runCatching {
-                syncProfile(saved)
-            }.onFailure { error ->
-                services.tipNotifier.showError(error, syncFailedMessage)
+            try {
+                syncJob.join()
+            } finally {
+                saving = false
+                navigator.pop()
             }
-            saving = false
-            navigator.pop()
         }
     }
 

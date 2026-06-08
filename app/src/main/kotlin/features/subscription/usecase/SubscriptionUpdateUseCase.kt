@@ -5,19 +5,23 @@ package features.subscription.usecase
 
 import app.AppState
 import app.MihomoProfileState
-import engine.network.toPortOrNull
 import engine.mihomo.MihomoProfileContentRef
 import engine.mihomo.MihomoProfileContentStore
+import engine.network.toPortOrNull
 import features.logs.AndroidAppLogger
 import features.subscription.runtime.AndroidSubscriptionFetchOptions
-import features.subscription.runtime.AndroidSubscriptionFetcher
 import features.subscription.runtime.AndroidMihomoProviderFetcher
+import features.subscription.runtime.AndroidSubscriptionFetcher
 import java.net.URI
+import kotlin.coroutines.cancellation.CancellationException
+import kotlin.time.Clock
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import ui.text.formatTemplate
-import kotlin.time.Clock
 
 private const val LogTag = "SubscriptionUpdateUseCase"
 
@@ -93,12 +97,48 @@ private suspend fun updateMihomoProfile(
             }
         }
     }.onFailure { error ->
+        if (error is CancellationException) throw error
         AndroidAppLogger.warn(
             LogTag,
             "Subscription update failed ${profile.logIdentity()}",
             error,
         )
     }.getOrNull()
+}
+
+internal fun CoroutineScope.launchMihomoProfileSubscriptionUpdate(
+    profiles: List<MihomoProfileState>,
+    appStateSnapshot: AppState,
+    subscriptionFetcher: AndroidSubscriptionFetcher,
+    contentStore: MihomoProfileContentStore,
+    providerFetcher: AndroidMihomoProviderFetcher? = null,
+    updateAppState: ((AppState) -> AppState) -> Unit,
+    onResult: suspend (MihomoProfileSubscriptionUpdateResult) -> Unit = {},
+    onFailure: suspend (Throwable) -> Unit = {},
+): Job = launch {
+    runCatching {
+        val result = updateSubscriptions(
+            profiles = profiles,
+            subscriptionFetcher = subscriptionFetcher,
+            contentStore = contentStore,
+            providerFetcher = providerFetcher,
+            fetchOptions = { profile -> appStateSnapshot.toSubscriptionFetchOptions(profile) },
+        )
+        if (result.updates.isNotEmpty()) {
+            updateAppState { state ->
+                state.withUpdatedMihomoProfiles(
+                    updates = result.updates,
+                    updatedAtMillis = result.updatedAtMillis,
+                )
+            }
+        }
+        result
+    }.onSuccess { result ->
+        onResult(result)
+    }.onFailure { error ->
+        if (error is CancellationException) throw error
+        onFailure(error)
+    }
 }
 
 internal fun AppState.toSubscriptionFetchOptions(profile: MihomoProfileState): AndroidSubscriptionFetchOptions {
