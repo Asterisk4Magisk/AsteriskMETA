@@ -69,6 +69,7 @@ private fun evaluateOverrideScript(script: String): String {
     val context = Context.enter()
     return try {
         context.setLanguageVersion(Context.VERSION_ES6)
+        @Suppress("DEPRECATION")
         context.setOptimizationLevel(-1)
         val scope = context.initStandardObjects()
         Context.toString(context.evaluateString(scope, script, "asteriskmeta-profile-override.js", 1, null))
