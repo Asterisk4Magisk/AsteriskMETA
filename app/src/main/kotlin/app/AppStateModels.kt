@@ -68,7 +68,7 @@ data class MihomoSubscriptionInfo(
 }
 
 const val DefaultMihomoProfileId = 0
-const val DefaultMihomoProfileUserAgent = "Clash Meta"
+const val DefaultMihomoProfileUserAgent = "clash.meta"
 const val DefaultMihomoProfileUpdateInterval = ""
 const val DefaultMihomoOverrideScriptId = 0
 const val DefaultMihomoOverrideScript = """const main = (config) => {
