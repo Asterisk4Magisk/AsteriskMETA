@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import app.AppState
 import data.AndroidAppStateStore
+import engine.mihomo.MihomoProfileContentStore
 import features.subscription.AutoSubscriptionCheckIntervalMillis
 import features.subscription.AutoSubscriptionRetryDelayMillis
 import features.subscription.runtime.AndroidMihomoProviderFetcher
@@ -22,10 +23,11 @@ import kotlin.time.Clock
 internal fun SubscriptionAutoUpdater(
     stateStore: AndroidAppStateStore,
     subscriptionFetcher: AndroidSubscriptionFetcher,
+    contentStore: MihomoProfileContentStore,
     providerFetcher: AndroidMihomoProviderFetcher,
     updateAppState: ((AppState) -> AppState) -> Unit,
 ) {
-    LaunchedEffect(stateStore, subscriptionFetcher, providerFetcher) {
+    LaunchedEffect(stateStore, subscriptionFetcher, contentStore, providerFetcher) {
         val lastAttemptMillisByProfileId = mutableMapOf<Int, Long>()
         while (true) {
             val currentState = stateStore.state.value
@@ -40,6 +42,7 @@ internal fun SubscriptionAutoUpdater(
                 val result = updateSubscriptions(
                     profiles = dueProfiles,
                     subscriptionFetcher = subscriptionFetcher,
+                    contentStore = contentStore,
                     providerFetcher = providerFetcher,
                     fetchOptions = { profile -> currentState.toSubscriptionFetchOptions(profile) },
                 )

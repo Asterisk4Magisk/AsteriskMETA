@@ -137,7 +137,7 @@ fun MihomoProxyPage(
     LaunchedEffect(
         hasUsableProfile,
         appState.selectedMihomoProfileId,
-        appState.selectedMihomoProfileContentHash(),
+        appState.selectedMihomoProfileContentSignature(),
         appState.selectedMihomoProfileOverrideHash(),
         appState.runMode,
     ) {
@@ -150,14 +150,13 @@ fun MihomoProxyPage(
             File(appContext.prepareMihomoResourceFilePaths().dataDir)
         }
         fallbackProxies = withContext(Dispatchers.IO) {
-            runCatching { parseMihomoProxyState(MihomoProfileFactory.buildProfile(snapshot), dataDir) }
+            runCatching { parseMihomoProxyState(MihomoProfileFactory.buildProfile(appContext, snapshot), dataDir) }
                 .getOrDefault(MihomoProxiesState())
         }
     }
     val proxies = when {
         !hasProfiles -> MihomoProxiesState()
-        runtimeState.proxies.groups.isNotEmpty() -> runtimeState.proxies
-        else -> fallbackProxies
+        else -> runtimeState.proxies.withFallbackGroupStructure(fallbackProxies)
     }
     val runtimeAvailable = hasUsableProfile && proxies.groups.isNotEmpty()
     val groupNames = proxies.groups.map(MihomoProxyGroup::name)
@@ -228,6 +227,7 @@ fun MihomoProxyPage(
     }
 
     fun selectProxy(group: MihomoProxyGroup, node: MihomoProxyNode) {
+        if (!group.supportsManualSelection()) return
         if (!requireRuntime()) return
         val pendingProxyName = pendingSelections[group.name]
         if (pendingProxyName == node.name || (pendingProxyName == null && group.now == node.name)) return
@@ -358,11 +358,13 @@ fun MihomoProxyPage(
                                 ) {
                                     row.forEach { nodeName ->
                                         val node = proxies.node(nodeName)
+                                        val selectionEnabled = group.supportsManualSelection()
                                         val selectedNodeName = pendingSelections[group.name] ?: group.now
                                         MihomoProxyNodeCard(
                                             modifier = Modifier.weight(1f),
                                             node = node,
-                                            selected = selectedNodeName == node.name,
+                                            selected = selectionEnabled && selectedNodeName == node.name,
+                                            selectionEnabled = selectionEnabled,
                                             runtimeAvailable = runtimeAvailable,
                                             testing = testingTarget == node.name,
                                             onSelect = { selectProxy(group, node) },
@@ -566,20 +568,14 @@ private fun filteredProxyNodeNames(
 private fun MihomoProxyNodeCard(
     node: MihomoProxyNode,
     selected: Boolean,
+    selectionEnabled: Boolean,
     runtimeAvailable: Boolean,
     testing: Boolean,
     onSelect: () -> Unit,
     onDelayTest: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Card(
-        modifier = modifier.height(MihomoProxyNodeCardHeight),
-        colors = CardDefaults.defaultColors(color = mihomoProxyNodeCardColor(selected)),
-        insideMargin = PaddingValues(MihomoProxyNodeCardPadding),
-        onClick = onSelect,
-        showIndication = false,
-        pressFeedbackType = PressFeedbackType.Tilt,
-    ) {
+    val content: @Composable () -> Unit = {
         Column(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.SpaceBetween,
@@ -601,6 +597,26 @@ private fun MihomoProxyNodeCard(
                 enabled = runtimeAvailable && !testing,
                 onClick = onDelayTest,
             )
+        }
+    }
+    if (selectionEnabled) {
+        Card(
+            modifier = modifier.height(MihomoProxyNodeCardHeight),
+            colors = CardDefaults.defaultColors(color = mihomoProxyNodeCardColor(selected)),
+            insideMargin = PaddingValues(MihomoProxyNodeCardPadding),
+            onClick = onSelect,
+            showIndication = false,
+            pressFeedbackType = PressFeedbackType.Tilt,
+        ) {
+            content()
+        }
+    } else {
+        Card(
+            modifier = modifier.height(MihomoProxyNodeCardHeight),
+            colors = CardDefaults.defaultColors(color = mihomoProxyNodeCardColor(selected)),
+            insideMargin = PaddingValues(MihomoProxyNodeCardPadding),
+        ) {
+            content()
         }
     }
 }
@@ -847,8 +863,56 @@ private fun parseMihomoProxyState(profile: String, dataDir: File): MihomoProxies
     )
 }
 
-private fun AppState.selectedMihomoProfileContentHash(): Int {
-    return selectedMihomoProfileOrNull()?.content?.hashCode() ?: 0
+private fun MihomoProxiesState.withFallbackGroupStructure(
+    fallback: MihomoProxiesState,
+): MihomoProxiesState {
+    if (groups.isEmpty()) {
+        return fallback
+    }
+    if (fallback.groups.size <= groups.size) {
+        return this
+    }
+
+    val runtimeGroupsByName = groups.associateBy(MihomoProxyGroup::name)
+    val runtimeNodesByName = nodeByName
+    val mergedNodes = linkedMapOf<String, MihomoProxyNode>()
+
+    fallback.nodes.forEach { node ->
+        mergedNodes[node.name] = runtimeNodesByName[node.name] ?: node
+    }
+    nodes.forEach { node ->
+        mergedNodes.putIfAbsent(node.name, node)
+    }
+
+    return fallback.copy(
+        groups = fallback.groups.map { group ->
+            val runtimeGroup = runtimeGroupsByName[group.name] ?: return@map group
+            group.copy(
+                now = runtimeGroup.now.ifBlank { group.now },
+                icon = runtimeGroup.icon.ifBlank { group.icon },
+                testUrl = runtimeGroup.testUrl.ifBlank { group.testUrl },
+            )
+        },
+        nodes = mergedNodes.values.toList(),
+        nodeByName = mergedNodes,
+        updatedAtMillis = maxOf(updatedAtMillis, fallback.updatedAtMillis),
+    )
+}
+
+private fun MihomoProxyGroup.supportsManualSelection(): Boolean {
+    return when (type.normalizedMihomoGroupType()) {
+        "select", "selector" -> true
+        else -> false
+    }
+}
+
+private fun String.normalizedMihomoGroupType(): String {
+    return trim().lowercase().replace("-", "").replace("_", "").replace(" ", "")
+}
+
+private fun AppState.selectedMihomoProfileContentSignature(): Int {
+    val profile = selectedMihomoProfileOrNull() ?: return 0
+    return listOf(profile.contentPath, profile.contentSha256, profile.contentSizeBytes).hashCode()
 }
 
 private fun AppState.selectedMihomoProfileOverrideHash(): Int {

@@ -10,6 +10,7 @@ import app.MihomoProfileState
 import app.MihomoProfileType
 import app.nextAvailableMihomoProfileId
 import data.AndroidAppStateStore
+import engine.mihomo.MihomoProfileContentStore
 import features.subscription.runtime.AndroidSubscriptionFetcher
 import features.subscription.runtime.AndroidMihomoProviderFetcher
 import features.subscription.usecase.MihomoProfileSubscriptionUpdateResult
@@ -35,6 +36,7 @@ internal data class SubscriptionInstallResult(
 internal class SubscriptionInstallConfigUseCase(
     private val stateStore: AndroidAppStateStore,
     private val subscriptionFetcher: AndroidSubscriptionFetcher,
+    private val contentStore: MihomoProfileContentStore,
     private val providerFetcher: AndroidMihomoProviderFetcher,
 ) {
     suspend fun install(config: SubscriptionInstallConfig): SubscriptionInstallResult {
@@ -42,6 +44,7 @@ internal class SubscriptionInstallConfigUseCase(
         val result = updateSubscriptions(
             profiles = listOf(profile),
             subscriptionFetcher = subscriptionFetcher,
+            contentStore = contentStore,
             providerFetcher = providerFetcher,
             fetchOptions = { stateStore.state.value.toSubscriptionFetchOptions(it) },
         )

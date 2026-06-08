@@ -6,6 +6,8 @@ package features.subscription.usecase
 import app.AppState
 import app.MihomoProfileState
 import engine.network.toPortOrNull
+import engine.mihomo.MihomoProfileContentRef
+import engine.mihomo.MihomoProfileContentStore
 import features.logs.AndroidAppLogger
 import features.subscription.runtime.AndroidSubscriptionFetchOptions
 import features.subscription.runtime.AndroidSubscriptionFetcher
@@ -21,7 +23,7 @@ private const val LogTag = "SubscriptionUpdateUseCase"
 
 internal data class MihomoProfileSubscriptionUpdate(
     val profileId: Int,
-    val content: String,
+    val contentRef: MihomoProfileContentRef,
     val subscriptionInfo: app.MihomoSubscriptionInfo,
 )
 
@@ -37,6 +39,7 @@ internal data class MihomoProfileSubscriptionUpdateResult(
 internal suspend fun updateSubscriptions(
     profiles: List<MihomoProfileState>,
     subscriptionFetcher: AndroidSubscriptionFetcher,
+    contentStore: MihomoProfileContentStore,
     providerFetcher: AndroidMihomoProviderFetcher? = null,
     fetchOptions: (MihomoProfileState) -> AndroidSubscriptionFetchOptions,
 ): MihomoProfileSubscriptionUpdateResult = supervisorScope {
@@ -45,6 +48,7 @@ internal suspend fun updateSubscriptions(
             updateMihomoProfile(
                 profile = profile,
                 subscriptionFetcher = subscriptionFetcher,
+                contentStore = contentStore,
                 providerFetcher = providerFetcher,
                 fetchOptions = fetchOptions(profile),
             )
@@ -61,6 +65,7 @@ internal suspend fun updateSubscriptions(
 private suspend fun updateMihomoProfile(
     profile: MihomoProfileState,
     subscriptionFetcher: AndroidSubscriptionFetcher,
+    contentStore: MihomoProfileContentStore,
     providerFetcher: AndroidMihomoProviderFetcher?,
     fetchOptions: AndroidSubscriptionFetchOptions,
 ): MihomoProfileSubscriptionUpdate? {
@@ -74,12 +79,13 @@ private suspend fun updateMihomoProfile(
             profileContent = result.content,
             sourceUrl = profile.url,
         )
+        val contentRef = contentStore.write(profile, result.content)
         MihomoProfileSubscriptionUpdate(
             profileId = profile.id,
-            content = result.content,
+            contentRef = contentRef,
             subscriptionInfo = result.subscriptionInfo,
         ).also { update ->
-            if (update.content.isBlank()) {
+            if (update.contentRef.sizeBytes <= 0L) {
                 AndroidAppLogger.warn(
                     LogTag,
                     "Subscription update fetched blank profile ${profile.logIdentity()}",
@@ -114,7 +120,9 @@ internal fun AppState.withUpdatedMihomoProfiles(
         mihomoProfiles = mihomoProfiles.map { profile ->
             val update = updatesById[profile.id] ?: return@map profile
             profile.copy(
-                content = update.content,
+                contentPath = update.contentRef.path,
+                contentSha256 = update.contentRef.sha256,
+                contentSizeBytes = update.contentRef.sizeBytes,
                 subscriptionInfo = update.subscriptionInfo,
                 lastUpdatedAtMillis = updatedAtMillis,
             )

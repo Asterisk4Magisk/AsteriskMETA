@@ -105,7 +105,8 @@
     <string name="mihomo_configuration_preview_failed">Failed to preview configuration</string>
     <string name="mihomo_configuration_sync">Sync</string>
     <string name="mihomo_configuration_sync_providers">Sync providers</string>
-    <string name="mihomo_configuration_provider_sync_done">Providers synced</string>
+    <string name="mihomo_configuration_provider_sync_result">Proxy providers synced: total %1$d, succeeded %2$d, failed %3$d</string>
+    <string name="mihomo_configuration_provider_sync_empty">Current configuration does not contain remote proxy-providers</string>
     <string name="mihomo_configuration_provider_sync_failed">Failed to sync providers</string>
     <string name="mihomo_configuration_last_sync">Synced {time}</string>
     <string name="mihomo_configuration_last_modified">Modified {time}</string>

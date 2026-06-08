@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.union
 import com.journeyapps.barcodescanner.ScanContract
 import data.AndroidAppStateStore
 import data.AppSettingsPreferences
+import engine.mihomo.MihomoProfileContentStore
 import engine.vpn.AndroidVpnPermissionRequester
 import features.logs.AndroidLogFileCreator
 import features.mihomo.qr.AndroidQrCodeScanRequester
@@ -76,6 +77,7 @@ class MainActivity : ComponentActivity() {
         SubscriptionInstallConfigUseCase(
             stateStore = AndroidAppStateStore.get(this),
             subscriptionFetcher = subscriptionFetcher,
+            contentStore = MihomoProfileContentStore(this),
             providerFetcher = AndroidMihomoProviderFetcher(
                 context = this,
             ),

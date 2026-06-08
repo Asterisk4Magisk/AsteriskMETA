@@ -22,6 +22,7 @@ import app.effects.Tun2SocksRuntimeFileSynchronizer
 import features.logs.AndroidCoreLogRepository
 import features.logs.AndroidLogcatRepository
 import data.AndroidAppStateStore
+import engine.mihomo.MihomoProfileContentStore
 import engine.mihomo.runtime.MihomoRuntimeRepository
 import engine.proxy.AndroidProxyEngine
 import engine.proxy.ProxyServiceUseCase
@@ -75,6 +76,9 @@ fun App(
         )
     }
     val subscriptionFetcher = remember { AndroidSubscriptionFetcher() }
+    val mihomoProfileContentStore = remember(appContext) {
+        MihomoProfileContentStore(appContext)
+    }
     val mihomoProviderFetcher = remember(appContext) {
         AndroidMihomoProviderFetcher(
             context = appContext,
@@ -117,6 +121,7 @@ fun App(
         packageCatalog,
         networkInterfaces,
         resourceFileUseCase,
+        mihomoProfileContentStore,
         subscriptionFetcher,
         mihomoProviderFetcher,
         qrCodeScanner,
@@ -136,6 +141,7 @@ fun App(
             packageCatalog = packageCatalog,
             networkInterfaces = networkInterfaces,
             resourceFileUseCase = resourceFileUseCase,
+            mihomoProfileContentStore = mihomoProfileContentStore,
             subscriptionFetcher = subscriptionFetcher,
             mihomoProviderFetcher = mihomoProviderFetcher,
             qrCodeScanner = qrCodeScanner,
@@ -177,6 +183,7 @@ fun App(
     SubscriptionAutoUpdater(
         stateStore = stateStore,
         subscriptionFetcher = subscriptionFetcher,
+        contentStore = mihomoProfileContentStore,
         providerFetcher = mihomoProviderFetcher,
         updateAppState = updateAppState,
     )

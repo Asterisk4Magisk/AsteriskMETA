@@ -9,7 +9,6 @@ import app.R
 import com.github.kr328.clash.core.Clash
 import engine.mihomo.MihomoCoreLogSubscriber
 import features.logs.AndroidAppLogger
-import utils.writeAtomically
 import java.io.File
 import java.net.InetSocketAddress
 import kotlinx.coroutines.runBlocking
@@ -137,8 +136,8 @@ internal object AndroidMihomoRuntime {
         }
         val profileDir = File(dataDir).apply { mkdirs() }
         val profileFile = File(config.mihomoProfilePath)
-        writeAtomically(profileFile) { output ->
-            output.write(config.mihomoProfileYaml.toByteArray(Charsets.UTF_8))
+        if (!profileFile.isFile || profileFile.length() <= 0L) {
+            error("mihomo profile file is unavailable")
         }
 
         coreLogSubscriber?.stop()
@@ -182,13 +181,13 @@ internal object AndroidMihomoRuntime {
 private data class MihomoRuntimeConfigSignature(
     val dataDir: String,
     val profilePath: String,
-    val profileYaml: String,
+    val profileSignature: String,
 )
 
 private fun VpnServiceStartConfig.runtimeConfigSignature(): MihomoRuntimeConfigSignature {
     return MihomoRuntimeConfigSignature(
         dataDir = dataDir,
         profilePath = mihomoProfilePath,
-        profileYaml = mihomoProfileYaml,
+        profileSignature = mihomoProfileSignature,
     )
 }

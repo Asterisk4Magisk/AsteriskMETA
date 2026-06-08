@@ -31,8 +31,8 @@ internal object AsteriskVpnServiceIntents {
 internal fun Intent.readVpnServiceStartConfig(): VpnServiceStartConfig? {
     val sessionName = getStringExtra(EXTRA_SESSION_NAME) ?: return null
     val ipv4Address = getStringExtra(EXTRA_IPV4_ADDRESS) ?: return null
-    val mihomoProfileYaml = getStringExtra(EXTRA_MIHOMO_PROFILE_YAML) ?: return null
     val mihomoProfilePath = getStringExtra(EXTRA_MIHOMO_PROFILE_PATH) ?: return null
+    val mihomoProfileSignature = getStringExtra(EXTRA_MIHOMO_PROFILE_SIGNATURE) ?: return null
     val localProxyOptions = LocalProxyOptions(
         listenAddress = getStringExtra(EXTRA_LOCAL_PROXY_LISTEN_ADDRESS).orEmpty().ifBlank {
             LocalProxyLoopbackAddress
@@ -53,8 +53,8 @@ internal fun Intent.readVpnServiceStartConfig(): VpnServiceStartConfig? {
         dnsServers = getStringArrayExtra(EXTRA_DNS_SERVERS)?.toList().orEmpty().ifEmpty {
             listOf(VpnDefaults.IPV4_DNS)
         },
-        mihomoProfileYaml = mihomoProfileYaml,
         mihomoProfilePath = mihomoProfilePath,
+        mihomoProfileSignature = mihomoProfileSignature,
         mihomoTunStack = getStringExtra(EXTRA_MIHOMO_TUN_STACK).orEmpty().ifBlank { "system" },
         applicationPolicy = VpnApplicationPolicy(
             mode = getIntExtra(EXTRA_PROXY_APP_LIST_MODE, ProxyAppListModeGlobal),
@@ -82,8 +82,8 @@ private fun Intent.writeStartConfig(config: VpnServiceStartConfig) {
     putExtra(EXTRA_ENABLE_IPV6, config.enableIpv6)
     putExtra(EXTRA_ENABLE_LOCAL_DNS, config.enableLocalDns)
     putExtra(EXTRA_DNS_SERVERS, config.dnsServers.toTypedArray())
-    putExtra(EXTRA_MIHOMO_PROFILE_YAML, config.mihomoProfileYaml)
     putExtra(EXTRA_MIHOMO_PROFILE_PATH, config.mihomoProfilePath)
+    putExtra(EXTRA_MIHOMO_PROFILE_SIGNATURE, config.mihomoProfileSignature)
     putExtra(EXTRA_MIHOMO_TUN_STACK, config.mihomoTunStack)
     putExtra(EXTRA_PROXY_APP_LIST_MODE, config.applicationPolicy.mode)
     putExtra(EXTRA_PROXY_APP_LIST_PACKAGES, config.applicationPolicy.packageNames.toTypedArray())
@@ -106,8 +106,8 @@ private const val EXTRA_IPV6_PREFIX_LENGTH = "ipv6_prefix_length"
 private const val EXTRA_ENABLE_IPV6 = "enable_ipv6"
 private const val EXTRA_ENABLE_LOCAL_DNS = "enable_local_dns"
 private const val EXTRA_DNS_SERVERS = "dns_servers"
-private const val EXTRA_MIHOMO_PROFILE_YAML = "mihomo_profile_yaml"
 private const val EXTRA_MIHOMO_PROFILE_PATH = "mihomo_profile_path"
+private const val EXTRA_MIHOMO_PROFILE_SIGNATURE = "mihomo_profile_signature"
 private const val EXTRA_MIHOMO_TUN_STACK = "mihomo_tun_stack"
 private const val EXTRA_PROXY_APP_LIST_MODE = "proxy_app_list_mode"
 private const val EXTRA_PROXY_APP_LIST_PACKAGES = "proxy_app_list_packages"

@@ -105,7 +105,8 @@
     <string name="mihomo_configuration_preview_failed">预览配置失败</string>
     <string name="mihomo_configuration_sync">同步</string>
     <string name="mihomo_configuration_sync_providers">同步子订阅</string>
-    <string name="mihomo_configuration_provider_sync_done">子订阅同步完成</string>
+    <string name="mihomo_configuration_provider_sync_result">子订阅同步完成：共 %1$d 个，成功 %2$d 个，失败 %3$d 个</string>
+    <string name="mihomo_configuration_provider_sync_empty">当前配置不包含远程 proxy-providers</string>
     <string name="mihomo_configuration_provider_sync_failed">同步子订阅失败</string>
     <string name="mihomo_configuration_last_sync">同步时间 {time}</string>
     <string name="mihomo_configuration_last_modified">修改时间 {time}</string>

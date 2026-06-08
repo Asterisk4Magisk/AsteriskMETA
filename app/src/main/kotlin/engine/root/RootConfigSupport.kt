@@ -22,7 +22,7 @@ internal class RootConfigBuildContext(
 ) {
     fun buildRootStartConfig(): RootStartConfig {
         return appState.toRootStartConfig(
-            mihomoProfileYaml = MihomoProfileFactory.buildProfile(appState),
+            mihomoProfileYaml = MihomoProfileFactory.buildProfile(androidContext, appState),
             resourceFilePaths = resourceFilePaths,
             runtimeLayout = resourceFilePaths.toRootRuntimeLayout(),
             coreLogPaths = coreLogPaths,

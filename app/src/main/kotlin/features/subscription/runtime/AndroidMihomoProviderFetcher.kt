@@ -32,7 +32,7 @@ internal class AndroidMihomoProviderFetcher(
         profileContent: String,
         sourceUrl: String,
     ) = fetchLock.withLock {
-        fetchProviders(profileContent, sourceUrl, refreshProxyProviders = true)
+        refreshProxyProviderFiles(profileContent, sourceUrl)
     }
 
     private suspend fun fetchProviders(
@@ -63,14 +63,61 @@ internal class AndroidMihomoProviderFetcher(
             }
         }
     }
+
+    private suspend fun refreshProxyProviderFiles(
+        profileContent: String,
+        sourceUrl: String,
+    ): MihomoProviderRefreshResult {
+        if (profileContent.isBlank()) return MihomoProviderRefreshResult()
+        return withContext(Dispatchers.IO) {
+            val dataDir = File(appContext.prepareMihomoResourceFilePaths().dataDir)
+            val processingDir = File(appContext.cacheDir, "$ProcessingDirPrefix-${System.nanoTime()}")
+            try {
+                val refreshedFiles = prepareProcessingProfileDir(
+                    processingDir = processingDir,
+                    dataDir = dataDir,
+                    profileContent = profileContent,
+                    refreshProxyProviders = true,
+                )
+                if (refreshedFiles.isEmpty()) {
+                    return@withContext MihomoProviderRefreshResult()
+                }
+
+                runCatching {
+                    Clash.fetchAndValid(
+                        path = processingDir,
+                        url = sourceUrl,
+                        force = false,
+                        reportStatus = {},
+                    ).await()
+                }
+                copyProcessingProvidersBack(processingDir = processingDir, dataDir = dataDir)
+
+                val successCount = refreshedFiles.count { file -> file.isFile && file.length() > 0L }
+                MihomoProviderRefreshResult(
+                    totalCount = refreshedFiles.size,
+                    successCount = successCount,
+                    failedCount = refreshedFiles.size - successCount,
+                )
+            } finally {
+                processingDir.deleteRecursively()
+            }
+        }
+    }
 }
+
+internal data class MihomoProviderRefreshResult(
+    val totalCount: Int = 0,
+    val successCount: Int = 0,
+    val failedCount: Int = 0,
+)
 
 private fun prepareProcessingProfileDir(
     processingDir: File,
     dataDir: File,
     profileContent: String,
     refreshProxyProviders: Boolean,
-) {
+): List<File> {
     processingDir.deleteRecursively()
     processingDir.mkdirs()
     val sourceProviders = File(dataDir, ProvidersDirName)
@@ -83,15 +130,19 @@ private fun prepareProcessingProfileDir(
     writeAtomically(File(processingDir, ConfigFileName)) { output ->
         output.write(profileContent.toByteArray(Charsets.UTF_8))
     }
-    if (refreshProxyProviders) {
+    return if (refreshProxyProviders) {
         profileContent.mihomoRemoteProviderFiles(
             dataDir = processingDir,
             type = MihomoProviderType.Proxy,
-        ).forEach { file ->
-            if (file.exists()) {
-                file.delete()
+        ).also { files ->
+            files.forEach { file ->
+                if (file.exists()) {
+                    file.delete()
+                }
             }
         }
+    } else {
+        emptyList()
     }
 }
 

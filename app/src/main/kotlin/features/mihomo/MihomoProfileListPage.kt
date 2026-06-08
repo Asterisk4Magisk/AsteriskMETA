@@ -26,6 +26,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -59,6 +60,8 @@ import app.collectAppState
 import app.navigation.Route
 import app.nextAvailableMihomoProfileId
 import engine.mihomo.hasMihomoProxyProviders
+import engine.mihomo.MihomoProfileContentRef
+import engine.mihomo.MihomoProfileContentStore
 import engine.mihomo.MihomoProfileFactory
 import features.subscription.SubscriptionInstallConfig
 import features.subscription.toSubscriptionInstallConfigOrNull
@@ -122,9 +125,11 @@ fun MihomoProfileListPage(
     var previewProfileName by remember { mutableStateOf("") }
     var previewProfileContent by remember { mutableStateOf<String?>(null) }
     var syncingProfileIds by remember { mutableStateOf<Set<Int>>(emptySet()) }
+    var profilesWithProxyProviders by remember { mutableStateOf<Set<Int>>(emptySet()) }
     val syncSuccessMessage = stringResource(R.string.subscription_update_result)
     val syncFailedMessage = stringResource(R.string.subscription_update_result_with_failed)
-    val providerSyncDoneMessage = stringResource(R.string.mihomo_configuration_provider_sync_done)
+    val providerSyncResultMessage = stringResource(R.string.mihomo_configuration_provider_sync_result)
+    val providerSyncEmptyMessage = stringResource(R.string.mihomo_configuration_provider_sync_empty)
     val providerSyncFailedMessage = stringResource(R.string.mihomo_configuration_provider_sync_failed)
     val previewFailedMessage = stringResource(R.string.mihomo_configuration_preview_failed)
     val importedMessage = stringResource(R.string.mihomo_configuration_imported)
@@ -134,6 +139,28 @@ fun MihomoProfileListPage(
     val invalidQrMessage = stringResource(R.string.mihomo_configuration_invalid_qr_content)
     val serviceStoppedMessage = stringResource(R.string.proxy_service_stopped)
     val stopFailedMessage = stringResource(R.string.mihomo_dashboard_stop_failed)
+
+    val profileContentSignatures = appState.mihomoProfiles.map { profile ->
+        MihomoProfileContentSignature(
+            id = profile.id,
+            contentPath = profile.contentPath,
+            contentSha256 = profile.contentSha256,
+            contentSizeBytes = profile.contentSizeBytes,
+        )
+    }
+    LaunchedEffect(profileContentSignatures) {
+        val profiles = appState.mihomoProfiles
+        profilesWithProxyProviders = withContext(Dispatchers.IO) {
+            profiles
+                .filter { profile ->
+                    profile.hasContent &&
+                        services.mihomoProfileContentStore
+                            .readOrEmpty(profile)
+                            .hasMihomoProxyProviders()
+                }
+                .mapTo(mutableSetOf()) { profile -> profile.id }
+        }
+    }
 
     fun saveProfile(profile: MihomoProfileState, isNew: Boolean): MihomoProfileState {
         var savedProfile = profile
@@ -177,6 +204,7 @@ fun MihomoProfileListPage(
                 },
             )
         }
+        services.mihomoProfileContentStore.delete(profile)
         if (selectedProfileDeleted) {
             scope.launch {
                 stopProxyServiceAfterProfileChange(
@@ -212,13 +240,17 @@ fun MihomoProfileListPage(
     }
 
     fun previewProfile(profile: MihomoProfileState) {
-        runCatching {
-            MihomoProfileFactory.buildProfile(appState.copy(selectedMihomoProfileId = profile.id))
-        }.onSuccess { content ->
-            previewProfileName = profile.name
-            previewProfileContent = content
-        }.onFailure { error ->
-            scope.launch { services.tipNotifier.showError(error, previewFailedMessage) }
+        scope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    MihomoProfileFactory.buildProfile(context, appState.copy(selectedMihomoProfileId = profile.id))
+                }
+            }.onSuccess { content ->
+                previewProfileName = profile.name
+                previewProfileContent = content
+            }.onFailure { error ->
+                services.tipNotifier.showError(error, previewFailedMessage)
+            }
         }
     }
 
@@ -231,6 +263,7 @@ fun MihomoProfileListPage(
                 val result = updateSubscriptions(
                     profiles = listOf(profile),
                     subscriptionFetcher = services.subscriptionFetcher,
+                    contentStore = services.mihomoProfileContentStore,
                     providerFetcher = services.mihomoProviderFetcher,
                     fetchOptions = { snapshot.toSubscriptionFetchOptions(it) },
                 )
@@ -254,19 +287,32 @@ fun MihomoProfileListPage(
     }
 
     fun syncProfileProviders(profile: MihomoProfileState) {
-        if (profile.content.isBlank() || !profile.content.hasMihomoProxyProviders() || profile.id in syncingProfileIds) {
+        if (!profile.hasContent || profile.id in syncingProfileIds) {
             return
         }
         scope.launch {
             syncingProfileIds = syncingProfileIds + profile.id
             try {
                 runCatching {
+                    val content = withContext(Dispatchers.IO) {
+                        services.mihomoProfileContentStore.read(profile)
+                    }
                     services.mihomoProviderFetcher.refreshProxyProviders(
-                        profileContent = profile.content,
+                        profileContent = content,
                         sourceUrl = profile.url,
                     )
-                }.onSuccess {
-                    services.tipNotifier.show(providerSyncDoneMessage)
+                }.onSuccess { result ->
+                    services.tipNotifier.show(
+                        if (result.totalCount == 0) {
+                            providerSyncEmptyMessage
+                        } else {
+                            providerSyncResultMessage.format(
+                                result.totalCount,
+                                result.successCount,
+                                result.failedCount,
+                            )
+                        },
+                    )
                 }.onFailure { error ->
                     services.tipNotifier.showError(error, providerSyncFailedMessage)
                 }
@@ -297,7 +343,7 @@ fun MihomoProfileListPage(
             runCatching {
                 val uri = services.mihomoProfileFilePicker() ?: return@launch
                 val imported = withContext(Dispatchers.IO) {
-                    context.readMihomoProfileFile(uri)
+                    context.readMihomoProfileFile(uri, services.mihomoProfileContentStore)
                 }
                 val savedProfile = saveProfile(
                     profile = MihomoProfileState(
@@ -305,13 +351,18 @@ fun MihomoProfileListPage(
                         name = imported.name,
                         type = MihomoProfileType.File,
                         lastUpdatedAtMillis = imported.modifiedAtMillis,
-                        content = imported.content,
+                        contentPath = imported.contentRef.path,
+                        contentSha256 = imported.contentRef.sha256,
+                        contentSizeBytes = imported.contentRef.sizeBytes,
                     ),
                     isNew = true,
                 )
                 runCatching {
+                    val content = withContext(Dispatchers.IO) {
+                        services.mihomoProfileContentStore.read(savedProfile)
+                    }
                     services.mihomoProviderFetcher.fetchMissingProviders(
-                        profileContent = savedProfile.content,
+                        profileContent = content,
                         sourceUrl = savedProfile.url,
                     )
                 }.onFailure { error ->
@@ -387,6 +438,7 @@ fun MihomoProfileListPage(
                         overrideScripts = appState.mihomoOverrideScripts,
                         selected = profile.id == appState.selectedMihomoProfileId,
                         syncing = profile.id in syncingProfileIds,
+                        hasProxyProviders = profile.id in profilesWithProxyProviders,
                         onSelect = { selectProfile(profile) },
                         onAction = { action ->
                             when (action) {
@@ -440,20 +492,25 @@ fun MihomoProfileListPage(
     }
 }
 
+private data class MihomoProfileContentSignature(
+    val id: Int,
+    val contentPath: String,
+    val contentSha256: String,
+    val contentSizeBytes: Long,
+)
+
 @Composable
 private fun MihomoProfileCard(
     profile: MihomoProfileState,
     overrideScripts: List<MihomoOverrideScriptState>,
     selected: Boolean,
     syncing: Boolean,
+    hasProxyProviders: Boolean,
     onSelect: () -> Unit,
     onAction: (MihomoProfileAction) -> Unit,
 ) {
     val overrideScriptName = profile.overrideScriptName(overrideScripts)
     val interactionSource = remember { MutableInteractionSource() }
-    val hasProxyProviders = remember(profile.content) {
-        profile.content.hasMihomoProxyProviders()
-    }
     val menuEntries = buildList {
         add(
             IconDropdownMenuEntry(
@@ -821,11 +878,14 @@ private fun app.MihomoSubscriptionInfo.expireText(): String {
 
 private data class ImportedMihomoProfileFile(
     val name: String,
-    val content: String,
+    val contentRef: MihomoProfileContentRef,
     val modifiedAtMillis: Long,
 )
 
-private fun Context.readMihomoProfileFile(uri: Uri): ImportedMihomoProfileFile {
+private fun Context.readMihomoProfileFile(
+    uri: Uri,
+    contentStore: MihomoProfileContentStore,
+): ImportedMihomoProfileFile {
     val content = contentResolver.openInputStream(uri)?.use { input ->
         input.bufferedReader(Charsets.UTF_8).use { reader -> reader.readText() }
     } ?: error("Unable to open configuration file")
@@ -839,7 +899,7 @@ private fun Context.readMihomoProfileFile(uri: Uri): ImportedMihomoProfileFile {
         ?: "Profile"
     return ImportedMihomoProfileFile(
         name = name,
-        content = content,
+        contentRef = contentStore.writeNew(content),
         modifiedAtMillis = queryLastModified(uri) ?: System.currentTimeMillis(),
     )
 }

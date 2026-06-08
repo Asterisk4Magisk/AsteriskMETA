@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "010519ff9025e77f7a23185d6ed09c3c",
+    "identityHash": "5284e5cc4834cf58554ecb601455c2c8",
     "entities": [
       {
         "tableName": "mihomo_profiles",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `position` INTEGER NOT NULL, `name` TEXT NOT NULL, `type` INTEGER NOT NULL, `url` TEXT NOT NULL, `userAgent` TEXT NOT NULL, `updateInterval` TEXT NOT NULL, `updateViaProxy` INTEGER NOT NULL, `enabled` INTEGER NOT NULL, `builtIn` INTEGER NOT NULL, `lastUpdatedAtMillis` INTEGER NOT NULL, `content` TEXT NOT NULL, `subscriptionUploadBytes` INTEGER NOT NULL, `subscriptionDownloadBytes` INTEGER NOT NULL, `subscriptionTotalBytes` INTEGER NOT NULL, `subscriptionExpireAtSeconds` INTEGER NOT NULL, `overrideScriptId` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `position` INTEGER NOT NULL, `name` TEXT NOT NULL, `type` INTEGER NOT NULL, `url` TEXT NOT NULL, `userAgent` TEXT NOT NULL, `updateInterval` TEXT NOT NULL, `updateViaProxy` INTEGER NOT NULL, `enabled` INTEGER NOT NULL, `builtIn` INTEGER NOT NULL, `lastUpdatedAtMillis` INTEGER NOT NULL, `contentPath` TEXT NOT NULL, `contentSha256` TEXT NOT NULL, `contentSizeBytes` INTEGER NOT NULL, `subscriptionUploadBytes` INTEGER NOT NULL, `subscriptionDownloadBytes` INTEGER NOT NULL, `subscriptionTotalBytes` INTEGER NOT NULL, `subscriptionExpireAtSeconds` INTEGER NOT NULL, `overrideScriptId` INTEGER NOT NULL, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -75,9 +75,21 @@
             "notNull": true
           },
           {
-            "fieldPath": "content",
-            "columnName": "content",
+            "fieldPath": "contentPath",
+            "columnName": "contentPath",
             "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "contentSha256",
+            "columnName": "contentSha256",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "contentSizeBytes",
+            "columnName": "contentSizeBytes",
+            "affinity": "INTEGER",
             "notNull": true
           },
           {
@@ -214,7 +226,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '010519ff9025e77f7a23185d6ed09c3c')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '5284e5cc4834cf58554ecb601455c2c8')"
     ]
   }
 }

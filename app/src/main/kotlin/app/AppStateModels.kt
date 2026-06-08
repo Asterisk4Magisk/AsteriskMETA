@@ -29,10 +29,15 @@ data class MihomoProfileState(
     val enabled: Boolean = true,
     val builtIn: Boolean = false,
     val lastUpdatedAtMillis: Long = 0L,
-    val content: String = "",
+    val contentPath: String = "",
+    val contentSha256: String = "",
+    val contentSizeBytes: Long = 0L,
     val subscriptionInfo: MihomoSubscriptionInfo = MihomoSubscriptionInfo(),
     val overrideScriptId: Int = DefaultMihomoOverrideScriptId,
-)
+) {
+    val hasContent: Boolean
+        get() = contentPath.isNotBlank() && contentSizeBytes > 0L
+}
 
 enum class MihomoProfileType(
     val storageValue: Int,

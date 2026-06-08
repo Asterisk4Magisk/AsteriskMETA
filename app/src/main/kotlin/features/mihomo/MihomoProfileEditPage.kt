@@ -18,6 +18,7 @@ import androidx.compose.foundation.text.input.byValue
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
@@ -47,12 +48,15 @@ import app.MihomoSubscriptionInfo
 import app.R
 import app.collectAppState
 import app.nextAvailableMihomoProfileId
+import engine.mihomo.sha256Hex
 import features.subscription.toRawHttpsSubscriptionInstallConfigOrNull
 import features.subscription.usecase.subscriptionUpdateMessage
 import features.subscription.usecase.toSubscriptionFetchOptions
 import features.subscription.usecase.updateSubscriptions
 import features.subscription.usecase.withUpdatedMihomoProfiles
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Text
@@ -107,11 +111,10 @@ fun MihomoProfileEditPage(
         mutableStateOf(targetProfile?.updateViaProxy ?: false)
     }
     var contentValue by remember(targetProfile?.id, isNew) {
-        val initialContent = targetProfile?.content ?: ""
         mutableStateOf(
             TextFieldValue(
-                text = initialContent,
-                selection = TextRange(initialContent.length),
+                text = "",
+                selection = TextRange(0),
             ),
         )
     }
@@ -136,6 +139,22 @@ fun MihomoProfileEditPage(
         ?: 0
     val nameRequiredMessage = stringResource(R.string.mihomo_configuration_name_required)
     val invalidUrlMessage = stringResource(R.string.mihomo_configuration_invalid_subscription_url)
+
+    LaunchedEffect(targetProfile?.id, targetProfile?.contentPath, profileType) {
+        if (profileType != MihomoProfileType.File || targetProfile == null) {
+            if (targetProfile == null) {
+                contentValue = TextFieldValue("")
+            }
+            return@LaunchedEffect
+        }
+        val initialContent = withContext(Dispatchers.IO) {
+            services.mihomoProfileContentStore.readOrEmpty(targetProfile)
+        }
+        contentValue = TextFieldValue(
+            text = initialContent,
+            selection = TextRange(initialContent.length),
+        )
+    }
 
     fun saveProfile(profile: MihomoProfileState, isNewProfile: Boolean): MihomoProfileState {
         var savedProfile = profile
@@ -170,6 +189,7 @@ fun MihomoProfileEditPage(
         val result = updateSubscriptions(
             profiles = listOf(profile),
             subscriptionFetcher = services.subscriptionFetcher,
+            contentStore = services.mihomoProfileContentStore,
             providerFetcher = services.mihomoProviderFetcher,
             fetchOptions = { snapshot.toSubscriptionFetchOptions(it) },
         )
@@ -196,44 +216,90 @@ fun MihomoProfileEditPage(
             return
         }
         if (profileType == MihomoProfileType.File) {
-            val localProfileModified = targetProfile == null ||
-                targetProfile.type != MihomoProfileType.File ||
-                targetProfile.name != cleanName ||
-                targetProfile.content != contentValue.text ||
-                targetProfile.overrideScriptId != selectedOverrideScriptId
-            val savedProfile = if (targetProfile != null) {
-                targetProfile.copy(
-                    name = cleanName,
-                    type = MihomoProfileType.File,
-                    url = "",
-                    content = contentValue.text,
-                    lastUpdatedAtMillis = if (localProfileModified) {
-                        System.currentTimeMillis()
-                    } else {
-                        targetProfile.lastUpdatedAtMillis
-                    },
-                    overrideScriptId = selectedOverrideScriptId,
-                )
-            } else {
-                MihomoProfileState(
-                    id = DefaultMihomoProfileId,
-                    name = cleanName,
-                    type = MihomoProfileType.File,
-                    content = contentValue.text,
-                    lastUpdatedAtMillis = System.currentTimeMillis(),
-                    overrideScriptId = selectedOverrideScriptId,
-                )
-            }
-            val saved = saveProfile(savedProfile, targetProfile == null)
-            if (saved.content.isBlank()) {
-                navigator.pop()
-                return
-            }
             saving = true
+            val profileSnapshot = targetProfile
+            val contentText = contentValue.text
             scope.launch {
+                val saved = runCatching {
+                    val contentChanged = withContext(Dispatchers.IO) {
+                        profileSnapshot == null || profileSnapshot.contentSha256 != contentText.sha256Hex()
+                    }
+                    val contentRef = withContext(Dispatchers.IO) {
+                        when {
+                            contentText.isBlank() -> {
+                                if (profileSnapshot?.hasContent == true) {
+                                    services.mihomoProfileContentStore.delete(profileSnapshot)
+                                }
+                                null
+                            }
+                            contentChanged && profileSnapshot != null -> services.mihomoProfileContentStore.write(
+                                profileSnapshot,
+                                contentText,
+                            )
+                            contentChanged -> services.mihomoProfileContentStore.writeNew(contentText)
+                            else -> null
+                        }
+                    }
+                    val localProfileModified = profileSnapshot == null ||
+                        profileSnapshot.type != MihomoProfileType.File ||
+                        profileSnapshot.name != cleanName ||
+                        contentChanged ||
+                        profileSnapshot.overrideScriptId != selectedOverrideScriptId
+                    val savedProfile = if (profileSnapshot != null) {
+                        profileSnapshot.copy(
+                            name = cleanName,
+                            type = MihomoProfileType.File,
+                            url = "",
+                            contentPath = when {
+                                contentText.isBlank() -> ""
+                                contentRef != null -> contentRef.path
+                                else -> profileSnapshot.contentPath
+                            },
+                            contentSha256 = when {
+                                contentText.isBlank() -> ""
+                                contentRef != null -> contentRef.sha256
+                                else -> profileSnapshot.contentSha256
+                            },
+                            contentSizeBytes = when {
+                                contentText.isBlank() -> 0L
+                                contentRef != null -> contentRef.sizeBytes
+                                else -> profileSnapshot.contentSizeBytes
+                            },
+                            lastUpdatedAtMillis = if (localProfileModified) {
+                                System.currentTimeMillis()
+                            } else {
+                                profileSnapshot.lastUpdatedAtMillis
+                            },
+                            overrideScriptId = selectedOverrideScriptId,
+                        )
+                    } else {
+                        MihomoProfileState(
+                            id = DefaultMihomoProfileId,
+                            name = cleanName,
+                            type = MihomoProfileType.File,
+                            contentPath = contentRef?.path.orEmpty(),
+                            contentSha256 = contentRef?.sha256.orEmpty(),
+                            contentSizeBytes = contentRef?.sizeBytes ?: 0L,
+                            lastUpdatedAtMillis = System.currentTimeMillis(),
+                            overrideScriptId = selectedOverrideScriptId,
+                        )
+                    }
+                    saveProfile(savedProfile, profileSnapshot == null)
+                }.onFailure { error ->
+                    services.tipNotifier.showError(error, providerPrepareFailedMessage)
+                }.getOrNull()
+                if (saved == null) {
+                    saving = false
+                    return@launch
+                }
+                if (!saved.hasContent) {
+                    saving = false
+                    navigator.pop()
+                    return@launch
+                }
                 runCatching {
                     services.mihomoProviderFetcher.fetchMissingProviders(
-                        profileContent = saved.content,
+                        profileContent = contentText,
                         sourceUrl = saved.url,
                     )
                 }.onFailure { error ->
@@ -258,6 +324,9 @@ fun MihomoProfileEditPage(
             targetProfile.userAgent != cleanUserAgent ||
             targetProfile.updateViaProxy != updateViaProxy
         val savedProfile = if (targetProfile != null) {
+            if (urlChanged && targetProfile.hasContent) {
+                services.mihomoProfileContentStore.delete(targetProfile)
+            }
             targetProfile.copy(
                 name = cleanName,
                 type = MihomoProfileType.Url,
@@ -265,7 +334,9 @@ fun MihomoProfileEditPage(
                 userAgent = cleanUserAgent,
                 updateInterval = cleanInterval,
                 updateViaProxy = updateViaProxy,
-                content = if (urlChanged) "" else targetProfile.content,
+                contentPath = if (urlChanged) "" else targetProfile.contentPath,
+                contentSha256 = if (urlChanged) "" else targetProfile.contentSha256,
+                contentSizeBytes = if (urlChanged) 0L else targetProfile.contentSizeBytes,
                 subscriptionInfo = if (urlChanged) MihomoSubscriptionInfo() else targetProfile.subscriptionInfo,
                 lastUpdatedAtMillis = if (urlChanged) 0L else targetProfile.lastUpdatedAtMillis,
                 overrideScriptId = selectedOverrideScriptId,
@@ -283,7 +354,7 @@ fun MihomoProfileEditPage(
             )
         }
         val saved = saveProfile(savedProfile, targetProfile == null)
-        if (!remoteOptionsChanged && saved.content.isNotBlank()) {
+        if (!remoteOptionsChanged && saved.hasContent) {
             navigator.pop()
             return
         }

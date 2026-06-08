@@ -3,6 +3,7 @@
 
 package engine.mihomo
 
+import android.content.Context
 import app.AppState
 import app.DefaultMihomoOverrideScriptId
 import app.MihomoProfileState
@@ -21,11 +22,12 @@ import engine.tun2socks.DefaultTun2SocksProxyPort
 import engine.vpn.VpnDefaults
 import org.snakeyaml.engine.v2.api.Dump
 import org.snakeyaml.engine.v2.api.DumpSettings
-import org.snakeyaml.engine.v2.api.RepresentToNode
 import org.snakeyaml.engine.v2.api.Load
 import org.snakeyaml.engine.v2.api.LoadSettings
+import org.snakeyaml.engine.v2.api.RepresentToNode
 import org.snakeyaml.engine.v2.common.FlowStyle
 import org.snakeyaml.engine.v2.common.ScalarStyle
+import org.snakeyaml.engine.v2.nodes.NodeTuple
 import org.snakeyaml.engine.v2.nodes.ScalarNode
 import org.snakeyaml.engine.v2.nodes.Tag
 import org.snakeyaml.engine.v2.representer.StandardRepresenter
@@ -33,13 +35,14 @@ import utils.toTrimmedNonEmptyDistinctList
 
 internal object MihomoProfileFactory {
     fun buildProfile(
+        context: Context,
         appState: AppState,
         runMode: Int = appState.runMode,
         exposePorts: Boolean = true,
     ): String {
         val selectedProfile = appState.selectedMihomoProfileOrNull()
             ?: error(MihomoProfileMissingErrorMessage)
-        val rawContent = selectedProfile.content.trim()
+        val rawContent = context.mihomoProfileContentStore().read(selectedProfile).trim()
         if (rawContent.isBlank()) {
             error(MihomoProfileEmptyErrorMessage)
         }
@@ -450,12 +453,12 @@ internal fun AppState.selectedMihomoProfileOrNull(): MihomoProfileState? {
 }
 
 internal fun AppState.hasUsableMihomoProfile(): Boolean {
-    return selectedMihomoProfileOrNull()?.content?.isNotBlank() == true
+    return selectedMihomoProfileOrNull()?.hasContent == true
 }
 
 internal fun AppState.requireUsableMihomoProfile() {
     val selectedProfile = selectedMihomoProfileOrNull() ?: error(MihomoProfileMissingErrorMessage)
-    if (selectedProfile.content.isBlank()) {
+    if (!selectedProfile.hasContent) {
         error(MihomoProfileEmptyErrorMessage)
     }
 }
@@ -530,5 +533,14 @@ private class SingleQuotedStringRepresenter(
         representers[String::class.java] = RepresentToNode { data ->
             ScalarNode(Tag.STR, data.toString(), ScalarStyle.SINGLE_QUOTED)
         }
+    }
+
+    override fun representMappingEntry(entry: Map.Entry<*, *>): NodeTuple {
+        val keyNode = if (entry.key is String) {
+            ScalarNode(Tag.STR, entry.key.toString(), ScalarStyle.PLAIN)
+        } else {
+            representData(entry.key)
+        }
+        return NodeTuple(keyNode, representData(entry.value))
     }
 }

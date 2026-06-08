@@ -5,6 +5,7 @@ package app
 
 import androidx.compose.runtime.staticCompositionLocalOf
 import android.net.Uri
+import engine.mihomo.MihomoProfileContentStore
 import engine.proxy.AndroidProxyEngine
 import engine.proxy.ProxyServiceUseCase
 import engine.mihomo.runtime.MihomoRuntimeRepository
@@ -29,6 +30,7 @@ internal data class AppServices(
     val packageCatalog: AndroidPackageProvider,
     val networkInterfaces: AndroidNetworkInterfaceProvider,
     val resourceFileUseCase: ResourceFileUseCase,
+    val mihomoProfileContentStore: MihomoProfileContentStore,
     val subscriptionFetcher: AndroidSubscriptionFetcher,
     val mihomoProviderFetcher: AndroidMihomoProviderFetcher,
     val qrCodeScanner: suspend () -> String?,
