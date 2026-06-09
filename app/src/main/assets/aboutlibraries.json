@@ -28,7 +28,7 @@
         },
         {
             "uniqueId": "github:MetaCubeX/ClashMetaForAndroid",
-            "artifactVersion": "v2.11.30 asterisk",
+            "artifactVersion": "v2.11.30-asterisk",
             "name": "CMFA Mihomo wrapper",
             "description": "Vendored CMFA Android core bridge module for Mihomo.",
             "website": "https://github.com/MetaCubeX/ClashMetaForAndroid",

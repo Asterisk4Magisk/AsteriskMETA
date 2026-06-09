@@ -11,9 +11,9 @@ import org.gradle.api.tasks.TaskAction
 object ProjectConfig {
     const val JVM_VERSION = 26
     const val PROJECT_NAME = "AsteriskMETA"
-    const val VERSION_NAME = "1.0.0-dev"
+    const val VERSION_NAME = "1.0.0"
     const val PACKAGE_NAME = "org.asterisk.zcc.ameta"
-    const val CMFA_WRAPPER_VERSION = "v2.11.30 asterisk"
+    const val CMFA_WRAPPER_VERSION = "v2.11.30-asterisk"
     const val MIHOMO_CORE_VERSION = "v1.19.27"
     const val HEV_SOCKS5_TUNNEL_VERSION = "2.15.0"
     const val TARGET_SDK = 37
