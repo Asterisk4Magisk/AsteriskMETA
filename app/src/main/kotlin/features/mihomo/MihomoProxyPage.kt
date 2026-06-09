@@ -154,11 +154,13 @@ fun MihomoProxyPage(
                 .getOrDefault(MihomoProxiesState())
         }
     }
+    val runtimeProxies = runtimeState.proxies
+    val runtimeHasProxySnapshot = runtimeProxies.groups.isNotEmpty()
     val proxies = when {
         !hasProfiles -> MihomoProxiesState()
-        else -> runtimeState.proxies.withFallbackGroupStructure(fallbackProxies)
+        else -> runtimeProxies.withFallbackGroupStructure(fallbackProxies)
     }
-    val runtimeAvailable = hasUsableProfile && proxies.groups.isNotEmpty()
+    val runtimeAvailable = hasUsableProfile && runtimeHasProxySnapshot
     val groupNames = proxies.groups.map(MihomoProxyGroup::name)
     var selectedGroupName by rememberSaveable { mutableStateOf(groupNames.firstOrNull().orEmpty()) }
     val testingTarget = runtimeState.delayTestingTarget
@@ -358,7 +360,7 @@ fun MihomoProxyPage(
                                 ) {
                                     row.forEach { nodeName ->
                                         val node = proxies.node(nodeName)
-                                        val selectionEnabled = group.supportsManualSelection()
+                                        val selectionEnabled = group.supportsManualSelection() && runtimeAvailable
                                         val selectedNodeName = pendingSelections[group.name] ?: group.now
                                         MihomoProxyNodeCard(
                                             modifier = Modifier.weight(1f),
@@ -848,7 +850,7 @@ private fun parseMihomoProxyState(profile: String, dataDir: File): MihomoProxies
         MihomoProxyGroup(
             name = name,
             type = item["type"].asTextOrNull().orEmpty().ifBlank { "Selector" },
-            now = all.firstOrNull().orEmpty(),
+            now = "",
             all = all,
             testUrl = item["url"].asTextOrNull().orEmpty(),
             hidden = item["hidden"].asBooleanOrFalse(),
