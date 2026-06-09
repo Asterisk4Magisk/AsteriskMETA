@@ -6,8 +6,7 @@ package engine.mihomo.runtime
 import android.content.Context
 import app.AppState
 import app.modes.RunModeVpnService
-import app.modes.RunModeTproxy
-import app.modes.RunModeTun2Socks
+import app.modes.isRootRunMode
 import engine.mihomo.hasUsableMihomoProfile
 import engine.mihomo.mihomoLogLevelName
 import engine.mihomo.mihomoControlConfig
@@ -684,10 +683,6 @@ private fun AppState.mihomoRuntimeBackend(): MihomoRuntimeBackend {
     }
 }
 
-private fun Int.isRootRunMode(): Boolean {
-    return this == RunModeTproxy || this == RunModeTun2Socks
-}
-
 private fun AppState.mihomoRuntimeConfigKey(backend: MihomoRuntimeBackend): Int {
     return when (backend) {
         MihomoRuntimeBackend.Api -> listOf(
@@ -740,5 +735,5 @@ private fun AppState.mihomoRuntimeConfigKey(backend: MihomoRuntimeBackend): Int 
 }
 
 private fun AppState.exposeBridgePorts(): Boolean {
-    return proxyRunning && runMode != RunModeTproxy && runMode != RunModeTun2Socks
+    return proxyRunning && !runMode.isRootRunMode()
 }

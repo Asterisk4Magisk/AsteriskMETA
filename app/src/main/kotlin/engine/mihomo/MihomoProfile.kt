@@ -11,15 +11,21 @@ import app.modes.MihomoModeDirect
 import app.modes.MihomoModeGlobal
 import app.modes.MihomoTunStackGvisor
 import app.modes.MihomoTunStackMixed
+import app.modes.RunModeTun
 import app.modes.RunModeVpnService
 import app.modes.RunModeTproxy
 import app.modes.RunModeTun2Socks
+import app.modes.isRootRunMode
 import app.resourceFileUpdateSource
 import engine.network.toPortOrNull
 import engine.proxy.LocalProxyLoopbackAddress
+import engine.tun.MihomoTunDevice
+import engine.tun.MihomoTunInboundName
+import engine.tun.MihomoTunRuntimeMarkerKey
 import engine.tproxy.DefaultTproxyPort
 import engine.tun2socks.DefaultTun2SocksProxyPort
 import engine.vpn.VpnDefaults
+import engine.vpn.toTunOptions
 import org.snakeyaml.engine.v2.api.Dump
 import org.snakeyaml.engine.v2.api.DumpSettings
 import org.snakeyaml.engine.v2.api.Load
@@ -106,7 +112,7 @@ private fun Map<String, Any?>.toAsteriskRuntimeProfileYaml(
             updated[name] = normalizeYamlValue(value)
         }
     }
-    if (runMode == RunModeTproxy || runMode == RunModeTun2Socks) {
+    if (runMode.isRootRunMode()) {
         updated.putCmfaRootProviderPaths()
     }
     updated.putAsteriskRuntimeOverrides(appState, runMode, forceDns = forceDns, exposePorts = exposePorts)
@@ -152,6 +158,10 @@ private fun MutableMap<String, Any?>.putAsteriskRuntimeOverrides(
         if (runMode == RunModeTun2Socks) {
             put("socks-port", socksPort)
         }
+        if (runMode == RunModeTun) {
+            put(MihomoTunRuntimeMarkerKey, true)
+            put("listeners", listOf(appState.toMihomoTunListenerYamlMap()))
+        }
         put("external-controller", control.address)
         put("secret", control.secret)
         put("allow-lan", allowLan)
@@ -174,13 +184,9 @@ private fun MutableMap<String, Any?>.putAsteriskRuntimeOverrides(
 }
 
 private fun AppState.requiresMihomoLanAccess(runMode: Int): Boolean {
-    val hasRootSharing = runMode.requiresRootSharingLanAccess() &&
+    val hasRootSharing = runMode.isRootRunMode() &&
         externalInterfaces.toTrimmedNonEmptyDistinctList().isNotEmpty()
     return localProxyListenAllInterfaces || hasRootSharing
-}
-
-private fun Int.requiresRootSharingLanAccess(): Boolean {
-    return this == RunModeTproxy || this == RunModeTun2Socks
 }
 
 private fun MutableMap<String, Any?>.putDisabledInboundOverrides(disableMixed: Boolean) {
@@ -318,7 +324,7 @@ private fun MutableMap<String, Any?>.putRootDnsHijackOverrides(
     appState: AppState,
     runMode: Int,
 ) {
-    val rootMode = runMode == RunModeTproxy || runMode == RunModeTun2Socks
+    val rootMode = runMode.isRootRunMode()
     if (!rootMode || !appState.effectiveLocalDnsEnabledFor(runMode)) {
         return
     }
@@ -327,7 +333,27 @@ private fun MutableMap<String, Any?>.putRootDnsHijackOverrides(
 }
 
 private fun AppState.effectiveLocalDnsEnabledFor(runMode: Int): Boolean {
-    return runMode == RunModeTproxy || runMode == RunModeTun2Socks || enableLocalDns
+    return runMode.isRootRunMode() || enableLocalDns
+}
+
+private fun AppState.toMihomoTunListenerYamlMap(): Map<String, Any?> {
+    val tunOptions = toTunOptions()
+    return linkedMapOf<String, Any?>(
+        "name" to MihomoTunInboundName,
+        "type" to "tun",
+        "device" to MihomoTunDevice,
+        "stack" to MihomoProfileFactory.tunStack(this),
+        "dns-hijack" to listOf("0.0.0.0:53"),
+        "auto-route" to false,
+        "auto-detect-interface" to false,
+        "auto-redirect" to false,
+        "mtu" to tunOptions.mtu,
+        "inet4-address" to listOf("${tunOptions.ipv4Address.address}/${tunOptions.ipv4Address.prefixLength}"),
+    ).apply {
+        if (enableIpv6) {
+            put("inet6-address", listOf("${tunOptions.ipv6Address.address}/${tunOptions.ipv6Address.prefixLength}"))
+        }
+    }
 }
 
 private fun normalizedProxiesWithDnsOut(value: Any?): List<Any?> {
@@ -502,6 +528,7 @@ private val AsteriskManagedTopLevelKeys = setOf(
     "mode",
     "log-level",
     "ipv6",
+    MihomoTunRuntimeMarkerKey,
     "geox-url",
     "sniffer",
 )

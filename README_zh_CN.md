@@ -10,7 +10,7 @@
 
 ## 功能
 
-- VPN Service、TPROXY(ROOT) 和 TUN2SOCKS(ROOT) 运行模式
+- VPN Service、TPROXY(ROOT)、TUN(ROOT) 和 TUN2SOCKS(ROOT) 运行模式
 - 支持通过二维码、本地文件、URL 订阅添加配置
 - 支持 JavaScript 覆写脚本，用于进阶配置修改
 - 通过 Magisk `service.d` 脚本支持 ROOT 模式开机自启
@@ -40,6 +40,14 @@
 - 通过 libsu 直接运行本地 Mihomo 可执行文件。
 - 使用 iptables 和策略路由处理透明代理流量。
 - 使用已配置的透明代理端口作为 Mihomo 入站。
+
+### TUN(ROOT)
+
+- 需要 root 权限。
+- 通过 libsu 直接运行本地 Mihomo 可执行文件。
+- 使用 Mihomo 的 TUN listener 创建固定 TUN 设备 `asterisk0`。
+- 不启用 Mihomo `auto-route`，而是使用应用托管的 iptables 和策略路由规则。
+- 默认使用 gVisor TUN 栈以优先保证兼容性，用户可以在设置中切换到其他 Mihomo TUN 栈。
 
 ### TUN2SOCKS(ROOT)
 

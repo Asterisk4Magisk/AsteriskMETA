@@ -26,7 +26,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import app.modes.RunModeTun
 import app.modes.RunModeTun2Socks
+import app.modes.RunModeTproxy
 import app.modes.RunModeVpnService
 import app.ProjectInfo
 import app.R
@@ -123,11 +125,17 @@ private fun SettingsContent(
         stringResource(R.string.option_english),
         stringResource(R.string.option_simplified_chinese),
     )
-    val runModeOptions = listOf(
-        stringResource(R.string.settings_run_mode_vpn_service),
-        stringResource(R.string.settings_run_mode_tproxy),
-        stringResource(R.string.settings_run_mode_tun2socks),
+    val runModeItems = listOf(
+        RunModeVpnService to stringResource(R.string.settings_run_mode_vpn_service),
+        RunModeTproxy to stringResource(R.string.settings_run_mode_tproxy),
+        RunModeTun to stringResource(R.string.settings_run_mode_tun),
+        RunModeTun2Socks to stringResource(R.string.settings_run_mode_tun2socks),
     )
+    val runModeOptions = runModeItems.map { item -> item.second }
+    val selectedRunModeIndex = runModeItems
+        .indexOfFirst { item -> item.first == appState.runMode }
+        .takeIf { index -> index >= 0 }
+        ?: 0
     val tunStackOptions = settingsTunStackOptions()
     val keyColorOptions = listOf(
         stringResource(R.string.theme_color_default),
@@ -224,7 +232,7 @@ private fun SettingsContent(
                     enableIpv6 = appState.enableIpv6,
                     enableIpv6Prefer = appState.enableIpv6Prefer,
                     runModeOptions = runModeOptions,
-                    runMode = appState.runMode,
+                    selectedRunModeIndex = selectedRunModeIndex,
                     overrideScriptSummary = overrideScriptSummary,
                     onOpenOverrideScripts = {
                         navigator.push(Route.MihomoOverrideScripts)
@@ -236,11 +244,12 @@ private fun SettingsContent(
                         updateAppState { state -> state.copy(enableIpv6Prefer = enabled) }
                     },
                     onRunModeChange = { index ->
-                        if (index != appState.runMode && !runModeSwitchInProgress) {
+                        val targetRunMode = runModeItems.getOrNull(index)?.first ?: RunModeVpnService
+                        if (targetRunMode != appState.runMode && !runModeSwitchInProgress) {
                             runModeSwitchInProgress = true
                             val stateSnapshot = appState
                             val switchJob = services.appScope.launch {
-                                when (val result = switchRunModeUseCase.switchRunMode(stateSnapshot, index)) {
+                                when (val result = switchRunModeUseCase.switchRunMode(stateSnapshot, targetRunMode)) {
                                     is SwitchRunModeResult.Success -> {
                                         updateAppState { state ->
                                             state.copy(

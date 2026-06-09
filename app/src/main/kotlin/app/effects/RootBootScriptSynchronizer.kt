@@ -7,8 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import app.AppState
 import app.MihomoProfileState
-import app.modes.RunModeTproxy
-import app.modes.RunModeTun2Socks
+import app.modes.isRootRunMode
 import data.AndroidAppStateStore
 import engine.proxy.withResolvedDynamicLocalProxyPort
 import features.logs.AndroidAppLogger
@@ -36,7 +35,7 @@ internal fun RootBootScriptSynchronizer(
                     }
                     return@collect
                 }
-                if (!state.enableRootBootScript || (state.runMode != RunModeTproxy && state.runMode != RunModeTun2Socks)) {
+                if (!state.enableRootBootScript || !state.runMode.isRootRunMode()) {
                     return@collect
                 }
                 when (val result = rootBootScriptUseCase.refresh(state)) {
@@ -64,6 +63,7 @@ private data class RootBootScriptSignature(
     val enabled: Boolean,
     val runMode: Int,
     val mihomoMode: Int,
+    val mihomoTunStack: Int,
     val selectedMihomoProfileId: Int,
     val mihomoProfiles: List<MihomoProfileState>,
     val mihomoControlPort: String,
@@ -105,6 +105,9 @@ private data class RootBootScriptSignature(
     val localProxyPassword: String,
     val transparentProxyPort: String,
     val socks5ProxyPort: String,
+    val tunMtu: String,
+    val tunIpv4Cidr: String,
+    val tunIpv6Cidr: String,
     val externalInterfaces: List<String>,
     val ignoredInterfaces: List<String>,
     val privateAddressCidrs: List<String>,
@@ -119,6 +122,7 @@ private fun AppState.toRootBootScriptRefresh(): RootBootScriptRefresh {
             enabled = enableRootBootScript,
             runMode = runMode,
             mihomoMode = mihomoMode,
+            mihomoTunStack = mihomoTunStack,
             selectedMihomoProfileId = selectedMihomoProfileId,
             mihomoProfiles = mihomoProfiles,
             mihomoControlPort = mihomoControlPort,
@@ -160,6 +164,9 @@ private fun AppState.toRootBootScriptRefresh(): RootBootScriptRefresh {
             localProxyPassword = localProxyPassword,
             transparentProxyPort = transparentProxyPort,
             socks5ProxyPort = socks5ProxyPort,
+            tunMtu = tunMtu,
+            tunIpv4Cidr = tunIpv4Cidr,
+            tunIpv6Cidr = tunIpv6Cidr,
             externalInterfaces = externalInterfaces,
             ignoredInterfaces = ignoredInterfaces,
             privateAddressCidrs = privateAddressCidrs,

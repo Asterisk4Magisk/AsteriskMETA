@@ -6,11 +6,10 @@ package app
 import app.modes.ColorModeSystem
 import app.modes.LanguageModeSystem
 import app.modes.MihomoModeRule
-import app.modes.MihomoTunStackSystem
+import app.modes.MihomoTunStackGvisor
 import app.modes.ProxyAppListModeGlobal
-import app.modes.RunModeTproxy
-import app.modes.RunModeTun2Socks
 import app.modes.RunModeVpnService
+import app.modes.isRootRunMode
 import engine.tun2socks.DefaultTun2SocksProxyPort
 import engine.tproxy.DefaultTproxyPort
 import engine.vpn.VpnDefaults
@@ -41,7 +40,7 @@ data class AppState(
 
     val runMode: Int = RunModeVpnService,
     val mihomoMode: Int = MihomoModeRule,
-    val mihomoTunStack: Int = MihomoTunStackSystem,
+    val mihomoTunStack: Int = MihomoTunStackGvisor,
     val mihomoControlPort: String = DefaultMihomoControlPort.toString(),
     val mihomoControlSecret: String = "",
     val enableLocalDns: Boolean = true,
@@ -106,7 +105,7 @@ data class AppState(
 )
 
 val AppState.effectiveLocalDnsEnabled: Boolean
-    get() = runMode == RunModeTproxy || runMode == RunModeTun2Socks || enableLocalDns
+    get() = runMode.isRootRunMode() || enableLocalDns
 
 val AppState.effectiveFakeDnsEnabled: Boolean
     get() = effectiveLocalDnsEnabled && dnsEnhancedMode == MihomoDnsModeFakeIp

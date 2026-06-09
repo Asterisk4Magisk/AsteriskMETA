@@ -5,9 +5,11 @@ package features.settings.usecase
 
 import android.content.Context
 import app.AppState
+import app.modes.RunModeTun
 import app.modes.RunModeTun2Socks
 import app.modes.RunModeTproxy
 import app.modes.RunModeVpnService
+import app.modes.isRootRunMode
 import engine.proxy.AndroidProxyEngine
 import engine.tun2socks.deleteHevSocks5TunnelLogFile
 import features.logs.AndroidAppLogger
@@ -28,6 +30,7 @@ internal class SwitchRunModeUseCase(
     ): SwitchRunModeResult {
         val normalizedTargetMode = when (targetRunMode) {
             RunModeTproxy -> RunModeTproxy
+            RunModeTun -> RunModeTun
             RunModeTun2Socks -> RunModeTun2Socks
             else -> RunModeVpnService
         }
@@ -78,10 +81,6 @@ internal class SwitchRunModeUseCase(
             runMode = normalizedTargetMode,
             proxyRunning = stoppedRunning,
         )
-    }
-
-    private fun Int.isRootRunMode(): Boolean {
-        return this == RunModeTproxy || this == RunModeTun2Socks
     }
 
     private fun deleteHevSocks5TunnelLog() {

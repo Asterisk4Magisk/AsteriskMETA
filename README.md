@@ -10,7 +10,7 @@ An Android Mihomo GUI client powered by [Mihomo](https://github.com/MetaCubeX/mi
 
 ## Features
 
-- VPN Service, TPROXY(ROOT), and TUN2SOCKS(ROOT) run modes
+- VPN Service, TPROXY(ROOT), TUN(ROOT), and TUN2SOCKS(ROOT) run modes
 - Add configurations from QR code, local file, or URL subscription
 - JavaScript override scripts for advanced configuration mutation
 - ROOT start-on-boot script generation through Magisk `service.d`
@@ -40,6 +40,14 @@ An Android Mihomo GUI client powered by [Mihomo](https://github.com/MetaCubeX/mi
 - Runs the local Mihomo executable directly with libsu.
 - Uses iptables and policy routing for transparent proxy traffic.
 - Uses the configured transparent proxy port as the Mihomo inbound.
+
+### TUN(ROOT)
+
+- Requires root permission.
+- Runs the local Mihomo executable directly with libsu.
+- Uses Mihomo's TUN listener to create the fixed TUN device `asterisk0`.
+- Keeps Mihomo `auto-route` disabled and applies app-managed iptables and policy routing rules.
+- Defaults to the gVisor TUN stack for compatibility; users can switch to another Mihomo TUN stack in settings.
 
 ### TUN2SOCKS(ROOT)
 

@@ -3,9 +3,10 @@
 
 package features.settings
 
-import app.modes.RunModeTproxy
+import app.modes.RunModeTun
 import app.modes.RunModeTun2Socks
 import app.modes.RunModeVpnService
+import app.modes.isRootRunMode
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.expandVertically
@@ -140,7 +141,7 @@ internal fun SettingsAdvancedSection(
     enableIpv6: Boolean,
     enableIpv6Prefer: Boolean,
     runModeOptions: List<String>,
-    runMode: Int,
+    selectedRunModeIndex: Int,
     overrideScriptSummary: String,
     onOpenOverrideScripts: () -> Unit,
     onEnableIpv6Change: (Boolean) -> Unit,
@@ -175,7 +176,7 @@ internal fun SettingsAdvancedSection(
         OverlayDropdownPreference(
             title = stringResource(R.string.settings_run_mode),
             items = runModeOptions,
-            selectedIndex = runMode.coerceIn(runModeOptions.indices),
+            selectedIndex = selectedRunModeIndex.coerceIn(runModeOptions.indices),
             onSelectedIndexChange = onRunModeChange,
         )
     }
@@ -227,19 +228,23 @@ internal fun SettingsProxyModeSections(
         }
     }
     AnimatedVisibility(
-        visible = runMode == RunModeTproxy || runMode == RunModeTun2Socks,
+        visible = runMode.isRootRunMode(),
         enter = fadeIn() + expandVertically(),
         exit = ExitTransition.None,
     ) {
         Column {
             SmallTitle(
                 text = stringResource(
-                    if (runMode == RunModeTun2Socks) R.string.settings_proxy_tun2socks else R.string.settings_proxy_tproxy,
+                    when (runMode) {
+                        RunModeTun -> R.string.settings_proxy_tun
+                        RunModeTun2Socks -> R.string.settings_proxy_tun2socks
+                        else -> R.string.settings_proxy_tproxy
+                    },
                 ),
             )
             SettingsSectionCard {
                 AnimatedVisibility(
-                    visible = runMode == RunModeTproxy || runMode == RunModeTun2Socks,
+                    visible = runMode.isRootRunMode(),
                     enter = fadeIn() + expandVertically(),
                     exit = shrinkVertically() + fadeOut(),
                 ) {
@@ -256,7 +261,7 @@ internal fun SettingsProxyModeSections(
                     onClick = onOpenLocalProxySettings,
                 )
                 AnimatedVisibility(
-                    visible = runMode == RunModeTun2Socks,
+                    visible = runMode == RunModeTun || runMode == RunModeTun2Socks,
                     enter = fadeIn() + expandVertically(),
                     exit = shrinkVertically() + fadeOut(),
                 ) {

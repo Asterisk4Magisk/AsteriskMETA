@@ -17,6 +17,7 @@ import features.settings.sheets.sanitizePrivateAddressCidrs
 import app.modes.RunModeTun2Socks
 import app.modes.RunModeTproxy
 import app.modes.RunModeVpnService
+import app.modes.isRootRunMode
 
 @Composable
 internal fun SettingsBottomSheetsHost(
@@ -125,12 +126,12 @@ internal fun SettingsBottomSheetsHost(
     DnsSettingsBottomSheet(
         show = sheetState.showDnsSettings,
         draft = sheetState.dnsSettingsDraft,
-        forceEnableLocalDns = appState.runMode == RunModeTproxy || appState.runMode == RunModeTun2Socks,
+        forceEnableLocalDns = appState.runMode.isRootRunMode(),
         onDraftChange = { sheetState.dnsSettingsDraft = it },
         onDismissRequest = { sheetState.showDnsSettings = false },
         onSave = { draft ->
             updateAppState { state ->
-                val forceEnableLocalDns = state.runMode == RunModeTproxy || state.runMode == RunModeTun2Socks
+                val forceEnableLocalDns = state.runMode.isRootRunMode()
                 state.copy(
                     enableLocalDns = if (forceEnableLocalDns) true else draft.enableLocalDns,
                     overrideDns = draft.overrideDns,

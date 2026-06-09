@@ -6,8 +6,7 @@ package app.effects
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import app.AppState
-import app.modes.RunModeTproxy
-import app.modes.RunModeTun2Socks
+import app.modes.isRootRunMode
 import data.AndroidAppStateStore
 import engine.mihomo.runtime.MihomoRuntimeRepository
 import engine.proxy.AndroidProxyEngine
@@ -43,7 +42,7 @@ private suspend fun syncStartupProxyStatus(
     }
     val status = runCatching { proxyEngine.status(currentState.runMode) }.getOrNull() ?: return
     updateAppState { state ->
-        val runMode = status.runMode.takeIf { mode -> mode.isRootRunMode() } ?: state.runMode
+        val runMode = status.runMode.takeIf { mode -> mode?.isRootRunMode() == true } ?: state.runMode
         if (state.proxyRunning == status.running && state.runMode == runMode) {
             state
         } else {
@@ -57,8 +56,4 @@ private suspend fun syncStartupProxyStatus(
 
 private fun AppState.shouldCheckProxyStatusBeforeRuntimeSync(): Boolean {
     return proxyRunning || runMode.isRootRunMode()
-}
-
-private fun Int?.isRootRunMode(): Boolean {
-    return this == RunModeTproxy || this == RunModeTun2Socks
 }

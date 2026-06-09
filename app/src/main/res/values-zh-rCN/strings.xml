@@ -8,6 +8,8 @@
     <string name="error_vpn_tunnel_establish_failed">无法建立 VPN 隧道</string>
     <string name="error_tproxy_root_required">ROOT 权限不可用，无法启动 TPROXY 模式</string>
     <string name="error_tproxy_start_failed">TPROXY 模式启动失败：%1$s</string>
+    <string name="error_tun_root_required">ROOT 权限不可用，无法启动 TUN 模式</string>
+    <string name="error_tun_start_failed">TUN 模式启动失败：%1$s</string>
     <string name="error_tun2socks_root_required">ROOT 权限不可用，无法启动 TUN2SOCKS 模式</string>
     <string name="error_tun2socks_start_failed">TUN2SOCKS 模式启动失败：%1$s</string>
     <string name="error_vpn_permission_launcher_missing">VPN 权限请求器未注册</string>
@@ -148,9 +150,11 @@
     <string name="settings_run_mode">运行模式</string>
     <string name="settings_run_mode_vpn_service">VPN Service</string>
     <string name="settings_run_mode_tproxy">TPROXY（ROOT）</string>
+    <string name="settings_run_mode_tun">TUN（ROOT）</string>
     <string name="settings_run_mode_tun2socks">TUN2SOCKS（ROOT）</string>
     <string name="settings_root_required">获取ROOT权限失败！</string>
     <string name="settings_proxy_tproxy">代理设置（TPROXY）</string>
+    <string name="settings_proxy_tun">代理设置（TUN）</string>
     <string name="settings_proxy_tun2socks">代理设置（TUN2SOCKS）</string>
     <string name="settings_proxy_vpn_service">代理设置（VPN Service）</string>
     <string name="settings_root_boot_script">开机自启</string>

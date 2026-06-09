@@ -6,10 +6,13 @@ package engine.proxy
 import android.content.Context
 import android.content.Intent
 import app.R
+import app.modes.RunModeTun
 import app.modes.RunModeTun2Socks
 import app.modes.RunModeTproxy
 import engine.proxy.mode.AndroidModeProxyEngine
 import engine.root.RootModeEngine
+import engine.tun.TunRootRunner
+import engine.tun.buildTunStartConfig
 import engine.tproxy.TproxyRootRunner
 import engine.tproxy.buildTproxyStartConfig
 import engine.tun2socks.Tun2SocksRootRunner
@@ -38,6 +41,17 @@ class AndroidProxyEngine(
         modeName = "TPROXY",
         logTag = "TproxyEngine",
         buildConfig = { rootContext -> rootContext.buildTproxyStartConfig() },
+    )
+    private val tunEngine = RootModeEngine(
+        context = appContext,
+        rootAccess = rootAccess,
+        runner = TunRootRunner(rootAccess),
+        runMode = RunModeTun,
+        rootRequiredErrorResId = R.string.error_tun_root_required,
+        startFailedErrorResId = R.string.error_tun_start_failed,
+        modeName = "TUN",
+        logTag = "TunEngine",
+        buildConfig = { rootContext -> rootContext.buildTunStartConfig() },
     )
     private val tun2SocksEngine = RootModeEngine(
         context = appContext,
@@ -77,6 +91,7 @@ class AndroidProxyEngine(
         val resolvedRequest = request.copy(appState = request.appState.withResolvedDynamicLocalProxyPort())
         val nextEngine = when (resolvedRequest.appState.runMode) {
             RunModeTproxy -> tproxyEngine
+            RunModeTun -> tunEngine
             RunModeTun2Socks -> tun2SocksEngine
             else -> vpnMihomoEngine
         }
@@ -112,9 +127,11 @@ class AndroidProxyEngine(
             ?: preferredEngine?.takeIf { it.status().running }
             ?: preferredEngine?.takeIf { it.ownsRootRuntime() }
             ?: tproxyEngine.takeIf { it.status().running }
+            ?: tunEngine.takeIf { it.status().running }
             ?: tun2SocksEngine.takeIf { it.status().running }
             ?: vpnMihomoEngine.takeIf { it.status().running }
             ?: tproxyEngine.takeIf { it.ownsRuntime() }
+            ?: tunEngine.takeIf { it.ownsRuntime() }
             ?: tun2SocksEngine.takeIf { it.ownsRuntime() }
     }
 
@@ -134,7 +151,7 @@ class AndroidProxyEngine(
             fallbackStatus = preferredStatus
         }
 
-        listOf(tproxyEngine, tun2SocksEngine, vpnMihomoEngine)
+        listOf(tproxyEngine, tunEngine, tun2SocksEngine, vpnMihomoEngine)
             .filterNot { engine -> engine.runMode == preferredRunMode }
             .forEach { engine ->
                 val status = engine.status()
@@ -151,6 +168,7 @@ class AndroidProxyEngine(
     private fun Int.engine(): AndroidModeProxyEngine {
         return when (this) {
             RunModeTproxy -> tproxyEngine
+            RunModeTun -> tunEngine
             RunModeTun2Socks -> tun2SocksEngine
             else -> vpnMihomoEngine
         }

@@ -8,6 +8,8 @@
     <string name="error_vpn_tunnel_establish_failed">Unable to establish VPN tunnel</string>
     <string name="error_tproxy_root_required">ROOT access is required for TPROXY mode</string>
     <string name="error_tproxy_start_failed">Failed to start TPROXY mode: %1$s</string>
+    <string name="error_tun_root_required">ROOT access is required for TUN mode</string>
+    <string name="error_tun_start_failed">Failed to start TUN mode: %1$s</string>
     <string name="error_tun2socks_root_required">ROOT access is required for TUN2SOCKS mode</string>
     <string name="error_tun2socks_start_failed">Failed to start TUN2SOCKS mode: %1$s</string>
     <string name="error_vpn_permission_launcher_missing">VPN permission launcher is not registered</string>
@@ -147,10 +149,12 @@
     <string name="settings_advanced">Advanced settings</string>
     <string name="settings_run_mode">Run mode</string>
     <string name="settings_run_mode_vpn_service">VPN Service</string>
-    <string name="settings_run_mode_tproxy">TPROXY（ROOT）</string>
-    <string name="settings_run_mode_tun2socks">TUN2SOCKS（ROOT）</string>
+    <string name="settings_run_mode_tproxy">TPROXY (ROOT)</string>
+    <string name="settings_run_mode_tun">TUN (ROOT)</string>
+    <string name="settings_run_mode_tun2socks">TUN2SOCKS (ROOT)</string>
     <string name="settings_root_required">No ROOT access detected!</string>
     <string name="settings_proxy_tproxy">Proxy settings (TPROXY)</string>
+    <string name="settings_proxy_tun">Proxy settings (TUN)</string>
     <string name="settings_proxy_tun2socks">Proxy settings (TUN2SOCKS)</string>
     <string name="settings_proxy_vpn_service">Proxy settings (VPN Service)</string>
     <string name="settings_root_boot_script">Start on boot</string>
