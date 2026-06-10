@@ -72,11 +72,13 @@ internal fun String.toSubscriptionInstallConfigOrNull(): SubscriptionInstallConf
     return url.toSubscriptionInstallConfigOrNull(value)
 }
 
-internal fun String.toRawHttpsSubscriptionInstallConfigOrNull(): SubscriptionInstallConfig? {
-    val value = trim()
-    if (value.any(Char::isWhitespace)) return null
-    val url = runCatching { Url(value) }.getOrNull() ?: return null
-    return url.toRawHttpsSubscriptionInstallConfigOrNull(value)
+internal fun String.isValidManualSubscriptionUrl(): Boolean {
+    return isValidSubscriptionUrl(ManualSubscriptionUrlSchemes)
+}
+
+internal fun String.isPlainHttpSubscriptionUrl(): Boolean {
+    val url = toSubscriptionUrlOrNull() ?: return false
+    return url.protocol.name.equals("http", ignoreCase = true)
 }
 
 internal fun Uri.isSubscriptionInstallConfigUri(): Boolean {
@@ -85,7 +87,10 @@ internal fun Uri.isSubscriptionInstallConfigUri(): Boolean {
 }
 
 private fun Url.toSubscriptionInstallConfigOrNull(rawValue: String): SubscriptionInstallConfig? {
-    toRawHttpsSubscriptionInstallConfigOrNull(rawValue)?.let { return it }
+    toRawSubscriptionInstallConfigOrNull(
+        rawValue = rawValue,
+        schemes = HttpsSubscriptionUrlSchemes,
+    )?.let { return it }
     val source = installConfigSource() ?: return null
     val url = parameters["url"]?.trim().orEmpty()
     if (!isSubscriptionInstallConfigUri() || !url.isValidSubscriptionUrl()) return null
@@ -104,8 +109,11 @@ private fun Url.toSubscriptionInstallConfigOrNull(rawValue: String): Subscriptio
     )
 }
 
-private fun Url.toRawHttpsSubscriptionInstallConfigOrNull(rawValue: String): SubscriptionInstallConfig? {
-    if (!rawValue.isValidSubscriptionUrl()) return null
+private fun Url.toRawSubscriptionInstallConfigOrNull(
+    rawValue: String,
+    schemes: Set<String>,
+): SubscriptionInstallConfig? {
+    if (!rawValue.isValidSubscriptionUrl(schemes)) return null
     val name = listOfNotNull(fragment, V2rayNgDefaultSubscriptionName)
         .firstNotNullOfOrNull { value -> value.trim().decodeUrlComponentPreservingPlus().takeIf(String::isNotBlank) }
         ?: return null
@@ -149,12 +157,20 @@ private fun newMihomoProfile(config: SubscriptionInstallConfig, profileId: Int):
     )
 }
 
-private fun String.isValidSubscriptionUrl(): Boolean {
-    val url = runCatching { Url(this) }.getOrNull() ?: return false
+private fun String.isValidSubscriptionUrl(
+    schemes: Set<String> = HttpsSubscriptionUrlSchemes,
+): Boolean {
+    val url = toSubscriptionUrlOrNull() ?: return false
     val scheme = url.protocol.name.lowercase()
     return url.host.isNotBlank() &&
-        scheme in SubscriptionUrlSchemes &&
+        scheme in schemes &&
         this.any(Char::isWhitespace).not()
+}
+
+private fun String.toSubscriptionUrlOrNull(): Url? {
+    val value = trim()
+    if (value.any(Char::isWhitespace)) return null
+    return runCatching { Url(value) }.getOrNull()
 }
 
 private enum class InstallConfigSource(
@@ -191,4 +207,5 @@ private fun String.toSubscriptionUrlFragmentOrNull(): String? {
 private const val V2rayNgDefaultSubscriptionName = "import sub"
 private const val ClashDefaultSubscriptionName = "clashsub"
 private val InstallConfigHosts = setOf("install-config", "install-sub")
-private val SubscriptionUrlSchemes = setOf("https")
+private val HttpsSubscriptionUrlSchemes = setOf("https")
+private val ManualSubscriptionUrlSchemes = setOf("http", "https")

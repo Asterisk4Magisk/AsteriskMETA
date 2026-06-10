@@ -5,11 +5,21 @@ package features.mihomo
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.InputTransformation
 import androidx.compose.foundation.text.input.TextFieldLineLimits
@@ -28,12 +38,18 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import app.DefaultMihomoOverrideScriptId
 import app.DefaultMihomoProfileId
 import app.DefaultMihomoProfileUpdateInterval
@@ -49,7 +65,8 @@ import app.R
 import app.collectAppState
 import app.nextAvailableMihomoProfileId
 import engine.mihomo.sha256Hex
-import features.subscription.toRawHttpsSubscriptionInstallConfigOrNull
+import features.subscription.isPlainHttpSubscriptionUrl
+import features.subscription.isValidManualSubscriptionUrl
 import features.subscription.usecase.launchMihomoProfileSubscriptionUpdate
 import features.subscription.usecase.subscriptionUpdateMessage
 import kotlin.coroutines.cancellation.CancellationException
@@ -57,9 +74,12 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import top.yukonga.miuix.kmp.basic.Card
+import top.yukonga.miuix.kmp.basic.CardDefaults
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Ok
@@ -139,6 +159,7 @@ fun MihomoProfileEditPage(
         ?: 0
     val nameRequiredMessage = stringResource(R.string.mihomo_configuration_name_required)
     val invalidUrlMessage = stringResource(R.string.mihomo_configuration_invalid_subscription_url)
+    var showHttpSubscriptionWarning by remember { mutableStateOf(false) }
 
     LaunchedEffect(targetProfile?.id, targetProfile?.contentPath, profileType) {
         if (profileType != MihomoProfileType.File || targetProfile == null) {
@@ -205,131 +226,27 @@ fun MihomoProfileEditPage(
             },
         )
 
-    fun onSave() {
+    fun saveUrlProfile(allowPlainHttp: Boolean = false) {
         val cleanName = nameState.text.toString().trim()
         if (saving || (!isNew && targetProfile == null)) return
         if (cleanName.isBlank()) {
             scope.launch { services.tipNotifier.show(nameRequiredMessage) }
             return
         }
-        if (profileType == MihomoProfileType.File) {
-            saving = true
-            val profileSnapshot = targetProfile
-            val contentText = contentValue.text
-            val shouldPop = CompletableDeferred<Boolean>()
-            services.appScope.launch {
-                try {
-                    val saved = runCatching {
-                        val contentChanged = withContext(Dispatchers.IO) {
-                            profileSnapshot == null || profileSnapshot.contentSha256 != contentText.sha256Hex()
-                        }
-                        val contentRef = withContext(Dispatchers.IO) {
-                            when {
-                                contentText.isBlank() -> {
-                                    if (profileSnapshot?.hasContent == true) {
-                                        services.mihomoProfileContentStore.delete(profileSnapshot)
-                                    }
-                                    null
-                                }
-                                contentChanged && profileSnapshot != null -> services.mihomoProfileContentStore.write(
-                                    profileSnapshot,
-                                    contentText,
-                                )
-                                contentChanged -> services.mihomoProfileContentStore.writeNew(contentText)
-                                else -> null
-                            }
-                        }
-                        val localProfileModified = profileSnapshot == null ||
-                            profileSnapshot.type != MihomoProfileType.File ||
-                            profileSnapshot.name != cleanName ||
-                            contentChanged ||
-                            profileSnapshot.overrideScriptId != selectedOverrideScriptId
-                        val savedProfile = if (profileSnapshot != null) {
-                            profileSnapshot.copy(
-                                name = cleanName,
-                                type = MihomoProfileType.File,
-                                url = "",
-                                contentPath = when {
-                                    contentText.isBlank() -> ""
-                                    contentRef != null -> contentRef.path
-                                    else -> profileSnapshot.contentPath
-                                },
-                                contentSha256 = when {
-                                    contentText.isBlank() -> ""
-                                    contentRef != null -> contentRef.sha256
-                                    else -> profileSnapshot.contentSha256
-                                },
-                                contentSizeBytes = when {
-                                    contentText.isBlank() -> 0L
-                                    contentRef != null -> contentRef.sizeBytes
-                                    else -> profileSnapshot.contentSizeBytes
-                                },
-                                lastUpdatedAtMillis = if (localProfileModified) {
-                                    System.currentTimeMillis()
-                                } else {
-                                    profileSnapshot.lastUpdatedAtMillis
-                                },
-                                overrideScriptId = selectedOverrideScriptId,
-                            )
-                        } else {
-                            MihomoProfileState(
-                                id = DefaultMihomoProfileId,
-                                name = cleanName,
-                                type = MihomoProfileType.File,
-                                contentPath = contentRef?.path.orEmpty(),
-                                contentSha256 = contentRef?.sha256.orEmpty(),
-                                contentSizeBytes = contentRef?.sizeBytes ?: 0L,
-                                lastUpdatedAtMillis = System.currentTimeMillis(),
-                                overrideScriptId = selectedOverrideScriptId,
-                            )
-                        }
-                        saveProfile(savedProfile, profileSnapshot == null)
-                    }.onFailure { error ->
-                        if (error is CancellationException) throw error
-                        services.tipNotifier.showError(error, providerPrepareFailedMessage)
-                    }.getOrNull()
-                    if (saved == null) {
-                        shouldPop.complete(false)
-                        return@launch
-                    }
-                    if (!saved.hasContent) {
-                        shouldPop.complete(true)
-                        return@launch
-                    }
-                    runCatching {
-                        services.mihomoProviderFetcher.fetchMissingProviders(
-                            profileContent = contentText,
-                            sourceUrl = saved.url,
-                        )
-                    }.onFailure { error ->
-                        if (error is CancellationException) throw error
-                        services.tipNotifier.showError(error, providerPrepareFailedMessage)
-                    }
-                    shouldPop.complete(true)
-                } catch (error: CancellationException) {
-                    shouldPop.completeExceptionally(error)
-                    throw error
-                }
-            }
-            scope.launch {
-                try {
-                    if (shouldPop.await()) {
-                        navigator.pop()
-                    }
-                } finally {
-                    saving = false
-                }
-            }
-            return
-        }
 
         val trimmedUrl = urlState.text.toString().trim()
         val cleanUserAgent = userAgentState.text.toString().trim().ifBlank { app.DefaultMihomoProfileUserAgent }
         val cleanInterval = updateIntervalState.text.toString().trim()
-        if (trimmedUrl.toRawHttpsSubscriptionInstallConfigOrNull() == null) {
+        if (!trimmedUrl.isValidManualSubscriptionUrl()) {
             scope.launch { services.tipNotifier.show(invalidUrlMessage) }
             return
         }
+        if (!allowPlainHttp && trimmedUrl.isPlainHttpSubscriptionUrl()) {
+            showHttpSubscriptionWarning = true
+            return
+        }
+
+        showHttpSubscriptionWarning = false
         val urlChanged = targetProfile?.url != trimmedUrl
         val remoteOptionsChanged = targetProfile == null ||
             urlChanged ||
@@ -378,6 +295,127 @@ fun MihomoProfileEditPage(
             } finally {
                 saving = false
                 navigator.pop()
+            }
+        }
+    }
+
+    fun onSave() {
+        if (profileType == MihomoProfileType.Url) {
+            saveUrlProfile()
+            return
+        }
+
+        val cleanName = nameState.text.toString().trim()
+        if (saving || (!isNew && targetProfile == null)) return
+        if (cleanName.isBlank()) {
+            scope.launch { services.tipNotifier.show(nameRequiredMessage) }
+            return
+        }
+        saving = true
+        val profileSnapshot = targetProfile
+        val contentText = contentValue.text
+        val shouldPop = CompletableDeferred<Boolean>()
+        services.appScope.launch {
+            try {
+                val saved = runCatching {
+                    val contentChanged = withContext(Dispatchers.IO) {
+                        profileSnapshot == null || profileSnapshot.contentSha256 != contentText.sha256Hex()
+                    }
+                    val contentRef = withContext(Dispatchers.IO) {
+                        when {
+                            contentText.isBlank() -> {
+                                if (profileSnapshot?.hasContent == true) {
+                                    services.mihomoProfileContentStore.delete(profileSnapshot)
+                                }
+                                null
+                            }
+                            contentChanged && profileSnapshot != null -> services.mihomoProfileContentStore.write(
+                                profileSnapshot,
+                                contentText,
+                            )
+                            contentChanged -> services.mihomoProfileContentStore.writeNew(contentText)
+                            else -> null
+                        }
+                    }
+                    val localProfileModified = profileSnapshot == null ||
+                        profileSnapshot.type != MihomoProfileType.File ||
+                        profileSnapshot.name != cleanName ||
+                        contentChanged ||
+                        profileSnapshot.overrideScriptId != selectedOverrideScriptId
+                    val savedProfile = if (profileSnapshot != null) {
+                        profileSnapshot.copy(
+                            name = cleanName,
+                            type = MihomoProfileType.File,
+                            url = "",
+                            contentPath = when {
+                                contentText.isBlank() -> ""
+                                contentRef != null -> contentRef.path
+                                else -> profileSnapshot.contentPath
+                            },
+                            contentSha256 = when {
+                                contentText.isBlank() -> ""
+                                contentRef != null -> contentRef.sha256
+                                else -> profileSnapshot.contentSha256
+                            },
+                            contentSizeBytes = when {
+                                contentText.isBlank() -> 0L
+                                contentRef != null -> contentRef.sizeBytes
+                                else -> profileSnapshot.contentSizeBytes
+                            },
+                            lastUpdatedAtMillis = if (localProfileModified) {
+                                System.currentTimeMillis()
+                            } else {
+                                profileSnapshot.lastUpdatedAtMillis
+                            },
+                            overrideScriptId = selectedOverrideScriptId,
+                        )
+                    } else {
+                        MihomoProfileState(
+                            id = DefaultMihomoProfileId,
+                            name = cleanName,
+                            type = MihomoProfileType.File,
+                            contentPath = contentRef?.path.orEmpty(),
+                            contentSha256 = contentRef?.sha256.orEmpty(),
+                            contentSizeBytes = contentRef?.sizeBytes ?: 0L,
+                            lastUpdatedAtMillis = System.currentTimeMillis(),
+                            overrideScriptId = selectedOverrideScriptId,
+                        )
+                    }
+                    saveProfile(savedProfile, profileSnapshot == null)
+                }.onFailure { error ->
+                    if (error is CancellationException) throw error
+                    services.tipNotifier.showError(error, providerPrepareFailedMessage)
+                }.getOrNull()
+                if (saved == null) {
+                    shouldPop.complete(false)
+                    return@launch
+                }
+                if (!saved.hasContent) {
+                    shouldPop.complete(true)
+                    return@launch
+                }
+                runCatching {
+                    services.mihomoProviderFetcher.fetchMissingProviders(
+                        profileContent = contentText,
+                        sourceUrl = saved.url,
+                    )
+                }.onFailure { error ->
+                    if (error is CancellationException) throw error
+                    services.tipNotifier.showError(error, providerPrepareFailedMessage)
+                }
+                shouldPop.complete(true)
+            } catch (error: CancellationException) {
+                shouldPop.completeExceptionally(error)
+                throw error
+            }
+        }
+        scope.launch {
+            try {
+                if (shouldPop.await()) {
+                    navigator.pop()
+                }
+            } finally {
+                saving = false
             }
         }
     }
@@ -472,6 +510,117 @@ fun MihomoProfileEditPage(
                                 .fillMaxWidth()
                                 .weight(1f),
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default),
+                        )
+                    }
+                }
+            }
+        }
+        HttpSubscriptionWarningDialog(
+            show = showHttpSubscriptionWarning,
+            onDismissRequest = { showHttpSubscriptionWarning = false },
+            onConfirm = { saveUrlProfile(allowPlainHttp = true) },
+        )
+    }
+}
+
+@Composable
+private fun HttpSubscriptionWarningDialog(
+    show: Boolean,
+    onDismissRequest: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    if (!show) return
+
+    Dialog(
+        onDismissRequest = onDismissRequest,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        val outsideInteractionSource = remember { MutableInteractionSource() }
+        val dialogInteractionSource = remember { MutableInteractionSource() }
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clickable(
+                    interactionSource = outsideInteractionSource,
+                    indication = null,
+                    onClick = onDismissRequest,
+                )
+                .padding(horizontal = 24.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Card(
+                modifier = Modifier
+                    .widthIn(max = 420.dp)
+                    .fillMaxWidth()
+                    .clickable(
+                        interactionSource = dialogInteractionSource,
+                        indication = null,
+                        onClick = {},
+                    ),
+                insideMargin = PaddingValues(horizontal = 20.dp, vertical = 20.dp),
+                colors = CardDefaults.defaultColors(
+                    color = MiuixTheme.colorScheme.background,
+                    contentColor = MiuixTheme.colorScheme.onBackground,
+                ),
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .padding(bottom = 12.dp)
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(22.dp))
+                            .background(MiuixTheme.colorScheme.error.copy(alpha = 0.14f)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = "!",
+                            color = MiuixTheme.colorScheme.error,
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+                    Text(
+                        text = stringResource(R.string.mihomo_configuration_http_subscription_warning_title),
+                        color = MiuixTheme.colorScheme.onBackground,
+                        fontSize = MiuixTheme.textStyles.title4.fontSize,
+                        fontWeight = FontWeight.Medium,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(MiuixTheme.colorScheme.error.copy(alpha = 0.10f))
+                            .padding(horizontal = 12.dp, vertical = 12.dp),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.mihomo_configuration_http_subscription_warning_message),
+                            color = MiuixTheme.colorScheme.error,
+                            style = MiuixTheme.textStyles.body2,
+                            fontWeight = FontWeight.Medium,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        TextButton(
+                            text = stringResource(R.string.common_cancel),
+                            onClick = onDismissRequest,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Spacer(Modifier.width(20.dp))
+                        TextButton(
+                            text = stringResource(R.string.mihomo_configuration_http_subscription_warning_confirm),
+                            onClick = onConfirm,
+                            modifier = Modifier.weight(1f),
                         )
                     }
                 }
