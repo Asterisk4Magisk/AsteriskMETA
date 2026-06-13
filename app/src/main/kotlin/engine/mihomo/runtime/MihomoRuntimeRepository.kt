@@ -31,6 +31,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import java.net.ConnectException
+import kotlin.time.Duration.Companion.milliseconds
 
 internal class MihomoRuntimeRepository(
     private val appScope: CoroutineScope,
@@ -497,7 +499,7 @@ internal class MihomoRuntimeRepository(
                     reportRuntimeError("Mihomo runtime polling", error)
                     mutableState.update { current -> current.copy(lastError = error.message.orEmpty()) }
                 }
-            delay(RuntimePollIntervalMillis)
+            delay(RuntimePollIntervalMillis.milliseconds)
         }
     }
 
@@ -547,6 +549,14 @@ internal class MihomoRuntimeRepository(
 
     private fun reportRuntimeError(source: String, error: Throwable) {
         val message = error.message?.takeIf(String::isNotBlank) ?: error::class.java.simpleName
+        if (error.isTransientControlConnectionFailure()) {
+            val signature = "Mihomo control API unavailable: $message"
+            if (signature != lastLoggedRuntimeError) {
+                lastLoggedRuntimeError = signature
+                AndroidAppLogger.debug(LogTag, signature)
+            }
+            return
+        }
         val signature = "$source: $message"
         if (signature == lastLoggedRuntimeError) {
             return
@@ -673,6 +683,17 @@ private enum class MihomoRuntimeBackend {
 
 private fun MihomoRuntimeBackend.useBridge(): Boolean {
     return this == MihomoRuntimeBackend.Bridge
+}
+
+private fun Throwable.isTransientControlConnectionFailure(): Boolean {
+    var current: Throwable? = this
+    while (current != null) {
+        if (current is ConnectException) {
+            return true
+        }
+        current = current.cause
+    }
+    return false
 }
 
 private fun AppState.mihomoRuntimeBackend(): MihomoRuntimeBackend {
