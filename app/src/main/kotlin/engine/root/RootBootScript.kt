@@ -184,6 +184,7 @@ private fun <Config : RootModeStartConfig> StringBuilder.appendRootStartupPreamb
         appendScript(
             $$"""
         echo "IPv6 enabled: $${config.root.enableIpv6}"
+        echo "FakeIp enabled: $${config.root.enableFakeIp}"
         echo "Core error log: $${config.root.coreLogPaths.errorLogPath.shellQuote()}"
 
         section "Prepare runtime"

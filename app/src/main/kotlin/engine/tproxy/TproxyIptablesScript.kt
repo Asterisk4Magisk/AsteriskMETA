@@ -12,6 +12,8 @@ import engine.root.RootProxyRouteRulePriority
 import engine.root.RootProxyAppWhitelistSystemUids
 import engine.root.appendDeleteRuleLoop
 import engine.root.appendIpRuleDeleteLoop
+import engine.root.appendRootFakeIpIcmpReplyCleanupRules
+import engine.root.appendRootFakeIpIcmpReplyRules
 import engine.root.appendRootIpv6DnsRejectCleanupRules
 import engine.root.appendRootIpv6DnsRejectRules
 import engine.root.appendScript
@@ -20,6 +22,8 @@ import utils.shellQuote
 internal fun RootIptablesConfig.buildSetupRulesCommand(
     port: Int,
     enableIpv6: Boolean,
+    enableFakeIp: Boolean,
+    fakeIpIpv4Pool: String,
 ): String {
     return buildString {
         append(buildCleanupRulesCommand())
@@ -32,12 +36,16 @@ internal fun RootIptablesConfig.buildSetupRulesCommand(
             appendIpv6VariantSetupRules(this@buildSetupRulesCommand, port)
         }
         appendRootIpv6DnsRejectRules()
+        if (enableFakeIp) {
+            appendRootFakeIpIcmpReplyRules(fakeIpIpv4Pool)
+        }
     }
 }
 
 internal fun RootIptablesConfig.buildCleanupRulesCommand(): String {
     return buildString {
         appendIptablesVariantCleanupRules(this@buildCleanupRulesCommand, ipv4IptablesVariant())
+        appendRootFakeIpIcmpReplyCleanupRules()
         appendRootIpv6DnsRejectCleanupRules()
         appendIptablesVariantCleanupRules(this@buildCleanupRulesCommand, ipv6IptablesVariant(useDummyInterface = false))
         appendIptablesVariantCleanupRules(this@buildCleanupRulesCommand, ipv6IptablesVariant(useDummyInterface = true))

@@ -5,6 +5,9 @@ package engine.root
 
 import android.content.Context
 import app.AppState
+import app.effectiveFakeIpEnabled
+import engine.mihomo.DefaultMihomoDnsFakeIpRange
+import engine.network.parseCidrAddressOrNull
 import engine.network.toPortOrNull
 import engine.proxy.ProxyEngineStartRequest
 import engine.tun2socks.DefaultTun2SocksProxyPort
@@ -65,10 +68,43 @@ private fun AppState.toRootStartConfig(
         setuidgidPath = resourceFilePaths.setuidgidPath,
         runtimeLayout = runtimeLayout,
         enableIpv6 = enableIpv6,
+        enableFakeIp = effectiveFakeIpEnabled,
+        fakeIpIpv4Pool = rootFakeIpIpv4Pool(),
         coreLogPaths = coreLogPaths,
     )
 }
 
 internal fun AppState.tun2SocksInternalProxyPortValue(): Int {
     return socks5ProxyPort.toPortOrNull() ?: DefaultTun2SocksProxyPort
+}
+
+private fun AppState.rootFakeIpIpv4Pool(): String {
+    return dnsFakeIpRange.normalizedIpv4CidrOrNull()
+        ?: DefaultMihomoDnsFakeIpRange.normalizedIpv4CidrOrNull()
+        ?: "198.18.0.0/16"
+}
+
+private fun String.normalizedIpv4CidrOrNull(): String? {
+    val cidr = parseCidrAddressOrNull(this) ?: return null
+    if (":" in cidr.address) return null
+    val octets = cidr.address.split(".")
+    if (octets.size != 4) return null
+    var addressValue = 0L
+    octets.forEach { octet ->
+        val value = octet.toIntOrNull() ?: return null
+        addressValue = (addressValue shl 8) or value.toLong()
+    }
+    val mask = if (cidr.prefixLength == 0) {
+        0L
+    } else {
+        (0xffffffffL shl (32 - cidr.prefixLength)) and 0xffffffffL
+    }
+    val network = addressValue and mask
+    val address = listOf(
+        (network shr 24) and 0xff,
+        (network shr 16) and 0xff,
+        (network shr 8) and 0xff,
+        network and 0xff,
+    ).joinToString(".")
+    return "$address/${cidr.prefixLength}"
 }

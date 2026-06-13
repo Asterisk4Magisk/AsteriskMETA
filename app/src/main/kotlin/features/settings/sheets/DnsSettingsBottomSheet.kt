@@ -25,6 +25,7 @@ import engine.mihomo.DefaultMihomoDnsFakeIpRange
 import engine.mihomo.MihomoDnsModeFakeIp
 import engine.mihomo.MihomoDnsModeValues
 import engine.network.isCidrAddress
+import engine.network.isIpv4CidrAddress
 import engine.network.isIpAddress
 import features.settings.DnsSettingsDraft
 import top.yukonga.miuix.kmp.basic.Text
@@ -80,7 +81,7 @@ internal fun DnsSettingsBottomSheet(
     val localDnsChecked = forceEnableLocalDns || draft.enableLocalDns
     val fakeIpRangeError = if (
         sanitizedDraft.dnsEnhancedMode != MihomoDnsModeFakeIp ||
-        isCidrAddress(draft.dnsFakeIpRange)
+        isIpv4CidrAddress(draft.dnsFakeIpRange)
     ) {
         null
     } else {
@@ -409,7 +410,7 @@ private fun dnsServerInputError(input: String, invalidMessage: String): String? 
 }
 
 private fun isMihomoDnsServer(value: String): Boolean {
-    if (value.equals("localhost", ignoreCase = true) || value.equals("fakedns", ignoreCase = true)) {
+    if (value.equals("localhost", ignoreCase = true)) {
         return true
     }
 

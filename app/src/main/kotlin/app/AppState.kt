@@ -107,5 +107,5 @@ data class AppState(
 val AppState.effectiveLocalDnsEnabled: Boolean
     get() = runMode.isRootRunMode() || enableLocalDns
 
-val AppState.effectiveFakeDnsEnabled: Boolean
+val AppState.effectiveFakeIpEnabled: Boolean
     get() = effectiveLocalDnsEnabled && dnsEnhancedMode == MihomoDnsModeFakeIp

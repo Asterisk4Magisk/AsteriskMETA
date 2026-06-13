@@ -17,6 +17,7 @@ import app.modes.RunModeTproxy
 import app.modes.RunModeTun2Socks
 import app.modes.isRootRunMode
 import app.resourceFileUpdateSource
+import engine.network.isIpv4CidrAddress
 import engine.network.toPortOrNull
 import engine.proxy.LocalProxyLoopbackAddress
 import engine.tun.MihomoTunDevice
@@ -53,10 +54,6 @@ internal object MihomoProfileFactory {
             error(MihomoProfileEmptyErrorMessage)
         }
         return rawContent.withAsteriskRuntimeOverrides(appState, selectedProfile, runMode, exposePorts)
-    }
-
-    fun selectedProfileName(appState: AppState): String {
-        return appState.selectedMihomoProfileOrNull()?.name?.takeIf(String::isNotBlank) ?: "No configuration"
     }
 
     fun tunStack(appState: AppState): String {
@@ -302,7 +299,10 @@ private fun AppState.toMihomoDnsYamlMap(
         })
         put("enhanced-mode", dnsEnhancedModeName())
         if (dnsEnhancedMode == MihomoDnsModeFakeIp) {
-            put("fake-ip-range", dnsFakeIpRange.trim().ifBlank { DefaultMihomoDnsFakeIpRange })
+            val fakeIpRange = dnsFakeIpRange.trim()
+                .takeIf(::isIpv4CidrAddress)
+                ?: DefaultMihomoDnsFakeIpRange
+            put("fake-ip-range", fakeIpRange)
             put("fake-ip-filter", dnsFakeIpFilter.toTrimmedNonEmptyDistinctList())
         }
         val nameserverPolicy = dnsNameserverPolicy.toMihomoNameserverPolicy()

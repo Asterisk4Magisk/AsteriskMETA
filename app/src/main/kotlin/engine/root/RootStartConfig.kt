@@ -13,6 +13,8 @@ internal data class RootStartConfig(
     val setuidgidPath: String,
     val runtimeLayout: RootRuntimeLayout,
     val enableIpv6: Boolean,
+    val enableFakeIp: Boolean,
+    val fakeIpIpv4Pool: String,
     val coreLogPaths: MihomoCoreLogPaths,
 ) {
     val configPath: String

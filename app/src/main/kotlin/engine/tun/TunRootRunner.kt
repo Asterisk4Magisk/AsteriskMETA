@@ -22,7 +22,11 @@ internal class TunRootRunner(
     logTag = LogTag,
 ) {
     override fun buildSetupRulesCommand(config: TunStartConfig): String {
-        return config.iptablesConfig.buildSetupRulesCommand(enableIpv6 = config.root.enableIpv6)
+        return config.iptablesConfig.buildSetupRulesCommand(
+            enableIpv6 = config.root.enableIpv6,
+            enableFakeIp = config.root.enableFakeIp,
+            fakeIpIpv4Pool = config.root.fakeIpIpv4Pool,
+        )
     }
 
     override fun buildCleanupRulesCommand(): String {

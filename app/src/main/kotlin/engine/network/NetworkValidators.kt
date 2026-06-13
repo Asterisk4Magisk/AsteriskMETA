@@ -16,6 +16,11 @@ fun isCidrAddress(cidr: String): Boolean {
     return parseCidrAddressOrNull(cidr) != null
 }
 
+fun isIpv4CidrAddress(cidr: String): Boolean {
+    val address = parseCidrAddressOrNull(cidr)?.address ?: return false
+    return isIpv4Address(address)
+}
+
 fun parseCidrAddressOrNull(cidr: String): NetworkCidrAddress? {
     val parts = cidr.trim().split("/", limit = 2)
     if (parts.size != 2) return null
