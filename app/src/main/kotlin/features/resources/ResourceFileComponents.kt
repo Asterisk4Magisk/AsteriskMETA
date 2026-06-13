@@ -352,7 +352,7 @@ internal fun CustomResourceFileEditorDialog(
     nameState: TextFieldState,
     urlState: TextFieldState,
     onDismissRequest: () -> Unit,
-    onSave: (name: String, url: String) -> Unit,
+    onSave: (name: String, url: String) -> Boolean,
 ) {
     WindowDialog(
         show = show,
@@ -391,8 +391,7 @@ internal fun CustomResourceFileEditorDialog(
                         onClick = {
                             val name = nameState.text.toString()
                             val url = urlState.text.toString()
-                            if (name.isNotBlank()) {
-                                onSave(name, url)
+                            if (onSave(name, url)) {
                                 onDismissRequest()
                             }
                         },

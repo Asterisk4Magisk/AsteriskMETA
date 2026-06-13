@@ -217,23 +217,11 @@ fun sanitizeCustomResourceFileName(value: String, fallback: String): String {
         ?: fallback
 }
 
-fun uniqueCustomResourceFileName(
-    value: String,
-    reservedNames: Set<String>,
-    fallback: String,
-): String {
-    val sanitized = sanitizeCustomResourceFileName(value, fallback)
-    if (sanitized !in reservedNames) return sanitized
-
-    val extensionStart = sanitized.lastIndexOf('.').takeIf { index -> index > 0 } ?: sanitized.length
-    val baseName = sanitized.substring(0, extensionStart).ifBlank { fallback.substringBeforeLast('.') }
-    val extension = sanitized.substring(extensionStart)
-    var counter = 1
-    while (true) {
-        val candidate = "$baseName-$counter$extension"
-        if (candidate !in reservedNames) return candidate
-        counter += 1
-    }
+fun customResourceFileNameOrNull(value: String): String? {
+    if (value.isBlank() || value != value.trim()) return null
+    if (value.any { char -> char.isWhitespace() || char == ':' }) return null
+    return sanitizeCustomResourceFileName(value, fallback = "")
+        .takeIf { sanitized -> sanitized == value }
 }
 
 private fun Char.isResourceFileNameChar(): Boolean {

@@ -235,6 +235,8 @@
     <string name="settings_resource_files_custom_file">自定义资源文件</string>
     <string name="settings_resource_files_custom_name">文件名</string>
     <string name="settings_resource_files_custom_url">URL</string>
+    <string name="settings_resource_files_custom_name_invalid">文件名无效</string>
+    <string name="settings_resource_files_custom_name_duplicate">文件名已被占用</string>
     <string name="settings_resource_files_ready">已就绪</string>
     <string name="settings_resource_files_missing">缺失</string>
     <string name="settings_resource_files_updated_at">更新时间 {time}</string>

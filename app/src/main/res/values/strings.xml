@@ -235,6 +235,8 @@
     <string name="settings_resource_files_custom_file">Custom resource file</string>
     <string name="settings_resource_files_custom_name">File name</string>
     <string name="settings_resource_files_custom_url">URL</string>
+    <string name="settings_resource_files_custom_name_invalid">Invalid file name</string>
+    <string name="settings_resource_files_custom_name_duplicate">File name is already used</string>
     <string name="settings_resource_files_ready">Ready</string>
     <string name="settings_resource_files_missing">Missing</string>
     <string name="settings_resource_files_updated_at">Updated {time}</string>

@@ -16,8 +16,8 @@ import app.LocalIsWideScreen
 import app.LocalNavigator
 import app.LocalUpdateAppState
 import app.collectAppState
+import app.customResourceFileNameOrNull
 import app.resourceFileUpdateSource
-import app.uniqueCustomResourceFileName
 import app.statusOf
 import app.nextAvailableCustomResourceFileId
 import androidx.compose.foundation.text.input.clearText
@@ -86,6 +86,12 @@ fun ResourceManagementPage(
     val replacedMessage = stringResource(R.string.settings_resource_files_replaced)
     val restoredMessage = stringResource(R.string.settings_resource_files_restored)
     val deletedMessage = stringResource(R.string.settings_resource_files_deleted)
+    val customResourceFileNameInvalidMessage = stringResource(
+        R.string.settings_resource_files_custom_name_invalid,
+    )
+    val customResourceFileNameDuplicateMessage = stringResource(
+        R.string.settings_resource_files_custom_name_duplicate,
+    )
 
     fun runResourceFileAction(
         action: suspend () -> ResourceFilesStatus?,
@@ -126,19 +132,42 @@ fun ResourceManagementPage(
         }
     }
 
-    fun addCustomResourceFile(name: String, url: String) {
+    fun showResourceFileEditorError(message: String) {
+        services.appScope.launch {
+            tipNotifier.show(message)
+        }
+    }
+
+    fun customResourceFileReservedNames(editingFileId: Int? = null): Set<String> {
+        return ResourceFileKind.entries.map { kind -> kind.fileName }.toSet() +
+            appState.customResourceFiles
+                .filterNot { file -> file.id == editingFileId }
+                .map { file -> file.name }
+    }
+
+    fun validatedCustomResourceFileName(name: String, reservedNames: Set<String>): String? {
+        val fileName = customResourceFileNameOrNull(name)
+        if (fileName == null) {
+            showResourceFileEditorError(customResourceFileNameInvalidMessage)
+            return null
+        }
+        if (fileName in reservedNames) {
+            showResourceFileEditorError(customResourceFileNameDuplicateMessage)
+            return null
+        }
+        return fileName
+    }
+
+    fun addCustomResourceFile(name: String, url: String): Boolean {
+        val fileName = validatedCustomResourceFileName(
+            name = name,
+            reservedNames = customResourceFileReservedNames(),
+        ) ?: return false
         var addedFile: CustomResourceFileState? = null
         var nextCustomResourceFiles = appState.customResourceFiles
         updateAppState { state ->
             val updateUrl = url.trim()
             val fileId = state.nextAvailableCustomResourceFileId()
-            val reservedNames = ResourceFileKind.entries.map { kind -> kind.fileName }.toSet() +
-                state.customResourceFiles.map { file -> file.name }
-            val fileName = uniqueCustomResourceFileName(
-                value = name,
-                reservedNames = reservedNames,
-                fallback = "custom-resource-$fileId.dat",
-            )
             val nextCustomFile = CustomResourceFileState(
                 id = fileId,
                 name = fileName,
@@ -162,20 +191,18 @@ fun ResourceManagementPage(
                 successMessage = replacedMessage.formatTemplate("name" to file.name),
             )
         }
+        return true
     }
 
-    fun editCustomResourceFile(file: CustomResourceFileState, name: String, url: String) {
+    fun editCustomResourceFile(file: CustomResourceFileState, name: String, url: String): Boolean {
+        val fileName = validatedCustomResourceFileName(
+            name = name,
+            reservedNames = customResourceFileReservedNames(editingFileId = file.id),
+        ) ?: return false
         var editedFile: CustomResourceFileState? = null
         var nextCustomResourceFiles = appState.customResourceFiles
         updateAppState { state ->
             val updateUrl = url.trim()
-            val reservedNames = ResourceFileKind.entries.map { kind -> kind.fileName }.toSet() +
-                state.customResourceFiles.filterNot { customFile -> customFile.id == file.id }.map { it.name }
-            val fileName = uniqueCustomResourceFileName(
-                value = name,
-                reservedNames = reservedNames,
-                fallback = "custom-resource-${file.id}.dat",
-            )
             val nextCustomFile = file.copy(
                 name = fileName,
                 url = updateUrl,
@@ -198,6 +225,7 @@ fun ResourceManagementPage(
                 successMessage = null,
             )
         }
+        return true
     }
 
     LaunchedEffect(appState.customResourceFiles) {
@@ -389,7 +417,7 @@ fun ResourceManagementPage(
             urlState = editCustomResourceFileUrlState,
             onDismissRequest = { editingCustomResourceFile = null },
             onSave = { name, url ->
-                editingCustomResourceFile?.let { file -> editCustomResourceFile(file, name, url) }
+                editingCustomResourceFile?.let { file -> editCustomResourceFile(file, name, url) } ?: false
             },
         )
     }
