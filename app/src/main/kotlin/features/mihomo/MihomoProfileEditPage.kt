@@ -5,21 +5,11 @@ package features.mihomo
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.InputTransformation
 import androidx.compose.foundation.text.input.TextFieldLineLimits
@@ -38,18 +28,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import app.DefaultMihomoOverrideScriptId
 import app.DefaultMihomoProfileId
 import app.DefaultMihomoProfileUpdateInterval
@@ -74,12 +58,9 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import top.yukonga.miuix.kmp.basic.Card
-import top.yukonga.miuix.kmp.basic.CardDefaults
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Ok
@@ -88,6 +69,7 @@ import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import ui.components.BackNavigationIcon
 import ui.components.NavigationIcon
+import ui.components.WarningConfirmDialog
 import ui.layout.AdaptiveTopAppBar
 import ui.layout.pageContentPaddingWithCutout
 
@@ -342,35 +324,33 @@ fun MihomoProfileEditPage(
                         profileSnapshot.name != cleanName ||
                         contentChanged ||
                         profileSnapshot.overrideScriptId != selectedOverrideScriptId
-                    val savedProfile = if (profileSnapshot != null) {
-                        profileSnapshot.copy(
-                            name = cleanName,
-                            type = MihomoProfileType.File,
-                            url = "",
-                            contentPath = when {
-                                contentText.isBlank() -> ""
-                                contentRef != null -> contentRef.path
-                                else -> profileSnapshot.contentPath
-                            },
-                            contentSha256 = when {
-                                contentText.isBlank() -> ""
-                                contentRef != null -> contentRef.sha256
-                                else -> profileSnapshot.contentSha256
-                            },
-                            contentSizeBytes = when {
-                                contentText.isBlank() -> 0L
-                                contentRef != null -> contentRef.sizeBytes
-                                else -> profileSnapshot.contentSizeBytes
-                            },
-                            lastUpdatedAtMillis = if (localProfileModified) {
-                                System.currentTimeMillis()
-                            } else {
-                                profileSnapshot.lastUpdatedAtMillis
-                            },
-                            overrideScriptId = selectedOverrideScriptId,
-                        )
-                    } else {
-                        MihomoProfileState(
+                    val savedProfile = profileSnapshot?.copy(
+                        name = cleanName,
+                        type = MihomoProfileType.File,
+                        url = "",
+                        contentPath = when {
+                            contentText.isBlank() -> ""
+                            contentRef != null -> contentRef.path
+                            else -> profileSnapshot.contentPath
+                        },
+                        contentSha256 = when {
+                            contentText.isBlank() -> ""
+                            contentRef != null -> contentRef.sha256
+                            else -> profileSnapshot.contentSha256
+                        },
+                        contentSizeBytes = when {
+                            contentText.isBlank() -> 0L
+                            contentRef != null -> contentRef.sizeBytes
+                            else -> profileSnapshot.contentSizeBytes
+                        },
+                        lastUpdatedAtMillis = if (localProfileModified) {
+                            System.currentTimeMillis()
+                        } else {
+                            profileSnapshot.lastUpdatedAtMillis
+                        },
+                        overrideScriptId = selectedOverrideScriptId,
+                    )
+                        ?: MihomoProfileState(
                             id = DefaultMihomoProfileId,
                             name = cleanName,
                             type = MihomoProfileType.File,
@@ -380,7 +360,6 @@ fun MihomoProfileEditPage(
                             lastUpdatedAtMillis = System.currentTimeMillis(),
                             overrideScriptId = selectedOverrideScriptId,
                         )
-                    }
                     saveProfile(savedProfile, profileSnapshot == null)
                 }.onFailure { error ->
                     if (error is CancellationException) throw error
@@ -529,104 +508,15 @@ private fun HttpSubscriptionWarningDialog(
     onDismissRequest: () -> Unit,
     onConfirm: () -> Unit,
 ) {
-    if (!show) return
-
-    Dialog(
+    WarningConfirmDialog(
+        show = show,
+        title = stringResource(R.string.mihomo_configuration_http_subscription_warning_title),
+        summary = stringResource(R.string.mihomo_configuration_http_subscription_warning_message),
+        dismissText = stringResource(R.string.common_cancel),
+        confirmText = stringResource(R.string.mihomo_configuration_http_subscription_warning_confirm),
         onDismissRequest = onDismissRequest,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
-    ) {
-        val outsideInteractionSource = remember { MutableInteractionSource() }
-        val dialogInteractionSource = remember { MutableInteractionSource() }
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .clickable(
-                    interactionSource = outsideInteractionSource,
-                    indication = null,
-                    onClick = onDismissRequest,
-                )
-                .padding(horizontal = 24.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Card(
-                modifier = Modifier
-                    .widthIn(max = 420.dp)
-                    .fillMaxWidth()
-                    .clickable(
-                        interactionSource = dialogInteractionSource,
-                        indication = null,
-                        onClick = {},
-                    ),
-                insideMargin = PaddingValues(horizontal = 20.dp, vertical = 20.dp),
-                colors = CardDefaults.defaultColors(
-                    color = MiuixTheme.colorScheme.background,
-                    contentColor = MiuixTheme.colorScheme.onBackground,
-                ),
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .padding(bottom = 12.dp)
-                            .size(44.dp)
-                            .clip(RoundedCornerShape(22.dp))
-                            .background(MiuixTheme.colorScheme.error.copy(alpha = 0.14f)),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = "!",
-                            color = MiuixTheme.colorScheme.error,
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            textAlign = TextAlign.Center,
-                        )
-                    }
-                    Text(
-                        text = stringResource(R.string.mihomo_configuration_http_subscription_warning_title),
-                        color = MiuixTheme.colorScheme.onBackground,
-                        fontSize = MiuixTheme.textStyles.title4.fontSize,
-                        fontWeight = FontWeight.Medium,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                    )
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(MiuixTheme.colorScheme.error.copy(alpha = 0.10f))
-                            .padding(horizontal = 12.dp, vertical = 12.dp),
-                    ) {
-                        Text(
-                            text = stringResource(R.string.mihomo_configuration_http_subscription_warning_message),
-                            color = MiuixTheme.colorScheme.error,
-                            style = MiuixTheme.textStyles.body2,
-                            fontWeight = FontWeight.Medium,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        TextButton(
-                            text = stringResource(R.string.common_cancel),
-                            onClick = onDismissRequest,
-                            modifier = Modifier.weight(1f),
-                        )
-                        Spacer(Modifier.width(20.dp))
-                        TextButton(
-                            text = stringResource(R.string.mihomo_configuration_http_subscription_warning_confirm),
-                            onClick = onConfirm,
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
-                }
-            }
-        }
-    }
+        onConfirm = onConfirm,
+    )
 }
 
 @Composable
