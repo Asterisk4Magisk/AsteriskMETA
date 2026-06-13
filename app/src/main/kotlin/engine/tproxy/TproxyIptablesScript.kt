@@ -7,10 +7,13 @@ import app.modes.ProxyAppListModeBlacklist
 import app.modes.ProxyAppListModeGlobal
 import app.modes.ProxyAppListModeWhitelist
 import engine.root.RootMihomoGid
-import engine.root.RootIp6tablesCommand
 import engine.root.RootIptablesConfig
+import engine.root.RootProxyRouteRulePriority
 import engine.root.RootProxyAppWhitelistSystemUids
 import engine.root.appendDeleteRuleLoop
+import engine.root.appendIpRuleDeleteLoop
+import engine.root.appendRootIpv6DnsRejectCleanupRules
+import engine.root.appendRootIpv6DnsRejectRules
 import engine.root.appendScript
 import utils.shellQuote
 
@@ -19,6 +22,7 @@ internal fun RootIptablesConfig.buildSetupRulesCommand(
     enableIpv6: Boolean,
 ): String {
     return buildString {
+        append(buildCleanupRulesCommand())
         appendIptablesVariantSetupRules(
             config = this@buildSetupRulesCommand,
             variant = ipv4IptablesVariant(),
@@ -26,16 +30,15 @@ internal fun RootIptablesConfig.buildSetupRulesCommand(
         )
         if (enableIpv6) {
             appendIpv6VariantSetupRules(this@buildSetupRulesCommand, port)
-        } else {
-            appendIpv6DnsRejectRule()
         }
+        appendRootIpv6DnsRejectRules()
     }
 }
 
 internal fun RootIptablesConfig.buildCleanupRulesCommand(): String {
     return buildString {
         appendIptablesVariantCleanupRules(this@buildCleanupRulesCommand, ipv4IptablesVariant())
-        appendDeleteRuleLoop(RootIp6tablesCommand, "OUTPUT", "-p udp --dport 53 -j REJECT", table = "filter")
+        appendRootIpv6DnsRejectCleanupRules()
         appendIptablesVariantCleanupRules(this@buildCleanupRulesCommand, ipv6IptablesVariant(useDummyInterface = false))
         appendIptablesVariantCleanupRules(this@buildCleanupRulesCommand, ipv6IptablesVariant(useDummyInterface = true))
     }
@@ -60,7 +63,7 @@ private fun StringBuilder.appendIptablesVariantSetupRules(
     if (variant.dummyInterface == null) {
         appendScript(
             """
-            ${variant.ipCommand} rule add fwmark ${config.mark} table ${variant.routeTable} 2>/dev/null || true
+            ${variant.ipCommand} rule add priority $RootProxyRouteRulePriority fwmark ${config.mark} table ${variant.routeTable} 2>/dev/null || true
             ${variant.ipCommand} route add local ${variant.routeDestination} dev lo table ${variant.routeTable} 2>/dev/null || true
             """,
         )
@@ -166,19 +169,14 @@ private fun StringBuilder.appendIptablesVariantCleanupRules(
             """,
         )
     }
-    appendScript(
-        """
-        ${variant.ipCommand} rule del fwmark ${config.mark} table ${variant.routeTable} 2>/dev/null || true
-        ${variant.ipCommand} route flush table ${variant.routeTable} 2>/dev/null || true
-        """,
+    appendIpRuleDeleteLoop(
+        ipCommand = variant.ipCommand,
+        rule = "priority $RootProxyRouteRulePriority fwmark ${config.mark} table ${variant.routeTable}",
     )
+    appendScript("${variant.ipCommand} route flush table ${variant.routeTable} 2>/dev/null || true")
     variant.dummyInterface?.let { dummyInterface ->
         appendDummyCleanupRules(variant.command, variant.ipCommand, dummyInterface)
     }
-}
-
-private fun StringBuilder.appendIpv6DnsRejectRule() {
-    appendScript("$RootIp6tablesCommand -t filter -I OUTPUT 1 -p udp --dport 53 -j REJECT")
 }
 
 private fun StringBuilder.appendUdpDnsMarkRule(

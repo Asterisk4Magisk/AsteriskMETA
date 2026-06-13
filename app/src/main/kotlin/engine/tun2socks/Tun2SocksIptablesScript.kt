@@ -7,28 +7,31 @@ import app.modes.ProxyAppListModeBlacklist
 import app.modes.ProxyAppListModeGlobal
 import app.modes.ProxyAppListModeWhitelist
 import engine.root.RootMihomoGid
-import engine.root.RootIp6tablesCommand
 import engine.root.RootIptablesConfig
+import engine.root.RootProxyRouteRulePriority
 import engine.root.RootProxyAppWhitelistSystemUids
 import engine.root.appendDeleteRuleLoop
+import engine.root.appendIpRuleDeleteLoop
+import engine.root.appendRootIpv6DnsRejectCleanupRules
+import engine.root.appendRootIpv6DnsRejectRules
 import engine.root.appendScript
 import utils.shellQuote
 
 internal fun RootIptablesConfig.buildSetupRulesCommand(enableIpv6: Boolean): String {
     return buildString {
+        append(buildCleanupRulesCommand())
         appendIptablesVariantSetupRules(this@buildSetupRulesCommand, Tun2SocksIptablesVariant.forIpv4(this@buildSetupRulesCommand))
         if (enableIpv6) {
             appendIptablesVariantSetupRules(this@buildSetupRulesCommand, Tun2SocksIptablesVariant.forIpv6(this@buildSetupRulesCommand))
-        } else {
-            appendIpv6DnsRejectRule()
         }
+        appendRootIpv6DnsRejectRules()
     }
 }
 
 internal fun RootIptablesConfig.buildCleanupRulesCommand(): String {
     return buildString {
         appendIptablesVariantCleanupRules(this@buildCleanupRulesCommand, Tun2SocksIptablesVariant.forIpv4(this@buildCleanupRulesCommand))
-        appendDeleteRuleLoop(RootIp6tablesCommand, "OUTPUT", "-p udp --dport 53 -j REJECT", table = "filter")
+        appendRootIpv6DnsRejectCleanupRules()
         appendIptablesVariantCleanupRules(this@buildCleanupRulesCommand, Tun2SocksIptablesVariant.forIpv6(this@buildCleanupRulesCommand))
     }
 }
@@ -39,7 +42,7 @@ private fun StringBuilder.appendIptablesVariantSetupRules(
 ) {
     appendScript(
         """
-        ${variant.ipCommand} rule add fwmark ${config.mark} lookup ${variant.routeTable} 2>/dev/null || true
+        ${variant.ipCommand} rule add priority $RootProxyRouteRulePriority fwmark ${config.mark} lookup ${variant.routeTable} 2>/dev/null || true
         ${variant.ipCommand} route add default dev 'asterisk0' table ${variant.routeTable} 2>/dev/null || true
         ${variant.command} -t mangle -N ${variant.preroutingChain} 2>/dev/null || true
         ${variant.command} -t mangle -N ${variant.outputChain} 2>/dev/null || true
@@ -51,9 +54,6 @@ private fun StringBuilder.appendIptablesVariantSetupRules(
         ${variant.command} -t filter -A ${variant.forwardChain} -o 'asterisk0' -j ACCEPT
         """,
     )
-    if (variant.ipv6) {
-        appendScript("${variant.ipCommand} rule add from all lookup ${variant.routeTable} prio 31999 2>/dev/null || true")
-    }
     appendPreroutingTrafficMarkRules(config, variant)
     appendOutputTrafficMarkRules(config, variant)
 }
@@ -79,15 +79,11 @@ private fun StringBuilder.appendIptablesVariantCleanupRules(
         ${variant.command} -t filter -X ${variant.forwardChain} 2>/dev/null || true
         """,
     )
-    appendScript(
-        """
-        ${variant.ipCommand} rule del fwmark ${config.mark} lookup ${variant.routeTable} 2>/dev/null || true
-        ${variant.ipCommand} route flush table ${variant.routeTable} 2>/dev/null || true
-        """,
+    appendIpRuleDeleteLoop(
+        ipCommand = variant.ipCommand,
+        rule = "priority $RootProxyRouteRulePriority fwmark ${config.mark} lookup ${variant.routeTable}",
     )
-    if (variant.ipv6) {
-        appendScript("${variant.ipCommand} rule del from all lookup ${variant.routeTable} prio 31999 2>/dev/null || true")
-    }
+    appendScript("${variant.ipCommand} route flush table ${variant.routeTable} 2>/dev/null || true")
 }
 
 private fun StringBuilder.appendPreroutingTrafficMarkRules(
@@ -159,10 +155,6 @@ private fun StringBuilder.appendOutputTrafficMarkRules(
         uids = config.proxyApplicationUids,
         mark = config.mark,
     )
-}
-
-private fun StringBuilder.appendIpv6DnsRejectRule() {
-    appendScript("$RootIp6tablesCommand -t filter -I OUTPUT 1 -p udp --dport 53 -j REJECT")
 }
 
 private fun StringBuilder.appendUdpDnsMarkRule(

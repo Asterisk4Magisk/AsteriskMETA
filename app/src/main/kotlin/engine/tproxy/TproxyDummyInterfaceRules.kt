@@ -3,7 +3,9 @@
 
 package engine.tproxy
 
+import engine.root.RootProxyRouteRulePriority
 import engine.root.appendDeleteRuleLoop
+import engine.root.appendIpRuleDeleteLoop
 import engine.root.appendScript
 import utils.shellQuote
 
@@ -14,7 +16,7 @@ internal fun StringBuilder.appendDummyRouteRules(variant: TproxyIptablesVariant)
         ${variant.ipCommand} link add ${dummyInterface.device.shellQuote()} type dummy 2>/dev/null || true
         ${variant.ipCommand} addr add ${dummyInterface.address.shellQuote()} dev ${dummyInterface.device.shellQuote()} 2>/dev/null || true
         ${variant.ipCommand} link set ${dummyInterface.device.shellQuote()} up 2>/dev/null || true
-        ${variant.ipCommand} rule add not from all fwmark ${dummyInterface.mark} table ${dummyInterface.routeTable} 2>/dev/null || true
+        ${variant.ipCommand} rule add priority $RootProxyRouteRulePriority not from all fwmark ${dummyInterface.mark} table ${dummyInterface.routeTable} 2>/dev/null || true
         ${variant.ipCommand} route add local default dev ${dummyInterface.device.shellQuote()} table ${dummyInterface.routeTable} 2>/dev/null || true
         """,
     )
@@ -64,9 +66,12 @@ internal fun StringBuilder.appendDummyCleanupRules(
             """,
         )
     }
+    appendIpRuleDeleteLoop(
+        ipCommand = ipCommand,
+        rule = "priority $RootProxyRouteRulePriority not from all fwmark ${dummyInterface.mark} table ${dummyInterface.routeTable}",
+    )
     appendScript(
         """
-        $ipCommand rule del not from all fwmark ${dummyInterface.mark} table ${dummyInterface.routeTable} 2>/dev/null || true
         $ipCommand route del local default dev ${dummyInterface.device.shellQuote()} table ${dummyInterface.routeTable} 2>/dev/null || true
         $ipCommand link set ${dummyInterface.device.shellQuote()} down 2>/dev/null || true
         $ipCommand link del ${dummyInterface.device.shellQuote()} type dummy 2>/dev/null || true

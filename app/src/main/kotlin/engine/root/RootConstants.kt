@@ -9,6 +9,7 @@ const val RootIptablesCommand = "iptables"
 const val RootIp6tablesCommand = "ip6tables"
 const val RootIpCommand = "ip"
 const val RootIp6Command = "ip -6"
+const val RootProxyRouteRulePriority = 14599
 const val RootStartupScriptFileName = "startup.sh"
 const val RootBootLogFileName = "boot.log"
 const val RootConfigFileName = "config.yaml"
