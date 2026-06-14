@@ -38,3 +38,4 @@ dependencyResolutionManagement {
 include(":app")
 include(":cmfa-core")
 include(":setuidgid")
+include(":ipv6disabler")

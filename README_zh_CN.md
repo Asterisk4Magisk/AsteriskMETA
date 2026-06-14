@@ -89,7 +89,7 @@ macOS 或 Linux：
 - 准备内置 Mihomo 和 `hev-socks5-tunnel` native 运行时文件
 - 在 CMFA JNI 构建前将 Mihomo submodule checkout 到 `ProjectConfig.MIHOMO_CORE_VERSION`
 - 构建 vendored CMFA Go core
-- 构建 native `setuidgid` helper
+- 构建 native `setuidgid` 和 `ipv6disabler` helper
 - 产出 `arm64-v8a`、`armeabi-v7a`、`x86`、`x86_64` 四个 ABI split APK，以及一个 universal APK
 
 如果 Gradle 找不到 Android NDK，请在 `local.properties` 中设置 `ndk.dir`，设置 `ANDROID_NDK_HOME`，或在 Android SDK 下安装 NDK。

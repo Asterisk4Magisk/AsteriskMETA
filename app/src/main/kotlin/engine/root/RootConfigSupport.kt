@@ -68,6 +68,7 @@ private fun AppState.toRootStartConfig(
         setuidgidPath = resourceFilePaths.setuidgidPath,
         runtimeLayout = runtimeLayout,
         enableIpv6 = enableIpv6,
+        enableRootIpv6Disabler = enableRootIpv6Disabler,
         enableFakeIp = effectiveFakeIpEnabled,
         fakeIpIpv4Pool = rootFakeIpIpv4Pool(),
         coreLogPaths = coreLogPaths,

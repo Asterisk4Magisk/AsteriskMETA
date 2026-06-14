@@ -181,6 +181,7 @@ internal class AndroidResourceFileStore(
         return MihomoResourceFilePaths(
             dataDir = dataDir.absolutePath,
             setuidgidPath = File(appContext.applicationInfo.nativeLibraryDir, SetuidgidLibraryName).absolutePath,
+            ipv6DisablerPath = File(appContext.applicationInfo.nativeLibraryDir, Ipv6DisablerLibraryName).absolutePath,
             mihomoCorePath = file(ResourceFileKind.MihomoCore).absolutePath,
             hevSocks5TunnelPath = File(appContext.applicationInfo.nativeLibraryDir, HevSocks5TunnelLibraryName).absolutePath,
         )
@@ -195,6 +196,7 @@ private fun File.needsBundledRestore(bundledUpdatedAtMillis: Long): Boolean {
 internal data class MihomoResourceFilePaths(
     val dataDir: String,
     val setuidgidPath: String,
+    val ipv6DisablerPath: String,
     val mihomoCorePath: String,
     val hevSocks5TunnelPath: String,
 )
@@ -226,6 +228,7 @@ private fun Context.packageUpdatedAtMillis(): Long {
 }
 
 private const val SetuidgidLibraryName = "libsetuidgid.so"
+private const val Ipv6DisablerLibraryName = "libipv6disabler.so"
 private const val MihomoCoreLibraryName = "libmihomo.so"
 private const val HevSocks5TunnelLibraryName = "libhev-socks5-tunnel.so"
 private const val MihomoHomeDirName = "clash"

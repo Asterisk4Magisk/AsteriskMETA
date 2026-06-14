@@ -288,6 +288,8 @@ private fun SettingsContent(
                     enableVpnAppendHttpProxy = appState.enableVpnAppendHttpProxy,
                     tunSettingsSummary = tunSettingsSummary,
                     enableRootBootScript = appState.enableRootBootScript,
+                    enableIpv6 = appState.enableIpv6,
+                    enableRootIpv6Disabler = appState.enableRootIpv6Disabler,
                     externalInterfacesSummary = externalInterfacesSummary,
                     ignoredInterfacesSummary = ignoredInterfacesSummary,
                     privateAddressCidrsSummary = privateAddressCidrsSummary,
@@ -333,6 +335,9 @@ private fun SettingsContent(
                                 }
                             }
                         }
+                    },
+                    onEnableRootIpv6DisablerChange = { enabled ->
+                        updateAppState { state -> state.copy(enableRootIpv6Disabler = enabled) }
                     },
                     onOpenExternalInterfaces = { sheetState.openExternalInterfaces(appState) },
                     onOpenIgnoredInterfaces = {

@@ -108,6 +108,7 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(project(":cmfa-core"))
     implementation(project(":setuidgid"))
+    implementation(project(":ipv6disabler"))
     implementation(libs.ktor.http)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.libsu.core)

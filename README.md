@@ -89,7 +89,7 @@ The build:
 - prepares bundled Mihomo and `hev-socks5-tunnel` native runtime files
 - checks out the Mihomo submodule to `ProjectConfig.MIHOMO_CORE_VERSION` before CMFA JNI builds
 - builds the vendored CMFA Go core
-- builds the native `setuidgid` helper
+- builds the native `setuidgid` and `ipv6disabler` helpers
 - produces ABI split APKs for `arm64-v8a`, `armeabi-v7a`, `x86`, `x86_64`, plus a universal APK
 
 If Gradle cannot find Android NDK, set `ndk.dir` in `local.properties`, set `ANDROID_NDK_HOME`, or install an NDK under the Android SDK.

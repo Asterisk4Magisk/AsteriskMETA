@@ -154,6 +154,10 @@ internal class AppSettingsPreferences(
                 KeyEnableRootBootScript,
                 defaults.enableRootBootScript,
             ),
+            enableRootIpv6Disabler = preferences.getBoolean(
+                KeyEnableRootIpv6Disabler,
+                defaults.enableRootIpv6Disabler,
+            ),
             socks5ProxyPort = preferences.getString(
                 KeySocks5ProxyPort,
                 defaults.socks5ProxyPort,
@@ -225,6 +229,7 @@ internal class AppSettingsPreferences(
             .putStringList(KeyDnsHosts, state.dnsHosts)
             .putString(KeyTransparentProxyPort, state.transparentProxyPort)
             .putBoolean(KeyEnableRootBootScript, state.enableRootBootScript)
+            .putBoolean(KeyEnableRootIpv6Disabler, state.enableRootIpv6Disabler)
             .putString(KeySocks5ProxyPort, state.socks5ProxyPort)
             .putStringList(KeyExternalInterfaces, state.externalInterfaces)
             .putStringList(KeyIgnoredInterfaces, state.ignoredInterfaces)
@@ -314,6 +319,7 @@ private const val KeyDnsFallbackFilterDomain = "dns_fallback_filter_domain"
 private const val KeyDnsHosts = "dns_hosts"
 private const val KeyTransparentProxyPort = "transparent_proxy_port"
 private const val KeyEnableRootBootScript = "enable_root_boot_script"
+private const val KeyEnableRootIpv6Disabler = "enable_root_ipv6_disabler"
 private const val KeySocks5ProxyPort = "socks5_proxy_port"
 private const val KeyExternalInterfaces = "external_interfaces"
 private const val KeyIgnoredInterfaces = "ignored_interfaces"
