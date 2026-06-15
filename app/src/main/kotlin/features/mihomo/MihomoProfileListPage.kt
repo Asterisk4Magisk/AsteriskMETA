@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -36,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -433,44 +436,58 @@ fun MihomoProfileListPage(
             isWideScreen = isWideScreen,
         )
         val listPadding = pageListPadding(contentPadding)
+        val layoutDirection = LocalLayoutDirection.current
+        val pageListContentPadding = PaddingValues(
+            start = listPadding.calculateStartPadding(layoutDirection),
+            end = listPadding.calculateEndPadding(layoutDirection),
+            bottom = listPadding.calculateBottomPadding(),
+        )
 
         Box {
             LazyColumn(
                 state = lazyListState,
-                modifier = Modifier.pageScrollModifiers(topAppBarScrollBehavior),
-                contentPadding = listPadding,
+                modifier = Modifier
+                    .padding(top = listPadding.calculateTopPadding())
+                    .pageScrollModifiers(topAppBarScrollBehavior),
+                contentPadding = pageListContentPadding,
             ) {
-                item("profiles_title") {
-                    SmallTitle(text = stringResource(R.string.mihomo_configurations_list))
-                }
-                items(
-                    items = appState.mihomoProfiles,
-                    key = { profile -> profile.id },
-                ) { profile ->
-                    MihomoProfileCard(
-                        profile = profile,
-                        overrideScripts = appState.mihomoOverrideScripts,
-                        selected = profile.id == appState.selectedMihomoProfileId,
-                        syncing = profile.id in syncingProfileIds,
-                        hasProxyProviders = profile.id in profilesWithProxyProviders,
-                        onSelect = { selectProfile(profile) },
-                        onAction = { action ->
-                            when (action) {
-                                MihomoProfileAction.Edit -> {
-                                    navigator.push(
-                                        Route.MihomoProfileEdit(
-                                            profileId = profile.id,
-                                            type = profile.type.storageValue,
-                                        ),
-                                    )
+                if (appState.mihomoProfiles.isEmpty()) {
+                    item(key = "profile_empty", contentType = "empty") {
+                        MihomoProfileListEmptyState()
+                    }
+                } else {
+                    item("profiles_title") {
+                        SmallTitle(text = stringResource(R.string.mihomo_configurations_list))
+                    }
+                    items(
+                        items = appState.mihomoProfiles,
+                        key = { profile -> profile.id },
+                    ) { profile ->
+                        MihomoProfileCard(
+                            profile = profile,
+                            overrideScripts = appState.mihomoOverrideScripts,
+                            selected = profile.id == appState.selectedMihomoProfileId,
+                            syncing = profile.id in syncingProfileIds,
+                            hasProxyProviders = profile.id in profilesWithProxyProviders,
+                            onSelect = { selectProfile(profile) },
+                            onAction = { action ->
+                                when (action) {
+                                    MihomoProfileAction.Edit -> {
+                                        navigator.push(
+                                            Route.MihomoProfileEdit(
+                                                profileId = profile.id,
+                                                type = profile.type.storageValue,
+                                            ),
+                                        )
+                                    }
+                                    MihomoProfileAction.Preview -> previewProfile(profile)
+                                    MihomoProfileAction.Sync -> syncProfile(profile)
+                                    MihomoProfileAction.SyncProviders -> syncProfileProviders(profile)
+                                    MihomoProfileAction.Delete -> deleteProfile(profile)
                                 }
-                                MihomoProfileAction.Preview -> previewProfile(profile)
-                                MihomoProfileAction.Sync -> syncProfile(profile)
-                                MihomoProfileAction.SyncProviders -> syncProfileProviders(profile)
-                                MihomoProfileAction.Delete -> deleteProfile(profile)
-                            }
-                        },
-                    )
+                            },
+                        )
+                    }
                 }
             }
             VerticalScrollBar(
@@ -502,6 +519,23 @@ fun MihomoProfileListPage(
             profileName = previewProfileName,
             content = previewProfileContent.orEmpty(),
             onDismissRequest = { previewProfileContent = null },
+        )
+    }
+}
+
+@Composable
+private fun MihomoProfileListEmptyState() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp)
+            .padding(vertical = 28.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = stringResource(R.string.common_empty),
+            style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
         )
     }
 }
