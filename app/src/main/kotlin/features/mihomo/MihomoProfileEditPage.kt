@@ -48,6 +48,7 @@ import app.MihomoSubscriptionInfo
 import app.R
 import app.collectAppState
 import app.nextAvailableMihomoProfileId
+import com.github.kr328.clash.core.Clash
 import engine.mihomo.sha256Hex
 import features.subscription.isPlainHttpSubscriptionUrl
 import features.subscription.isValidManualSubscriptionUrl
@@ -106,6 +107,7 @@ fun MihomoProfileEditPage(
     val userAgentState = rememberTextFieldState(
         initialText = targetProfile?.userAgent ?: app.DefaultMihomoProfileUserAgent,
     )
+    val ageSecretKeyState = rememberTextFieldState(initialText = targetProfile?.ageSecretKey.orEmpty())
     val updateIntervalState = rememberTextFieldState(
         initialText = targetProfile?.updateInterval ?: DefaultMihomoProfileUpdateInterval,
     )
@@ -141,6 +143,7 @@ fun MihomoProfileEditPage(
         ?: 0
     val nameRequiredMessage = stringResource(R.string.mihomo_configuration_name_required)
     val invalidUrlMessage = stringResource(R.string.mihomo_configuration_invalid_subscription_url)
+    val invalidAgeSecretKeyMessage = stringResource(R.string.mihomo_configuration_invalid_age_secret_key)
     var showHttpSubscriptionWarning by remember { mutableStateOf(false) }
 
     LaunchedEffect(targetProfile?.id, targetProfile?.contentPath, profileType) {
@@ -218,9 +221,14 @@ fun MihomoProfileEditPage(
 
         val trimmedUrl = urlState.text.toString().trim()
         val cleanUserAgent = userAgentState.text.toString().trim().ifBlank { app.DefaultMihomoProfileUserAgent }
+        val cleanAgeSecretKey = ageSecretKeyState.text.toString().trim()
         val cleanInterval = updateIntervalState.text.toString().trim()
         if (!trimmedUrl.isValidManualSubscriptionUrl()) {
             scope.launch { services.tipNotifier.show(invalidUrlMessage) }
+            return
+        }
+        if (!cleanAgeSecretKey.isValidAgeSecretKey()) {
+            scope.launch { services.tipNotifier.show(invalidAgeSecretKeyMessage) }
             return
         }
         if (!allowPlainHttp && trimmedUrl.isPlainHttpSubscriptionUrl()) {
@@ -233,6 +241,7 @@ fun MihomoProfileEditPage(
         val remoteOptionsChanged = targetProfile == null ||
             urlChanged ||
             targetProfile.userAgent != cleanUserAgent ||
+            targetProfile.ageSecretKey != cleanAgeSecretKey ||
             targetProfile.updateViaProxy != updateViaProxy
         val savedProfile = if (targetProfile != null) {
             if (urlChanged && targetProfile.hasContent) {
@@ -245,6 +254,7 @@ fun MihomoProfileEditPage(
                 userAgent = cleanUserAgent,
                 updateInterval = cleanInterval,
                 updateViaProxy = updateViaProxy,
+                ageSecretKey = cleanAgeSecretKey,
                 contentPath = if (urlChanged) "" else targetProfile.contentPath,
                 contentSha256 = if (urlChanged) "" else targetProfile.contentSha256,
                 contentSizeBytes = if (urlChanged) 0L else targetProfile.contentSizeBytes,
@@ -261,6 +271,7 @@ fun MihomoProfileEditPage(
                 userAgent = cleanUserAgent,
                 updateInterval = cleanInterval,
                 updateViaProxy = updateViaProxy,
+                ageSecretKey = cleanAgeSecretKey,
                 overrideScriptId = selectedOverrideScriptId,
             )
         }
@@ -377,6 +388,7 @@ fun MihomoProfileEditPage(
                     services.mihomoProviderFetcher.fetchMissingProviders(
                         profileContent = contentText,
                         sourceUrl = saved.url,
+                        ageSecretKey = saved.ageSecretKey,
                     )
                 }.onFailure { error ->
                     if (error is CancellationException) throw error
@@ -476,6 +488,7 @@ fun MihomoProfileEditPage(
                         UrlProfileFields(
                             urlState = urlState,
                             userAgentState = userAgentState,
+                            ageSecretKeyState = ageSecretKeyState,
                             updateIntervalState = updateIntervalState,
                             updateViaProxy = updateViaProxy,
                             onUpdateViaProxyChange = { updateViaProxy = it },
@@ -523,6 +536,7 @@ private fun HttpSubscriptionWarningDialog(
 private fun UrlProfileFields(
     urlState: TextFieldState,
     userAgentState: TextFieldState,
+    ageSecretKeyState: TextFieldState,
     updateIntervalState: TextFieldState,
     updateViaProxy: Boolean,
     onUpdateViaProxyChange: (Boolean) -> Unit,
@@ -536,6 +550,12 @@ private fun UrlProfileFields(
     TextField(
         state = userAgentState,
         label = stringResource(R.string.mihomo_configuration_user_agent),
+        lineLimits = TextFieldLineLimits.SingleLine,
+        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+    )
+    TextField(
+        state = ageSecretKeyState,
+        label = stringResource(R.string.mihomo_configuration_age_secret_key),
         lineLimits = TextFieldLineLimits.SingleLine,
         modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
     )
@@ -557,4 +577,8 @@ private fun UrlProfileFields(
         checked = updateViaProxy,
         onCheckedChange = onUpdateViaProxyChange,
     )
+}
+
+private fun String.isValidAgeSecretKey(): Boolean {
+    return isBlank() || Clash.veritySecretKeys(this)
 }

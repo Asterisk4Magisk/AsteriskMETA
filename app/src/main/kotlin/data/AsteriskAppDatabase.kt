@@ -5,6 +5,8 @@ package data
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 
 internal const val AsteriskDatabaseName = "asteriskmeta.db"
 
@@ -14,9 +16,17 @@ internal const val AsteriskDatabaseName = "asteriskmeta.db"
         MihomoOverrideScriptEntity::class,
         ProxyAppListSelectedAppEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 internal abstract class AsteriskAppDatabase : RoomDatabase() {
     abstract fun appStateDao(): AppStateDao
+
+    companion object {
+        val Migration1To2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE mihomo_profiles ADD COLUMN ageSecretKey TEXT NOT NULL DEFAULT ''")
+            }
+        }
+    }
 }

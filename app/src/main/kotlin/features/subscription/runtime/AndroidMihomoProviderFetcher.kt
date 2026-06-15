@@ -25,20 +25,23 @@ internal class AndroidMihomoProviderFetcher(
     suspend fun fetchMissingProviders(
         profileContent: String,
         sourceUrl: String,
+        ageSecretKey: String = "",
     ) = fetchLock.withLock {
-        fetchProviders(profileContent, sourceUrl, refreshProxyProviders = false)
+        fetchProviders(profileContent, sourceUrl, ageSecretKey, refreshProxyProviders = false)
     }
 
     suspend fun refreshProxyProviders(
         profileContent: String,
         sourceUrl: String,
+        ageSecretKey: String = "",
     ) = fetchLock.withLock {
-        refreshProxyProviderFiles(profileContent, sourceUrl)
+        refreshProxyProviderFiles(profileContent, sourceUrl, ageSecretKey)
     }
 
     private suspend fun fetchProviders(
         profileContent: String,
         sourceUrl: String,
+        ageSecretKey: String,
         refreshProxyProviders: Boolean,
     ) {
         if (profileContent.isBlank()) return
@@ -52,12 +55,14 @@ internal class AndroidMihomoProviderFetcher(
                     profileContent = profileContent,
                     refreshProxyProviders = refreshProxyProviders,
                 )
-                Clash.fetchAndValid(
-                    path = processingDir,
-                    url = sourceUrl,
-                    force = false,
-                    reportStatus = {},
-                ).await()
+                withAgeSecretKey(ageSecretKey) {
+                    Clash.fetchAndValid(
+                        path = processingDir,
+                        url = sourceUrl,
+                        force = false,
+                        reportStatus = {},
+                    ).await()
+                }
                 copyProcessingProvidersBack(processingDir = processingDir, dataDir = dataDir)
             } finally {
                 processingDir.deleteRecursively()
@@ -68,6 +73,7 @@ internal class AndroidMihomoProviderFetcher(
     private suspend fun refreshProxyProviderFiles(
         profileContent: String,
         sourceUrl: String,
+        ageSecretKey: String,
     ): MihomoProviderRefreshResult {
         if (profileContent.isBlank()) return MihomoProviderRefreshResult()
         return withContext(Dispatchers.IO) {
@@ -85,12 +91,14 @@ internal class AndroidMihomoProviderFetcher(
                 }
 
                 runCatching {
-                    Clash.fetchAndValid(
-                        path = processingDir,
-                        url = sourceUrl,
-                        force = false,
-                        reportStatus = {},
-                    ).await()
+                    withAgeSecretKey(ageSecretKey) {
+                        Clash.fetchAndValid(
+                            path = processingDir,
+                            url = sourceUrl,
+                            force = false,
+                            reportStatus = {},
+                        ).await()
+                    }
                 }.onFailure { error ->
                     if (error is CancellationException) throw error
                 }
@@ -106,6 +114,19 @@ internal class AndroidMihomoProviderFetcher(
                 processingDir.deleteRecursively()
             }
         }
+    }
+}
+
+private suspend fun <T> withAgeSecretKey(
+    ageSecretKey: String,
+    block: suspend () -> T,
+): T = ageSecretKeyLock.withLock {
+    val key = ageSecretKey.trim().takeIf(String::isNotBlank)
+    Clash.setAgeSecretKey(key)
+    try {
+        block()
+    } finally {
+        Clash.setAgeSecretKey(null)
     }
 }
 
@@ -163,3 +184,4 @@ private fun copyProcessingProvidersBack(processingDir: File, dataDir: File) {
 private const val ProcessingDirPrefix = "mihomo-provider-processing"
 private const val ProvidersDirName = "providers"
 private const val ConfigFileName = "config.yaml"
+private val ageSecretKeyLock = Mutex()

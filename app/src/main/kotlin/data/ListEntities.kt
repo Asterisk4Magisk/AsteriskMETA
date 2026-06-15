@@ -3,6 +3,7 @@
 
 package data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -23,6 +24,8 @@ internal data class MihomoProfileEntity(
     val userAgent: String,
     val updateInterval: String,
     val updateViaProxy: Boolean,
+    @ColumnInfo(defaultValue = "")
+    val ageSecretKey: String,
     val enabled: Boolean,
     val builtIn: Boolean,
     val lastUpdatedAtMillis: Long,
@@ -44,6 +47,7 @@ internal data class MihomoProfileEntity(
             userAgent = userAgent,
             updateInterval = updateInterval,
             updateViaProxy = updateViaProxy,
+            ageSecretKey = ageSecretKey,
             enabled = enabled,
             builtIn = builtIn,
             lastUpdatedAtMillis = lastUpdatedAtMillis,
@@ -71,6 +75,7 @@ internal data class MihomoProfileEntity(
                 userAgent = profile.userAgent,
                 updateInterval = profile.updateInterval,
                 updateViaProxy = profile.updateViaProxy,
+                ageSecretKey = profile.ageSecretKey,
                 enabled = profile.enabled,
                 builtIn = profile.builtIn,
                 lastUpdatedAtMillis = profile.lastUpdatedAtMillis,

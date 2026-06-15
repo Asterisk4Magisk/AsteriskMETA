@@ -122,6 +122,7 @@ class AndroidAppStateStore private constructor(
             AsteriskAppDatabase::class.java,
             AsteriskDatabaseName,
         )
+            .addMigrations(AsteriskAppDatabase.Migration1To2)
             .fallbackToDestructiveMigration(dropAllTables = true)
             .build()
     }

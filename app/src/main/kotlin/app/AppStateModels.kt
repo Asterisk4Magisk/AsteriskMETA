@@ -26,6 +26,7 @@ data class MihomoProfileState(
     val userAgent: String = DefaultMihomoProfileUserAgent,
     val updateInterval: String = DefaultMihomoProfileUpdateInterval,
     val updateViaProxy: Boolean = false,
+    val ageSecretKey: String = "",
     val enabled: Boolean = true,
     val builtIn: Boolean = false,
     val lastUpdatedAtMillis: Long = 0L,

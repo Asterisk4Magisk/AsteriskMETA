@@ -54,6 +54,7 @@ object Bridge {
     external fun nativeCoreVersion(): String
 
     external fun nativeSetAgeSecretKey(key: String?)
+    external fun nativeDecryptAge(content: String, secretKeys: String?): String?
     external fun nativeGenX25519KeyPair(): String?
     external fun nativeGenHybridKeyPair(): String?
     external fun nativeVeritySecretKeys(secretKeys: String): Boolean

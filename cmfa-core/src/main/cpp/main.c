@@ -289,6 +289,35 @@ Java_com_github_kr328_clash_core_bridge_Bridge_nativeSetAgeSecretKey(JNIEnv *env
 }
 
 JNIEXPORT jstring JNICALL
+Java_com_github_kr328_clash_core_bridge_Bridge_nativeDecryptAge(JNIEnv *env, jobject thiz,
+                                                                jstring content,
+                                                                jstring secret_keys) {
+    TRACE_METHOD();
+
+    if (content == NULL)
+        return NULL;
+
+    scoped_string _content = get_string(content);
+
+    if (secret_keys == NULL) {
+        scoped_string response = decryptAge(_content, NULL);
+
+        if (response == NULL)
+            return NULL;
+
+        return new_string(response);
+    }
+
+    scoped_string _secret_keys = get_string(secret_keys);
+    scoped_string response = decryptAge(_content, _secret_keys);
+
+    if (response == NULL)
+        return NULL;
+
+    return new_string(response);
+}
+
+JNIEXPORT jstring JNICALL
 Java_com_github_kr328_clash_core_bridge_Bridge_nativeGenX25519KeyPair(JNIEnv *env, jobject thiz) {
     TRACE_METHOD();
 

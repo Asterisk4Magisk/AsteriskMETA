@@ -23,6 +23,11 @@ type ageKeyPair struct {
 	PublicKey string `json:"publicKey"`
 }
 
+type ageDecryptResult struct {
+	Content string `json:"content,omitempty"`
+	Error   string `json:"error,omitempty"`
+}
+
 //export fetchAndValid
 func fetchAndValid(callback unsafe.Pointer, path, url C.c_string, force C.int) {
 	go func(path, url string, callback unsafe.Pointer) {
@@ -75,6 +80,28 @@ func setAgeSecretKey(key C.c_string) {
 
 	k := C.GoString(key)
 	config.SetGlobalSecretKeys(k)
+}
+
+//export decryptAge
+func decryptAge(content C.c_string, secretKeys C.c_string) *C.char {
+	if content == nil {
+		return marshalJson(ageDecryptResult{Error: "empty content"})
+	}
+
+	keys := []string{}
+	if secretKeys != nil {
+		key := C.GoString(secretKeys)
+		if key != "" {
+			keys = append(keys, key)
+		}
+	}
+
+	result, err := config.DecryptBytes([]byte(C.GoString(content)), keys...)
+	if err != nil {
+		return marshalJson(ageDecryptResult{Error: err.Error()})
+	}
+
+	return marshalJson(ageDecryptResult{Content: string(result)})
 }
 
 //export genX25519KeyPair

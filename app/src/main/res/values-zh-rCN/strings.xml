@@ -96,6 +96,8 @@
     <string name="mihomo_configuration_name_required">请输入配置名称</string>
     <string name="mihomo_configuration_url">URL</string>
     <string name="mihomo_configuration_user_agent">User-Agent</string>
+    <string name="mihomo_configuration_age_secret_key">Age 私钥</string>
+    <string name="mihomo_configuration_invalid_age_secret_key">无效的 Age 私钥</string>
     <string name="mihomo_configuration_update_interval">更新间隔（小时）</string>
     <string name="mihomo_configuration_update_via_proxy">通过代理更新</string>
     <string name="mihomo_configuration_content">YAML 内容</string>

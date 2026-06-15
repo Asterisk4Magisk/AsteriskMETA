@@ -304,6 +304,7 @@ fun MihomoProfileListPage(
                 services.mihomoProviderFetcher.refreshProxyProviders(
                     profileContent = content,
                     sourceUrl = profile.url,
+                    ageSecretKey = profile.ageSecretKey,
                 )
             }.onSuccess { result ->
                 services.tipNotifier.show(

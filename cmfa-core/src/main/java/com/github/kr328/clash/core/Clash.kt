@@ -267,6 +267,14 @@ object Clash {
         Bridge.nativeSetAgeSecretKey(key)
     }
 
+    fun decryptAge(content: String, secretKey: String?): String {
+        val response = Bridge.nativeDecryptAge(content, secretKey)
+            ?: throw ClashException("Failed to decrypt Age content")
+        val root = Json.Default.decodeFromString(JsonObject.serializer(), response)
+        root.errorOrNull()?.let { error -> throw ClashException(error) }
+        return root["content"]?.jsonPrimitive?.content.orEmpty()
+    }
+
     fun genX25519KeyPair(): AgeKeyPair {
         return parseAgeKeyPair(checkNotNull(Bridge.nativeGenX25519KeyPair()))
     }

@@ -6,6 +6,10 @@ func SetGlobalSecretKeys(secretKeys ...string) {
 	age.SetGlobalSecretKeys(secretKeys...)
 }
 
+func DecryptBytes(data []byte, secretKeys ...string) ([]byte, error) {
+	return age.DecryptBytes(data, secretKeys...)
+}
+
 func GenX25519KeyPair() (secretKey string, publicKey string, err error) {
 	return age.GenX25519KeyPair()
 }

@@ -5,6 +5,7 @@ package features.subscription.usecase
 
 import app.AppState
 import app.MihomoProfileState
+import com.github.kr328.clash.core.Clash
 import engine.mihomo.MihomoProfileContentRef
 import engine.mihomo.MihomoProfileContentStore
 import engine.network.toPortOrNull
@@ -79,11 +80,13 @@ private suspend fun updateMihomoProfile(
             userAgent = profile.userAgent,
             options = fetchOptions,
         )
+        val content = result.content.decryptAge(profile.ageSecretKey)
         providerFetcher?.fetchMissingProviders(
-            profileContent = result.content,
+            profileContent = content,
             sourceUrl = profile.url,
+            ageSecretKey = profile.ageSecretKey,
         )
-        val contentRef = contentStore.write(profile, result.content)
+        val contentRef = contentStore.write(profile, content)
         MihomoProfileSubscriptionUpdate(
             profileId = profile.id,
             contentRef = contentRef,
@@ -104,6 +107,10 @@ private suspend fun updateMihomoProfile(
             error,
         )
     }.getOrNull()
+}
+
+private fun String.decryptAge(ageSecretKey: String): String {
+    return Clash.decryptAge(this, ageSecretKey.trim().takeIf(String::isNotBlank))
 }
 
 internal fun CoroutineScope.launchMihomoProfileSubscriptionUpdate(

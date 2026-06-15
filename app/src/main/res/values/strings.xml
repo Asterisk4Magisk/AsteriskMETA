@@ -96,6 +96,8 @@
     <string name="mihomo_configuration_name_required">Enter a configuration name</string>
     <string name="mihomo_configuration_url">URL</string>
     <string name="mihomo_configuration_user_agent">User-Agent</string>
+    <string name="mihomo_configuration_age_secret_key">Age secret key</string>
+    <string name="mihomo_configuration_invalid_age_secret_key">Invalid Age secret key</string>
     <string name="mihomo_configuration_update_interval">Update interval (hours)</string>
     <string name="mihomo_configuration_update_via_proxy">Update via proxy</string>
     <string name="mihomo_configuration_content">YAML content</string>
