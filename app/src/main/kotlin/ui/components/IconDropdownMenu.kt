@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import top.yukonga.miuix.kmp.basic.DropdownImpl
+import top.yukonga.miuix.kmp.basic.DropdownEntry
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.ListPopupColumn
@@ -19,6 +20,7 @@ import top.yukonga.miuix.kmp.basic.ListPopupDefaults
 import top.yukonga.miuix.kmp.basic.PopupPositionProvider
 import top.yukonga.miuix.kmp.theme.LocalDismissState
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.window.WindowCascadingListPopup
 import top.yukonga.miuix.kmp.window.WindowListPopup
 
 internal data class IconDropdownMenuEntry<T>(
@@ -84,4 +86,42 @@ internal fun <T> IconDropdownMenu(
             }
         }
     }
+}
+
+@Composable
+internal fun WindowIconCascadingDropdownMenu(
+    imageVector: ImageVector,
+    contentDescription: String,
+    entries: List<DropdownEntry>,
+    modifier: Modifier = Modifier,
+) {
+    val showPopup = remember { mutableStateOf(false) }
+    val holdDown = remember { mutableStateOf(false) }
+
+    IconButton(
+        modifier = modifier,
+        onClick = {
+            showPopup.value = true
+            holdDown.value = true
+        },
+        holdDownState = holdDown.value,
+    ) {
+        Icon(
+            imageVector = imageVector,
+            contentDescription = contentDescription,
+            tint = MiuixTheme.colorScheme.onBackground,
+        )
+    }
+    WindowCascadingListPopup(
+        show = showPopup.value,
+        entries = entries,
+        popupPositionProvider = ListPopupDefaults.ContextMenuPositionProvider,
+        alignment = PopupPositionProvider.Align.TopEnd,
+        onDismissRequest = {
+            showPopup.value = false
+        },
+        onDismissFinished = {
+            holdDown.value = false
+        },
+    )
 }

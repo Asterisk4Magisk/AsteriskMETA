@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -28,9 +27,11 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
@@ -68,9 +69,17 @@ import app.LocalAppServices
 import app.LocalAppStateStore
 import app.LocalIsWideScreen
 import app.LocalNavigator
+import app.LocalUpdateAppState
 import app.R
 import app.AppState
 import app.collectAppState
+import app.modes.MihomoProxyLayoutAuto
+import app.modes.MihomoProxyLayoutDouble
+import app.modes.MihomoProxyLayoutMultiple
+import app.modes.MihomoProxyLayoutSingle
+import app.modes.MihomoProxySortDefault
+import app.modes.MihomoProxySortDelay
+import app.modes.MihomoProxySortName
 import app.navigation.Route
 import engine.mihomo.MihomoProfileFactory
 import engine.mihomo.escapeSupplementaryYamlCodePoints
@@ -89,6 +98,8 @@ import features.resources.runtime.prepareMihomoResourceFilePaths
 import java.io.File
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.CardDefaults
+import top.yukonga.miuix.kmp.basic.DropdownEntry
+import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.basic.FloatingToolbar
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
@@ -101,10 +112,12 @@ import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.VerticalScrollBar
 import top.yukonga.miuix.kmp.basic.rememberScrollBarAdapter
 import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.More
 import top.yukonga.miuix.kmp.icon.extended.Stopwatch
 import top.yukonga.miuix.kmp.interfaces.ExperimentalScrollBarApi
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.PressFeedbackType
+import ui.components.WindowIconCascadingDropdownMenu
 import ui.isInDarkTheme
 import ui.layout.AdaptiveTopAppBar
 import ui.layout.pageContentPaddingWithCutout
@@ -119,6 +132,7 @@ fun MihomoProxyPage(
 ) {
     val isWideScreen = LocalIsWideScreen.current
     val appState by LocalAppStateStore.current.collectAppState()
+    val updateAppState = LocalUpdateAppState.current
     val appContext = LocalContext.current.applicationContext
     val navigator = LocalNavigator.current
     val services = LocalAppServices.current
@@ -160,13 +174,17 @@ fun MihomoProxyPage(
         !hasProfiles -> MihomoProxiesState()
         else -> runtimeProxies.withFallbackGroupStructure(fallbackProxies)
     }
+    val visibleProxies = remember(proxies, appState.mihomoProxyExcludeNotSelectable) {
+        proxies.withGroupFilter(excludeNotSelectable = appState.mihomoProxyExcludeNotSelectable)
+    }
     val runtimeAvailable = hasUsableProfile && runtimeHasProxySnapshot
-    val groupNames = proxies.groups.map(MihomoProxyGroup::name)
+    val groupNames = visibleProxies.groups.map(MihomoProxyGroup::name)
     var selectedGroupName by rememberSaveable { mutableStateOf(groupNames.firstOrNull().orEmpty()) }
     val testingTarget = runtimeState.delayTestingTarget
     var searchQuery by rememberSaveable { mutableStateOf("") }
-    val selectedGroup = proxies.groups.firstOrNull { group -> group.name == selectedGroupName }
-    val columns = if (isWideScreen) 3 else 2
+    val selectedGroup = visibleProxies.groups.firstOrNull { group -> group.name == selectedGroupName }
+    val proxyLayout = appState.mihomoProxyLayout.resolvedMihomoProxyLayout(isWideScreen)
+    val columns = proxyLayout.resolvedMihomoProxyColumns()
     var pendingSelections by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     val groupPagerState = rememberPagerState(
         initialPage = groupNames.indexOf(selectedGroupName).coerceAtLeast(0),
@@ -184,10 +202,10 @@ fun MihomoProxyPage(
         }
     }
 
-    LaunchedEffect(proxies.groups) {
+    LaunchedEffect(visibleProxies.groups) {
         if (pendingSelections.isEmpty()) return@LaunchedEffect
         pendingSelections = pendingSelections.filter { (groupName, proxyName) ->
-            val group = proxies.groups.firstOrNull { item -> item.name == groupName } ?: return@filter false
+            val group = visibleProxies.groups.firstOrNull { item -> item.name == groupName } ?: return@filter false
             group.now != proxyName && proxyName in group.all
         }
     }
@@ -270,6 +288,28 @@ fun MihomoProxyPage(
                 title = stringResource(R.string.mihomo_proxies_title),
                 isWideScreen = isWideScreen,
                 scrollBehavior = topAppBarScrollBehavior,
+                actions = {
+                    MihomoProxyOptionsMenu(
+                        excludeNotSelectable = appState.mihomoProxyExcludeNotSelectable,
+                        layout = proxyLayout,
+                        sort = appState.mihomoProxySort.resolvedMihomoProxySort(),
+                        onExcludeNotSelectableChange = { enabled ->
+                            updateAppState { state ->
+                                state.copy(mihomoProxyExcludeNotSelectable = enabled)
+                            }
+                        },
+                        onLayoutChange = { layout ->
+                            updateAppState { state ->
+                                state.copy(mihomoProxyLayout = layout)
+                            }
+                        },
+                        onSortChange = { sort ->
+                            updateAppState { state ->
+                                state.copy(mihomoProxySort = sort)
+                            }
+                        },
+                    )
+                },
                 bottomContent = {
                     if (hasProfiles) {
                         Column {
@@ -280,12 +320,12 @@ fun MihomoProxyPage(
                                     .padding(horizontal = 12.dp)
                                     .padding(bottom = 12.dp),
                             )
-                            if (proxies.groups.size > 1) {
+                            if (visibleProxies.groups.size > 1) {
                                 val pagerOffsetFraction by remember(groupPagerState) {
                                     derivedStateOf { groupPagerState.currentPageOffsetFraction }
                                 }
                                 ProxyGroupTabs(
-                                    groups = proxies.groups,
+                                    groups = visibleProxies.groups,
                                     selectedGroupName = selectedGroupName,
                                     pagerPage = groupPagerState.currentPage,
                                     pagerOffsetFraction = pagerOffsetFraction,
@@ -307,8 +347,8 @@ fun MihomoProxyPage(
         val listPadding = pageListPadding(contentPadding, bottomExtra = 104.dp)
         val layoutDirection = LocalLayoutDirection.current
         val pageListContentPadding = PaddingValues(
-            start = listPadding.calculateStartPadding(layoutDirection),
-            end = listPadding.calculateEndPadding(layoutDirection),
+            start = listPadding.calculateStartPadding(layoutDirection) + MihomoProxyListHorizontalPadding,
+            end = listPadding.calculateEndPadding(layoutDirection) + MihomoProxyListHorizontalPadding,
             bottom = listPadding.calculateBottomPadding(),
         )
 
@@ -318,23 +358,33 @@ fun MihomoProxyPage(
                 modifier = Modifier.fillMaxSize(),
                 verticalAlignment = Alignment.Top,
             ) { page ->
-                val group = proxies.groups.getOrNull(page)
-                val pageNodes = remember(group, proxies, searchQuery) {
-                    filteredProxyNodeNames(group, proxies, searchQuery)
+                val group = visibleProxies.groups.getOrNull(page)
+                val pageNodes = remember(group, visibleProxies, searchQuery, appState.mihomoProxySort) {
+                    filteredProxyNodeNames(
+                        group = group,
+                        proxies = visibleProxies,
+                        searchQuery = searchQuery,
+                        sort = appState.mihomoProxySort.resolvedMihomoProxySort(),
+                    )
                 }
-                val pageListState = rememberLazyListState()
+                val pageGridState = rememberLazyGridState()
 
                 Box(Modifier.fillMaxSize()) {
-                    LazyColumn(
-                        state = pageListState,
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(columns),
+                        state = pageGridState,
                         modifier = Modifier
                             .padding(top = listPadding.calculateTopPadding())
                             .pageScrollModifiers(topAppBarScrollBehavior),
                         contentPadding = pageListContentPadding,
                         verticalArrangement = Arrangement.spacedBy(MihomoProxyNodeGridSpacing),
+                        horizontalArrangement = Arrangement.spacedBy(MihomoProxyNodeGridSpacing),
                     ) {
                         if (group == null) {
-                            item("empty") {
+                            item(
+                                key = "empty",
+                                span = { GridItemSpan(maxLineSpan) },
+                            ) {
                                 if (hasProfiles) {
                                     MihomoProxyEmptyCard()
                                 } else {
@@ -344,44 +394,38 @@ fun MihomoProxyPage(
                                 }
                             }
                         } else if (pageNodes.isEmpty()) {
-                            item("group_empty:${group.name}") {
+                            item(
+                                key = "group_empty:${group.name}",
+                                span = { GridItemSpan(maxLineSpan) },
+                            ) {
                                 MihomoProxyEmptyCard()
                             }
                         } else {
                             items(
-                                items = pageNodes.chunked(columns),
-                                key = { row -> "${group.name}:${row.joinToString("|")}" },
-                            ) { row ->
-                                Row(
+                                items = pageNodes,
+                                key = { nodeName -> "${group.name}:$nodeName" },
+                            ) { nodeName ->
+                                val node = proxies.node(nodeName)
+                                val selectionEnabled = group.supportsManualSelection() && runtimeAvailable
+                                val selectedNodeName = pendingSelections[group.name] ?: group.now
+                                MihomoProxyNodeCard(
                                     modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 12.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(MihomoProxyNodeGridSpacing),
-                                ) {
-                                    row.forEach { nodeName ->
-                                        val node = proxies.node(nodeName)
-                                        val selectionEnabled = group.supportsManualSelection() && runtimeAvailable
-                                        val selectedNodeName = pendingSelections[group.name] ?: group.now
-                                        MihomoProxyNodeCard(
-                                            modifier = Modifier.weight(1f),
-                                            node = node,
-                                            selected = selectionEnabled && selectedNodeName == node.name,
-                                            selectionEnabled = selectionEnabled,
-                                            runtimeAvailable = runtimeAvailable,
-                                            testing = testingTarget == node.name,
-                                            onSelect = { selectProxy(group, node) },
-                                            onDelayTest = { testProxy(node) },
-                                        )
-                                    }
-                                    repeat(columns - row.size) {
-                                        Spacer(modifier = Modifier.weight(1f))
-                                    }
-                                }
+                                        .animateItem()
+                                        .fillMaxWidth(),
+                                    node = node,
+                                    selected = selectionEnabled && selectedNodeName == node.name,
+                                    selectionEnabled = selectionEnabled,
+                                    runtimeAvailable = runtimeAvailable,
+                                    compact = columns > 1,
+                                    testing = testingTarget == node.name,
+                                    onSelect = { selectProxy(group, node) },
+                                    onDelayTest = { testProxy(node) },
+                                )
                             }
                         }
                     }
                     VerticalScrollBar(
-                        adapter = rememberScrollBarAdapter(pageListState),
+                        adapter = rememberScrollBarAdapter(pageGridState),
                         modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
                         trackPadding = contentPadding,
                     )
@@ -552,6 +596,7 @@ private fun filteredProxyNodeNames(
     group: MihomoProxyGroup?,
     proxies: MihomoProxiesState,
     searchQuery: String,
+    sort: Int,
 ): List<String> {
     val keyword = searchQuery.trim()
     return group?.all
@@ -563,7 +608,79 @@ private fun filteredProxyNodeNames(
                 node.type.contains(keyword, ignoreCase = true) ||
                 displayType.contains(keyword, ignoreCase = true)
         }
+        ?.sortProxyNodeNames(proxies, sort)
         .orEmpty()
+}
+
+@Composable
+private fun MihomoProxyOptionsMenu(
+    excludeNotSelectable: Boolean,
+    layout: Int,
+    sort: Int,
+    onExcludeNotSelectableChange: (Boolean) -> Unit,
+    onLayoutChange: (Int) -> Unit,
+    onSortChange: (Int) -> Unit,
+) {
+    WindowIconCascadingDropdownMenu(
+        imageVector = MiuixIcons.More,
+        contentDescription = stringResource(R.string.mihomo_proxies_options),
+        entries = listOf(
+            DropdownEntry(
+                items = listOf(
+                    DropdownItem(
+                        text = stringResource(R.string.mihomo_proxies_option_filter),
+                        children = listOf(
+                            DropdownItem(
+                                text = stringResource(R.string.mihomo_proxies_option_filter_not_selectable),
+                                selected = excludeNotSelectable,
+                                onClick = { onExcludeNotSelectableChange(!excludeNotSelectable) },
+                            ),
+                        ),
+                    ),
+                    DropdownItem(
+                        text = stringResource(R.string.mihomo_proxies_option_layout),
+                        children = listOf(
+                            DropdownItem(
+                                text = stringResource(R.string.mihomo_proxies_option_layout_single),
+                                selected = layout == MihomoProxyLayoutSingle,
+                                onClick = { onLayoutChange(MihomoProxyLayoutSingle) },
+                            ),
+                            DropdownItem(
+                                text = stringResource(R.string.mihomo_proxies_option_layout_double),
+                                selected = layout == MihomoProxyLayoutDouble,
+                                onClick = { onLayoutChange(MihomoProxyLayoutDouble) },
+                            ),
+                            DropdownItem(
+                                text = stringResource(R.string.mihomo_proxies_option_layout_multiple),
+                                selected = layout == MihomoProxyLayoutMultiple,
+                                onClick = { onLayoutChange(MihomoProxyLayoutMultiple) },
+                            ),
+                        ),
+                    ),
+                    DropdownItem(
+                        text = stringResource(R.string.mihomo_proxies_option_sort),
+                        children = listOf(
+                            DropdownItem(
+                                text = stringResource(R.string.mihomo_proxies_option_sort_default),
+                                selected = sort == MihomoProxySortDefault,
+                                onClick = { onSortChange(MihomoProxySortDefault) },
+                            ),
+                            DropdownItem(
+                                text = stringResource(R.string.mihomo_proxies_option_sort_name),
+                                selected = sort == MihomoProxySortName,
+                                onClick = { onSortChange(MihomoProxySortName) },
+                            ),
+                            DropdownItem(
+                                text = stringResource(R.string.mihomo_proxies_option_sort_delay),
+                                selected = sort == MihomoProxySortDelay,
+                                onClick = { onSortChange(MihomoProxySortDelay) },
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
 }
 
 @Composable
@@ -572,6 +689,7 @@ private fun MihomoProxyNodeCard(
     selected: Boolean,
     selectionEnabled: Boolean,
     runtimeAvailable: Boolean,
+    compact: Boolean,
     testing: Boolean,
     onSelect: () -> Unit,
     onDelayTest: () -> Unit,
@@ -584,11 +702,11 @@ private fun MihomoProxyNodeCard(
         ) {
             Text(
                 text = node.name,
-                fontSize = 15.sp,
-                lineHeight = 19.sp,
+                fontSize = if (compact) 13.sp else 15.sp,
+                lineHeight = if (compact) 17.sp else 19.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = MiuixTheme.colorScheme.onSurface,
-                maxLines = 2,
+                maxLines = if (compact) 3 else 2,
                 overflow = TextOverflow.Ellipsis,
             )
             ProtocolDelayLine(
@@ -597,6 +715,7 @@ private fun MihomoProxyNodeCard(
                 selected = selected,
                 testing = testing,
                 enabled = runtimeAvailable && !testing,
+                compact = compact,
                 onClick = onDelayTest,
             )
         }
@@ -630,6 +749,7 @@ private fun ProtocolDelayLine(
     selected: Boolean,
     testing: Boolean,
     enabled: Boolean,
+    compact: Boolean,
     onClick: () -> Unit,
 ) {
     val delayText = when {
@@ -646,7 +766,9 @@ private fun ProtocolDelayLine(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         ProtocolChip(
-            text = protocol.displayMihomoProtocolName(),
+            text = protocol.displayMihomoProtocolName(compact = compact),
+            modifier = Modifier.weight(1f, fill = false),
+            compact = compact,
             selected = selected,
             enabled = enabled,
             onClick = onClick,
@@ -654,7 +776,7 @@ private fun ProtocolDelayLine(
         if (delayText.isNotEmpty()) {
             Text(
                 text = delayText,
-                fontSize = 14.sp,
+                fontSize = if (compact) 12.sp else 14.sp,
                 fontWeight = FontWeight.Medium,
                 color = delayColor(delayText),
                 maxLines = 1,
@@ -709,6 +831,8 @@ private fun ProxyDelayToolbar(
 @Composable
 private fun ProtocolChip(
     text: String,
+    modifier: Modifier = Modifier,
+    compact: Boolean = false,
     selected: Boolean = false,
     enabled: Boolean = false,
     onClick: (() -> Unit)? = null,
@@ -719,7 +843,7 @@ private fun ProtocolChip(
         Modifier
     }
     Box(
-        modifier = Modifier
+        modifier = modifier
             .clip(RoundedCornerShape(8.dp))
             .then(clickModifier)
             .background(
@@ -733,7 +857,7 @@ private fun ProtocolChip(
     ) {
         Text(
             text = text,
-            fontSize = 12.sp,
+            fontSize = if (compact) 10.sp else 12.sp,
             fontWeight = FontWeight.Medium,
             color = if (selected) {
                 MiuixTheme.colorScheme.onPrimary
@@ -901,6 +1025,65 @@ private fun MihomoProxiesState.withFallbackGroupStructure(
     )
 }
 
+private fun MihomoProxiesState.withGroupFilter(
+    excludeNotSelectable: Boolean,
+): MihomoProxiesState {
+    if (!excludeNotSelectable) return this
+    return copy(groups = groups.filter(MihomoProxyGroup::supportsManualSelection))
+}
+
+private fun Int.resolvedMihomoProxyLayout(isWideScreen: Boolean): Int {
+    return when (this) {
+        MihomoProxyLayoutSingle, MihomoProxyLayoutDouble, MihomoProxyLayoutMultiple -> this
+        MihomoProxyLayoutAuto -> if (isWideScreen) MihomoProxyLayoutMultiple else MihomoProxyLayoutDouble
+        else -> if (isWideScreen) MihomoProxyLayoutMultiple else MihomoProxyLayoutDouble
+    }
+}
+
+private fun Int.resolvedMihomoProxyColumns(): Int {
+    return when (this) {
+        MihomoProxyLayoutSingle -> 1
+        MihomoProxyLayoutMultiple -> 3
+        else -> 2
+    }
+}
+
+private fun Int.resolvedMihomoProxySort(): Int {
+    return when (this) {
+        MihomoProxySortName, MihomoProxySortDelay -> this
+        else -> MihomoProxySortDefault
+    }
+}
+
+private fun List<String>.sortProxyNodeNames(
+    proxies: MihomoProxiesState,
+    sort: Int,
+): List<String> {
+    return when (sort) {
+        MihomoProxySortName -> sortedWith(
+            compareBy(String.CASE_INSENSITIVE_ORDER) { nodeName ->
+                proxies.node(nodeName).name
+            },
+        )
+        MihomoProxySortDelay -> sortedWith(
+            compareBy<String> { nodeName ->
+                proxies.node(nodeName).delay.toProxyDelaySortValue()
+            }.thenBy(String.CASE_INSENSITIVE_ORDER) { nodeName ->
+                proxies.node(nodeName).name
+            },
+        )
+        else -> this
+    }
+}
+
+private fun Int?.toProxyDelaySortValue(): Int {
+    return when {
+        this == null -> Int.MAX_VALUE
+        this < 0 -> Int.MAX_VALUE - 1
+        else -> this
+    }
+}
+
 private fun MihomoProxyGroup.supportsManualSelection(): Boolean {
     return when (type.normalizedMihomoGroupType()) {
         "select", "selector" -> true
@@ -988,9 +1171,24 @@ private fun Any?.asBooleanOrFalse(): Boolean {
     }
 }
 
-private fun String.displayMihomoProtocolName(): String {
+private fun String.displayMihomoProtocolName(compact: Boolean = false): String {
     val protocol = trim().ifBlank { return "Proxy" }
-    return when (protocol.lowercase().replace("_", "-").replace(" ", "-")) {
+    val normalized = protocol.lowercase().replace("_", "-").replace(" ", "-")
+    if (compact) {
+        when (normalized) {
+            "ss", "shadowsocks" -> return "SS"
+            "ssr", "shadowsocksr", "shadowsocks-r" -> return "SSR"
+            "hysteria2", "hy2" -> return "HY2"
+            "wireguard", "wire-guard", "wg" -> return "WG"
+            "tailscale" -> return "Tailscale"
+            "trusttunnel", "trust-tunnel" -> return "TrustTun"
+            "gostrelay", "gost-relay" -> return "GOST Relay"
+            "compatible" -> return "Compat"
+            "rejectdrop", "reject-drop" -> return "Reject Drop"
+            "loadbalance", "load-balance" -> return "Balance"
+        }
+    }
+    return when (normalized) {
         "vmess" -> "VMess"
         "vless" -> "VLESS"
         "ss", "shadowsocks" -> "Shadowsocks"
@@ -1055,6 +1253,7 @@ private fun linearInterpolate(start: Int, end: Int, fraction: Float): Int {
 
 private val MihomoProxyGroupTabHeight = 36.dp
 private val MihomoProxyGroupTabSpacing = 8.dp
+private val MihomoProxyListHorizontalPadding = 12.dp
 private val MihomoProxyNodeCardHeight = 96.dp
 private val MihomoProxyNodeCardPadding = 10.dp
 private val MihomoProxyNodeGridSpacing = 12.dp

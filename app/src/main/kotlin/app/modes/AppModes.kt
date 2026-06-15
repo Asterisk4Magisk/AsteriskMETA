@@ -23,3 +23,12 @@ const val MihomoTunStackMixed = 2
 const val ProxyAppListModeBlacklist = 0
 const val ProxyAppListModeWhitelist = 1
 const val ProxyAppListModeGlobal = 2
+
+const val MihomoProxyLayoutAuto = 0
+const val MihomoProxyLayoutSingle = 1
+const val MihomoProxyLayoutDouble = 2
+const val MihomoProxyLayoutMultiple = 3
+
+const val MihomoProxySortDefault = 0
+const val MihomoProxySortName = 1
+const val MihomoProxySortDelay = 2

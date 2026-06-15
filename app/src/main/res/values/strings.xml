@@ -79,6 +79,17 @@
     <string name="mihomo_proxies_delay_failed">Delay test failed</string>
     <string name="mihomo_proxies_delay_done">Delay test complete</string>
     <string name="mihomo_proxies_select_failed">Failed to switch proxy</string>
+    <string name="mihomo_proxies_options">Proxy display options</string>
+    <string name="mihomo_proxies_option_filter">Filter</string>
+    <string name="mihomo_proxies_option_filter_not_selectable">Not selectable</string>
+    <string name="mihomo_proxies_option_layout">Layout</string>
+    <string name="mihomo_proxies_option_layout_single">Single</string>
+    <string name="mihomo_proxies_option_layout_double">Double</string>
+    <string name="mihomo_proxies_option_layout_multiple">Multiple</string>
+    <string name="mihomo_proxies_option_sort">Sort</string>
+    <string name="mihomo_proxies_option_sort_default">Default</string>
+    <string name="mihomo_proxies_option_sort_name">Name</string>
+    <string name="mihomo_proxies_option_sort_delay">Delay</string>
     <string name="mihomo_configurations_title">Configuration management</string>
     <string name="mihomo_configurations_count">{count} configurations</string>
     <string name="mihomo_configurations_list">Configurations</string>

@@ -6,6 +6,8 @@ package app
 import app.modes.ColorModeSystem
 import app.modes.LanguageModeSystem
 import app.modes.MihomoModeRule
+import app.modes.MihomoProxyLayoutAuto
+import app.modes.MihomoProxySortDefault
 import app.modes.MihomoTunStackGvisor
 import app.modes.ProxyAppListModeGlobal
 import app.modes.RunModeVpnService
@@ -41,6 +43,9 @@ data class AppState(
 
     val runMode: Int = RunModeVpnService,
     val mihomoMode: Int = MihomoModeRule,
+    val mihomoProxyExcludeNotSelectable: Boolean = false,
+    val mihomoProxyLayout: Int = MihomoProxyLayoutAuto,
+    val mihomoProxySort: Int = MihomoProxySortDefault,
     val mihomoTunStack: Int = MihomoTunStackGvisor,
     val mihomoControlPort: String = DefaultMihomoControlPort.toString(),
     val mihomoControlSecret: String = "",

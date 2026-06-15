@@ -79,6 +79,17 @@
     <string name="mihomo_proxies_delay_failed">延迟测试失败</string>
     <string name="mihomo_proxies_delay_done">延迟测试完成</string>
     <string name="mihomo_proxies_select_failed">切换代理失败</string>
+    <string name="mihomo_proxies_options">代理显示选项</string>
+    <string name="mihomo_proxies_option_filter">过滤</string>
+    <string name="mihomo_proxies_option_filter_not_selectable">不可选择</string>
+    <string name="mihomo_proxies_option_layout">布局</string>
+    <string name="mihomo_proxies_option_layout_single">单列</string>
+    <string name="mihomo_proxies_option_layout_double">双列</string>
+    <string name="mihomo_proxies_option_layout_multiple">多列</string>
+    <string name="mihomo_proxies_option_sort">排序</string>
+    <string name="mihomo_proxies_option_sort_default">默认</string>
+    <string name="mihomo_proxies_option_sort_name">名称</string>
+    <string name="mihomo_proxies_option_sort_delay">延迟</string>
     <string name="mihomo_configurations_title">配置管理</string>
     <string name="mihomo_configurations_count">{count} 个配置</string>
     <string name="mihomo_configurations_list">配置列表</string>

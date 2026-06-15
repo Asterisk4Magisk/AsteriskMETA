@@ -46,6 +46,12 @@ internal class AppSettingsPreferences(
             ),
             runMode = preferences.getInt(KeyRunMode, defaults.runMode),
             mihomoMode = preferences.getInt(KeyMihomoMode, defaults.mihomoMode),
+            mihomoProxyExcludeNotSelectable = preferences.getBoolean(
+                KeyMihomoProxyExcludeNotSelectable,
+                defaults.mihomoProxyExcludeNotSelectable,
+            ),
+            mihomoProxyLayout = preferences.getInt(KeyMihomoProxyLayout, defaults.mihomoProxyLayout),
+            mihomoProxySort = preferences.getInt(KeyMihomoProxySort, defaults.mihomoProxySort),
             mihomoTunStack = preferences.getInt(KeyMihomoTunStack, defaults.mihomoTunStack),
             mihomoControlPort = preferences.getString(
                 KeyMihomoControlPort,
@@ -184,6 +190,9 @@ internal class AppSettingsPreferences(
             .putInt(KeySelectedMihomoProfileId, state.selectedMihomoProfileId)
             .putInt(KeyRunMode, state.runMode)
             .putInt(KeyMihomoMode, state.mihomoMode)
+            .putBoolean(KeyMihomoProxyExcludeNotSelectable, state.mihomoProxyExcludeNotSelectable)
+            .putInt(KeyMihomoProxyLayout, state.mihomoProxyLayout)
+            .putInt(KeyMihomoProxySort, state.mihomoProxySort)
             .putInt(KeyMihomoTunStack, state.mihomoTunStack)
             .putString(KeyMihomoControlPort, state.mihomoControlPort)
             .putString(KeyMihomoControlSecret, state.mihomoControlSecret)
@@ -276,6 +285,9 @@ private const val KeyNextMihomoOverrideScriptId = "next_mihomo_override_script_i
 private const val KeySelectedMihomoProfileId = "selected_mihomo_profile_id"
 private const val KeyRunMode = "run_mode"
 private const val KeyMihomoMode = "mihomo_mode"
+private const val KeyMihomoProxyExcludeNotSelectable = "mihomo_proxy_exclude_not_selectable"
+private const val KeyMihomoProxyLayout = "mihomo_proxy_layout"
+private const val KeyMihomoProxySort = "mihomo_proxy_sort"
 private const val KeyMihomoTunStack = "mihomo_tun_stack"
 private const val KeyMihomoControlPort = "mihomo_control_port"
 private const val KeyMihomoControlSecret = "mihomo_control_secret"
