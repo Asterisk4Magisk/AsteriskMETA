@@ -23,6 +23,7 @@ import engine.mihomo.DefaultMihomoDnsNameserver
 import engine.mihomo.DefaultMihomoDnsNameserverPolicy
 import engine.mihomo.DefaultMihomoDnsProxyServerNameserver
 import engine.mihomo.DefaultMihomoControlPort
+import engine.mihomo.MihomoGeodataLoaderStandard
 import engine.mihomo.MihomoDnsModeFakeIp
 import engine.mihomo.MihomoDnsModeRedirHost
 import features.resources.ResourceFileSourceMetaCubeXGithub
@@ -59,6 +60,8 @@ data class AppState(
     val proxyRunning: Boolean = false,
 
     val coreLogLevel: Int = 3,
+    val enableGeodataMode: Boolean = false,
+    val mihomoGeodataLoader: Int = MihomoGeodataLoaderStandard,
     val resourceFileSource: Int = ResourceFileSourceMetaCubeXGithub,
     val customResourceFileGeoIpUrl: String = "",
     val customResourceFileGeoSiteUrl: String = "",

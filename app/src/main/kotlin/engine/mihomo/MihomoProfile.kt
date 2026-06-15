@@ -172,6 +172,8 @@ private fun MutableMap<String, Any?>.putAsteriskRuntimeOverrides(
     }
     put("mode", appState.mihomoModeName())
     put("log-level", appState.mihomoLogLevelName())
+    put("geodata-mode", appState.enableGeodataMode)
+    put("geodata-loader", appState.mihomoGeodataLoaderName())
     put("ipv6", appState.enableIpv6)
     put("geox-url", appState.toMihomoGeoXUrlYamlMap())
     put("profile", normalizedProfileStoreSelected(this["profile"]))
@@ -507,6 +509,12 @@ internal fun AppState.mihomoLogLevelName(): String {
     }
 }
 
+private fun AppState.mihomoGeodataLoaderName(): String {
+    return MihomoGeodataLoaderValues.getOrElse(mihomoGeodataLoader) {
+        MihomoGeodataLoaderValues[MihomoGeodataLoaderStandard]
+    }
+}
+
 private val AsteriskManagedTopLevelKeys = setOf(
     "port",
     "socks-port",
@@ -527,6 +535,8 @@ private val AsteriskManagedTopLevelKeys = setOf(
     "bind-address",
     "mode",
     "log-level",
+    "geodata-mode",
+    "geodata-loader",
     "ipv6",
     MihomoTunRuntimeMarkerKey,
     "geox-url",

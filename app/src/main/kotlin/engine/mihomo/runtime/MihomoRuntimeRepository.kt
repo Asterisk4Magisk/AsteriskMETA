@@ -718,6 +718,8 @@ private fun AppState.mihomoRuntimeConfigKey(backend: MihomoRuntimeBackend): Int 
             mihomoProfiles,
             runMode,
             mihomoMode,
+            enableGeodataMode,
+            mihomoGeodataLoader,
             resourceFileSource,
             customResourceFileGeoIpUrl,
             customResourceFileGeoSiteUrl,

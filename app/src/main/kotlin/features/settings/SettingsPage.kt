@@ -32,6 +32,7 @@ import app.modes.RunModeTproxy
 import app.modes.RunModeVpnService
 import app.ProjectInfo
 import app.R
+import engine.mihomo.MihomoGeodataLoaderValues
 import engine.proxy.withResolvedDynamicLocalProxyPort
 import features.settings.sheets.externalInterfacesSummary
 import features.settings.sheets.ignoredInterfacesSummary
@@ -207,6 +208,9 @@ private fun SettingsContent(
                 SettingsCoreSection(
                     enableSniffer = appState.enableSniffer,
                     enableSnifferOverrideDestination = appState.enableSnifferOverrideDestination,
+                    enableGeodataMode = appState.enableGeodataMode,
+                    geodataLoaderOptions = MihomoGeodataLoaderValues,
+                    geodataLoader = appState.mihomoGeodataLoader,
                     coreLogLevel = appState.coreLogLevel,
                     onOpenDnsSettings = { sheetState.openDnsSettings(appState) },
                     onEnableSnifferChange = { enabled ->
@@ -214,6 +218,12 @@ private fun SettingsContent(
                     },
                     onEnableSnifferOverrideDestinationChange = { enabled ->
                         updateAppState { state -> state.copy(enableSnifferOverrideDestination = enabled) }
+                    },
+                    onEnableGeodataModeChange = { enabled ->
+                        updateAppState { state -> state.copy(enableGeodataMode = enabled) }
+                    },
+                    onGeodataLoaderChange = { index ->
+                        updateAppState { state -> state.copy(mihomoGeodataLoader = index) }
                     },
                     onCoreLogLevelChange = { index ->
                         if (index != appState.coreLogLevel) {

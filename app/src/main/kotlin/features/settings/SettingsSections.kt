@@ -96,10 +96,15 @@ internal fun SettingsSubscriptionsSection(
 internal fun SettingsCoreSection(
     enableSniffer: Boolean,
     enableSnifferOverrideDestination: Boolean,
+    enableGeodataMode: Boolean,
+    geodataLoaderOptions: List<String>,
+    geodataLoader: Int,
     coreLogLevel: Int,
     onOpenDnsSettings: () -> Unit,
     onEnableSnifferChange: (Boolean) -> Unit,
     onEnableSnifferOverrideDestinationChange: (Boolean) -> Unit,
+    onEnableGeodataModeChange: (Boolean) -> Unit,
+    onGeodataLoaderChange: (Int) -> Unit,
     onCoreLogLevelChange: (Int) -> Unit,
 ) {
     SmallTitle(text = stringResource(R.string.settings_core))
@@ -127,6 +132,19 @@ internal fun SettingsCoreSection(
                 onCheckedChange = onEnableSnifferOverrideDestinationChange,
             )
         }
+        SwitchPreference(
+            title = stringResource(R.string.settings_geodata_mode),
+            summary = stringResource(R.string.settings_geodata_mode_summary),
+            checked = enableGeodataMode,
+            onCheckedChange = onEnableGeodataModeChange,
+        )
+        OverlayDropdownPreference(
+            title = stringResource(R.string.settings_geodata_loader),
+            summary = stringResource(R.string.settings_geodata_loader_summary),
+            items = geodataLoaderOptions,
+            selectedIndex = geodataLoader.coerceIn(geodataLoaderOptions.indices),
+            onSelectedIndexChange = onGeodataLoaderChange,
+        )
         OverlayDropdownPreference(
             title = stringResource(R.string.settings_log_level),
             items = SettingsLogLevelOptions,

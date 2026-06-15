@@ -79,6 +79,8 @@ internal class AppSettingsPreferences(
             tunIpv4Cidr = preferences.getString(KeyTunIpv4Cidr, defaults.tunIpv4Cidr) ?: defaults.tunIpv4Cidr,
             tunIpv6Cidr = preferences.getString(KeyTunIpv6Cidr, defaults.tunIpv6Cidr) ?: defaults.tunIpv6Cidr,
             coreLogLevel = preferences.getInt(KeyCoreLogLevel, defaults.coreLogLevel),
+            enableGeodataMode = preferences.getBoolean(KeyEnableGeodataMode, defaults.enableGeodataMode),
+            mihomoGeodataLoader = preferences.getInt(KeyMihomoGeodataLoader, defaults.mihomoGeodataLoader),
             resourceFileSource = preferences.getInt(KeyResourceFileSource, defaults.resourceFileSource),
             customResourceFileGeoIpUrl = preferences.getString(
                 KeyCustomResourceFileGeoIpUrl,
@@ -197,6 +199,8 @@ internal class AppSettingsPreferences(
             .putString(KeyTunIpv4Cidr, state.tunIpv4Cidr)
             .putString(KeyTunIpv6Cidr, state.tunIpv6Cidr)
             .putInt(KeyCoreLogLevel, state.coreLogLevel)
+            .putBoolean(KeyEnableGeodataMode, state.enableGeodataMode)
+            .putInt(KeyMihomoGeodataLoader, state.mihomoGeodataLoader)
             .putInt(KeyResourceFileSource, state.resourceFileSource)
             .putString(KeyCustomResourceFileGeoIpUrl, state.customResourceFileGeoIpUrl)
             .putString(KeyCustomResourceFileGeoSiteUrl, state.customResourceFileGeoSiteUrl)
@@ -287,6 +291,8 @@ private const val KeyTunVpnDns = "tun_vpn_dns"
 private const val KeyTunIpv4Cidr = "tun_ipv4_cidr"
 private const val KeyTunIpv6Cidr = "tun_ipv6_cidr"
 private const val KeyCoreLogLevel = "core_log_level"
+private const val KeyEnableGeodataMode = "enable_geodata_mode"
+private const val KeyMihomoGeodataLoader = "mihomo_geodata_loader"
 private const val KeyResourceFileSource = "resource_file_source"
 private const val KeyCustomResourceFileGeoIpUrl = "custom_resource_file_geoip_url"
 private const val KeyCustomResourceFileGeoSiteUrl = "custom_resource_file_geosite_url"

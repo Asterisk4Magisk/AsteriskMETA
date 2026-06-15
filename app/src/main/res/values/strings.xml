@@ -249,6 +249,10 @@
     <string name="settings_resource_files_restored">{name} restored from bundled assets</string>
     <string name="settings_resource_files_deleted">{name} deleted</string>
     <string name="settings_log_level">Log level</string>
+    <string name="settings_geodata_mode">Geodata mode</string>
+    <string name="settings_geodata_mode_summary">Use geodata files for GeoIP rules</string>
+    <string name="settings_geodata_loader">Geodata loader</string>
+    <string name="settings_geodata_loader_summary">Memconservative saves memory but loads slower</string>
     <string name="settings_sniffer">Sniffer</string>
     <string name="settings_sniffer_summary">Detect HTTP/TLS/QUIC target domains to assist routing</string>
     <string name="settings_sniffer_override_destination">Override Destination</string>

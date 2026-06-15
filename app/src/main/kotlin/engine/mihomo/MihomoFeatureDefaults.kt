@@ -9,6 +9,10 @@ const val MihomoDnsModeRedirHost = 2
 const val MihomoDnsModeHosts = 3
 val MihomoDnsModeValues = listOf("normal", "fake-ip", "redir-host", "hosts")
 
+const val MihomoGeodataLoaderStandard = 0
+const val MihomoGeodataLoaderMemconservative = 1
+val MihomoGeodataLoaderValues = listOf("standard", "memconservative")
+
 const val DefaultMihomoDnsFakeIpRange = "198.18.0.1/16"
 val DefaultMihomoDnsDefaultNameserver = listOf("223.5.5.5")
 val DefaultMihomoDnsNameserver = listOf("https://dns.alidns.com/dns-query")

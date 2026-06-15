@@ -249,6 +249,10 @@
     <string name="settings_resource_files_restored">{name} 已恢复为内置文件</string>
     <string name="settings_resource_files_deleted">{name} 已删除</string>
     <string name="settings_log_level">日志等级</string>
+    <string name="settings_geodata_mode">Geodata 模式</string>
+    <string name="settings_geodata_mode_summary">使用 geodata 文件处理 GeoIP 规则</string>
+    <string name="settings_geodata_loader">Geodata 加载器</string>
+    <string name="settings_geodata_loader_summary">memconservative 更省内存但加载较慢</string>
     <string name="settings_sniffer">Sniffer</string>
     <string name="settings_sniffer_summary">识别 HTTP/TLS/QUIC 目标域名以辅助路由</string>
     <string name="settings_sniffer_override_destination">Override Destination</string>
