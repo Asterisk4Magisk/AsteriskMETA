@@ -24,6 +24,7 @@ internal class TproxyRootRunner(
         return config.iptablesConfig.buildSetupRulesCommand(
             port = config.tproxyPort,
             enableIpv6 = config.root.enableIpv6,
+            enableLocalDns = config.root.enableLocalDns,
             enableFakeIp = config.root.enableFakeIp,
             fakeIpIpv4Pool = config.root.fakeIpIpv4Pool,
         )

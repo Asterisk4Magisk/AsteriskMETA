@@ -7,6 +7,7 @@ import android.content.Context
 import app.AppState
 import app.DefaultMihomoOverrideScriptId
 import app.MihomoProfileState
+import app.effectiveLocalDnsEnabled
 import app.modes.MihomoModeDirect
 import app.modes.MihomoModeGlobal
 import app.modes.MihomoTunStackGvisor
@@ -178,7 +179,7 @@ private fun MutableMap<String, Any?>.putAsteriskRuntimeOverrides(
     put("geox-url", appState.toMihomoGeoXUrlYamlMap())
     put("profile", normalizedProfileStoreSelected(this["profile"]))
     put("sniffer", appState.toMihomoSnifferYamlMap())
-    putDnsOverrides(appState, runMode, forceDns)
+    putDnsOverrides(appState, forceDns)
     putRootDnsHijackOverrides(appState, runMode)
 }
 
@@ -238,11 +239,10 @@ private fun AppState.toMihomoSnifferYamlMap(): Map<String, Any?> {
 
 private fun MutableMap<String, Any?>.putDnsOverrides(
     appState: AppState,
-    runMode: Int,
     forceDns: Boolean,
 ) {
     val existingDnsEnabled = isMihomoDnsEnabled(this["dns"])
-    val enableDns = appState.effectiveLocalDnsEnabledFor(runMode)
+    val enableDns = appState.effectiveLocalDnsEnabled
     if (forceDns || appState.overrideDns || !existingDnsEnabled) {
         put(
             "dns",
@@ -327,15 +327,11 @@ private fun MutableMap<String, Any?>.putRootDnsHijackOverrides(
     runMode: Int,
 ) {
     val rootMode = runMode.isRootRunMode()
-    if (!rootMode || !appState.effectiveLocalDnsEnabledFor(runMode)) {
+    if (!rootMode || !appState.effectiveLocalDnsEnabled) {
         return
     }
     put("proxies", normalizedProxiesWithDnsOut(this["proxies"]))
     put("rules", normalizedRulesWithUdpDnsHijack(this["rules"]))
-}
-
-private fun AppState.effectiveLocalDnsEnabledFor(runMode: Int): Boolean {
-    return runMode.isRootRunMode() || enableLocalDns
 }
 
 private fun AppState.toMihomoTunListenerYamlMap(): Map<String, Any?> {
@@ -345,13 +341,15 @@ private fun AppState.toMihomoTunListenerYamlMap(): Map<String, Any?> {
         "type" to "tun",
         "device" to MihomoTunDevice,
         "stack" to MihomoProfileFactory.tunStack(this),
-        "dns-hijack" to listOf("0.0.0.0:53"),
         "auto-route" to false,
         "auto-detect-interface" to false,
         "auto-redirect" to false,
         "mtu" to tunOptions.mtu,
         "inet4-address" to listOf("${tunOptions.ipv4Address.address}/${tunOptions.ipv4Address.prefixLength}"),
     ).apply {
+        if (enableLocalDns) {
+            put("dns-hijack", listOf("0.0.0.0:53"))
+        }
         if (enableIpv6) {
             put("inet6-address", listOf("${tunOptions.ipv6Address.address}/${tunOptions.ipv6Address.prefixLength}"))
         }

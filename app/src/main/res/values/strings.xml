@@ -180,7 +180,6 @@
     <string name="settings_root_ipv6_disabler_summary">Prevent WebRTC IPv6 address leaks</string>
     <string name="settings_vpn_local_dns">Enable local DNS</string>
     <string name="settings_vpn_local_dns_summary">Use the core to handle DNS requests</string>
-    <string name="settings_vpn_local_dns_root_forced_summary">Forced in ROOT modes; UDP/53 is hijacked into the core</string>
     <string name="settings_local_proxy">Local proxy settings</string>
     <string name="settings_local_proxy_port">Local proxy port</string>
     <string name="settings_local_proxy_dynamic_port">Dynamic local proxy port</string>

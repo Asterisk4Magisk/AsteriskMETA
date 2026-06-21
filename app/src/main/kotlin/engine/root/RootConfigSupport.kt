@@ -6,6 +6,7 @@ package engine.root
 import android.content.Context
 import app.AppState
 import app.effectiveFakeIpEnabled
+import app.effectiveLocalDnsEnabled
 import engine.mihomo.DefaultMihomoDnsFakeIpRange
 import engine.network.parseCidrAddressOrNull
 import engine.network.toPortOrNull
@@ -69,6 +70,7 @@ private fun AppState.toRootStartConfig(
         runtimeLayout = runtimeLayout,
         enableIpv6 = enableIpv6,
         enableRootIpv6Disabler = enableRootIpv6Disabler,
+        enableLocalDns = effectiveLocalDnsEnabled,
         enableFakeIp = effectiveFakeIpEnabled,
         fakeIpIpv4Pool = rootFakeIpIpv4Pool(),
         coreLogPaths = coreLogPaths,

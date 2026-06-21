@@ -11,7 +11,6 @@ import app.modes.MihomoProxySortDefault
 import app.modes.MihomoTunStackGvisor
 import app.modes.ProxyAppListModeGlobal
 import app.modes.RunModeVpnService
-import app.modes.isRootRunMode
 import engine.tun2socks.DefaultTun2SocksProxyPort
 import engine.tproxy.DefaultTproxyPort
 import engine.vpn.VpnDefaults
@@ -114,7 +113,7 @@ data class AppState(
 )
 
 val AppState.effectiveLocalDnsEnabled: Boolean
-    get() = runMode.isRootRunMode() || enableLocalDns
+    get() = enableLocalDns
 
 val AppState.effectiveFakeIpEnabled: Boolean
     get() = effectiveLocalDnsEnabled && dnsEnhancedMode == MihomoDnsModeFakeIp

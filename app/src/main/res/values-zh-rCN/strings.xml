@@ -180,7 +180,6 @@
     <string name="settings_root_ipv6_disabler_summary">防止 WebRTC 泄露 IPv6 地址</string>
     <string name="settings_vpn_local_dns">启用本地 DNS</string>
     <string name="settings_vpn_local_dns_summary">使用核心处理 DNS 请求</string>
-    <string name="settings_vpn_local_dns_root_forced_summary">ROOT 模式强制启用，UDP/53 会劫持到核心</string>
     <string name="settings_local_proxy">本地代理设置</string>
     <string name="settings_local_proxy_port">本地代理端口</string>
     <string name="settings_local_proxy_dynamic_port">动态本地代理端口</string>

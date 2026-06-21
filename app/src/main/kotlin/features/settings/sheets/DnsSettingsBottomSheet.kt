@@ -65,7 +65,6 @@ private val MihomoDnsUrlSchemes = setOf(
 internal fun DnsSettingsBottomSheet(
     show: Boolean,
     draft: DnsSettingsDraft,
-    forceEnableLocalDns: Boolean,
     onDraftChange: (DnsSettingsDraft) -> Unit,
     onDismissRequest: () -> Unit,
     onSave: (DnsSettingsDraft) -> Unit,
@@ -78,7 +77,6 @@ internal fun DnsSettingsBottomSheet(
     val dnsGeoipCodeInvalidMessage = stringResource(R.string.settings_dns_geoip_code_invalid)
 
     val sanitizedDraft = draft.sanitized()
-    val localDnsChecked = forceEnableLocalDns || draft.enableLocalDns
     val fakeIpRangeError = if (
         sanitizedDraft.dnsEnhancedMode != MihomoDnsModeFakeIp ||
         isIpv4CidrAddress(draft.dnsFakeIpRange)
@@ -123,19 +121,9 @@ internal fun DnsSettingsBottomSheet(
                 DnsSheetSection(title = stringResource(R.string.settings_dns_section_basic)) {
                     SwitchPreference(
                         title = stringResource(R.string.settings_vpn_local_dns),
-                        summary = stringResource(
-                            if (forceEnableLocalDns) {
-                                R.string.settings_vpn_local_dns_root_forced_summary
-                            } else {
-                                R.string.settings_vpn_local_dns_summary
-                            },
-                        ),
-                        checked = localDnsChecked,
-                        onCheckedChange = {
-                            if (!forceEnableLocalDns) {
-                                onDraftChange(draft.copy(enableLocalDns = it))
-                            }
-                        },
+                        summary = stringResource(R.string.settings_vpn_local_dns_summary),
+                        checked = draft.enableLocalDns,
+                        onCheckedChange = { onDraftChange(draft.copy(enableLocalDns = it)) },
                     )
                     SwitchPreference(
                         title = stringResource(R.string.settings_dns_override),

@@ -198,6 +198,7 @@ private fun <Config : RootModeStartConfig> StringBuilder.appendRootStartupPreamb
             $$"""
         echo "IPv6 enabled: $${config.root.enableIpv6}"
         echo "IPv6 disabler enabled: $${config.root.shouldStartIpv6Disabler}"
+        echo "Local DNS enabled: $${config.root.enableLocalDns}"
         echo "FakeIp enabled: $${config.root.enableFakeIp}"
         echo "Core error log: $${config.root.coreLogPaths.errorLogPath.shellQuote()}"
         echo "IPv6 disabler log: $${config.root.ipv6DisablerLogPath.shellQuote()}"

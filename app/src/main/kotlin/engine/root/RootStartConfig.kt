@@ -14,6 +14,7 @@ internal data class RootStartConfig(
     val runtimeLayout: RootRuntimeLayout,
     val enableIpv6: Boolean,
     val enableRootIpv6Disabler: Boolean,
+    val enableLocalDns: Boolean,
     val enableFakeIp: Boolean,
     val fakeIpIpv4Pool: String,
     val coreLogPaths: MihomoCoreLogPaths,
