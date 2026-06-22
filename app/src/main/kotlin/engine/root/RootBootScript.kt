@@ -74,6 +74,10 @@ private fun <Config : RootModeStartConfig> Config.buildRootStartupScript(
             appendScript("section \"Start $modeName helper runtime\"")
             append(postCoreStartCommand)
         }
+        rootEbpfConfig?.let { ebpfConfig ->
+            appendScript("section \"Start $modeName eBPF matcher\"")
+            append(ebpfConfig.buildStartCommand())
+        }
         appendRootBootReadinessCheck(
             readinessCheck = buildReadinessCheck(this@buildRootStartupScript),
             attempts = bootReadinessCheckAttempts,
@@ -202,6 +206,7 @@ private fun <Config : RootModeStartConfig> StringBuilder.appendRootStartupPreamb
         echo "FakeIp enabled: $${config.root.enableFakeIp}"
         echo "Core error log: $${config.root.coreLogPaths.errorLogPath.shellQuote()}"
         echo "IPv6 disabler log: $${config.root.ipv6DisablerLogPath.shellQuote()}"
+        echo "eBPF matcher enabled: $${config.rootEbpfConfig != null}"
 
         section "Prepare runtime"
         """,

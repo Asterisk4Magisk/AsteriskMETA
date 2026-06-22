@@ -8,6 +8,7 @@ import engine.proxy.LocalProxyOptions
 import engine.proxy.toLocalProxyOptions
 import engine.network.toPortOrNull
 import engine.root.RootConfigBuildContext
+import engine.root.RootEbpfRuntimeConfig
 import engine.root.RootIptablesConfig
 import engine.root.RootModeStartConfig
 import engine.root.RootStartConfig
@@ -17,6 +18,7 @@ internal data class TproxyStartConfig(
     override val localProxyOptions: LocalProxyOptions,
     val tproxyPort: Int,
     val iptablesConfig: RootIptablesConfig,
+    override val rootEbpfConfig: RootEbpfRuntimeConfig?,
 ) : RootModeStartConfig
 
 internal val TproxyBaseIptablesConfig = RootIptablesConfig(
@@ -28,14 +30,16 @@ internal val TproxyBaseIptablesConfig = RootIptablesConfig(
 internal fun RootConfigBuildContext.buildTproxyStartConfig(): TproxyStartConfig {
     val appState = this.appState
     val tproxyPort = appState.tproxyPortValue()
+    val iptablesConfig = buildRootIptablesConfig(
+        base = TproxyBaseIptablesConfig,
+        ignoredLocalInterfaceNames = setOf(TproxyDummyDevice),
+    )
     return TproxyStartConfig(
         root = buildRootStartConfig(),
         localProxyOptions = appState.toLocalProxyOptions(),
         tproxyPort = tproxyPort,
-        iptablesConfig = buildRootIptablesConfig(
-            base = TproxyBaseIptablesConfig,
-            ignoredLocalInterfaceNames = setOf(TproxyDummyDevice),
-        ),
+        iptablesConfig = iptablesConfig,
+        rootEbpfConfig = buildRootEbpfRuntimeConfig(iptablesConfig),
     )
 }
 

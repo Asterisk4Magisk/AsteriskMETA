@@ -12,6 +12,8 @@ internal data class RootIptablesConfig(
     val mark: String,
     val ipv4Table: String,
     val ipv6Table: String,
+    val enableEbpfRules: Boolean = false,
+    val enableEbpfDirectCidrBypass: Boolean = false,
     val externalInterfacePrefixes: List<String> = emptyList(),
     val ignoredInterfaces: List<String> = emptyList(),
     val localInterfaceIpv4Cidrs: List<String> = emptyList(),
@@ -51,6 +53,8 @@ internal fun RootIptablesConfig.withAppSettings(
         proxyPrivateIpv6Cidrs = proxyPrivateCidrs.ipv6Cidrs(),
         bypassPrivateIpv4Cidrs = bypassPrivateCidrs.ipv4Cidrs(),
         bypassPrivateIpv6Cidrs = bypassPrivateCidrs.ipv6Cidrs(),
+        enableEbpfRules = appState.enableRootEbpfRules,
+        enableEbpfDirectCidrBypass = appState.enableRootEbpfDirectCidrBypass,
         proxyAppListMode = appListMode,
         proxyApplicationUids = if (appListMode == ProxyAppListModeGlobal) {
             emptyList()

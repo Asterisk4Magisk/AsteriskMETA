@@ -305,17 +305,21 @@ fun ResourceManagementPage(
                         customGeoSiteUrl = appState.customResourceFileGeoSiteUrl,
                         customMmdbUrl = appState.customResourceFileMmdbUrl,
                         customAsnUrl = appState.customResourceFileAsnUrl,
+                        customDirectCidrIpv4Url = appState.customResourceFileDirectCidrIpv4Url,
+                        customDirectCidrIpv6Url = appState.customResourceFileDirectCidrIpv6Url,
                         updating = updating,
                         onSourceChange = { index ->
                             updateAppState { state -> state.copy(resourceFileSource = index.coerceIn(sourceOptions.indices)) }
                         },
-                        onCustomSourceChange = { geoIpUrl, geoSiteUrl, mmdbUrl, asnUrl ->
+                        onCustomSourceChange = { geoIpUrl, geoSiteUrl, mmdbUrl, asnUrl, directCidrIpv4Url, directCidrIpv6Url ->
                             updateAppState { state ->
                                 state.copy(
                                     customResourceFileGeoIpUrl = geoIpUrl,
                                     customResourceFileGeoSiteUrl = geoSiteUrl,
                                     customResourceFileMmdbUrl = mmdbUrl,
                                     customResourceFileAsnUrl = asnUrl,
+                                    customResourceFileDirectCidrIpv4Url = directCidrIpv4Url,
+                                    customResourceFileDirectCidrIpv6Url = directCidrIpv6Url,
                                 )
                             }
                         },

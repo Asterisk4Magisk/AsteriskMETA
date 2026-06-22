@@ -109,6 +109,7 @@ dependencies {
     implementation(project(":cmfa-core"))
     implementation(project(":setuidgid"))
     implementation(project(":ipv6disabler"))
+    implementation(project(":bpfmatcher"))
     implementation(libs.ktor.http)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.libsu.core)

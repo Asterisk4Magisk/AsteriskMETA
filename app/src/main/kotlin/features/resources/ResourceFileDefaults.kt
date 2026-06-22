@@ -14,6 +14,8 @@ const val ResourceFileGeoIpName = "GeoIP.dat"
 const val ResourceFileGeoSiteName = "GeoSite.dat"
 const val ResourceFileMmdbName = "geoip.metadb"
 const val ResourceFileAsnName = "ASN.mmdb"
+const val ResourceFileDirectCidrIpv4Name = "direct-cidr-v4.txt"
+const val ResourceFileDirectCidrIpv6Name = "direct-cidr-v6.txt"
 
 const val MihomoCoreVersion = ProjectInfo.MIHOMO_CORE_VERSION
 
@@ -21,3 +23,7 @@ const val ResourceFileGeoIpUrl = "https://github.com/MetaCubeX/meta-rules-dat/re
 const val ResourceFileGeoSiteUrl = "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geosite.dat"
 const val ResourceFileMmdbUrl = "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.metadb"
 const val ResourceFileAsnUrl = "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/GeoLite2-ASN.mmdb"
+const val ResourceFileDirectCidrIpv4Url =
+    "https://raw.githubusercontent.com/mayaxcn/china-ip-list/master/chnroute.txt"
+const val ResourceFileDirectCidrIpv6Url =
+    "https://raw.githubusercontent.com/mayaxcn/china-ip-list/master/chnroute_v6.txt"

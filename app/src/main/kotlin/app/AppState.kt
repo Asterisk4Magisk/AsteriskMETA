@@ -71,6 +71,8 @@ data class AppState(
     val customResourceFileGeoSiteUrl: String = "",
     val customResourceFileMmdbUrl: String = "",
     val customResourceFileAsnUrl: String = "",
+    val customResourceFileDirectCidrIpv4Url: String = "",
+    val customResourceFileDirectCidrIpv6Url: String = "",
     val customResourceFiles: List<CustomResourceFileState> = emptyList(),
     val nextCustomResourceFileId: Int = 1,
     val enableSniffer: Boolean = true,
@@ -101,6 +103,8 @@ data class AppState(
 
     val transparentProxyPort: String = DefaultTproxyPort.toString(),
     val enableRootBootScript: Boolean = false,
+    val enableRootEbpfRules: Boolean = false,
+    val enableRootEbpfDirectCidrBypass: Boolean = false,
     val enableRootIpv6Disabler: Boolean = false,
     val socks5ProxyPort: String = DefaultTun2SocksProxyPort.toString(),
 

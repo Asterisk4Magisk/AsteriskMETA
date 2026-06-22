@@ -181,4 +181,12 @@ private val AndroidMihomoResourceFileAssets = listOf(
         fileName = "ASN.mmdb",
         url = "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/GeoLite2-ASN.mmdb",
     ),
+    MihomoResourceFileAsset(
+        fileName = "direct-cidr-v4.txt",
+        url = "https://raw.githubusercontent.com/mayaxcn/china-ip-list/master/chnroute.txt",
+    ),
+    MihomoResourceFileAsset(
+        fileName = "direct-cidr-v6.txt",
+        url = "https://raw.githubusercontent.com/mayaxcn/china-ip-list/master/chnroute_v6.txt",
+    ),
 )

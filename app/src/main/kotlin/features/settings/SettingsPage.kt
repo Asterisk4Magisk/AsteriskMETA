@@ -30,6 +30,7 @@ import app.modes.RunModeTun
 import app.modes.RunModeTun2Socks
 import app.modes.RunModeTproxy
 import app.modes.RunModeVpnService
+import app.modes.isRootRunMode
 import app.ProjectInfo
 import app.R
 import engine.mihomo.MihomoGeodataLoaderValues
@@ -40,6 +41,7 @@ import features.settings.sheets.privateAddressCidrsSummary
 import features.settings.sheets.tunSettingsSummary
 import features.settings.usecase.SwitchRunModeResult
 import features.settings.usecase.RootBootScriptResult
+import features.settings.usecase.RootEbpfProbeResult
 import kotlinx.coroutines.launch
 import app.navigation.Route
 import androidx.compose.ui.res.stringResource
@@ -100,11 +102,13 @@ private fun SettingsContent(
     val networkInterfaces = services.networkInterfaces
     val switchRunModeUseCase = services.switchRunModeUseCase
     val rootBootScriptUseCase = services.rootBootScriptUseCase
+    val rootEbpfProbeUseCase = services.rootEbpfProbeUseCase
     val tipNotifier = services.tipNotifier
     val scope = rememberCoroutineScope()
     val lazyListState = rememberLazyListState()
     var runModeSwitchInProgress by rememberSaveable { mutableStateOf(false) }
     var rootBootScriptSwitchInProgress by rememberSaveable { mutableStateOf(false) }
+    var rootEbpfSwitchInProgress by rememberSaveable { mutableStateOf(false) }
     val contentPadding = pageContentPaddingWithCutout(
         innerPadding = innerPadding,
         outerPadding = outerPadding,
@@ -150,6 +154,8 @@ private fun SettingsContent(
     ).take(KeyColors.size + 1)
     val rootRequiredMessage = stringResource(R.string.settings_root_required)
     val rootBootScriptFailedMessage = stringResource(R.string.settings_root_boot_script_failed)
+    val rootEbpfMatcherFailedMessage = stringResource(R.string.settings_root_ebpf_matcher_failed)
+    val rootEbpfMatcherUnsupportedMessage = stringResource(R.string.settings_root_ebpf_matcher_unsupported)
     val serviceStoppedMessage = stringResource(R.string.proxy_service_stopped)
     val logLevelFailedMessage = stringResource(R.string.settings_log_level)
     val ignoredInterfacesErrorDetail = stringResource(R.string.settings_ignored_interfaces_error_detail)
@@ -266,6 +272,7 @@ private fun SettingsContent(
                                                 runMode = result.runMode,
                                                 proxyRunning = result.proxyRunning,
                                                 enableRootBootScript = false,
+                                                enableRootEbpfRules = state.enableRootEbpfRules && result.runMode.isRootRunMode(),
                                             )
                                         }
                                     }
@@ -298,6 +305,8 @@ private fun SettingsContent(
                     enableVpnAppendHttpProxy = appState.enableVpnAppendHttpProxy,
                     tunSettingsSummary = tunSettingsSummary,
                     enableRootBootScript = appState.enableRootBootScript,
+                    enableRootEbpfRules = appState.enableRootEbpfRules,
+                    enableRootEbpfDirectCidrBypass = appState.enableRootEbpfDirectCidrBypass,
                     enableIpv6 = appState.enableIpv6,
                     enableRootIpv6Disabler = appState.enableRootIpv6Disabler,
                     externalInterfacesSummary = externalInterfacesSummary,
@@ -345,6 +354,47 @@ private fun SettingsContent(
                                 }
                             }
                         }
+                    },
+                    onEnableRootEbpfRulesChange = { enabled ->
+                        if (!enabled) {
+                            updateAppState { state -> state.copy(enableRootEbpfRules = false) }
+                            return@SettingsProxyModeSections
+                        }
+                        if (!rootEbpfSwitchInProgress) {
+                            rootEbpfSwitchInProgress = true
+                            val stateSnapshot = appState
+                            val probeJob = services.appScope.launch {
+                                when (val result = rootEbpfProbeUseCase.probe(stateSnapshot)) {
+                                    is RootEbpfProbeResult.Success -> {
+                                        updateAppState { state -> state.copy(enableRootEbpfRules = true) }
+                                    }
+
+                                    is RootEbpfProbeResult.Unsupported -> {
+                                        tipNotifier.show(
+                                            result.probe.message.ifBlank { rootEbpfMatcherUnsupportedMessage },
+                                        )
+                                    }
+
+                                    RootEbpfProbeResult.RootUnavailable -> {
+                                        tipNotifier.show(rootRequiredMessage)
+                                    }
+
+                                    is RootEbpfProbeResult.Failed -> {
+                                        tipNotifier.showError(result.error, rootEbpfMatcherFailedMessage)
+                                    }
+                                }
+                            }
+                            scope.launch {
+                                try {
+                                    probeJob.join()
+                                } finally {
+                                    rootEbpfSwitchInProgress = false
+                                }
+                            }
+                        }
+                    },
+                    onEnableRootEbpfDirectCidrBypassChange = { enabled ->
+                        updateAppState { state -> state.copy(enableRootEbpfDirectCidrBypass = enabled) }
                     },
                     onEnableRootIpv6DisablerChange = { enabled ->
                         updateAppState { state -> state.copy(enableRootIpv6Disabler = enabled) }

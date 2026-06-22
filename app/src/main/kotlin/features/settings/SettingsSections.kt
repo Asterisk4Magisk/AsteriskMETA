@@ -207,6 +207,8 @@ internal fun SettingsProxyModeSections(
     enableVpnAppendHttpProxy: Boolean,
     tunSettingsSummary: String,
     enableRootBootScript: Boolean,
+    enableRootEbpfRules: Boolean,
+    enableRootEbpfDirectCidrBypass: Boolean,
     enableIpv6: Boolean,
     enableRootIpv6Disabler: Boolean,
     externalInterfacesSummary: String,
@@ -216,6 +218,8 @@ internal fun SettingsProxyModeSections(
     onEnableVpnAppendHttpProxyChange: (Boolean) -> Unit,
     onOpenTunSettings: () -> Unit,
     onEnableRootBootScriptChange: (Boolean) -> Unit,
+    onEnableRootEbpfRulesChange: (Boolean) -> Unit,
+    onEnableRootEbpfDirectCidrBypassChange: (Boolean) -> Unit,
     onEnableRootIpv6DisablerChange: (Boolean) -> Unit,
     onOpenExternalInterfaces: () -> Unit,
     onOpenIgnoredInterfaces: () -> Unit,
@@ -274,6 +278,24 @@ internal fun SettingsProxyModeSections(
                         summary = stringResource(R.string.settings_root_boot_script_summary),
                         checked = enableRootBootScript,
                         onCheckedChange = onEnableRootBootScriptChange,
+                    )
+                }
+                SwitchPreference(
+                    title = stringResource(R.string.settings_root_ebpf_matcher),
+                    summary = stringResource(R.string.settings_root_ebpf_matcher_summary),
+                    checked = enableRootEbpfRules,
+                    onCheckedChange = onEnableRootEbpfRulesChange,
+                )
+                AnimatedVisibility(
+                    visible = enableRootEbpfRules,
+                    enter = fadeIn() + expandVertically(),
+                    exit = shrinkVertically() + fadeOut(),
+                ) {
+                    SwitchPreference(
+                        title = stringResource(R.string.settings_root_ebpf_bypass_direct_cidrs),
+                        summary = stringResource(R.string.settings_root_ebpf_bypass_direct_cidrs_summary),
+                        checked = enableRootEbpfDirectCidrBypass,
+                        onCheckedChange = onEnableRootEbpfDirectCidrBypassChange,
                     )
                 }
                 AnimatedVisibility(

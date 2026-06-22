@@ -29,6 +29,7 @@ internal abstract class RootModeRunner<Config : RootModeStartConfig>(
         stop(config.root.runtimeLayout)
         AndroidMihomoRuntime.stop(resetCore = true)
         writeRootConfigFile(config.root)
+        config.rootEbpfConfig?.writeRuntimeFiles()
         prepareModeRuntimeFiles(config)
         runRootCommand(config.root.buildPrepareRuntimeCommand(), "Failed to prepare $modeName environment")
         runRootCommandIfNotBlank(
@@ -39,6 +40,10 @@ internal abstract class RootModeRunner<Config : RootModeStartConfig>(
         runRootCommandIfNotBlank(
             command = buildPostCoreStartCommand(config),
             failureMessage = "Failed to start $modeName helper runtime",
+        )
+        runRootCommandIfNotBlank(
+            command = config.rootEbpfConfig?.buildStartCommand().orEmpty(),
+            failureMessage = "Failed to start $modeName eBPF matcher",
         )
 
         val readinessCheck = buildReadinessCheck(config)
@@ -75,6 +80,7 @@ internal abstract class RootModeRunner<Config : RootModeStartConfig>(
             "Failed to repair $modeName runtime file permissions before installing boot script",
         )
         writeRootConfigFile(config.root)
+        config.rootEbpfConfig?.writeRuntimeFiles()
         prepareModeRuntimeFiles(config)
         val command = config.buildInstallRootBootScriptCommand(
             modeName = modeName,

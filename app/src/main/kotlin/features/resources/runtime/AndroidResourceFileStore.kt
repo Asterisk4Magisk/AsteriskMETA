@@ -182,7 +182,10 @@ internal class AndroidResourceFileStore(
             dataDir = dataDir.absolutePath,
             setuidgidPath = File(appContext.applicationInfo.nativeLibraryDir, SetuidgidLibraryName).absolutePath,
             ipv6DisablerPath = File(appContext.applicationInfo.nativeLibraryDir, Ipv6DisablerLibraryName).absolutePath,
+            bpfMatcherPath = File(appContext.applicationInfo.nativeLibraryDir, BpfMatcherLibraryName).absolutePath,
             mihomoCorePath = file(ResourceFileKind.MihomoCore).absolutePath,
+            directCidrIpv4Path = file(ResourceFileKind.DirectCidrIpv4).absolutePath,
+            directCidrIpv6Path = file(ResourceFileKind.DirectCidrIpv6).absolutePath,
             hevSocks5TunnelPath = File(appContext.applicationInfo.nativeLibraryDir, HevSocks5TunnelLibraryName).absolutePath,
         )
     }
@@ -197,7 +200,10 @@ internal data class MihomoResourceFilePaths(
     val dataDir: String,
     val setuidgidPath: String,
     val ipv6DisablerPath: String,
+    val bpfMatcherPath: String,
     val mihomoCorePath: String,
+    val directCidrIpv4Path: String,
+    val directCidrIpv6Path: String,
     val hevSocks5TunnelPath: String,
 )
 
@@ -229,6 +235,7 @@ private fun Context.packageUpdatedAtMillis(): Long {
 
 private const val SetuidgidLibraryName = "libsetuidgid.so"
 private const val Ipv6DisablerLibraryName = "libipv6disabler.so"
+private const val BpfMatcherLibraryName = "libbpf-matcher.so"
 private const val MihomoCoreLibraryName = "libmihomo.so"
 private const val HevSocks5TunnelLibraryName = "libhev-socks5-tunnel.so"
 private const val MihomoHomeDirName = "clash"

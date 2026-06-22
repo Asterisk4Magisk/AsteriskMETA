@@ -4,6 +4,10 @@
 package app
 
 import androidx.compose.runtime.Stable
+import features.resources.ResourceFileDirectCidrIpv4Name
+import features.resources.ResourceFileDirectCidrIpv4Url
+import features.resources.ResourceFileDirectCidrIpv6Name
+import features.resources.ResourceFileDirectCidrIpv6Url
 import features.resources.ResourceFileMihomoCoreName
 import features.resources.MihomoCoreVersion
 import features.resources.ResourceFileAsnName
@@ -93,6 +97,8 @@ enum class ResourceFileKind(
     GeoSite(ResourceFileGeoSiteName),
     Mmdb(ResourceFileMmdbName),
     Asn(ResourceFileAsnName),
+    DirectCidrIpv4(ResourceFileDirectCidrIpv4Name),
+    DirectCidrIpv6(ResourceFileDirectCidrIpv6Name),
     ;
 
     val displayName: String
@@ -134,6 +140,8 @@ data class ResourceFileUpdateSource(
     val geoSiteUrl: String,
     val mmdbUrl: String,
     val asnUrl: String,
+    val directCidrIpv4Url: String,
+    val directCidrIpv6Url: String,
 )
 
 val ResourceFileUpdateSources = listOf(
@@ -143,6 +151,8 @@ val ResourceFileUpdateSources = listOf(
         geoSiteUrl = ResourceFileGeoSiteUrl,
         mmdbUrl = ResourceFileMmdbUrl,
         asnUrl = ResourceFileAsnUrl,
+        directCidrIpv4Url = ResourceFileDirectCidrIpv4Url,
+        directCidrIpv6Url = ResourceFileDirectCidrIpv6Url,
     ),
 )
 
@@ -188,6 +198,8 @@ fun AppState.resourceFileUpdateSource(): ResourceFileUpdateSource {
         geoSiteUrl = customResourceFileGeoSiteUrl.trim().ifBlank { fallback.geoSiteUrl },
         mmdbUrl = customResourceFileMmdbUrl.trim().ifBlank { fallback.mmdbUrl },
         asnUrl = customResourceFileAsnUrl.trim().ifBlank { fallback.asnUrl },
+        directCidrIpv4Url = customResourceFileDirectCidrIpv4Url.trim().ifBlank { fallback.directCidrIpv4Url },
+        directCidrIpv6Url = customResourceFileDirectCidrIpv6Url.trim().ifBlank { fallback.directCidrIpv6Url },
     )
 }
 
@@ -198,6 +210,8 @@ fun ResourceFileUpdateSource.urlFor(kind: ResourceFileKind): String? {
         ResourceFileKind.GeoSite -> geoSiteUrl
         ResourceFileKind.Mmdb -> mmdbUrl
         ResourceFileKind.Asn -> asnUrl
+        ResourceFileKind.DirectCidrIpv4 -> directCidrIpv4Url
+        ResourceFileKind.DirectCidrIpv6 -> directCidrIpv6Url
     }
 }
 

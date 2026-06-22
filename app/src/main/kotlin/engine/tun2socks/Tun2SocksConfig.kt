@@ -8,6 +8,7 @@ import app.AppState
 import engine.proxy.LocalProxyOptions
 import engine.proxy.toLocalProxyOptions
 import engine.root.RootConfigBuildContext
+import engine.root.RootEbpfRuntimeConfig
 import engine.root.RootIptablesConfig
 import engine.root.RootModeStartConfig
 import engine.root.RootRuntimeLayout
@@ -26,6 +27,7 @@ internal data class Tun2SocksStartConfig(
     override val localProxyOptions: LocalProxyOptions,
     val hevSocks5TunnelConfig: HevSocks5TunnelConfig,
     val iptablesConfig: RootIptablesConfig,
+    override val rootEbpfConfig: RootEbpfRuntimeConfig?,
 ) : RootModeStartConfig
 
 internal data class HevSocks5TunnelConfig(
@@ -51,6 +53,10 @@ internal fun RootConfigBuildContext.buildTun2SocksStartConfig(): Tun2SocksStartC
     val localProxyOptions = appState.toLocalProxyOptions()
     val socks5ProxyPort = appState.tun2SocksInternalProxyPortValue()
     val rootStartConfig = buildRootStartConfig()
+    val iptablesConfig = buildRootIptablesConfig(
+        base = Tun2SocksBaseIptablesConfig,
+        ignoredLocalInterfaceNames = setOf("asterisk0"),
+    )
     return Tun2SocksStartConfig(
         root = rootStartConfig,
         localProxyOptions = localProxyOptions,
@@ -61,10 +67,8 @@ internal fun RootConfigBuildContext.buildTun2SocksStartConfig(): Tun2SocksStartC
             tunOptions = tunOptions,
             enableIpv6 = appState.enableIpv6,
         ),
-        iptablesConfig = buildRootIptablesConfig(
-            base = Tun2SocksBaseIptablesConfig,
-            ignoredLocalInterfaceNames = setOf("asterisk0"),
-        ),
+        iptablesConfig = iptablesConfig,
+        rootEbpfConfig = buildRootEbpfRuntimeConfig(iptablesConfig),
     )
 }
 

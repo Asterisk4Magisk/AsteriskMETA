@@ -80,6 +80,9 @@ internal fun buildRootStopCommand(
             append(paths.buildRepairRuntimePermissionsCommand())
         }
         append(cleanupRulesCommand)
+        runtimeLayout?.let { paths ->
+            append(paths.buildStopRootEbpfCommand())
+        }
     }
 }
 

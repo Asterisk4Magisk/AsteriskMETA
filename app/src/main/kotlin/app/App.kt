@@ -31,6 +31,7 @@ import features.settings.locale.ProvideAppLanguage
 import features.settings.locale.RecreateActivityOnAppLanguageChange
 import features.settings.usecase.SwitchRunModeUseCase
 import features.settings.usecase.RootBootScriptUseCase
+import features.settings.usecase.RootEbpfProbeUseCase
 import features.subscription.runtime.AndroidMihomoProviderFetcher
 import features.subscription.runtime.AndroidSubscriptionFetcher
 import system.AndroidNetworkInterfaceProvider
@@ -100,6 +101,12 @@ fun App(
             rootAccess = rootAccess,
         )
     }
+    val rootEbpfProbeUseCase = remember(appContext, rootAccess) {
+        RootEbpfProbeUseCase(
+            context = appContext,
+            rootAccess = rootAccess,
+        )
+    }
     val switchRunModeUseCase = remember(proxyEngine, rootAccess, rootBootScriptUseCase) {
         SwitchRunModeUseCase(
             context = appContext,
@@ -130,6 +137,7 @@ fun App(
         proxyServiceUseCase,
         switchRunModeUseCase,
         rootBootScriptUseCase,
+        rootEbpfProbeUseCase,
         tipNotifier,
         logFileCreator,
     ) {
@@ -150,6 +158,7 @@ fun App(
             proxyServiceUseCase = proxyServiceUseCase,
             switchRunModeUseCase = switchRunModeUseCase,
             rootBootScriptUseCase = rootBootScriptUseCase,
+            rootEbpfProbeUseCase = rootEbpfProbeUseCase,
             tipNotifier = tipNotifier,
             logFileCreator = logFileCreator,
             coreLogRepository = AndroidCoreLogRepository,

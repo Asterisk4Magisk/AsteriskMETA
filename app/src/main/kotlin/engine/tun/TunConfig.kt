@@ -8,6 +8,7 @@ import engine.mihomo.MihomoProfileFactory
 import engine.proxy.LocalProxyOptions
 import engine.proxy.toLocalProxyOptions
 import engine.root.RootConfigBuildContext
+import engine.root.RootEbpfRuntimeConfig
 import engine.root.RootIptablesConfig
 import engine.root.RootModeStartConfig
 import engine.root.RootStartConfig
@@ -20,6 +21,7 @@ internal data class TunStartConfig(
     override val localProxyOptions: LocalProxyOptions,
     val tunConfig: MihomoTunConfig,
     val iptablesConfig: RootIptablesConfig,
+    override val rootEbpfConfig: RootEbpfRuntimeConfig?,
 ) : RootModeStartConfig
 
 internal data class MihomoTunConfig(
@@ -36,14 +38,16 @@ internal fun RootConfigBuildContext.buildTunStartConfig(): TunStartConfig {
     val appState = this.appState
     val tunOptions = appState.toTunOptions()
     val rootStartConfig = buildRootStartConfig()
+    val iptablesConfig = buildRootIptablesConfig(
+        base = TunBaseIptablesConfig,
+        ignoredLocalInterfaceNames = setOf(MihomoTunDevice),
+    )
     return TunStartConfig(
         root = rootStartConfig,
         localProxyOptions = appState.toLocalProxyOptions(),
         tunConfig = appState.buildMihomoTunConfig(tunOptions),
-        iptablesConfig = buildRootIptablesConfig(
-            base = TunBaseIptablesConfig,
-            ignoredLocalInterfaceNames = setOf(MihomoTunDevice),
-        ),
+        iptablesConfig = iptablesConfig,
+        rootEbpfConfig = buildRootEbpfRuntimeConfig(iptablesConfig),
     )
 }
 
