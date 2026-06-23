@@ -38,6 +38,7 @@ internal data class RootEbpfPolicy(
     val mode: Int,
     val uids: List<Int>,
     val bypassDirectCidrs: Boolean,
+    val enableIpv6: Boolean,
     val directCidrPathV4: String,
     val directCidrPathV6: String,
     val xtOutputV4ProgramPath: String,
@@ -87,6 +88,7 @@ internal fun RootEbpfPolicy.toJsonString(): String {
 }
 
 internal fun RootIptablesConfig.toRootEbpfPolicy(
+    enableIpv6: Boolean,
     directCidrPathV4: String,
     directCidrPathV6: String,
     xtOutputV4ProgramPath: String = RootEbpfXtOutputV4ProgramPath,
@@ -102,6 +104,7 @@ internal fun RootIptablesConfig.toRootEbpfPolicy(
             proxyApplicationUids
         },
         bypassDirectCidrs = enableEbpfDirectCidrBypass,
+        enableIpv6 = enableIpv6,
         directCidrPathV4 = directCidrPathV4,
         directCidrPathV6 = directCidrPathV6,
         xtOutputV4ProgramPath = xtOutputV4ProgramPath,

@@ -55,6 +55,7 @@ internal class RootConfigBuildContext(
             directCidrSourcePathsV4 = listOf(resourceFilePaths.directCidrIpv4Path),
             directCidrSourcePathsV6 = listOf(resourceFilePaths.directCidrIpv6Path),
             policy = iptablesConfig.toRootEbpfPolicy(
+                enableIpv6 = appState.enableIpv6,
                 directCidrPathV4 = runtimeLayout.rootEbpfDirectCidrPathV4,
                 directCidrPathV6 = runtimeLayout.rootEbpfDirectCidrPathV6,
                 xtOutputV4ProgramPath = RootEbpfXtOutputV4ProgramPath,

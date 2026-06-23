@@ -70,6 +70,7 @@
 struct policy {
     uint32_t mode;
     bool bypass_direct_cidrs;
+    bool enable_ipv6;
     char direct_cidr_path_v4[MAX_PATH_LEN];
     char direct_cidr_path_v6[MAX_PATH_LEN];
     char xt_output_v4_program_path[MAX_PATH_LEN];
@@ -260,6 +261,7 @@ static bool load_policy(const char *path, struct policy *policy) {
     }
     policy->mode = json_uint(json, "mode", MODE_GLOBAL);
     policy->bypass_direct_cidrs = json_bool(json, "bypassDirectCidrs", false);
+    policy->enable_ipv6 = json_bool(json, "enableIpv6", true);
     json_string(json, "directCidrPathV4", policy->direct_cidr_path_v4, sizeof(policy->direct_cidr_path_v4));
     json_string(json, "directCidrPathV6", policy->direct_cidr_path_v6, sizeof(policy->direct_cidr_path_v6));
     if (!json_string(
@@ -320,7 +322,7 @@ static bool load_policy(const char *path, struct policy *policy) {
         fprintf(stderr, "policy is missing directCidrPathV4\n");
         return false;
     }
-    if (policy->bypass_direct_cidrs && policy->direct_cidr_path_v6[0] == '\0') {
+    if (policy->bypass_direct_cidrs && policy->enable_ipv6 && policy->direct_cidr_path_v6[0] == '\0') {
         fprintf(stderr, "policy is missing directCidrPathV6\n");
         return false;
     }
@@ -652,7 +654,9 @@ static void cleanup_attaches(void) {
 static int probe_json(bool need_ipv6) {
     int hash_fd = create_map(BPF_MAP_TYPE_HASH, sizeof(uint32_t), sizeof(uint32_t), 16, 0);
     int lpm4_fd = create_map(BPF_MAP_TYPE_LPM_TRIE, sizeof(struct lpm4_key), sizeof(uint8_t), 16, BPF_F_NO_PREALLOC);
-    int lpm6_fd = create_map(BPF_MAP_TYPE_LPM_TRIE, sizeof(struct lpm6_key), sizeof(uint8_t), 16, BPF_F_NO_PREALLOC);
+    int lpm6_fd = need_ipv6 ?
+        create_map(BPF_MAP_TYPE_LPM_TRIE, sizeof(struct lpm6_key), sizeof(uint8_t), 16, BPF_F_NO_PREALLOC) :
+        -1;
     int probe_xt_output_v4_fd = -1;
     int probe_xt_output_v6_fd = -1;
     int probe_xt_prerouting_v4_fd = -1;
@@ -667,7 +671,7 @@ static int probe_json(bool need_ipv6) {
     bool xt_prerouting_v6_pin_ok = false;
     bool direct_packet_access_ok = false;
 
-    if (hash_fd >= 0 && lpm4_fd >= 0 && lpm6_fd >= 0) {
+    if (hash_fd >= 0 && lpm4_fd >= 0 && (!need_ipv6 || lpm6_fd >= 0)) {
         probe_xt_output_v4_fd = load_xt_filter_prog(
             MODE_WHITELIST,
             hash_fd,
@@ -698,35 +702,41 @@ static int probe_json(bool need_ipv6) {
             xt_output_v4_pin_ok = pin_bpf_object(probe_xt_output_v4_fd, PROBE_XT_OUTPUT_V4_PROGRAM_PATH) == 0;
             unlink(PROBE_XT_OUTPUT_V4_PROGRAM_PATH);
         }
-        probe_xt_output_v6_fd = load_xt_filter_prog(
-            MODE_WHITELIST,
-            hash_fd,
-            lpm6_fd,
-            true,
-            true,
-            PACKET_ACCESS_DIRECT,
-            AF_INET6,
-            "ast_p_out6",
-            false
-        );
-        bool output_v6_direct_ok = probe_xt_output_v6_fd >= 0;
-        if (!output_v6_direct_ok) {
+        bool output_v6_direct_ok = true;
+        if (need_ipv6) {
             probe_xt_output_v6_fd = load_xt_filter_prog(
                 MODE_WHITELIST,
                 hash_fd,
                 lpm6_fd,
                 true,
                 true,
-                PACKET_ACCESS_HELPER,
+                PACKET_ACCESS_DIRECT,
                 AF_INET6,
                 "ast_p_out6",
-                true
+                false
             );
-        }
-        xt_output_v6_prog_ok = probe_xt_output_v6_fd >= 0;
-        if (xt_output_v6_prog_ok) {
-            xt_output_v6_pin_ok = pin_bpf_object(probe_xt_output_v6_fd, PROBE_XT_OUTPUT_V6_PROGRAM_PATH) == 0;
-            unlink(PROBE_XT_OUTPUT_V6_PROGRAM_PATH);
+            output_v6_direct_ok = probe_xt_output_v6_fd >= 0;
+            if (!output_v6_direct_ok) {
+                probe_xt_output_v6_fd = load_xt_filter_prog(
+                    MODE_WHITELIST,
+                    hash_fd,
+                    lpm6_fd,
+                    true,
+                    true,
+                    PACKET_ACCESS_HELPER,
+                    AF_INET6,
+                    "ast_p_out6",
+                    true
+                );
+            }
+            xt_output_v6_prog_ok = probe_xt_output_v6_fd >= 0;
+            if (xt_output_v6_prog_ok) {
+                xt_output_v6_pin_ok = pin_bpf_object(probe_xt_output_v6_fd, PROBE_XT_OUTPUT_V6_PROGRAM_PATH) == 0;
+                unlink(PROBE_XT_OUTPUT_V6_PROGRAM_PATH);
+            }
+        } else {
+            xt_output_v6_prog_ok = true;
+            xt_output_v6_pin_ok = true;
         }
         probe_xt_prerouting_v4_fd = load_xt_filter_prog(
             MODE_GLOBAL,
@@ -759,82 +769,85 @@ static int probe_json(bool need_ipv6) {
                 pin_bpf_object(probe_xt_prerouting_v4_fd, PROBE_XT_PREROUTING_V4_PROGRAM_PATH) == 0;
             unlink(PROBE_XT_PREROUTING_V4_PROGRAM_PATH);
         }
-        probe_xt_prerouting_v6_fd = load_xt_filter_prog(
-            MODE_GLOBAL,
-            hash_fd,
-            lpm6_fd,
-            false,
-            true,
-            PACKET_ACCESS_DIRECT,
-            AF_INET6,
-            "ast_p_pre6",
-            false
-        );
-        bool prerouting_v6_direct_ok = probe_xt_prerouting_v6_fd >= 0;
-        if (!prerouting_v6_direct_ok) {
+        bool prerouting_v6_direct_ok = true;
+        if (need_ipv6) {
             probe_xt_prerouting_v6_fd = load_xt_filter_prog(
                 MODE_GLOBAL,
                 hash_fd,
                 lpm6_fd,
                 false,
                 true,
-                PACKET_ACCESS_HELPER,
+                PACKET_ACCESS_DIRECT,
                 AF_INET6,
                 "ast_p_pre6",
-                true
+                false
             );
-        }
-        xt_prerouting_v6_prog_ok = probe_xt_prerouting_v6_fd >= 0;
-        if (xt_prerouting_v6_prog_ok) {
-            xt_prerouting_v6_pin_ok =
-                pin_bpf_object(probe_xt_prerouting_v6_fd, PROBE_XT_PREROUTING_V6_PROGRAM_PATH) == 0;
-            unlink(PROBE_XT_PREROUTING_V6_PROGRAM_PATH);
+            prerouting_v6_direct_ok = probe_xt_prerouting_v6_fd >= 0;
+            if (!prerouting_v6_direct_ok) {
+                probe_xt_prerouting_v6_fd = load_xt_filter_prog(
+                    MODE_GLOBAL,
+                    hash_fd,
+                    lpm6_fd,
+                    false,
+                    true,
+                    PACKET_ACCESS_HELPER,
+                    AF_INET6,
+                    "ast_p_pre6",
+                    true
+                );
+            }
+            xt_prerouting_v6_prog_ok = probe_xt_prerouting_v6_fd >= 0;
+            if (xt_prerouting_v6_prog_ok) {
+                xt_prerouting_v6_pin_ok =
+                    pin_bpf_object(probe_xt_prerouting_v6_fd, PROBE_XT_PREROUTING_V6_PROGRAM_PATH) == 0;
+                unlink(PROBE_XT_PREROUTING_V6_PROGRAM_PATH);
+            }
+        } else {
+            xt_prerouting_v6_prog_ok = true;
+            xt_prerouting_v6_pin_ok = true;
         }
         direct_packet_access_ok =
             output_v4_direct_ok &&
-            output_v6_direct_ok &&
             prerouting_v4_direct_ok &&
-            prerouting_v6_direct_ok;
+            (!need_ipv6 || (output_v6_direct_ok && prerouting_v6_direct_ok));
     }
 
     bool supported = hash_fd >= 0 &&
         lpm4_fd >= 0 &&
-        lpm6_fd >= 0 &&
+        (!need_ipv6 || lpm6_fd >= 0) &&
         xt_output_v4_prog_ok &&
         xt_output_v4_pin_ok &&
-        xt_output_v6_prog_ok &&
-        xt_output_v6_pin_ok &&
+        (!need_ipv6 || (xt_output_v6_prog_ok && xt_output_v6_pin_ok)) &&
         xt_prerouting_v4_prog_ok &&
         xt_prerouting_v4_pin_ok &&
-        xt_prerouting_v6_prog_ok &&
-        xt_prerouting_v6_pin_ok;
+        (!need_ipv6 || (xt_prerouting_v6_prog_ok && xt_prerouting_v6_pin_ok));
     const char *message = "ok";
-    if (hash_fd < 0 || lpm4_fd < 0 || lpm6_fd < 0) {
+    if (hash_fd < 0 || lpm4_fd < 0 || (need_ipv6 && lpm6_fd < 0)) {
         message = "Required eBPF maps are unavailable on this device";
-    } else if (!xt_output_v4_prog_ok || !xt_output_v6_prog_ok) {
+    } else if (!xt_output_v4_prog_ok || (need_ipv6 && !xt_output_v6_prog_ok)) {
         message = "eBPF xt_bpf OUTPUT socket filter cannot be loaded on this device";
-    } else if (!xt_prerouting_v4_prog_ok || !xt_prerouting_v6_prog_ok) {
+    } else if (!xt_prerouting_v4_prog_ok || (need_ipv6 && !xt_prerouting_v6_prog_ok)) {
         message = "eBPF xt_bpf PREROUTING socket filter cannot be loaded on this device";
-    } else if (!xt_output_v4_pin_ok || !xt_output_v6_pin_ok ||
-               !xt_prerouting_v4_pin_ok || !xt_prerouting_v6_pin_ok) {
+    } else if (!xt_output_v4_pin_ok || !xt_prerouting_v4_pin_ok ||
+               (need_ipv6 && (!xt_output_v6_pin_ok || !xt_prerouting_v6_pin_ok))) {
         message = "eBPF pinned object path is unavailable on this device";
     }
 
     printf("{\"supported\":%s,\"message\":\"%s\",\"checks\":[", supported ? "true" : "false", message);
     printf("{\"name\":\"bpf-hash-map\",\"supported\":%s}", hash_fd >= 0 ? "true" : "false");
     printf(",{\"name\":\"bpf-lpm-trie-ipv4\",\"supported\":%s}", lpm4_fd >= 0 ? "true" : "false");
-    printf(",{\"name\":\"bpf-lpm-trie-ipv6\",\"supported\":%s}", lpm6_fd >= 0 ? "true" : "false");
     printf(",{\"name\":\"bpf-xt-output-v4-program\",\"supported\":%s}", xt_output_v4_prog_ok ? "true" : "false");
-    printf(",{\"name\":\"bpf-xt-output-v6-program\",\"supported\":%s}", xt_output_v6_prog_ok ? "true" : "false");
     printf(",{\"name\":\"bpf-xt-prerouting-v4-program\",\"supported\":%s}", xt_prerouting_v4_prog_ok ? "true" : "false");
-    printf(",{\"name\":\"bpf-xt-prerouting-v6-program\",\"supported\":%s}", xt_prerouting_v6_prog_ok ? "true" : "false");
     printf(",{\"name\":\"bpf-direct-packet-access\",\"supported\":%s}", direct_packet_access_ok ? "true" : "false");
     printf(
         ",{\"name\":\"bpf-pinned-object-path\",\"supported\":%s}",
-        (xt_output_v4_pin_ok && xt_output_v6_pin_ok &&
-         xt_prerouting_v4_pin_ok && xt_prerouting_v6_pin_ok) ? "true" : "false"
+        (xt_output_v4_pin_ok && xt_prerouting_v4_pin_ok &&
+         (!need_ipv6 || (xt_output_v6_pin_ok && xt_prerouting_v6_pin_ok))) ? "true" : "false"
     );
     if (need_ipv6) {
+        printf(",{\"name\":\"bpf-lpm-trie-ipv6\",\"supported\":%s}", lpm6_fd >= 0 ? "true" : "false");
+        printf(",{\"name\":\"bpf-xt-output-v6-program\",\"supported\":%s}", xt_output_v6_prog_ok ? "true" : "false");
+        printf(",{\"name\":\"bpf-xt-prerouting-v6-program\",\"supported\":%s}", xt_prerouting_v6_prog_ok ? "true" : "false");
         printf(",{\"name\":\"bpf-xt-ipv6-parser\",\"supported\":%s}", xt_output_v6_prog_ok ? "true" : "false");
     }
     printf("]}\n");
@@ -881,19 +894,23 @@ static int start_matcher(const char *policy_path) {
             MAX_CIDR_MAP_ENTRIES,
             BPF_F_NO_PREALLOC
         );
-        direct6_fd = create_map(
-            BPF_MAP_TYPE_LPM_TRIE,
-            sizeof(struct lpm6_key),
-            sizeof(uint8_t),
-            MAX_CIDR_MAP_ENTRIES,
-            BPF_F_NO_PREALLOC
-        );
+        if (policy.enable_ipv6) {
+            direct6_fd = create_map(
+                BPF_MAP_TYPE_LPM_TRIE,
+                sizeof(struct lpm6_key),
+                sizeof(uint8_t),
+                MAX_CIDR_MAP_ENTRIES,
+                BPF_F_NO_PREALLOC
+            );
+        }
         if (!require_map(direct4_fd, "direct-cidr-ipv4") ||
-            !require_map(direct6_fd, "direct-cidr-ipv6")) {
+            (policy.enable_ipv6 && !require_map(direct6_fd, "direct-cidr-ipv6"))) {
             return 2;
         }
         load_direct_cidrs(direct4_fd, policy.direct_cidr_path_v4, AF_INET);
-        load_direct_cidrs(direct6_fd, policy.direct_cidr_path_v6, AF_INET6);
+        if (policy.enable_ipv6) {
+            load_direct_cidrs(direct6_fd, policy.direct_cidr_path_v6, AF_INET6);
+        }
     }
     load_uids(uid_fd, &policy);
 
@@ -912,22 +929,24 @@ static int start_matcher(const char *policy_path) {
     if (pin_bpf_object(xt_output_v4_fd, policy.xt_output_v4_program_path) != 0) {
         return 2;
     }
-    xt_output_v6_fd = load_xt_filter_prog_with_fallback(
-        policy.mode,
-        uid_fd,
-        direct6_fd,
-        true,
-        policy.bypass_direct_cidrs,
-        AF_INET6,
-        "ast_xt_out6"
-    );
-    if (xt_output_v6_fd < 0) {
-        cleanup_attaches();
-        return 2;
-    }
-    if (pin_bpf_object(xt_output_v6_fd, policy.xt_output_v6_program_path) != 0) {
-        cleanup_attaches();
-        return 2;
+    if (policy.enable_ipv6) {
+        xt_output_v6_fd = load_xt_filter_prog_with_fallback(
+            policy.mode,
+            uid_fd,
+            direct6_fd,
+            true,
+            policy.bypass_direct_cidrs,
+            AF_INET6,
+            "ast_xt_out6"
+        );
+        if (xt_output_v6_fd < 0) {
+            cleanup_attaches();
+            return 2;
+        }
+        if (pin_bpf_object(xt_output_v6_fd, policy.xt_output_v6_program_path) != 0) {
+            cleanup_attaches();
+            return 2;
+        }
     }
     xt_prerouting_v4_fd = load_xt_filter_prog_with_fallback(
         policy.mode,
@@ -946,22 +965,24 @@ static int start_matcher(const char *policy_path) {
         cleanup_attaches();
         return 2;
     }
-    xt_prerouting_v6_fd = load_xt_filter_prog_with_fallback(
-        policy.mode,
-        uid_fd,
-        direct6_fd,
-        false,
-        policy.bypass_direct_cidrs,
-        AF_INET6,
-        "ast_xt_pre6"
-    );
-    if (xt_prerouting_v6_fd < 0) {
-        cleanup_attaches();
-        return 2;
-    }
-    if (pin_bpf_object(xt_prerouting_v6_fd, policy.xt_prerouting_v6_program_path) != 0) {
-        cleanup_attaches();
-        return 2;
+    if (policy.enable_ipv6) {
+        xt_prerouting_v6_fd = load_xt_filter_prog_with_fallback(
+            policy.mode,
+            uid_fd,
+            direct6_fd,
+            false,
+            policy.bypass_direct_cidrs,
+            AF_INET6,
+            "ast_xt_pre6"
+        );
+        if (xt_prerouting_v6_fd < 0) {
+            cleanup_attaches();
+            return 2;
+        }
+        if (pin_bpf_object(xt_prerouting_v6_fd, policy.xt_prerouting_v6_program_path) != 0) {
+            cleanup_attaches();
+            return 2;
+        }
     }
 
     close_fd(&xt_output_v4_fd);
