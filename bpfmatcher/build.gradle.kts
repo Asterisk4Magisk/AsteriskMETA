@@ -1,3 +1,6 @@
+import com.android.build.api.variant.HasHostTestsBuilder
+import com.android.build.api.variant.HostTestBuilder
+
 plugins {
     alias(libs.plugins.android.library)
 }
@@ -16,6 +19,14 @@ android {
     }
 
     androidComponents {
+        beforeVariants(selector().all()) { variant ->
+            variant.enableAndroidTest = false
+            (variant as? HasHostTestsBuilder)
+                ?.hostTests
+                ?.get(HostTestBuilder.UNIT_TEST_TYPE)
+                ?.enable = false
+        }
+
         onVariants { variant ->
             variant.sources.jniLibs?.addStaticSourceDirectory("build/generated/jniLibs")
         }
@@ -26,7 +37,7 @@ android {
     }
 }
 
-val buildBpfMatcher by tasks.registering(BuildBpfMatcherTask::class) {
+val buildBpfMatcher = tasks.register<BuildBpfMatcherTask>("buildBpfMatcher") {
     sourceFile.set(layout.projectDirectory.file("src/main/native/bpf-matcher.c"))
     outputDirectory.set(generatedJniLibsDir)
     rootProject.layout.projectDirectory.file("local.properties")

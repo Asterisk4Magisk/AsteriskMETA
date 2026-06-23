@@ -1,4 +1,8 @@
 @file:Suppress("UnstableApiUsage")
+
+import com.android.build.api.variant.HasHostTestsBuilder
+import com.android.build.api.variant.HostTestBuilder
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.compose.compiler)
@@ -127,7 +131,7 @@ ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
 }
 
-val generateProjectInfo by tasks.registering(GenerateProjectInfoTask::class) {
+val generateProjectInfo = tasks.register<GenerateProjectInfoTask>("generateProjectInfo") {
     description = "Generate ProjectInfo object for the app"
     packageName.set("app")
     projectName.set(ProjectConfig.PROJECT_NAME)
@@ -140,6 +144,14 @@ val generateProjectInfo by tasks.registering(GenerateProjectInfoTask::class) {
 }
 
 androidComponents {
+    beforeVariants(selector().all()) { variant ->
+        variant.enableAndroidTest = false
+        (variant as? HasHostTestsBuilder)
+            ?.hostTests
+            ?.get(HostTestBuilder.UNIT_TEST_TYPE)
+            ?.enable = false
+    }
+
     onVariants { variant ->
         variant.sources.kotlin?.addGeneratedSourceDirectory(generateProjectInfo) { task ->
             task.outputDirectory

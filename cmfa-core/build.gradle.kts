@@ -1,5 +1,8 @@
 @file:Suppress("UnstableApiUsage")
 
+import com.android.build.api.variant.HasHostTestsBuilder
+import com.android.build.api.variant.HostTestBuilder
+
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.serialization)
@@ -11,7 +14,7 @@ val mihomoSubmoduleDir = layout.projectDirectory.dir("src/foss/golang/clash")
 val goOutputDir = layout.buildDirectory.dir("outputs/golang")
 val rootLocalPropertiesFile = rootProject.layout.projectDirectory.file("local.properties")
 
-val syncMihomoCoreVersion by tasks.registering(SyncMihomoCoreVersionTask::class) {
+val syncMihomoCoreVersion = tasks.register<SyncMihomoCoreVersionTask>("syncMihomoCoreVersion") {
     mihomoCoreVersion.set(ProjectConfig.MIHOMO_CORE_VERSION)
     repositoryRootDirectory.set(rootProject.layout.projectDirectory)
     submoduleDirectory.set(mihomoSubmoduleDir)
@@ -80,52 +83,62 @@ val abis = listOf(
     "x86_64" to "X8664",
 )
 
-androidComponents.onVariants { variant ->
-    val cmakeName = if (variant.buildType == "debug") "Debug" else "RelWithDebInfo"
-    val variantOutputDir = goOutputDir.map { directory -> directory.dir(variant.name) }
+androidComponents {
+    beforeVariants(selector().all()) { variant ->
+        variant.enableAndroidTest = false
+        (variant as? HasHostTestsBuilder)
+            ?.hostTests
+            ?.get(HostTestBuilder.UNIT_TEST_TYPE)
+            ?.enable = false
+    }
 
-    variant.sources.jniLibs?.addStaticSourceDirectory(variantOutputDir.get().asFile.absolutePath)
+    onVariants { variant ->
+        val cmakeName = if (variant.buildType == "debug") "Debug" else "RelWithDebInfo"
+        val variantOutputDir = goOutputDir.map { directory -> directory.dir(variant.name) }
 
-    abis.forEach { (abi, goAbi) ->
-        val taskName = "externalGolangBuild${variant.name.capitalizedForTask()}$goAbi"
-        val outputDir = variantOutputDir.map { directory -> directory.dir(abi) }
-        val outputFile = outputDir.map { directory -> directory.file("libclash.so") }
-        val debug = variant.buildType == "debug"
-        val tags = buildList {
-            add("foss")
-            add("with_gvisor")
-            add("cmfa")
-            if (debug) {
-                add("debug")
+        variant.sources.jniLibs?.addStaticSourceDirectory(variantOutputDir.get().asFile.absolutePath)
+
+        abis.forEach { (abi, goAbi) ->
+            val taskName = "externalGolangBuild${variant.name.capitalizedForTask()}$goAbi"
+            val outputDir = variantOutputDir.map { directory -> directory.dir(abi) }
+            val outputFile = outputDir.map { directory -> directory.file("libclash.so") }
+            val debug = variant.buildType == "debug"
+            val tags = buildList {
+                add("foss")
+                add("with_gvisor")
+                add("cmfa")
+                if (debug) {
+                    add("debug")
+                }
             }
-        }
 
-        tasks.register<BuildCmfaGoCoreTask>(taskName) {
-            description = "Build CMFA Go core for ${variant.name} $abi."
-            dependsOn(syncMihomoCoreVersion)
-            goModuleDirectory.set(goModuleDir)
-            goSourceDirectory.set(golangSource)
-            mihomoSubmoduleDirectory.set(mihomoSubmoduleDir)
-            if (rootLocalPropertiesFile.asFile.exists()) {
-                localPropertiesFile.set(rootLocalPropertiesFile)
-            }
-            minSdk.set(ProjectConfig.MIN_SDK)
-            androidAbi.set(abi)
-            debugBuild.set(debug)
-            this.tags.set(tags)
-            mihomoCoreVersion.set(ProjectConfig.MIHOMO_CORE_VERSION)
-            this.outputFile.set(outputFile)
-        }
-
-        tasks.configureEach {
-            if (name == "merge${variant.name.capitalizedForTask()}JniLibFolders") {
-                dependsOn(taskName)
-            }
-            if (name.startsWith("configureCMake$cmakeName[$abi]")) {
+            tasks.register<BuildCmfaGoCoreTask>(taskName) {
+                description = "Build CMFA Go core for ${variant.name} $abi."
                 dependsOn(syncMihomoCoreVersion)
+                goModuleDirectory.set(goModuleDir)
+                goSourceDirectory.set(golangSource)
+                mihomoSubmoduleDirectory.set(mihomoSubmoduleDir)
+                if (rootLocalPropertiesFile.asFile.exists()) {
+                    localPropertiesFile.set(rootLocalPropertiesFile)
+                }
+                minSdk.set(ProjectConfig.MIN_SDK)
+                androidAbi.set(abi)
+                debugBuild.set(debug)
+                this.tags.set(tags)
+                mihomoCoreVersion.set(ProjectConfig.MIHOMO_CORE_VERSION)
+                this.outputFile.set(outputFile)
             }
-            if (name.startsWith("buildCMake$cmakeName[$abi]")) {
-                dependsOn(taskName)
+
+            tasks.configureEach {
+                if (name == "merge${variant.name.capitalizedForTask()}JniLibFolders") {
+                    dependsOn(taskName)
+                }
+                if (name.startsWith("configureCMake$cmakeName[$abi]")) {
+                    dependsOn(syncMihomoCoreVersion)
+                }
+                if (name.startsWith("buildCMake$cmakeName[$abi]")) {
+                    dependsOn(taskName)
+                }
             }
         }
     }
