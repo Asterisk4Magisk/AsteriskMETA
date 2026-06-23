@@ -139,6 +139,93 @@ internal fun parseRootEbpfProbeResult(value: String): RootEbpfProbeResult {
     )
 }
 
+internal const val RootEbpfSelinuxPolicyRule = "allow netd * bpf { prog_run map_read map_write }"
+
+internal fun buildRootEbpfSelinuxPolicyApplicatorCommand(): String {
+    val policyRule = RootEbpfSelinuxPolicyRule.shellQuote()
+    return buildString {
+        appendScript(
+            $$"""
+            root_ebpf_find_policy_applicator() {
+                for candidate in \
+                    "$(command -v magiskpolicy 2>/dev/null || true)" \
+                    "$(command -v supolicy 2>/dev/null || true)"
+                do
+                    if [ -n "$candidate" ] && [ -x "$candidate" ]; then
+                        echo "magiskpolicy:$candidate"
+                        return 0
+                    fi
+                done
+
+                magisk_tmp="$(magisk --path 2>/dev/null || true)"
+                if [ -n "$magisk_tmp" ]; then
+                    for candidate in "$magisk_tmp/magiskpolicy" "$magisk_tmp/supolicy"; do
+                        if [ -x "$candidate" ]; then
+                            echo "magiskpolicy:$candidate"
+                            return 0
+                        fi
+                    done
+                fi
+
+                for candidate in \
+                    /data/adb/magisk/magiskpolicy \
+                    /data/adb/ap/bin/magiskpolicy
+                do
+                    if [ -x "$candidate" ]; then
+                        echo "magiskpolicy:$candidate"
+                        return 0
+                    fi
+                done
+
+                for candidate in \
+                    "$(command -v ksud 2>/dev/null || true)" \
+                    /data/adb/ksud \
+                    /data/adb/ksu/bin/ksud
+                do
+                    if [ -n "$candidate" ] && [ -x "$candidate" ] && "$candidate" sepolicy check $$policyRule >/dev/null 2>&1; then
+                        echo "ksud:$candidate"
+                        return 0
+                    fi
+                done
+
+                return 1
+            }
+            root_ebpf_find_policy_applicator
+            """,
+        )
+    }
+}
+
+internal fun buildApplyRootEbpfSelinuxPolicyCommand(): String {
+    val policyRule = RootEbpfSelinuxPolicyRule.shellQuote()
+    return buildString {
+        appendScript(
+            $$"""
+            root_ebpf_policy_applicator="$(
+            $${buildRootEbpfSelinuxPolicyApplicatorCommand().trimEnd()}
+            )" || true
+            case "$root_ebpf_policy_applicator" in
+                magiskpolicy:*)
+                    root_ebpf_policy_tool="${root_ebpf_policy_applicator#magiskpolicy:}"
+                    "$root_ebpf_policy_tool" --live $$policyRule >/dev/null 2>&1 || true
+                    ;;
+                ksud:*)
+                    root_ebpf_policy_tool="${root_ebpf_policy_applicator#ksud:}"
+                    "$root_ebpf_policy_tool" sepolicy patch $$policyRule >/dev/null 2>&1 || true
+                    ;;
+            esac
+            """,
+        )
+    }
+}
+
+internal fun parseRootEbpfSelinuxPolicyApplicator(value: String): String? {
+    return value
+        .lineSequence()
+        .map(String::trim)
+        .firstOrNull(String::isNotBlank)
+}
+
 internal fun RootEbpfRuntimeConfig.writeRuntimeFiles() {
     writeRootEbpfDirectCidrFile(
         path = directCidrPathV4,
@@ -182,6 +269,7 @@ internal fun RootEbpfRuntimeConfig.buildStartCommand(): String {
         bpfPolicyPath.shellQuote(),
     ).joinToString(" ")
     return buildString {
+        append(buildApplyRootEbpfSelinuxPolicyCommand())
         appendScript(
             $$"""
             chmod 755 $${matcherPath.shellQuote()}

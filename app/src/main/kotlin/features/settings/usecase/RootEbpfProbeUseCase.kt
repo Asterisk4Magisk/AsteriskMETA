@@ -5,6 +5,8 @@ package features.settings.usecase
 
 import android.content.Context
 import app.AppState
+import engine.root.buildRootEbpfSelinuxPolicyApplicatorCommand
+import engine.root.parseRootEbpfSelinuxPolicyApplicator
 import engine.root.parseRootEbpfProbeResult
 import engine.root.prepareRootRuntimeLayout
 import system.AndroidRootShellGateway
@@ -23,6 +25,7 @@ internal class RootEbpfProbeUseCase(
         }
         return runCatching {
             val runtimeLayout = appContext.prepareRootRuntimeLayout()
+            val selinuxPolicyApplicator = detectSelinuxPolicyApplicator()
             val probeCommand = listOf(
                 runtimeLayout.bpfMatcherPath.shellQuote(),
                 "--probe",
@@ -45,7 +48,10 @@ internal class RootEbpfProbeUseCase(
             val shellResult = rootAccess.exec(command, ShellExecOptions(logFailure = false))
             val probeResult = parseRootEbpfProbeResult(shellResult.stdout.ifBlank { shellResult.stderr })
             if (probeResult.supported) {
-                RootEbpfProbeResult.Success(probeResult)
+                RootEbpfProbeResult.Success(
+                    probe = probeResult,
+                    selinuxPolicyApplicator = selinuxPolicyApplicator,
+                )
             } else {
                 RootEbpfProbeResult.Unsupported(probeResult)
             }
@@ -53,10 +59,21 @@ internal class RootEbpfProbeUseCase(
             RootEbpfProbeResult.Failed(error)
         }
     }
+
+    private suspend fun detectSelinuxPolicyApplicator(): String? {
+        val shellResult = rootAccess.exec(
+            buildRootEbpfSelinuxPolicyApplicatorCommand(),
+            ShellExecOptions(logFailure = false),
+        )
+        return parseRootEbpfSelinuxPolicyApplicator(shellResult.stdout)
+    }
 }
 
 internal sealed interface RootEbpfProbeResult {
-    data class Success(val probe: engine.root.RootEbpfProbeResult) : RootEbpfProbeResult
+    data class Success(
+        val probe: engine.root.RootEbpfProbeResult,
+        val selinuxPolicyApplicator: String?,
+    ) : RootEbpfProbeResult
     data class Unsupported(val probe: engine.root.RootEbpfProbeResult) : RootEbpfProbeResult
     data object RootUnavailable : RootEbpfProbeResult
     data class Failed(val error: Throwable) : RootEbpfProbeResult
