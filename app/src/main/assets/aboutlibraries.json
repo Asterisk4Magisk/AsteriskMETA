@@ -261,16 +261,16 @@
             ]
         },
         {
-            "uniqueId": "org.mozilla:rhino",
-            "artifactVersion": "1.8.1",
-            "name": "rhino",
-            "description": "Rhino JavaScript runtime jar, excludes XML, tools, and ScriptEngine wrapper",
-            "website": "https://mozilla.github.io/rhino/",
+            "uniqueId": "io.github.dokar3:quickjs-kt-android",
+            "artifactVersion": "1.0.5",
+            "name": "quickjs-kt",
+            "description": "A QuickJS binding for idiomatic Kotlin, with Async/DSL/ES Modules support.",
+            "website": "https://github.com/dokar3/quickjs-kt",
             "scm": {
-                "url": "git@github.com:mozilla/rhino.git"
+                "url": "https://github.com/dokar3/quickjs-kt"
             },
             "licenses": [
-                "Mozilla Public License, Version 2.0"
+                "Apache-2.0"
             ]
         },
         {

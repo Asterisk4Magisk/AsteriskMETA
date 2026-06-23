@@ -114,7 +114,7 @@ private fun Map<String, Any?>.toAsteriskRuntimeProfileYaml(
         updated.putCmfaRootProviderPaths()
     }
     updated.putAsteriskRuntimeOverrides(appState, runMode, forceDns = forceDns, exposePorts = exposePorts)
-    return YamlDump.dumpToString(updated)
+    return dumpYaml(normalizeYamlValue(updated))
 }
 
 private fun String.appendRuntimeOverrides(
@@ -124,7 +124,7 @@ private fun String.appendRuntimeOverrides(
 ): String {
     val managed = linkedMapOf<String, Any?>()
     managed.putAsteriskRuntimeOverrides(appState, runMode, exposePorts = exposePorts)
-    val overrideYaml = YamlDump.dumpToString(managed)
+    val overrideYaml = dumpYaml(normalizeYamlValue(managed))
     return trimEnd() + "\n\n# AsteriskMETA runtime overrides\n" + overrideYaml
 }
 
@@ -460,19 +460,6 @@ private fun normalizedProfileStoreSelected(value: Any?): Map<String, Any?> {
     return profile
 }
 
-private fun normalizeYamlValue(value: Any?): Any? {
-    return when (value) {
-        is Map<*, *> -> linkedMapOf<String, Any?>().apply {
-            value.forEach { (key, childValue) ->
-                val name = key as? String ?: return@forEach
-                put(name, normalizeYamlValue(childValue))
-            }
-        }
-        is List<*> -> value.map(::normalizeYamlValue)
-        else -> value
-    }
-}
-
 internal fun AppState.selectedMihomoProfileOrNull(): MihomoProfileState? {
     return mihomoProfiles.firstOrNull { profile -> profile.id == selectedMihomoProfileId }
         ?: mihomoProfiles.firstOrNull()
@@ -556,10 +543,12 @@ private val YamlDumpSettings = DumpSettings.builder()
     .setDefaultFlowStyle(FlowStyle.BLOCK)
     .build()
 
-private val YamlDump = Dump(
-    YamlDumpSettings,
-    SingleQuotedStringRepresenter(YamlDumpSettings),
-)
+private fun dumpYaml(value: Any?): String {
+    return Dump(
+        YamlDumpSettings,
+        SingleQuotedStringRepresenter(YamlDumpSettings),
+    ).dumpToString(value)
+}
 
 private class SingleQuotedStringRepresenter(
     settings: DumpSettings,

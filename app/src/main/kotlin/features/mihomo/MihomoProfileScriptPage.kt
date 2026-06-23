@@ -15,12 +15,15 @@ import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -31,9 +34,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
@@ -52,7 +57,14 @@ import app.R
 import app.collectAppState
 import app.navigation.Route
 import app.nextAvailableMihomoOverrideScriptId
+import engine.mihomo.MihomoProfileEmptyErrorMessage
+import engine.mihomo.MihomoProfileMissingErrorMessage
+import engine.mihomo.MihomoProfileScriptDebugResult
+import engine.mihomo.debugMihomoProfileScriptOverride
+import engine.mihomo.selectedMihomoProfileOrNull
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
@@ -60,6 +72,7 @@ import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.basic.VerticalScrollBar
 import top.yukonga.miuix.kmp.basic.rememberScrollBarAdapter
@@ -68,8 +81,11 @@ import top.yukonga.miuix.kmp.icon.extended.Add
 import top.yukonga.miuix.kmp.icon.extended.Delete
 import top.yukonga.miuix.kmp.icon.extended.Edit
 import top.yukonga.miuix.kmp.icon.extended.Ok
+import top.yukonga.miuix.kmp.icon.extended.Play
 import top.yukonga.miuix.kmp.interfaces.ExperimentalScrollBarApi
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.window.WindowDialog
+import ui.clipboard.setPlainText
 import ui.components.BackNavigationIcon
 import ui.components.NavigationIcon
 import ui.layout.AdaptiveTopAppBar
@@ -257,6 +273,7 @@ fun MihomoOverrideScriptEditPage(
     val navigator = LocalNavigator.current
     val updateAppState = LocalUpdateAppState.current
     val services = LocalAppServices.current
+    val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
     val topAppBarScrollBehavior = MiuixScrollBehavior()
     val isNew = scriptId <= DefaultMihomoOverrideScriptId
@@ -281,6 +298,10 @@ fun MihomoOverrideScriptEditPage(
             ),
         )
     }
+    var debugRunning by remember { mutableStateOf(false) }
+    var debugResult by remember { mutableStateOf<MihomoProfileScriptDebugResult?>(null) }
+    val copiedMessage = stringResource(R.string.logs_copied_to_clipboard)
+
     fun saveScript() {
         val cleanName = nameState.text.toString().trim()
         if (cleanName.isBlank()) {
@@ -318,6 +339,33 @@ fun MihomoOverrideScriptEditPage(
         }
         navigator.pop()
     }
+    fun runScriptDebug() {
+        if (debugRunning) return
+        val profile = appState.selectedMihomoProfileOrNull()
+        if (profile == null) {
+            debugResult = MihomoProfileScriptDebugResult(error = MihomoProfileMissingErrorMessage)
+            return
+        }
+        if (!profile.hasContent) {
+            debugResult = MihomoProfileScriptDebugResult(error = MihomoProfileEmptyErrorMessage)
+            return
+        }
+        scope.launch {
+            debugRunning = true
+            debugResult = null
+            try {
+                debugResult = withContext(Dispatchers.Default) {
+                    val rawProfile = services.mihomoProfileContentStore.read(profile)
+                    debugMihomoProfileScriptOverride(
+                        rawProfileContent = rawProfile,
+                        scriptContent = scriptValue.text,
+                    )
+                }
+            } finally {
+                debugRunning = false
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -329,6 +377,15 @@ fun MihomoOverrideScriptEditPage(
                     BackNavigationIcon(onClick = { navigator.pop() })
                 },
                 actions = {
+                    NavigationIcon(
+                        imageVector = MiuixIcons.Play,
+                        contentDescription = if (debugRunning) {
+                            stringResource(R.string.mihomo_override_script_debug_running)
+                        } else {
+                            stringResource(R.string.mihomo_override_script_debug_run)
+                        },
+                        onClick = ::runScriptDebug,
+                    )
                     NavigationIcon(
                         imageVector = MiuixIcons.Ok,
                         contentDescription = stringResource(R.string.common_save),
@@ -382,6 +439,145 @@ fun MihomoOverrideScriptEditPage(
                     )
                 }
             }
+        }
+        MihomoOverrideScriptDebugDialog(
+            result = debugResult,
+            onDismissRequest = { debugResult = null },
+            onCopy = { result ->
+                scope.launch {
+                    clipboard.setPlainText(result.toClipboardReport())
+                    services.tipNotifier.show(copiedMessage)
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun MihomoOverrideScriptDebugDialog(
+    result: MihomoProfileScriptDebugResult?,
+    onDismissRequest: () -> Unit,
+    onCopy: (MihomoProfileScriptDebugResult) -> Unit,
+) {
+    if (result == null) return
+
+    val scrollState = rememberScrollState()
+
+    WindowDialog(
+        show = true,
+        title = stringResource(R.string.mihomo_override_script_debug_title),
+        onDismissRequest = onDismissRequest,
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 520.dp)
+                    .verticalScroll(scrollState)
+                    .padding(bottom = 12.dp),
+            ) {
+                result.error?.takeIf(String::isNotBlank)?.let { error ->
+                    DebugSection(
+                        title = stringResource(R.string.mihomo_override_script_debug_error),
+                        body = error,
+                    )
+                }
+                result.summary?.let { summary ->
+                    DebugSection(
+                        title = stringResource(R.string.mihomo_override_script_debug_summary_title),
+                        body = stringResource(
+                            R.string.mihomo_override_script_debug_summary,
+                            summary.inputProxyCount,
+                            summary.outputProxyCount,
+                            summary.inputProxyGroupCount,
+                            summary.outputProxyGroupCount,
+                            summary.inputRuleCount,
+                            summary.outputRuleCount,
+                        ),
+                    )
+                }
+                DebugSection(
+                    title = stringResource(R.string.mihomo_override_script_debug_logs),
+                    body = result.logs.takeIf(List<*>::isNotEmpty)
+                        ?.joinToString(separator = "\n") { log -> "[${log.level}] ${log.message}" }
+                        ?: stringResource(R.string.mihomo_override_script_debug_no_logs),
+                )
+                result.outputYaml?.takeIf(String::isNotBlank)?.let { output ->
+                    DebugSection(
+                        title = stringResource(R.string.mihomo_override_script_debug_output),
+                        body = output,
+                    )
+                }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                TextButton(
+                    text = stringResource(R.string.mihomo_override_script_debug_copy),
+                    onClick = { onCopy(result) },
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(
+                    text = stringResource(R.string.common_complete),
+                    onClick = onDismissRequest,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DebugSection(
+    title: String,
+    body: String,
+) {
+    Text(
+        text = title,
+        fontSize = 13.sp,
+        fontWeight = FontWeight.Bold,
+        color = MiuixTheme.colorScheme.primary,
+        modifier = Modifier.padding(top = 10.dp, bottom = 4.dp),
+    )
+    Text(
+        text = body,
+        style = MiuixTheme.textStyles.body2.copy(
+            fontFamily = FontFamily.Monospace,
+            fontSize = 12.sp,
+        ),
+        color = MiuixTheme.colorScheme.onSurface,
+    )
+}
+
+private fun MihomoProfileScriptDebugResult.toClipboardReport(): String {
+    return buildString {
+        appendLine(if (success) "Script debug: success" else "Script debug: failed")
+        error?.takeIf(String::isNotBlank)?.let { error ->
+            appendLine()
+            appendLine("Error:")
+            appendLine(error)
+        }
+        summary?.let { summary ->
+            appendLine()
+            appendLine("Summary:")
+            appendLine("proxies: ${summary.inputProxyCount} -> ${summary.outputProxyCount}")
+            appendLine("proxy-groups: ${summary.inputProxyGroupCount} -> ${summary.outputProxyGroupCount}")
+            appendLine("rules: ${summary.inputRuleCount} -> ${summary.outputRuleCount}")
+        }
+        appendLine()
+        appendLine("Console:")
+        if (logs.isEmpty()) {
+            appendLine("(empty)")
+        } else {
+            logs.forEach { log -> appendLine("[${log.level}] ${log.message}") }
+        }
+        outputYaml?.takeIf(String::isNotBlank)?.let { output ->
+            appendLine()
+            appendLine("Output YAML:")
+            appendLine(output)
         }
     }
 }

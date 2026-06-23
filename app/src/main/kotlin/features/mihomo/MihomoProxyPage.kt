@@ -48,6 +48,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -180,16 +181,21 @@ fun MihomoProxyPage(
     val runtimeAvailable = hasUsableProfile && runtimeHasProxySnapshot
     val groupNames = visibleProxies.groups.map(MihomoProxyGroup::name)
     var selectedGroupName by rememberSaveable { mutableStateOf(groupNames.firstOrNull().orEmpty()) }
+    val resolvedSelectedGroupName = selectedGroupName.takeIf { groupName -> groupName in groupNames }
+        ?: groupNames.firstOrNull().orEmpty()
     val testingTarget = runtimeState.delayTestingTarget
     var searchQuery by rememberSaveable { mutableStateOf("") }
-    val selectedGroup = visibleProxies.groups.firstOrNull { group -> group.name == selectedGroupName }
+    val selectedGroup = visibleProxies.groups.firstOrNull { group -> group.name == resolvedSelectedGroupName }
     val proxyLayout = appState.mihomoProxyLayout.resolvedMihomoProxyLayout(isWideScreen)
     val columns = proxyLayout.resolvedMihomoProxyColumns()
     var pendingSelections by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-    val groupPagerState = rememberPagerState(
-        initialPage = groupNames.indexOf(selectedGroupName).coerceAtLeast(0),
-        pageCount = { groupNames.size.coerceAtLeast(1) },
-    )
+    val resolvedSelectedGroupIndex = groupNames.indexOf(resolvedSelectedGroupName).coerceAtLeast(0)
+    val groupPagerState = key(groupNames) {
+        rememberPagerState(
+            initialPage = resolvedSelectedGroupIndex,
+            pageCount = { groupNames.size.coerceAtLeast(1) },
+        )
+    }
 
     LaunchedEffect(groupNames) {
         pendingSelections = pendingSelections.filterKeys { groupName -> groupName in groupNames }
@@ -210,8 +216,8 @@ fun MihomoProxyPage(
         }
     }
 
-    LaunchedEffect(selectedGroupName, groupNames) {
-        val selectedIndex = groupNames.indexOf(selectedGroupName)
+    LaunchedEffect(resolvedSelectedGroupName, groupNames) {
+        val selectedIndex = groupNames.indexOf(resolvedSelectedGroupName)
         if (
             selectedIndex >= 0 &&
             !groupPagerState.isScrollInProgress &&
@@ -326,7 +332,7 @@ fun MihomoProxyPage(
                                 }
                                 ProxyGroupTabs(
                                     groups = visibleProxies.groups,
-                                    selectedGroupName = selectedGroupName,
+                                    selectedGroupName = resolvedSelectedGroupName,
                                     pagerPage = groupPagerState.currentPage,
                                     pagerOffsetFraction = pagerOffsetFraction,
                                     onSelectedGroupNameChange = { selectedGroupName = it },

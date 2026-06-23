@@ -138,6 +138,16 @@
     <string name="mihomo_override_script_name">Script name</string>
     <string name="mihomo_override_script_name_required">Enter a script name</string>
     <string name="mihomo_override_script_deleted">Script deleted</string>
+    <string name="mihomo_override_script_debug_run">Test run</string>
+    <string name="mihomo_override_script_debug_title">Debug</string>
+    <string name="mihomo_override_script_debug_running">Running…</string>
+    <string name="mihomo_override_script_debug_copy">Copy report</string>
+    <string name="mihomo_override_script_debug_error">Error</string>
+    <string name="mihomo_override_script_debug_summary_title">Summary</string>
+    <string name="mihomo_override_script_debug_summary">Proxies %1$d → %2$d · Groups %3$d → %4$d · Rules %5$d → %6$d</string>
+    <string name="mihomo_override_script_debug_logs">Console</string>
+    <string name="mihomo_override_script_debug_no_logs">No console output</string>
+    <string name="mihomo_override_script_debug_output">Output YAML</string>
     <string name="mihomo_configuration_missing">Configuration does not exist</string>
     <string name="mihomo_configuration_imported">Configuration imported</string>
     <string name="mihomo_configuration_import_file_failed">Failed to import configuration file</string>

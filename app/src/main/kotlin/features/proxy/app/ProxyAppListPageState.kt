@@ -5,23 +5,20 @@
 
 package features.proxy.app
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
-import app.R
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.delay
-import system.AndroidPackageProvider
-import system.AndroidUserSpaceProvider
-import ui.feedback.AndroidToastTipNotifier
-import system.user.AndroidUserSpace
 import androidx.compose.ui.res.stringResource
+import app.R
 import features.proxy.app.model.AppPackageEntry
 import features.proxy.app.model.ProxyAppListItem
 import features.proxy.app.model.ProxyAppListPreparedData
@@ -31,9 +28,13 @@ import features.proxy.app.model.prepareProxyAppListData
 import features.proxy.app.model.sortedForProxyAppListRefresh
 import features.proxy.app.model.toAndroidUserSpace
 import features.proxy.app.model.toUserSpaceTabs
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import androidx.compose.foundation.ExperimentalFoundationApi
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
+import system.AndroidPackageProvider
+import system.AndroidUserSpaceProvider
+import system.user.AndroidUserSpace
+import ui.feedback.AndroidToastTipNotifier
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 internal fun rememberProxyAppListPageState(): ProxyAppListPageState {
@@ -123,7 +124,7 @@ private fun ProxyAppListSearchEffect(
     pageState: ProxyAppListPageState,
 ) {
     LaunchedEffect(pageState.searchValue) {
-        delay(150)
+        delay(150.milliseconds)
         pageState.debouncedSearchValue = pageState.searchValue
     }
 }

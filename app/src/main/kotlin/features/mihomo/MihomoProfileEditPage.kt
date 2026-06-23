@@ -128,14 +128,6 @@ fun MihomoProfileEditPage(
     val selectedOverrideScript = appState.mihomoOverrideScripts.firstOrNull { script ->
         script.id == overrideScriptId
     }
-    val selectedOverrideScriptId = if (
-        overrideScriptId == DefaultMihomoOverrideScriptId ||
-        selectedOverrideScript != null
-    ) {
-        overrideScriptId
-    } else {
-        DefaultMihomoOverrideScriptId
-    }
     val overrideScriptOptions = listOf(stringResource(R.string.mihomo_configuration_override_script_none)) +
         appState.mihomoOverrideScripts.map { script -> script.name }
     val selectedOverrideScriptIndex = selectedOverrideScript
@@ -189,6 +181,17 @@ fun MihomoProfileEditPage(
         return savedProfile
     }
 
+    fun selectedOverrideScriptId(): Int {
+        return if (
+            overrideScriptId == DefaultMihomoOverrideScriptId ||
+            appState.mihomoOverrideScripts.any { script -> script.id == overrideScriptId }
+        ) {
+            overrideScriptId
+        } else {
+            DefaultMihomoOverrideScriptId
+        }
+    }
+
     fun launchProfileSubscriptionUpdate(profile: MihomoProfileState) =
         services.appScope.launchMihomoProfileSubscriptionUpdate(
             profiles = listOf(profile),
@@ -238,6 +241,7 @@ fun MihomoProfileEditPage(
 
         showHttpSubscriptionWarning = false
         val urlChanged = targetProfile?.url != trimmedUrl
+        val cleanOverrideScriptId = selectedOverrideScriptId()
         val remoteOptionsChanged = targetProfile == null ||
             urlChanged ||
             targetProfile.userAgent != cleanUserAgent ||
@@ -260,7 +264,7 @@ fun MihomoProfileEditPage(
                 contentSizeBytes = if (urlChanged) 0L else targetProfile.contentSizeBytes,
                 subscriptionInfo = if (urlChanged) MihomoSubscriptionInfo() else targetProfile.subscriptionInfo,
                 lastUpdatedAtMillis = if (urlChanged) 0L else targetProfile.lastUpdatedAtMillis,
-                overrideScriptId = selectedOverrideScriptId,
+                overrideScriptId = cleanOverrideScriptId,
             )
         } else {
             MihomoProfileState(
@@ -272,7 +276,7 @@ fun MihomoProfileEditPage(
                 updateInterval = cleanInterval,
                 updateViaProxy = updateViaProxy,
                 ageSecretKey = cleanAgeSecretKey,
-                overrideScriptId = selectedOverrideScriptId,
+                overrideScriptId = cleanOverrideScriptId,
             )
         }
         val saved = saveProfile(savedProfile, targetProfile == null)
@@ -307,6 +311,7 @@ fun MihomoProfileEditPage(
         saving = true
         val profileSnapshot = targetProfile
         val contentText = contentValue.text
+        val cleanOverrideScriptId = selectedOverrideScriptId()
         val shouldPop = CompletableDeferred<Boolean>()
         services.appScope.launch {
             try {
@@ -334,7 +339,7 @@ fun MihomoProfileEditPage(
                         profileSnapshot.type != MihomoProfileType.File ||
                         profileSnapshot.name != cleanName ||
                         contentChanged ||
-                        profileSnapshot.overrideScriptId != selectedOverrideScriptId
+                        profileSnapshot.overrideScriptId != cleanOverrideScriptId
                     val savedProfile = profileSnapshot?.copy(
                         name = cleanName,
                         type = MihomoProfileType.File,
@@ -359,7 +364,7 @@ fun MihomoProfileEditPage(
                         } else {
                             profileSnapshot.lastUpdatedAtMillis
                         },
-                        overrideScriptId = selectedOverrideScriptId,
+                        overrideScriptId = cleanOverrideScriptId,
                     )
                         ?: MihomoProfileState(
                             id = DefaultMihomoProfileId,
@@ -369,7 +374,7 @@ fun MihomoProfileEditPage(
                             contentSha256 = contentRef?.sha256.orEmpty(),
                             contentSizeBytes = contentRef?.sizeBytes ?: 0L,
                             lastUpdatedAtMillis = System.currentTimeMillis(),
-                            overrideScriptId = selectedOverrideScriptId,
+                            overrideScriptId = cleanOverrideScriptId,
                         )
                     saveProfile(savedProfile, profileSnapshot == null)
                 }.onFailure { error ->

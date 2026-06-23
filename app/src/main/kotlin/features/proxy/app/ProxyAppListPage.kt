@@ -26,6 +26,7 @@ import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -80,14 +81,19 @@ fun ProxyAppListPage(
     val userTabIds = remember(pageState.userTabs) {
         pageState.userTabs.map { tab -> tab.id }
     }
-    val selectedUserIndex = remember(pageState.userTabs, pageState.selectedUserId) {
-        pageState.userTabs.indexOfFirst { tab -> tab.id == pageState.selectedUserId }
+    val selectedUserId = pageState.selectedUserId
+        ?.takeIf { userId -> userId in userTabIds }
+        ?: userTabIds.firstOrNull()
+    val selectedUserIndex = remember(userTabIds, selectedUserId) {
+        userTabIds.indexOf(selectedUserId)
             .coerceAtLeast(0)
     }
-    val userPagerState = rememberPagerState(
-        initialPage = selectedUserIndex,
-        pageCount = { userTabIds.size.coerceAtLeast(1) },
-    )
+    val userPagerState = key(userTabIds) {
+        rememberPagerState(
+            initialPage = selectedUserIndex,
+            pageCount = { userTabIds.size.coerceAtLeast(1) },
+        )
+    }
     val iconSizePx = with(LocalDensity.current) {
         ANDROID_APP_ICON_SIZE_DP.dp.roundToPx()
     }
@@ -125,7 +131,7 @@ fun ProxyAppListPage(
                 searchValue = pageState.searchValue,
                 showSystemApps = pageState.showSystemApps,
                 userTabs = pageState.userTabs,
-                selectedUserId = pageState.selectedUserId,
+                selectedUserId = selectedUserId,
                 onModeChanged = { index ->
                     updateAppState { state -> state.copy(proxyAppListMode = index) }
                 },

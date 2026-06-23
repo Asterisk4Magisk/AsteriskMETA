@@ -138,6 +138,16 @@
     <string name="mihomo_override_script_name">脚本名称</string>
     <string name="mihomo_override_script_name_required">请输入脚本名称</string>
     <string name="mihomo_override_script_deleted">脚本已删除</string>
+    <string name="mihomo_override_script_debug_run">试运行</string>
+    <string name="mihomo_override_script_debug_title">调试</string>
+    <string name="mihomo_override_script_debug_running">运行中…</string>
+    <string name="mihomo_override_script_debug_copy">复制报告</string>
+    <string name="mihomo_override_script_debug_error">错误</string>
+    <string name="mihomo_override_script_debug_summary_title">摘要</string>
+    <string name="mihomo_override_script_debug_summary">节点 %1$d → %2$d · 策略组 %3$d → %4$d · 规则 %5$d → %6$d</string>
+    <string name="mihomo_override_script_debug_logs">Console</string>
+    <string name="mihomo_override_script_debug_no_logs">没有 console 输出</string>
+    <string name="mihomo_override_script_debug_output">输出 YAML</string>
     <string name="mihomo_configuration_missing">配置不存在</string>
     <string name="mihomo_configuration_imported">配置已导入</string>
     <string name="mihomo_configuration_import_file_failed">导入配置文件失败</string>

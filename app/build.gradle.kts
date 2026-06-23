@@ -117,7 +117,7 @@ dependencies {
     implementation(libs.miuix.icons)
     implementation(libs.miuix.navigation3.ui)
     implementation(libs.miuix.preference)
-    implementation(libs.rhino)
+    implementation(libs.quickjs.kt.android)
     implementation(libs.snakeyaml.engine)
     implementation(libs.zxing.android.embedded)
     ksp(libs.androidx.room.compiler)
