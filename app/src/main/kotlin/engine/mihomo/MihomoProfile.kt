@@ -181,6 +181,7 @@ private fun MutableMap<String, Any?>.putAsteriskRuntimeOverrides(
     put("sniffer", appState.toMihomoSnifferYamlMap())
     putDnsOverrides(appState, forceDns)
     putRootDnsHijackOverrides(appState, runMode)
+    putNtpWriteToSystemOverride()
 }
 
 private fun AppState.requiresMihomoLanAccess(runMode: Int): Boolean {
@@ -332,6 +333,16 @@ private fun MutableMap<String, Any?>.putRootDnsHijackOverrides(
     }
     put("proxies", normalizedProxiesWithDnsOut(this["proxies"]))
     put("rules", normalizedRulesWithUdpDnsHijack(this["rules"]))
+}
+
+private fun MutableMap<String, Any?>.putNtpWriteToSystemOverride() {
+    val ntp = linkedMapOf<String, Any?>()
+    (this["ntp"] as? Map<*, *>)?.forEach { (key, value) ->
+        val name = key as? String ?: return@forEach
+        ntp[name] = normalizeYamlValue(value)
+    }
+    ntp["write-to-system"] = false
+    put("ntp", ntp)
 }
 
 private fun AppState.toMihomoTunListenerYamlMap(): Map<String, Any?> {
