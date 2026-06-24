@@ -563,11 +563,13 @@ static int load_xt_filter_prog(
 
     emit_exit_match(&b);
 
-    size_t nomatch_label = b.count;
-    for (size_t i = 0; i < nomatch_jump_count; ++i) {
-        patch_jump(&b, nomatch_jumps[i], nomatch_label);
+    if (nomatch_jump_count > 0) {
+        size_t nomatch_label = b.count;
+        for (size_t i = 0; i < nomatch_jump_count; ++i) {
+            patch_jump(&b, nomatch_jumps[i], nomatch_label);
+        }
+        emit_exit_nomatch(&b);
     }
-    emit_exit_nomatch(&b);
 
     return load_prog(b.insns, b.count, program_name, BPF_PROG_TYPE_SOCKET_FILTER, 0, log_error);
 }
