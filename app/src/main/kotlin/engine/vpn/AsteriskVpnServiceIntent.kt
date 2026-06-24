@@ -55,6 +55,7 @@ internal fun Intent.readVpnServiceStartConfig(): VpnServiceStartConfig? {
         },
         mihomoProfilePath = mihomoProfilePath,
         mihomoProfileSignature = mihomoProfileSignature,
+        ageSecretKey = getStringExtra(EXTRA_AGE_SECRET_KEY).orEmpty(),
         mihomoTunStack = getStringExtra(EXTRA_MIHOMO_TUN_STACK).orEmpty().ifBlank { "system" },
         applicationPolicy = VpnApplicationPolicy(
             mode = getIntExtra(EXTRA_PROXY_APP_LIST_MODE, ProxyAppListModeGlobal),
@@ -84,6 +85,7 @@ private fun Intent.writeStartConfig(config: VpnServiceStartConfig) {
     putExtra(EXTRA_DNS_SERVERS, config.dnsServers.toTypedArray())
     putExtra(EXTRA_MIHOMO_PROFILE_PATH, config.mihomoProfilePath)
     putExtra(EXTRA_MIHOMO_PROFILE_SIGNATURE, config.mihomoProfileSignature)
+    putExtra(EXTRA_AGE_SECRET_KEY, config.ageSecretKey)
     putExtra(EXTRA_MIHOMO_TUN_STACK, config.mihomoTunStack)
     putExtra(EXTRA_PROXY_APP_LIST_MODE, config.applicationPolicy.mode)
     putExtra(EXTRA_PROXY_APP_LIST_PACKAGES, config.applicationPolicy.packageNames.toTypedArray())
@@ -108,6 +110,7 @@ private const val EXTRA_ENABLE_LOCAL_DNS = "enable_local_dns"
 private const val EXTRA_DNS_SERVERS = "dns_servers"
 private const val EXTRA_MIHOMO_PROFILE_PATH = "mihomo_profile_path"
 private const val EXTRA_MIHOMO_PROFILE_SIGNATURE = "mihomo_profile_signature"
+private const val EXTRA_AGE_SECRET_KEY = "age_secret_key"
 private const val EXTRA_MIHOMO_TUN_STACK = "mihomo_tun_stack"
 private const val EXTRA_PROXY_APP_LIST_MODE = "proxy_app_list_mode"
 private const val EXTRA_PROXY_APP_LIST_PACKAGES = "proxy_app_list_packages"

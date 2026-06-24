@@ -8,6 +8,7 @@ import android.os.Process
 import app.effectiveLocalDnsEnabled
 import engine.mihomo.MihomoProfileFactory
 import engine.mihomo.sha256Hex
+import engine.mihomo.selectedMihomoProfileOrNull
 import engine.proxy.LocalProxyOptions
 import engine.proxy.toLocalProxyOptions
 import engine.mihomo.MihomoCoreLogPaths
@@ -30,6 +31,7 @@ internal data class VpnServiceStartConfig(
     val dnsServers: List<String>,
     val mihomoProfilePath: String,
     val mihomoProfileSignature: String,
+    val ageSecretKey: String = "",
     val mihomoTunStack: String,
     val applicationPolicy: VpnApplicationPolicy,
     val localProxyOptions: LocalProxyOptions,
@@ -57,6 +59,7 @@ internal object VpnMihomoConfigFactory {
         val profilePath = File(resourceFilePaths.dataDir, "config.yaml").absolutePath
         val profileYaml = MihomoProfileFactory.buildProfile(context, appState, exposePorts = exposePorts)
         val profileSignature = profileYaml.sha256Hex()
+        val ageSecretKey = appState.selectedMihomoProfileOrNull()?.ageSecretKey.orEmpty()
         writeAtomically(File(profilePath)) { output ->
             output.write(profileYaml.toByteArray(Charsets.UTF_8))
         }
@@ -73,6 +76,7 @@ internal object VpnMihomoConfigFactory {
             dnsServers = tunOptions.dnsServers,
             mihomoProfilePath = profilePath,
             mihomoProfileSignature = profileSignature,
+            ageSecretKey = ageSecretKey,
             mihomoTunStack = MihomoProfileFactory.tunStack(appState),
             applicationPolicy = appState.toVpnApplicationPolicy(Process.myUid().toAndroidUserId()),
             localProxyOptions = localProxyOptions,

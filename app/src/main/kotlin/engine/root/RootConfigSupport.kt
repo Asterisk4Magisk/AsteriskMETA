@@ -15,6 +15,7 @@ import engine.tun2socks.DefaultTun2SocksProxyPort
 import engine.mihomo.MihomoCoreLogPaths
 import engine.mihomo.MihomoProfileFactory
 import engine.mihomo.prepareMihomoCoreLogPaths
+import engine.mihomo.selectedMihomoProfileOrNull
 import features.resources.runtime.MihomoResourceFilePaths
 import features.resources.runtime.prepareMihomoResourceFilePaths
 
@@ -88,6 +89,7 @@ private fun AppState.toRootStartConfig(
 ): RootStartConfig {
     return RootStartConfig(
         mihomoProfileYaml = mihomoProfileYaml,
+        ageSecretKey = selectedMihomoProfileOrNull()?.ageSecretKey.orEmpty(),
         setuidgidPath = resourceFilePaths.setuidgidPath,
         runtimeLayout = runtimeLayout,
         enableIpv6 = enableIpv6,

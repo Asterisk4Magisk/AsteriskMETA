@@ -140,6 +140,7 @@ internal fun RootStartConfig.buildStartDaemonCommand(): String {
             trap '' HUP
             cd $${runtimeLayout.dataDir.shellQuote()} || exit 1
             export MIHOMO_LOCATION_ASSET=$${runtimeLayout.dataDir.shellQuote()}
+            $${buildAgeSecretKeyExportCommand()}
             ulimit -SHn 1000000 2>/dev/null || true
             chmod 755 $${setuidgidPath.shellQuote()}
             $${setuidgidPath.shellQuote()} $${RootMihomoUid.toString().shellQuote()} $${RootMihomoGid.toString().shellQuote()} $${runtimeLayout.mihomoCorePath.shellQuote()} -d $${runtimeLayout.dataDir.shellQuote()} -f $${configPath.shellQuote()} >> $${coreLogPaths.errorLogPath.shellQuote()} 2>&1 < /dev/null &
@@ -156,6 +157,7 @@ internal fun RootStartConfig.buildBootStartDaemonCommand(): String {
             trap '' HUP
             cd $${runtimeLayout.dataDir.shellQuote()} || exit 1
             export MIHOMO_LOCATION_ASSET=$${runtimeLayout.dataDir.shellQuote()}
+            $${buildAgeSecretKeyExportCommand()}
             ulimit -SHn 1000000 || true
             chmod 755 $${setuidgidPath.shellQuote()}
             chmod 644 $${configPath.shellQuote()}
@@ -167,6 +169,15 @@ internal fun RootStartConfig.buildBootStartDaemonCommand(): String {
             echo "mihomo pid: $(cat $${runtimeLayout.pidPath.shellQuote()})"
             """,
         )
+    }
+}
+
+private fun RootStartConfig.buildAgeSecretKeyExportCommand(): String {
+    val key = ageSecretKey.trim()
+    return if (key.isBlank()) {
+        "unset CLASH_AGE_SECRET_KEY"
+    } else {
+        "export CLASH_AGE_SECRET_KEY=${key.shellQuote()}"
     }
 }
 

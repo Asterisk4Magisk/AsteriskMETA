@@ -10,6 +10,7 @@ import java.io.File
 
 internal data class RootStartConfig(
     val mihomoProfileYaml: String,
+    val ageSecretKey: String = "",
     val setuidgidPath: String,
     val runtimeLayout: RootRuntimeLayout,
     val enableIpv6: Boolean,

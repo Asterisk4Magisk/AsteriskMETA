@@ -9,10 +9,11 @@ import app.R
 import com.github.kr328.clash.core.Clash
 import engine.mihomo.MihomoCoreLogSubscriber
 import features.logs.AndroidAppLogger
-import java.io.File
-import java.net.InetSocketAddress
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import java.io.File
+import java.net.InetSocketAddress
+import kotlin.time.Duration.Companion.milliseconds
 
 internal object AndroidMihomoRuntime {
     @Volatile
@@ -81,6 +82,8 @@ internal object AndroidMihomoRuntime {
             running = false
             activeProfileDir = null
             activeConfigSignature = null
+            runCatching { Clash.setAgeSecretKey(null) }
+                .onFailure { error -> AndroidAppLogger.warn(LogTag, "Failed to clear mihomo age secret key", error) }
             coreLogSubscriber?.stop()
             coreLogSubscriber = null
             return
@@ -98,6 +101,8 @@ internal object AndroidMihomoRuntime {
                 .onFailure { error -> AndroidAppLogger.warn(LogTag, "Failed to reset mihomo runtime", error) }
             runCatching { Clash.clearOverride(Clash.OverrideSlot.Session) }
                 .onFailure { error -> AndroidAppLogger.warn(LogTag, "Failed to clear mihomo session override", error) }
+            runCatching { Clash.setAgeSecretKey(null) }
+                .onFailure { error -> AndroidAppLogger.warn(LogTag, "Failed to clear mihomo age secret key", error) }
             coreLogSubscriber?.stop()
             coreLogSubscriber = null
             loaded = false
@@ -116,7 +121,8 @@ internal object AndroidMihomoRuntime {
 
     suspend fun reloadProfile() {
         val profileDir = activeProfileDir ?: error("mihomo profile directory is not loaded")
-        withTimeout(DefaultLoadTimeoutMillis) {
+        setRuntimeAgeSecretKey(activeConfigSignature?.ageSecretKey.orEmpty())
+        withTimeout(DefaultLoadTimeoutMillis.milliseconds) {
             Clash.load(profileDir).await()
         }
     }
@@ -144,9 +150,10 @@ internal object AndroidMihomoRuntime {
         coreLogSubscriber = MihomoCoreLogSubscriber().also { subscriber -> subscriber.start() }
         runCatching {
             runBlocking {
-                withTimeout(DefaultLoadTimeoutMillis) {
+                withTimeout(DefaultLoadTimeoutMillis.milliseconds) {
                     Clash.reset()
                     Clash.clearOverride(Clash.OverrideSlot.Session)
+                    setRuntimeAgeSecretKey(config.ageSecretKey)
                     Clash.load(profileDir).await()
                 }
             }
@@ -178,10 +185,15 @@ internal object AndroidMihomoRuntime {
     private const val DefaultLoadTimeoutMillis = 60_000L
 }
 
+private fun setRuntimeAgeSecretKey(ageSecretKey: String) {
+    Clash.setAgeSecretKey(ageSecretKey.trim().takeIf(String::isNotBlank))
+}
+
 private data class MihomoRuntimeConfigSignature(
     val dataDir: String,
     val profilePath: String,
     val profileSignature: String,
+    val ageSecretKey: String,
 )
 
 private fun VpnServiceStartConfig.runtimeConfigSignature(): MihomoRuntimeConfigSignature {
@@ -189,5 +201,6 @@ private fun VpnServiceStartConfig.runtimeConfigSignature(): MihomoRuntimeConfigS
         dataDir = dataDir,
         profilePath = mihomoProfilePath,
         profileSignature = mihomoProfileSignature,
+        ageSecretKey = ageSecretKey,
     )
 }

@@ -82,6 +82,7 @@ import app.modes.MihomoProxySortDefault
 import app.modes.MihomoProxySortDelay
 import app.modes.MihomoProxySortName
 import app.navigation.Route
+import com.github.kr328.clash.core.Clash
 import engine.mihomo.MihomoProfileFactory
 import engine.mihomo.escapeSupplementaryYamlCodePoints
 import engine.mihomo.hasUsableMihomoProfile
@@ -154,6 +155,7 @@ fun MihomoProxyPage(
         appState.selectedMihomoProfileId,
         appState.selectedMihomoProfileContentSignature(),
         appState.selectedMihomoProfileOverrideHash(),
+        appState.selectedMihomoProfileAgeSecretKeyHash(),
         appState.runMode,
     ) {
         if (!hasUsableProfile) {
@@ -165,7 +167,13 @@ fun MihomoProxyPage(
             File(appContext.prepareMihomoResourceFilePaths().dataDir)
         }
         fallbackProxies = withContext(Dispatchers.IO) {
-            runCatching { parseMihomoProxyState(MihomoProfileFactory.buildProfile(appContext, snapshot), dataDir) }
+            runCatching {
+                parseMihomoProxyState(
+                    profile = MihomoProfileFactory.buildProfile(appContext, snapshot),
+                    dataDir = dataDir,
+                    ageSecretKey = snapshot.selectedMihomoProfileOrNull()?.ageSecretKey.orEmpty(),
+                )
+            }
                 .getOrDefault(MihomoProxiesState())
         }
     }
@@ -949,7 +957,11 @@ private fun mihomoProxyCardColor(selected: Boolean = false): Color {
     return MiuixTheme.colorScheme.primary.copy(alpha = if (selected) 0.18f else 0.12f)
 }
 
-private fun parseMihomoProxyState(profile: String, dataDir: File): MihomoProxiesState {
+private fun parseMihomoProxyState(
+    profile: String,
+    dataDir: File,
+    ageSecretKey: String,
+): MihomoProxiesState {
     val escapedProfile = profile.escapeSupplementaryYamlCodePoints()
     val root = runCatching {
         val parsed = Load(LoadSettings.builder().build()).loadFromString(escapedProfile.value)
@@ -961,7 +973,7 @@ private fun parseMihomoProxyState(profile: String, dataDir: File): MihomoProxies
     root["proxy-providers"].asMap().forEach { (providerName, providerValue) ->
         val name = providerName.asTextOrNull() ?: return@forEach
         val provider = providerValue as? Map<*, *> ?: return@forEach
-        val providerNodes = provider.proxyProviderNodeNames(nodes, dataDir)
+        val providerNodes = provider.proxyProviderNodeNames(nodes, dataDir, ageSecretKey)
         if (providerNodes.isNotEmpty()) {
             providerNodesByName[name] = providerNodes
         }
@@ -1112,6 +1124,10 @@ private fun AppState.selectedMihomoProfileOverrideHash(): Int {
     return 31 * profile.overrideScriptId + (script?.content?.hashCode() ?: 0)
 }
 
+private fun AppState.selectedMihomoProfileAgeSecretKeyHash(): Int {
+    return selectedMihomoProfileOrNull()?.ageSecretKey.orEmpty().hashCode()
+}
+
 private fun Map<*, *>.putProxyNode(nodes: MutableMap<String, MihomoProxyNode>): String? {
     val name = this["name"].asTextOrNull() ?: return null
     nodes[name] = MihomoProxyNode(
@@ -1125,18 +1141,27 @@ private fun Map<*, *>.putProxyNode(nodes: MutableMap<String, MihomoProxyNode>): 
 private fun Map<*, *>.proxyProviderNodeNames(
     nodes: MutableMap<String, MihomoProxyNode>,
     dataDir: File,
+    ageSecretKey: String,
 ): List<String> {
     val payload = this["payload"].asMapList()
         .ifEmpty { this["proxies"].asMapList() }
-        .ifEmpty { proxyProviderFilePayload(dataDir) }
+        .ifEmpty { proxyProviderFilePayload(dataDir, ageSecretKey) }
     return payload.mapNotNull { item -> item.putProxyNode(nodes) }
 }
 
-private fun Map<*, *>.proxyProviderFilePayload(dataDir: File): List<Map<*, *>> {
+private fun Map<*, *>.proxyProviderFilePayload(
+    dataDir: File,
+    ageSecretKey: String,
+): List<Map<*, *>> {
     val file = mihomoProxyProviderFileCandidates(dataDir, this)
         .firstOrNull { candidate -> candidate.exists() && candidate.length() > 0 }
         ?: return emptyList()
-    val escaped = runCatching { file.readText().escapeSupplementaryYamlCodePoints() }.getOrNull()
+    val providerAgeSecretKey = this["age-secret-key"].asTextOrNull()
+    val escaped = runCatching {
+        file.readText()
+            .decryptAge(providerAgeSecretKey ?: ageSecretKey)
+            .escapeSupplementaryYamlCodePoints()
+    }.getOrNull()
         ?: return emptyList()
     val parsed = runCatching {
         val value = Load(LoadSettings.builder().build()).loadFromString(escaped.value)
@@ -1147,6 +1172,10 @@ private fun Map<*, *>.proxyProviderFilePayload(dataDir: File): List<Map<*, *>> {
         is List<*> -> parsed.asMapList()
         else -> emptyList()
     }
+}
+
+private fun String.decryptAge(ageSecretKey: String): String {
+    return Clash.decryptAge(this, ageSecretKey.trim().takeIf(String::isNotBlank))
 }
 
 private fun Any?.asMap(): Map<*, *> {
