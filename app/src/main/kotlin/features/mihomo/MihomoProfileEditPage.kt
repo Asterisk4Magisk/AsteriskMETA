@@ -280,20 +280,10 @@ fun MihomoProfileEditPage(
             )
         }
         val saved = saveProfile(savedProfile, targetProfile == null)
-        if (!remoteOptionsChanged && saved.hasContent) {
-            navigator.pop()
-            return
+        if (remoteOptionsChanged || !saved.hasContent) {
+            launchProfileSubscriptionUpdate(saved)
         }
-        saving = true
-        val syncJob = launchProfileSubscriptionUpdate(saved)
-        scope.launch {
-            try {
-                syncJob.join()
-            } finally {
-                saving = false
-                navigator.pop()
-            }
-        }
+        navigator.pop()
     }
 
     fun onSave() {
