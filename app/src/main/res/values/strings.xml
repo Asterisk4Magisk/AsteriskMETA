@@ -36,11 +36,14 @@
     <string name="common_save">Save</string>
     <string name="common_add">Add</string>
     <string name="common_edit">Edit</string>
+    <string name="common_edit_all">Edit all</string>
     <string name="common_delete">Delete</string>
     <string name="common_empty">Nothing here yet~~~</string>
     <string name="common_replace">Replace</string>
     <string name="common_restore">Restore</string>
     <string name="common_complete">Complete</string>
+    <string name="string_list_item_empty">Entry cannot be empty</string>
+    <string name="string_list_line_error">Line %1$d: %2$s</string>
 
     <!-- Navigation -->
     <string name="nav_dashboard">Dashboard</string>
@@ -248,7 +251,6 @@
     <string name="settings_private_addresses_selected">{count} entries</string>
     <string name="settings_private_addresses_input">CIDR range</string>
     <string name="settings_private_addresses_invalid">Invalid CIDR</string>
-    <string name="settings_private_addresses_duplicate">Already added</string>
     <string name="settings_private_addresses_empty">No CIDR ranges added</string>
     <string name="settings_ipv6_summary">Enable IPv6 support</string>
     <string name="settings_ipv6_prefer">IPv6 preferred</string>
@@ -337,7 +339,6 @@
     <string name="settings_dns_hosts_format">Format: domain:address1,address2,…</string>
     <string name="settings_dns_hosts_input">DNS hosts entry</string>
     <string name="settings_dns_hosts_empty">No DNS hosts added</string>
-    <string name="settings_dns_hosts_duplicate">Already added</string>
     <string name="settings_dns_hosts_invalid">Invalid DNS hosts entry</string>
     <string name="settings_dns_server_invalid">Invalid Mihomo DNS server</string>
 

@@ -72,11 +72,9 @@ internal fun PrivateAddressBottomSheet(
                     editorKey = "private-addresses:$show",
                     title = stringResource(R.string.settings_private_addresses_input),
                     description = stringResource(R.string.settings_private_addresses_summary),
-                    inputLabel = stringResource(R.string.settings_private_addresses_input),
                     values = sanitizedCidrs,
                     onValuesChange = { onSelectedCidrsChange(it.sanitizePrivateAddressCidrs()) },
                     emptyText = stringResource(R.string.settings_private_addresses_empty),
-                    duplicateText = stringResource(R.string.settings_private_addresses_duplicate),
                     validateInput = { if (isCidrAddress(it)) null else invalidMessage },
                 )
             }

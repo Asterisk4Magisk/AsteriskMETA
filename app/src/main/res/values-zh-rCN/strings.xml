@@ -36,11 +36,14 @@
     <string name="common_save">保存</string>
     <string name="common_add">添加</string>
     <string name="common_edit">编辑</string>
+    <string name="common_edit_all">编辑全部</string>
     <string name="common_delete">删除</string>
     <string name="common_empty">这里空空的~~~</string>
     <string name="common_replace">替换</string>
     <string name="common_restore">恢复</string>
     <string name="common_complete">完成</string>
+    <string name="string_list_item_empty">条目不能为空</string>
+    <string name="string_list_line_error">第 %1$d 行：%2$s</string>
 
     <!-- Navigation -->
     <string name="nav_dashboard">仪表盘</string>
@@ -248,7 +251,6 @@
     <string name="settings_private_addresses_selected">已配置 {count} 条</string>
     <string name="settings_private_addresses_input">CIDR 地址</string>
     <string name="settings_private_addresses_invalid">无效 CIDR</string>
-    <string name="settings_private_addresses_duplicate">已添加</string>
     <string name="settings_private_addresses_empty">还没有添加 CIDR 地址</string>
     <string name="settings_ipv6_summary">启用 IPv6 支持</string>
     <string name="settings_ipv6_prefer">IPv6 优先</string>
@@ -337,7 +339,6 @@
     <string name="settings_dns_hosts_format">格式：域名:地址1,地址2,…</string>
     <string name="settings_dns_hosts_input">DNS hosts 条目</string>
     <string name="settings_dns_hosts_empty">还没有添加 DNS hosts</string>
-    <string name="settings_dns_hosts_duplicate">已添加</string>
     <string name="settings_dns_hosts_invalid">无效 DNS hosts 条目</string>
     <string name="settings_dns_server_invalid">无效 Mihomo DNS 服务器</string>
 

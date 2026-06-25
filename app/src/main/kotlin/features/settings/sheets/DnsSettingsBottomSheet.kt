@@ -164,11 +164,9 @@ internal fun DnsSettingsBottomSheet(
                         StringListEditor(
                             editorKey = "dns-fake-ip-filter:$show",
                             title = stringResource(R.string.settings_dns_fake_ip_filter),
-                            inputLabel = stringResource(R.string.settings_dns_domain_input),
                             values = draft.dnsFakeIpFilter.toTrimmedNonEmptyDistinctList(),
                             onValuesChange = { onDraftChange(draft.copy(dnsFakeIpFilter = it.toTrimmedNonEmptyDistinctList())) },
                             emptyText = stringResource(R.string.settings_dns_list_empty),
-                            duplicateText = stringResource(R.string.settings_dns_hosts_duplicate),
                             validateInput = { dnsDomainInputError(it, dnsDomainInvalidMessage) },
                         )
                     }
@@ -179,11 +177,9 @@ internal fun DnsSettingsBottomSheet(
                         editorKey = "dns-default-nameserver:$show",
                         title = stringResource(R.string.settings_dns_default_nameserver),
                         description = stringResource(R.string.settings_dns_default_nameserver_summary),
-                        inputLabel = stringResource(R.string.settings_dns_server_input),
                         values = draft.dnsDefaultNameserver.toTrimmedNonEmptyDistinctList(),
                         onValuesChange = { onDraftChange(draft.copy(dnsDefaultNameserver = it.toTrimmedNonEmptyDistinctList())) },
                         emptyText = stringResource(R.string.settings_dns_list_empty),
-                        duplicateText = stringResource(R.string.settings_dns_hosts_duplicate),
                         validateInput = { dnsServerInputError(it, dnsServerInvalidMessage) },
                     )
                     Spacer(Modifier.height(8.dp))
@@ -191,35 +187,29 @@ internal fun DnsSettingsBottomSheet(
                         editorKey = "dns-nameserver:$show",
                         title = stringResource(R.string.settings_dns_nameserver),
                         description = stringResource(R.string.settings_dns_nameserver_summary),
-                        inputLabel = stringResource(R.string.settings_dns_server_input),
                         values = draft.dnsNameserver.toTrimmedNonEmptyDistinctList(),
                         onValuesChange = { onDraftChange(draft.copy(dnsNameserver = it.toTrimmedNonEmptyDistinctList())) },
                         emptyText = stringResource(R.string.settings_dns_list_empty),
-                        duplicateText = stringResource(R.string.settings_dns_hosts_duplicate),
                         validateInput = { dnsServerInputError(it, dnsServerInvalidMessage) },
                     )
                     Spacer(Modifier.height(8.dp))
                     StringListEditor(
                         editorKey = "dns-proxy-server-nameserver:$show",
                         title = stringResource(R.string.settings_dns_proxy_server_nameserver),
-                        inputLabel = stringResource(R.string.settings_dns_server_input),
                         values = draft.dnsProxyServerNameserver.toTrimmedNonEmptyDistinctList(),
                         onValuesChange = {
                             onDraftChange(draft.copy(dnsProxyServerNameserver = it.toTrimmedNonEmptyDistinctList()))
                         },
                         emptyText = stringResource(R.string.settings_dns_list_empty),
-                        duplicateText = stringResource(R.string.settings_dns_hosts_duplicate),
                         validateInput = { dnsServerInputError(it, dnsServerInvalidMessage) },
                     )
                     Spacer(Modifier.height(8.dp))
                     StringListEditor(
                         editorKey = "dns-fallback:$show",
                         title = stringResource(R.string.settings_dns_fallback),
-                        inputLabel = stringResource(R.string.settings_dns_server_input),
                         values = draft.dnsFallback.toTrimmedNonEmptyDistinctList(),
                         onValuesChange = { onDraftChange(draft.copy(dnsFallback = it.toTrimmedNonEmptyDistinctList())) },
                         emptyText = stringResource(R.string.settings_dns_list_empty),
-                        duplicateText = stringResource(R.string.settings_dns_hosts_duplicate),
                         validateInput = { dnsServerInputError(it, dnsServerInvalidMessage) },
                     )
                 }
@@ -229,13 +219,11 @@ internal fun DnsSettingsBottomSheet(
                         editorKey = "dns-nameserver-policy:$show",
                         title = stringResource(R.string.settings_dns_nameserver_policy),
                         description = stringResource(R.string.settings_dns_nameserver_policy_format),
-                        inputLabel = stringResource(R.string.settings_dns_policy_input),
                         values = draft.dnsNameserverPolicy.toTrimmedNonEmptyDistinctList(),
                         onValuesChange = {
                             onDraftChange(draft.copy(dnsNameserverPolicy = it.toTrimmedNonEmptyDistinctList()))
                         },
                         emptyText = stringResource(R.string.settings_dns_list_empty),
-                        duplicateText = stringResource(R.string.settings_dns_hosts_duplicate),
                         validateInput = { nameserverPolicyInputError(it, dnsPolicyInvalidMessage, dnsServerInvalidMessage) },
                     )
                 }
@@ -261,39 +249,33 @@ internal fun DnsSettingsBottomSheet(
                     StringListEditor(
                         editorKey = "dns-fallback-geosite:$show",
                         title = "Geosite",
-                        inputLabel = stringResource(R.string.settings_dns_domain_input),
                         values = draft.dnsFallbackFilterGeosite.toTrimmedNonEmptyDistinctList(),
                         onValuesChange = {
                             onDraftChange(draft.copy(dnsFallbackFilterGeosite = it.toTrimmedNonEmptyDistinctList()))
                         },
                         emptyText = stringResource(R.string.settings_dns_list_empty),
-                        duplicateText = stringResource(R.string.settings_dns_hosts_duplicate),
                         validateInput = { dnsDomainInputError(it, dnsDomainInvalidMessage) },
                     )
                     Spacer(Modifier.height(8.dp))
                     StringListEditor(
                         editorKey = "dns-fallback-ipcidr:$show",
                         title = "IP CIDR",
-                        inputLabel = stringResource(R.string.settings_dns_cidr_input),
                         values = draft.dnsFallbackFilterIpcidr.toTrimmedNonEmptyDistinctList(),
                         onValuesChange = {
                             onDraftChange(draft.copy(dnsFallbackFilterIpcidr = it.toTrimmedNonEmptyDistinctList()))
                         },
                         emptyText = stringResource(R.string.settings_dns_list_empty),
-                        duplicateText = stringResource(R.string.settings_dns_hosts_duplicate),
                         validateInput = { if (isCidrAddress(it)) null else dnsCidrInvalidMessage },
                     )
                     Spacer(Modifier.height(8.dp))
                     StringListEditor(
                         editorKey = "dns-fallback-domain:$show",
                         title = stringResource(R.string.settings_dns_domain),
-                        inputLabel = stringResource(R.string.settings_dns_domain_input),
                         values = draft.dnsFallbackFilterDomain.toTrimmedNonEmptyDistinctList(),
                         onValuesChange = {
                             onDraftChange(draft.copy(dnsFallbackFilterDomain = it.toTrimmedNonEmptyDistinctList()))
                         },
                         emptyText = stringResource(R.string.settings_dns_list_empty),
-                        duplicateText = stringResource(R.string.settings_dns_hosts_duplicate),
                         validateInput = { dnsDomainInputError(it, dnsDomainInvalidMessage) },
                     )
                 }
@@ -319,11 +301,9 @@ internal fun DnsSettingsBottomSheet(
                                 editorKey = "dns-hosts:$show",
                                 title = stringResource(R.string.settings_dns_hosts),
                                 description = stringResource(R.string.settings_dns_hosts_format),
-                                inputLabel = stringResource(R.string.settings_dns_hosts_input),
                                 values = draft.dnsHosts.toTrimmedNonEmptyDistinctList(),
                                 onValuesChange = { onDraftChange(draft.copy(dnsHosts = it.toTrimmedNonEmptyDistinctList())) },
                                 emptyText = stringResource(R.string.settings_dns_hosts_empty),
-                                duplicateText = stringResource(R.string.settings_dns_hosts_duplicate),
                                 validateInput = { dnsHostInputError(it, dnsHostsInvalidMessage) },
                             )
                         }
