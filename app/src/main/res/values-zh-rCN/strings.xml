@@ -40,7 +40,6 @@
     <string name="common_delete">删除</string>
     <string name="common_empty">这里空空的~~~</string>
     <string name="common_copied">已复制</string>
-    <string name="common_more">更多</string>
     <string name="common_import_from_clipboard">从剪贴板导入</string>
     <string name="common_export_to_clipboard">导出到剪贴板</string>
     <string name="common_replace_existing">替换现有</string>
@@ -101,6 +100,25 @@
     <string name="mihomo_proxies_option_sort_default">默认</string>
     <string name="mihomo_proxies_option_sort_name">名称</string>
     <string name="mihomo_proxies_option_sort_delay">延迟</string>
+    <string name="mihomo_providers_title">Proxy Providers</string>
+    <string name="mihomo_providers_count">{count} 个 Provider</string>
+    <string name="mihomo_providers_empty">当前配置不包含 proxy-providers</string>
+    <string name="mihomo_providers_open">打开 Proxy Providers</string>
+    <string name="mihomo_providers_refresh_all">全部刷新</string>
+    <string name="mihomo_providers_refresh_done">Provider 已刷新</string>
+    <string name="mihomo_providers_refresh_failed">刷新 Provider 失败</string>
+    <string name="mihomo_providers_refresh_all_done">Provider 刷新完成：成功 %1$d；失败 %2$d</string>
+    <string name="mihomo_provider_file_content">文件内容</string>
+    <string name="mihomo_provider_nodes">节点列表</string>
+    <string name="mihomo_provider_traffic_unlimited">不限量</string>
+    <string name="mihomo_provider_file_missing">Provider 文件不可用</string>
+    <string name="mihomo_provider_raw_declaration">声明片段</string>
+    <string name="mihomo_provider_runtime_unavailable">运行时 Provider 数据不可用</string>
+    <string name="mihomo_provider_nodes_empty">没有节点</string>
+    <string name="mihomo_provider_nodes_count">{count} 个节点</string>
+    <string name="mihomo_provider_nodes_search">搜索节点</string>
+    <string name="mihomo_provider_delay_timeout">超时</string>
+    <string name="mihomo_provider_missing">当前配置中不存在该 Provider</string>
     <string name="mihomo_configurations_title">配置管理</string>
     <string name="mihomo_configurations_count">{count} 个配置</string>
     <string name="mihomo_configurations_list">配置列表</string>
@@ -321,7 +339,6 @@
     <string name="settings_dns_fallback">Fallback</string>
     <string name="settings_dns_nameserver_policy">Nameserver Policy</string>
     <string name="settings_dns_nameserver_policy_format">格式：rule=&gt;server1,server2</string>
-    <string name="settings_dns_policy_input">策略规则</string>
     <string name="settings_dns_policy_invalid">无效 Nameserver Policy</string>
     <string name="settings_dns_geoip_filter">GeoIP 过滤</string>
     <string name="settings_dns_geoip_code">GeoIP 代码</string>
@@ -329,9 +346,6 @@
     <string name="settings_dns_domain">域名</string>
     <string name="settings_dns_use_hosts">使用 hosts</string>
     <string name="settings_dns_use_system_hosts">使用系统 hosts</string>
-    <string name="settings_dns_server_input">DNS 服务器</string>
-    <string name="settings_dns_domain_input">域名规则</string>
-    <string name="settings_dns_cidr_input">CIDR</string>
     <string name="settings_dns_cidr_invalid">无效 CIDR</string>
     <string name="settings_dns_list_empty">还没有添加条目</string>
     <string name="settings_logs">日志</string>
@@ -345,7 +359,6 @@
     <string name="settings_dns_domain_invalid">无效 DNS 域名规则</string>
     <string name="settings_dns_hosts">DNS hosts</string>
     <string name="settings_dns_hosts_format">格式：域名:地址1,地址2,…</string>
-    <string name="settings_dns_hosts_input">DNS hosts 条目</string>
     <string name="settings_dns_hosts_empty">还没有添加 DNS hosts</string>
     <string name="settings_dns_hosts_invalid">无效 DNS hosts 条目</string>
     <string name="settings_dns_server_invalid">无效 Mihomo DNS 服务器</string>
@@ -396,7 +409,6 @@
     <string name="proxy_app_list_mode_whitelist">白名单模式</string>
     <string name="proxy_app_list_mode_global">全应用模式</string>
     <string name="proxy_app_list_mode">代理模式</string>
-    <string name="proxy_app_list_display_options">显示选项</string>
     <string name="proxy_app_list_more_actions">更多操作</string>
     <string name="proxy_app_list_show_system_apps">显示系统应用</string>
     <string name="proxy_app_list_search_label">搜索应用名称</string>

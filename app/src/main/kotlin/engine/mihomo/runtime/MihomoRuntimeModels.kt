@@ -78,6 +78,32 @@ internal data class MihomoProxiesState(
     }
 }
 
+internal data class MihomoProviderNode(
+    val name: String,
+    val title: String = "",
+    val subtitle: String = "",
+    val type: String = "",
+    val delay: Int? = null,
+)
+
+internal data class MihomoProviderSubscriptionInfo(
+    val upload: Long = 0L,
+    val download: Long = 0L,
+    val total: Long = 0L,
+    val expire: Long = 0L,
+)
+
+internal data class MihomoProxyProviderRuntimeDetail(
+    val name: String = "",
+    val type: String = "",
+    val vehicleType: String = "",
+    val updatedAtMillis: Long = 0L,
+    val testUrl: String = "",
+    val expectedStatus: String = "",
+    val subscriptionInfo: MihomoProviderSubscriptionInfo? = null,
+    val nodes: List<MihomoProviderNode> = emptyList(),
+)
+
 internal data class MihomoRuntimeState(
     val running: Boolean = false,
     val control: MihomoControlConfig = MihomoControlConfig(),

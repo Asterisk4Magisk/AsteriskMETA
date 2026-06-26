@@ -7,6 +7,7 @@ import com.github.kr328.clash.core.Clash
 import com.github.kr328.clash.core.bridge.Bridge
 import com.github.kr328.clash.core.model.ConfigurationOverride
 import com.github.kr328.clash.core.model.LogMessage
+import com.github.kr328.clash.core.model.Provider
 import com.github.kr328.clash.core.model.ProxySort
 import com.github.kr328.clash.core.model.TunnelState
 import engine.mihomo.DefaultMihomoDelayTestUrl
@@ -136,6 +137,35 @@ internal class MihomoControlClient {
             nodeByName = nodes,
             updatedAtMillis = System.currentTimeMillis(),
         )
+    }
+
+    suspend fun getProxyProvider(
+        config: MihomoControlConfig,
+        providerName: String,
+        useBridge: Boolean,
+    ): MihomoProxyProviderRuntimeDetail {
+        val root = if (useBridge) {
+            val response = Bridge.nativeQueryProvider(Provider.Type.Proxy.toString(), providerName)
+                ?: error("Invalid Mihomo bridge provider response for $providerName")
+            RuntimeJson.parseToJsonElement(response).jsonObjectOrNull()
+                ?: error("Invalid Mihomo bridge provider response for $providerName")
+        } else {
+            requestJsonObject(config, "/providers/proxies/${providerName.urlEncode()}")
+        }
+        root.errorMessageOrNull()?.let { message -> error(message) }
+        return root.toProxyProviderRuntimeDetail(providerName)
+    }
+
+    suspend fun updateProxyProvider(
+        config: MihomoControlConfig,
+        providerName: String,
+        useBridge: Boolean,
+    ) {
+        if (useBridge) {
+            Clash.updateProvider(Provider.Type.Proxy, providerName).await()
+            return
+        }
+        request(config, "/providers/proxies/${providerName.urlEncode()}", method = "PUT")
     }
 
     suspend fun patchMode(
@@ -676,6 +706,51 @@ private fun JsonObject.latestDelay(): Int? {
         .firstNotNullOfOrNull { entry ->
             entry.jsonObjectOrNull()?.intValue("delay")?.toMihomoHistoryDelayOrNull()
         }
+}
+
+private fun JsonObject.toProxyProviderRuntimeDetail(fallbackName: String): MihomoProxyProviderRuntimeDetail {
+    val nodes = this["proxies"].jsonArrayOrNull()
+        ?.mapNotNull { item -> item.jsonObjectOrNull()?.toMihomoProviderNode() }
+        .orEmpty()
+    return MihomoProxyProviderRuntimeDetail(
+        name = stringValue("name") ?: stringValue("Name") ?: fallbackName,
+        type = stringValue("type") ?: stringValue("Type") ?: "",
+        vehicleType = stringValue("vehicleType") ?: stringValue("VehicleType") ?: "",
+        updatedAtMillis = longValue("updatedAt") ?: longValue("UpdatedAt") ?: 0L,
+        testUrl = stringValue("testUrl") ?: stringValue("TestUrl") ?: "",
+        expectedStatus = stringValue("expectedStatus") ?: stringValue("ExpectedStatus") ?: "",
+        subscriptionInfo = objectValue("subscriptionInfo")
+            ?.toMihomoProviderSubscriptionInfo()
+            ?: objectValue("SubscriptionInfo")?.toMihomoProviderSubscriptionInfo(),
+        nodes = nodes,
+    )
+}
+
+private fun JsonObject.toMihomoProviderNode(): MihomoProviderNode {
+    val name = stringValue("name") ?: stringValue("Name") ?: ""
+    val type = stringValue("type") ?: stringValue("Type") ?: ""
+    return MihomoProviderNode(
+        name = name,
+        title = stringValue("title") ?: stringValue("Title") ?: name,
+        subtitle = stringValue("subtitle") ?: stringValue("Subtitle") ?: type,
+        type = type,
+        delay = intValue("delay")?.toMihomoHistoryDelayOrNull()
+            ?: intValue("Delay")?.toMihomoHistoryDelayOrNull()
+            ?: latestDelay(),
+    )
+}
+
+private fun JsonObject.toMihomoProviderSubscriptionInfo(): MihomoProviderSubscriptionInfo {
+    return MihomoProviderSubscriptionInfo(
+        upload = longValue("upload") ?: longValue("Upload") ?: 0L,
+        download = longValue("download") ?: longValue("Download") ?: 0L,
+        total = longValue("total") ?: longValue("Total") ?: 0L,
+        expire = longValue("expire") ?: longValue("Expire") ?: 0L,
+    )
+}
+
+private fun JsonObject.errorMessageOrNull(): String? {
+    return stringValue("error") ?: stringValue("Error")
 }
 
 private fun Int.toMihomoHistoryDelayOrNull(

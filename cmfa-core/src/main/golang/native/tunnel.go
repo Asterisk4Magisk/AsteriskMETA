@@ -131,6 +131,16 @@ func queryProviders() *C.char {
 	return marshalJson(tunnel.QueryProviders())
 }
 
+//export queryProvider
+func queryProvider(pType C.c_string, name C.c_string) *C.char {
+	response, err := tunnel.QueryProvider(C.GoString(pType), C.GoString(name), app.SubtitlePattern())
+	if err != nil {
+		return marshalJson(errorResponse(err))
+	}
+
+	return marshalJson(response)
+}
+
 //export updateProvider
 func updateProvider(completable unsafe.Pointer, pType C.c_string, name C.c_string) {
 	go func(pType, name string) {

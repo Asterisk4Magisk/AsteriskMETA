@@ -40,7 +40,6 @@
     <string name="common_delete">Delete</string>
     <string name="common_empty">Nothing here yet~~~</string>
     <string name="common_copied">Copied</string>
-    <string name="common_more">More</string>
     <string name="common_import_from_clipboard">Import from clipboard</string>
     <string name="common_export_to_clipboard">Export to clipboard</string>
     <string name="common_replace_existing">Replace existing</string>
@@ -101,6 +100,25 @@
     <string name="mihomo_proxies_option_sort_default">Default</string>
     <string name="mihomo_proxies_option_sort_name">Name</string>
     <string name="mihomo_proxies_option_sort_delay">Delay</string>
+    <string name="mihomo_providers_title">Proxy providers</string>
+    <string name="mihomo_providers_count">{count} providers</string>
+    <string name="mihomo_providers_empty">The current configuration does not contain proxy-providers</string>
+    <string name="mihomo_providers_open">Open proxy providers</string>
+    <string name="mihomo_providers_refresh_all">Refresh all</string>
+    <string name="mihomo_providers_refresh_done">Provider refreshed</string>
+    <string name="mihomo_providers_refresh_failed">Failed to refresh provider</string>
+    <string name="mihomo_providers_refresh_all_done">Providers refresh complete: success %1$d; failed %2$d</string>
+    <string name="mihomo_provider_file_content">File content</string>
+    <string name="mihomo_provider_nodes">Nodes</string>
+    <string name="mihomo_provider_traffic_unlimited">Unlimited</string>
+    <string name="mihomo_provider_file_missing">Provider file is unavailable</string>
+    <string name="mihomo_provider_raw_declaration">Declaration snippet</string>
+    <string name="mihomo_provider_runtime_unavailable">Runtime provider data is unavailable</string>
+    <string name="mihomo_provider_nodes_empty">No nodes</string>
+    <string name="mihomo_provider_nodes_count">{count} nodes</string>
+    <string name="mihomo_provider_nodes_search">Search nodes</string>
+    <string name="mihomo_provider_delay_timeout">Timeout</string>
+    <string name="mihomo_provider_missing">Provider does not exist in the current configuration</string>
     <string name="mihomo_configurations_title">Configuration management</string>
     <string name="mihomo_configurations_count">{count} configurations</string>
     <string name="mihomo_configurations_list">Configurations</string>
@@ -321,7 +339,6 @@
     <string name="settings_dns_fallback">Fallback</string>
     <string name="settings_dns_nameserver_policy">Nameserver policy</string>
     <string name="settings_dns_nameserver_policy_format">Format: rule=&gt;server1,server2</string>
-    <string name="settings_dns_policy_input">Policy rule</string>
     <string name="settings_dns_policy_invalid">Invalid nameserver policy</string>
     <string name="settings_dns_geoip_filter">GeoIP filter</string>
     <string name="settings_dns_geoip_code">GeoIP code</string>
@@ -329,9 +346,6 @@
     <string name="settings_dns_domain">Domain</string>
     <string name="settings_dns_use_hosts">Use hosts</string>
     <string name="settings_dns_use_system_hosts">Use system hosts</string>
-    <string name="settings_dns_server_input">DNS server</string>
-    <string name="settings_dns_domain_input">Domain rule</string>
-    <string name="settings_dns_cidr_input">CIDR</string>
     <string name="settings_dns_cidr_invalid">Invalid CIDR</string>
     <string name="settings_dns_list_empty">No entries added</string>
     <string name="settings_logs">Logs</string>
@@ -345,7 +359,6 @@
     <string name="settings_dns_domain_invalid">Invalid DNS domain rule</string>
     <string name="settings_dns_hosts">DNS hosts</string>
     <string name="settings_dns_hosts_format">Format: domain:address1,address2,…</string>
-    <string name="settings_dns_hosts_input">DNS hosts entry</string>
     <string name="settings_dns_hosts_empty">No DNS hosts added</string>
     <string name="settings_dns_hosts_invalid">Invalid DNS hosts entry</string>
     <string name="settings_dns_server_invalid">Invalid Mihomo DNS server</string>
@@ -396,7 +409,6 @@
     <string name="proxy_app_list_mode_whitelist">Whitelist mode</string>
     <string name="proxy_app_list_mode_global">All-app mode</string>
     <string name="proxy_app_list_mode">App proxy mode</string>
-    <string name="proxy_app_list_display_options">Display options</string>
     <string name="proxy_app_list_more_actions">More actions</string>
     <string name="proxy_app_list_show_system_apps">Show system apps</string>
     <string name="proxy_app_list_search_label">Search apps</string>

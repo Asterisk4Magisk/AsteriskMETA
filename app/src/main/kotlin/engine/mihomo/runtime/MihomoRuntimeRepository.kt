@@ -165,6 +165,41 @@ internal class MihomoRuntimeRepository(
         }
     }
 
+    suspend fun getProxyProviderDetail(
+        appState: AppState,
+        providerName: String,
+    ): Result<MihomoProxyProviderRuntimeDetail> {
+        return runCatching {
+            if (!appState.hasUsableMihomoProfile()) {
+                error("Mihomo profile is not configured")
+            }
+            val control = appState.mihomoControlConfig()
+            val backend = resolveInteractiveBackend(appState, control)
+            withContext(Dispatchers.IO) {
+                ensureInteractiveRuntime(appState, backend)
+                client.getProxyProvider(control, providerName, backend.useBridge())
+            }
+        }
+    }
+
+    suspend fun refreshProxyProvider(
+        appState: AppState,
+        providerName: String,
+    ): Result<Unit> {
+        return runCatching {
+            if (!appState.hasUsableMihomoProfile()) {
+                return@runCatching
+            }
+            val control = appState.mihomoControlConfig()
+            val backend = resolveInteractiveBackend(appState, control)
+            withContext(Dispatchers.IO) {
+                ensureInteractiveRuntime(appState, backend)
+                client.updateProxyProvider(control, providerName, backend.useBridge())
+                refreshRuntime(control, backend.useBridge())
+            }
+        }
+    }
+
     suspend fun patchMode(
         appState: AppState,
         mode: String,

@@ -33,6 +33,12 @@ sealed interface Route : NavKey {
     data object MihomoProfileList : Route
 
     @Serializable
+    data object MihomoProviders : Route
+
+    @Serializable
+    data class MihomoProviderDetail(val providerName: String) : Route
+
+    @Serializable
     data object MihomoOverrideScripts : Route
 
     @Serializable

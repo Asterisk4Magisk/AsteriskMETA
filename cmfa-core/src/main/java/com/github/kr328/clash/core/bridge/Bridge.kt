@@ -40,6 +40,7 @@ object Bridge {
 
     external fun nativeLoad(completable: CompletableDeferred<Unit>, path: String)
     external fun nativeQueryProviders(): String
+    external fun nativeQueryProvider(type: String, name: String): String?
     external fun nativeUpdateProvider(
         completable: CompletableDeferred<Unit>,
         type: String,

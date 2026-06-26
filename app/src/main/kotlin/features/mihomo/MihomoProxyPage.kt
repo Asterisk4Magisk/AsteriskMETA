@@ -72,7 +72,6 @@ import app.LocalIsWideScreen
 import app.LocalNavigator
 import app.LocalUpdateAppState
 import app.R
-import app.AppState
 import app.collectAppState
 import app.modes.MihomoProxyLayoutAuto
 import app.modes.MihomoProxyLayoutDouble
@@ -82,22 +81,15 @@ import app.modes.MihomoProxySortDefault
 import app.modes.MihomoProxySortDelay
 import app.modes.MihomoProxySortName
 import app.navigation.Route
-import com.github.kr328.clash.core.Clash
 import engine.mihomo.MihomoProfileFactory
-import engine.mihomo.escapeSupplementaryYamlCodePoints
+import engine.mihomo.hasMihomoProxyProviders
 import engine.mihomo.hasUsableMihomoProfile
-import engine.mihomo.mihomoProxyProviderFileCandidates
-import engine.mihomo.selectedMihomoProfileOrNull
 import engine.mihomo.runtime.MihomoProxiesState
 import engine.mihomo.runtime.MihomoProxyGroup
 import engine.mihomo.runtime.MihomoProxyNode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.snakeyaml.engine.v2.api.Load
-import org.snakeyaml.engine.v2.api.LoadSettings
-import features.resources.runtime.prepareMihomoResourceFilePaths
-import java.io.File
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.CardDefaults
 import top.yukonga.miuix.kmp.basic.DropdownEntry
@@ -114,11 +106,13 @@ import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.VerticalScrollBar
 import top.yukonga.miuix.kmp.basic.rememberScrollBarAdapter
 import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.File as FileIcon
 import top.yukonga.miuix.kmp.icon.extended.More
 import top.yukonga.miuix.kmp.icon.extended.Stopwatch
 import top.yukonga.miuix.kmp.interfaces.ExperimentalScrollBarApi
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.PressFeedbackType
+import ui.components.NavigationIcon
 import ui.components.WindowIconCascadingDropdownMenu
 import ui.isInDarkTheme
 import ui.layout.AdaptiveTopAppBar
@@ -149,39 +143,24 @@ fun MihomoProxyPage(
 
     val hasProfiles = appState.mihomoProfiles.isNotEmpty()
     val hasUsableProfile = appState.hasUsableMihomoProfile()
-    var fallbackProxies by remember { mutableStateOf(MihomoProxiesState()) }
-    LaunchedEffect(
-        hasUsableProfile,
-        appState.selectedMihomoProfileId,
-        appState.selectedMihomoProfileContentSignature(),
-        appState.selectedMihomoProfileOverrideHash(),
-        appState.selectedMihomoProfileAgeSecretKeyHash(),
-        appState.runMode,
-    ) {
-        if (!hasUsableProfile) {
-            fallbackProxies = MihomoProxiesState()
-            return@LaunchedEffect
-        }
-        val snapshot = appState
-        val dataDir = withContext(Dispatchers.IO) {
-            File(appContext.prepareMihomoResourceFilePaths().dataDir)
-        }
-        fallbackProxies = withContext(Dispatchers.IO) {
-            runCatching {
-                parseMihomoProxyState(
-                    profile = MihomoProfileFactory.buildProfile(appContext, snapshot),
-                    dataDir = dataDir,
-                    ageSecretKey = snapshot.selectedMihomoProfileOrNull()?.ageSecretKey.orEmpty(),
-                )
+    var hasProxyProviders by remember { mutableStateOf(false) }
+    LaunchedEffect(appState) {
+        hasProxyProviders = if (hasUsableProfile) {
+            withContext(Dispatchers.IO) {
+                runCatching {
+                    MihomoProfileFactory.buildProfile(appContext, appState)
+                        .hasMihomoProxyProviders()
+                }.getOrDefault(false)
             }
-                .getOrDefault(MihomoProxiesState())
+        } else {
+            false
         }
     }
     val runtimeProxies = runtimeState.proxies
     val runtimeHasProxySnapshot = runtimeProxies.groups.isNotEmpty()
     val proxies = when {
         !hasProfiles -> MihomoProxiesState()
-        else -> runtimeProxies.withFallbackGroupStructure(fallbackProxies)
+        else -> runtimeProxies
     }
     val visibleProxies = remember(proxies, appState.mihomoProxyExcludeNotSelectable) {
         proxies.withGroupFilter(excludeNotSelectable = appState.mihomoProxyExcludeNotSelectable)
@@ -303,6 +282,13 @@ fun MihomoProxyPage(
                 isWideScreen = isWideScreen,
                 scrollBehavior = topAppBarScrollBehavior,
                 actions = {
+                    if (hasProxyProviders) {
+                        NavigationIcon(
+                            onClick = { navigator.push(Route.MihomoProviders) },
+                            imageVector = MiuixIcons.FileIcon,
+                            contentDescription = stringResource(R.string.mihomo_providers_title),
+                        )
+                    }
                     MihomoProxyOptionsMenu(
                         excludeNotSelectable = appState.mihomoProxyExcludeNotSelectable,
                         layout = proxyLayout,
@@ -957,92 +943,6 @@ private fun mihomoProxyCardColor(selected: Boolean = false): Color {
     return MiuixTheme.colorScheme.primary.copy(alpha = if (selected) 0.18f else 0.12f)
 }
 
-private fun parseMihomoProxyState(
-    profile: String,
-    dataDir: File,
-    ageSecretKey: String,
-): MihomoProxiesState {
-    val escapedProfile = profile.escapeSupplementaryYamlCodePoints()
-    val root = runCatching {
-        val parsed = Load(LoadSettings.builder().build()).loadFromString(escapedProfile.value)
-        escapedProfile.restoreParsedValue(parsed) as? Map<*, *>
-    }.getOrNull().orEmpty()
-    val nodes = linkedMapOf<String, MihomoProxyNode>()
-    root["proxies"].asMapList().forEach { item -> item.putProxyNode(nodes) }
-    val providerNodesByName = linkedMapOf<String, List<String>>()
-    root["proxy-providers"].asMap().forEach { (providerName, providerValue) ->
-        val name = providerName.asTextOrNull() ?: return@forEach
-        val provider = providerValue as? Map<*, *> ?: return@forEach
-        val providerNodes = provider.proxyProviderNodeNames(nodes, dataDir, ageSecretKey)
-        if (providerNodes.isNotEmpty()) {
-            providerNodesByName[name] = providerNodes
-        }
-    }
-    val groups = root["proxy-groups"].asMapList().mapNotNull { item ->
-        val name = item["name"].asTextOrNull() ?: return@mapNotNull null
-        val all = buildList {
-            addAll(item["proxies"].asTextList())
-            item["use"].asTextList().forEach { providerName ->
-                addAll(providerNodesByName[providerName].orEmpty())
-            }
-        }.distinct()
-        all.forEach { proxyName ->
-            nodes.putIfAbsent(proxyName, MihomoProxyNode(name = proxyName, type = "Built-in"))
-        }
-        MihomoProxyGroup(
-            name = name,
-            type = item["type"].asTextOrNull().orEmpty().ifBlank { "Selector" },
-            now = "",
-            all = all,
-            testUrl = item["url"].asTextOrNull().orEmpty(),
-            hidden = item["hidden"].asBooleanOrFalse(),
-        )
-    }.filterNot(MihomoProxyGroup::hidden)
-
-    return MihomoProxiesState(
-        groups = groups,
-        nodes = nodes.values.toList(),
-        nodeByName = nodes,
-        updatedAtMillis = System.currentTimeMillis(),
-    )
-}
-
-private fun MihomoProxiesState.withFallbackGroupStructure(
-    fallback: MihomoProxiesState,
-): MihomoProxiesState {
-    if (groups.isEmpty()) {
-        return fallback
-    }
-    if (fallback.groups.size <= groups.size) {
-        return this
-    }
-
-    val runtimeGroupsByName = groups.associateBy(MihomoProxyGroup::name)
-    val runtimeNodesByName = nodeByName
-    val mergedNodes = linkedMapOf<String, MihomoProxyNode>()
-
-    fallback.nodes.forEach { node ->
-        mergedNodes[node.name] = runtimeNodesByName[node.name] ?: node
-    }
-    nodes.forEach { node ->
-        mergedNodes.putIfAbsent(node.name, node)
-    }
-
-    return fallback.copy(
-        groups = fallback.groups.map { group ->
-            val runtimeGroup = runtimeGroupsByName[group.name] ?: return@map group
-            group.copy(
-                now = runtimeGroup.now.ifBlank { group.now },
-                icon = runtimeGroup.icon.ifBlank { group.icon },
-                testUrl = runtimeGroup.testUrl.ifBlank { group.testUrl },
-            )
-        },
-        nodes = mergedNodes.values.toList(),
-        nodeByName = mergedNodes,
-        updatedAtMillis = maxOf(updatedAtMillis, fallback.updatedAtMillis),
-    )
-}
-
 private fun MihomoProxiesState.withGroupFilter(
     excludeNotSelectable: Boolean,
 ): MihomoProxiesState {
@@ -1111,155 +1011,6 @@ private fun MihomoProxyGroup.supportsManualSelection(): Boolean {
 
 private fun String.normalizedMihomoGroupType(): String {
     return trim().lowercase().replace("-", "").replace("_", "").replace(" ", "")
-}
-
-private fun AppState.selectedMihomoProfileContentSignature(): Int {
-    val profile = selectedMihomoProfileOrNull() ?: return 0
-    return listOf(profile.contentPath, profile.contentSha256, profile.contentSizeBytes).hashCode()
-}
-
-private fun AppState.selectedMihomoProfileOverrideHash(): Int {
-    val profile = selectedMihomoProfileOrNull() ?: return 0
-    val script = mihomoOverrideScripts.firstOrNull { item -> item.id == profile.overrideScriptId }
-    return 31 * profile.overrideScriptId + (script?.content?.hashCode() ?: 0)
-}
-
-private fun AppState.selectedMihomoProfileAgeSecretKeyHash(): Int {
-    return selectedMihomoProfileOrNull()?.ageSecretKey.orEmpty().hashCode()
-}
-
-private fun Map<*, *>.putProxyNode(nodes: MutableMap<String, MihomoProxyNode>): String? {
-    val name = this["name"].asTextOrNull() ?: return null
-    nodes[name] = MihomoProxyNode(
-        name = name,
-        type = this["type"].asTextOrNull().orEmpty().ifBlank { "Proxy" },
-        udp = this["udp"].asBooleanOrFalse(),
-    )
-    return name
-}
-
-private fun Map<*, *>.proxyProviderNodeNames(
-    nodes: MutableMap<String, MihomoProxyNode>,
-    dataDir: File,
-    ageSecretKey: String,
-): List<String> {
-    val payload = this["payload"].asMapList()
-        .ifEmpty { this["proxies"].asMapList() }
-        .ifEmpty { proxyProviderFilePayload(dataDir, ageSecretKey) }
-    return payload.mapNotNull { item -> item.putProxyNode(nodes) }
-}
-
-private fun Map<*, *>.proxyProviderFilePayload(
-    dataDir: File,
-    ageSecretKey: String,
-): List<Map<*, *>> {
-    val file = mihomoProxyProviderFileCandidates(dataDir, this)
-        .firstOrNull { candidate -> candidate.exists() && candidate.length() > 0 }
-        ?: return emptyList()
-    val providerAgeSecretKey = this["age-secret-key"].asTextOrNull()
-    val escaped = runCatching {
-        file.readText()
-            .decryptAge(providerAgeSecretKey ?: ageSecretKey)
-            .escapeSupplementaryYamlCodePoints()
-    }.getOrNull()
-        ?: return emptyList()
-    val parsed = runCatching {
-        val value = Load(LoadSettings.builder().build()).loadFromString(escaped.value)
-        escaped.restoreParsedValue(value)
-    }.getOrNull()
-    return when (parsed) {
-        is Map<*, *> -> parsed["proxies"].asMapList().ifEmpty { parsed["payload"].asMapList() }
-        is List<*> -> parsed.asMapList()
-        else -> emptyList()
-    }
-}
-
-private fun String.decryptAge(ageSecretKey: String): String {
-    return Clash.decryptAge(this, ageSecretKey.trim().takeIf(String::isNotBlank))
-}
-
-private fun Any?.asMap(): Map<*, *> {
-    return this as? Map<*, *> ?: emptyMap<Any?, Any?>()
-}
-
-private fun Any?.asMapList(): List<Map<*, *>> {
-    return (this as? List<*>)?.mapNotNull { item -> item as? Map<*, *> }.orEmpty()
-}
-
-private fun Any?.asTextList(): List<String> {
-    return (this as? List<*>)?.mapNotNull { item -> item.asTextOrNull() }.orEmpty()
-}
-
-private fun Any?.asTextOrNull(): String? {
-    return when (this) {
-        null -> null
-        is String -> this
-        else -> toString()
-    }?.trim()?.takeIf(String::isNotEmpty)
-}
-
-private fun Any?.asBooleanOrFalse(): Boolean {
-    return when (this) {
-        is Boolean -> this
-        is String -> this.toBooleanStrictOrNull() ?: false
-        else -> false
-    }
-}
-
-private fun String.displayMihomoProtocolName(compact: Boolean = false): String {
-    val protocol = trim().ifBlank { return "Proxy" }
-    val normalized = protocol.lowercase().replace("_", "-").replace(" ", "-")
-    if (compact) {
-        when (normalized) {
-            "ss", "shadowsocks" -> return "SS"
-            "ssr", "shadowsocksr", "shadowsocks-r" -> return "SSR"
-            "hysteria2", "hy2" -> return "HY2"
-            "wireguard", "wire-guard", "wg" -> return "WG"
-            "tailscale" -> return "Tailscale"
-            "trusttunnel", "trust-tunnel" -> return "TrustTun"
-            "gostrelay", "gost-relay" -> return "GOST Relay"
-            "compatible" -> return "Compat"
-            "rejectdrop", "reject-drop" -> return "Reject Drop"
-            "loadbalance", "load-balance" -> return "Balance"
-        }
-    }
-    return when (normalized) {
-        "vmess" -> "VMess"
-        "vless" -> "VLESS"
-        "ss", "shadowsocks" -> "Shadowsocks"
-        "ssr", "shadowsocksr", "shadowsocks-r" -> "ShadowsocksR"
-        "socks", "socks5" -> "SOCKS5"
-        "http" -> "HTTP"
-        "https" -> "HTTPS"
-        "trojan" -> "Trojan"
-        "hysteria" -> "Hysteria"
-        "hysteria2", "hy2" -> "Hysteria2"
-        "tuic" -> "TUIC"
-        "wireguard", "wire-guard", "wg" -> "WireGuard"
-        "snell" -> "Snell"
-        "ssh" -> "SSH"
-        "dns" -> "DNS"
-        "mieru" -> "Mieru"
-        "anytls", "any-tls" -> "AnyTLS"
-        "masque" -> "MASQUE"
-        "openvpn", "open-vpn" -> "OpenVPN"
-        "tailscale" -> "Tailscale"
-        "trusttunnel", "trust-tunnel" -> "TrustTunnel"
-        "gostrelay", "gost-relay" -> "GostRelay"
-        "direct" -> "Direct"
-        "reject" -> "Reject"
-        "rejectdrop", "reject-drop" -> "RejectDrop"
-        "compatible" -> "Compatible"
-        "pass" -> "Pass"
-        "passrule", "pass-rule" -> "PassRule"
-        "relay" -> "Relay"
-        "select", "selector" -> "Selector"
-        "fallback" -> "Fallback"
-        "urltest", "url-test" -> "URLTest"
-        "loadbalance", "load-balance" -> "LoadBalance"
-        "built-in", "builtin" -> "Built-in"
-        else -> protocol
-    }
 }
 
 @Composable
