@@ -308,6 +308,7 @@ private fun SettingsContent(
                     runMode = appState.runMode,
                     localProxySettingsSummary = localProxySettingsSummary,
                     enableVpnAppendHttpProxy = appState.enableVpnAppendHttpProxy,
+                    enableVpnHevTun = appState.enableVpnHevTun,
                     tunSettingsSummary = tunSettingsSummary,
                     enableRootBootScript = appState.enableRootBootScript,
                     enableRootEbpfRules = appState.enableRootEbpfRules,
@@ -320,6 +321,9 @@ private fun SettingsContent(
                     onOpenLocalProxySettings = { sheetState.openLocalProxySettings(appState) },
                     onEnableVpnAppendHttpProxyChange = { enabled ->
                         updateAppState { state -> state.copy(enableVpnAppendHttpProxy = enabled) }
+                    },
+                    onEnableVpnHevTunChange = { enabled ->
+                        updateAppState { state -> state.copy(enableVpnHevTun = enabled) }
                     },
                     onOpenTunSettings = { sheetState.openTunSettings(appState) },
                     onEnableRootBootScriptChange = { enabled ->

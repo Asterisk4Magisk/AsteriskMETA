@@ -12,7 +12,6 @@ plugins {
 
 val generatedSrcDir: Provider<Directory> = layout.buildDirectory.dir("generated/projectInfo")
 val generatedMihomoCoreJniLibsDir: Provider<Directory> = layout.buildDirectory.dir("generated/mihomoCoreJniLibs")
-val generatedHevSocks5TunnelJniLibsDir: Provider<Directory> = layout.buildDirectory.dir("generated/hevSocks5TunnelJniLibs")
 
 android {
     namespace = "app"
@@ -114,6 +113,7 @@ dependencies {
     implementation(dependencies.project(":setuidgid"))
     implementation(dependencies.project(":ipv6disabler"))
     implementation(dependencies.project(":bpfmatcher"))
+    implementation(dependencies.project(":hevtun"))
     implementation(libs.ktor.http)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.libsu.core)
@@ -158,7 +158,6 @@ androidComponents {
         }
         variant.sources.assets?.addStaticSourceDirectory("build/generated/resourceFileAssets")
         variant.sources.jniLibs?.addStaticSourceDirectory("build/generated/mihomoCoreJniLibs")
-        variant.sources.jniLibs?.addStaticSourceDirectory("build/generated/hevSocks5TunnelJniLibs")
     }
 }
 

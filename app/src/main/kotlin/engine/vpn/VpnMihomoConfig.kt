@@ -6,6 +6,11 @@ package engine.vpn
 import android.content.Context
 import android.os.Process
 import app.effectiveLocalDnsEnabled
+import engine.hevtun.HevSocks5TunnelConfig
+import engine.hevtun.HevSocks5TunnelConfigFileName
+import engine.hevtun.HevSocks5TunnelLogFileName
+import engine.hevtun.hevSocks5TunnelLogFile
+import engine.hevtun.hevSocks5TunnelSocksTargetAddress
 import engine.mihomo.MihomoProfileFactory
 import engine.mihomo.sha256Hex
 import engine.mihomo.selectedMihomoProfileOrNull
@@ -38,6 +43,7 @@ internal data class VpnServiceStartConfig(
     val appendHttpProxyOptions: VpnAppendHttpProxyOptions,
     val coreLogPaths: MihomoCoreLogPaths,
     val dataDir: String = "",
+    val hevSocks5TunnelConfig: HevSocks5TunnelConfig? = null,
 )
 
 internal object VpnMihomoConfigFactory {
@@ -83,6 +89,39 @@ internal object VpnMihomoConfigFactory {
             appendHttpProxyOptions = appendHttpProxyOptions,
             coreLogPaths = coreLogPaths,
             dataDir = resourceFilePaths.dataDir,
+            hevSocks5TunnelConfig = buildVpnHevSocks5TunnelConfig(
+                dataDir = resourceFilePaths.dataDir,
+                coreLogPaths = coreLogPaths,
+                localProxyOptions = localProxyOptions,
+                tunOptions = tunOptions,
+                enableIpv6 = appState.enableIpv6,
+                useHevTun = appState.enableVpnHevTun,
+            ),
         )
     }
+}
+
+internal fun buildVpnHevSocks5TunnelConfig(
+    dataDir: String,
+    coreLogPaths: MihomoCoreLogPaths,
+    localProxyOptions: LocalProxyOptions,
+    tunOptions: TunOptions,
+    enableIpv6: Boolean,
+    useHevTun: Boolean = true,
+): HevSocks5TunnelConfig? {
+    if (!useHevTun) return null
+    return HevSocks5TunnelConfig(
+        configPath = File(dataDir, HevSocks5TunnelConfigFileName).absolutePath,
+        logPath = coreLogPaths.hevSocks5TunnelLogFile(HevSocks5TunnelLogFileName).absolutePath,
+        socksAddress = hevSocks5TunnelSocksTargetAddress(localProxyOptions),
+        socksPort = localProxyOptions.port,
+        socksUsername = localProxyOptions.username,
+        socksPassword = localProxyOptions.password,
+        mtu = tunOptions.mtu,
+        ipv4Address = tunOptions.ipv4Address.address,
+        ipv6Address = tunOptions.ipv6Address.address.takeIf { enableIpv6 },
+        tunnelName = "asterisk0",
+        enableMultiQueue = true,
+        enableTcpFastOpen = true,
+    )
 }

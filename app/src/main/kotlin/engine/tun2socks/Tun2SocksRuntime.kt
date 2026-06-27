@@ -5,26 +5,20 @@ package engine.tun2socks
 
 import android.content.Context
 import app.AppState
+import engine.hevtun.HevSocks5TunnelConfig
+import engine.hevtun.HevSocks5TunnelConfigFileName
+import engine.hevtun.HevSocks5TunnelPidFileName
+import engine.hevtun.writeConfigFile
 import engine.root.RootRuntimeLayout
 import engine.root.appendScript
 import engine.root.buildRootProcessMatchCommand
 import engine.root.buildRootProcessMatchTest
-import engine.mihomo.MihomoCoreLogPaths
-import engine.mihomo.logDirectoryPath
-import engine.mihomo.prepareMihomoCoreLogPaths
 import features.resources.runtime.mihomoResourceFilesDir
 import utils.shellQuote
-import utils.writeAtomically
 import java.io.File
 
 internal fun Context.writeHevSocks5TunnelConfigFile(appState: AppState) {
     applicationContext.prepareHevSocks5TunnelConfig(appState).writeConfigFile()
-}
-
-internal fun HevSocks5TunnelConfig.writeConfigFile() {
-    writeAtomically(File(configPath)) { output ->
-        output.write(buildHevSocks5TunnelConfigYaml().toByteArray(Charsets.UTF_8))
-    }
 }
 
 internal fun HevSocks5TunnelConfig.buildStartCommand(): String {
@@ -99,44 +93,11 @@ private fun buildHevSocks5TunnelProcessMatchCommand(
     )
 }
 
-private fun HevSocks5TunnelConfig.buildHevSocks5TunnelConfigYaml(): String {
-    return buildString {
-        appendLine("tunnel:")
-        appendLine("  name: 'asterisk0'")
-        appendLine("  mtu: $mtu")
-        appendLine("  multi-queue: true")
-        appendLine("  ipv4: ${ipv4Address.toYamlSingleQuotedString()}")
-        ipv6Address?.let { address ->
-            appendLine("  ipv6: ${address.toYamlSingleQuotedString()}")
-        }
-        appendLine("socks5:")
-        appendLine("  port: $socksPort")
-        appendLine("  address: ${Tun2SocksListenAddress.toYamlSingleQuotedString()}")
-        appendLine("  udp: 'udp'")
-        appendLine("  tcp-fastopen: true")
-    }
-}
-
-internal fun MihomoCoreLogPaths.hevSocks5TunnelLogFile(): File {
-    return File(logDirectoryPath(), HevSocks5TunnelLogFileName)
-}
-
 internal fun Context.deleteHevSocks5TunnelConfigFile() {
     val file = File(applicationContext.mihomoResourceFilesDir(), HevSocks5TunnelConfigFileName)
     if (file.exists() && !file.delete()) {
         error("Failed to delete ${file.absolutePath}")
     }
-}
-
-internal fun Context.deleteHevSocks5TunnelLogFile() {
-    val file = applicationContext.prepareMihomoCoreLogPaths().hevSocks5TunnelLogFile()
-    if (file.exists() && !file.delete()) {
-        error("Failed to delete ${file.absolutePath}")
-    }
-}
-
-private fun String.toYamlSingleQuotedString(): String {
-    return "'${replace("'", "''")}'"
 }
 
 private const val HevSocks5TunnelUid = 0

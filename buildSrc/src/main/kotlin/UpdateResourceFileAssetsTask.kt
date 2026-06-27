@@ -17,14 +17,8 @@ abstract class UpdateResourceFileAssetsTask : DefaultTask() {
     @get:Input
     abstract val mihomoCoreVersion: Property<String>
 
-    @get:Input
-    abstract val hevSocks5TunnelVersion: Property<String>
-
     @get:OutputDirectory
     abstract val mihomoCoreJniLibsDir: DirectoryProperty
-
-    @get:OutputDirectory
-    abstract val hevSocks5TunnelJniLibsDir: DirectoryProperty
 
     @get:OutputDirectory
     abstract val resourceFileAssetsDir: DirectoryProperty
@@ -42,12 +36,6 @@ abstract class UpdateResourceFileAssetsTask : DefaultTask() {
                 target = File(mihomoCoreJniLibsDir.get().asFile, "${asset.androidAbi}/libmihomo.so"),
             )
         }
-        AndroidHevSocks5TunnelAssets.forEach { asset ->
-            downloadFile(
-                url = hevSocks5TunnelArchiveUrl(asset.releaseName),
-                target = File(hevSocks5TunnelJniLibsDir.get().asFile, "${asset.androidAbi}/libhev-socks5-tunnel.so"),
-            )
-        }
         AndroidMihomoResourceFileAssets.forEach { asset ->
             downloadFile(
                 url = asset.url,
@@ -59,11 +47,6 @@ abstract class UpdateResourceFileAssetsTask : DefaultTask() {
     private fun mihomoCoreArchiveUrl(releaseName: String): String {
         val version = mihomoCoreVersion.get()
         return "https://github.com/MetaCubeX/mihomo/releases/download/$version/$releaseName"
-    }
-
-    private fun hevSocks5TunnelArchiveUrl(releaseName: String): String {
-        val version = hevSocks5TunnelVersion.get()
-        return "https://github.com/heiher/hev-socks5-tunnel/releases/download/$version/$releaseName"
     }
 
     private fun downloadGzipFile(url: String, target: File) {
@@ -135,11 +118,6 @@ abstract class UpdateResourceFileAssetsTask : DefaultTask() {
     }
 }
 
-private data class HevSocks5TunnelAsset(
-    val androidAbi: String,
-    val releaseName: String,
-)
-
 private data class MihomoAsset(
     val androidAbi: String,
     val releaseName: String,
@@ -155,13 +133,6 @@ private val AndroidMihomoAssets = listOf(
     MihomoAsset("armeabi-v7a", "mihomo-android-armv7-${ProjectConfig.MIHOMO_CORE_VERSION}.gz"),
     MihomoAsset("x86", "mihomo-android-386-${ProjectConfig.MIHOMO_CORE_VERSION}.gz"),
     MihomoAsset("x86_64", "mihomo-android-amd64-${ProjectConfig.MIHOMO_CORE_VERSION}.gz"),
-)
-
-private val AndroidHevSocks5TunnelAssets = listOf(
-    HevSocks5TunnelAsset("arm64-v8a", "hev-socks5-tunnel-linux-arm64"),
-    HevSocks5TunnelAsset("armeabi-v7a", "hev-socks5-tunnel-linux-arm32v7"),
-    HevSocks5TunnelAsset("x86", "hev-socks5-tunnel-linux-i686"),
-    HevSocks5TunnelAsset("x86_64", "hev-socks5-tunnel-linux-x86_64"),
 )
 
 private val AndroidMihomoResourceFileAssets = listOf(

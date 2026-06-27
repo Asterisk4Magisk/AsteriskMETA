@@ -86,8 +86,10 @@ On macOS or Linux:
 The build:
 
 - uses Android SDK and NDK
-- prepares bundled Mihomo and `hev-socks5-tunnel` native runtime files
+- prepares bundled Mihomo native runtime files
 - checks out the Mihomo submodule to `ProjectConfig.MIHOMO_CORE_VERSION` before CMFA JNI builds
+- checks out `hev-socks5-tunnel` to `ProjectConfig.HEV_SOCKS5_TUNNEL_VERSION` before building it
+- builds the native `hev-socks5-tunnel` JNI library and CLI runtime from the vendored submodule
 - builds the vendored CMFA Go core
 - builds the native `setuidgid` and `ipv6disabler` helpers
 - produces ABI split APKs for `arm64-v8a`, `armeabi-v7a`, `x86`, `x86_64`, plus a universal APK

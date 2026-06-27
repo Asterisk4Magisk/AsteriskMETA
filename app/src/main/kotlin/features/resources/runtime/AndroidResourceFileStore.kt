@@ -237,7 +237,7 @@ private const val SetuidgidLibraryName = "libsetuidgid.so"
 private const val Ipv6DisablerLibraryName = "libipv6disabler.so"
 private const val BpfMatcherLibraryName = "libbpf-matcher.so"
 private const val MihomoCoreLibraryName = "libmihomo.so"
-private const val HevSocks5TunnelLibraryName = "libhev-socks5-tunnel.so"
+private const val HevSocks5TunnelLibraryName = "libhev-socks5-tunnel-cli.so"
 private const val MihomoHomeDirName = "clash"
 
 private val SupportedAndroidAbis = setOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64")

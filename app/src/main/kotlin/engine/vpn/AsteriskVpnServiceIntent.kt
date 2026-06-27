@@ -6,6 +6,10 @@ package engine.vpn
 import android.content.Context
 import android.content.Intent
 import app.modes.ProxyAppListModeGlobal
+import engine.hevtun.DefaultHevSocks5TunnelLogLevel
+import engine.hevtun.DefaultHevSocks5TunnelTcpReadWriteTimeoutMillis
+import engine.hevtun.DefaultHevSocks5TunnelUdpReadWriteTimeoutMillis
+import engine.hevtun.HevSocks5TunnelConfig
 import engine.proxy.LocalProxyLoopbackAddress
 import engine.proxy.LocalProxyOptions
 import engine.mihomo.MihomoCoreLogPaths
@@ -70,6 +74,7 @@ internal fun Intent.readVpnServiceStartConfig(): VpnServiceStartConfig? {
             errorLogPath = getStringExtra(EXTRA_ERROR_LOG_PATH).orEmpty(),
         ),
         dataDir = getStringExtra(EXTRA_DATA_DIR).orEmpty(),
+        hevSocks5TunnelConfig = readHevSocks5TunnelConfig(),
     )
 }
 
@@ -97,6 +102,63 @@ private fun Intent.writeStartConfig(config: VpnServiceStartConfig) {
     putExtra(EXTRA_APPEND_HTTP_PROXY_PORT, config.appendHttpProxyOptions.port)
     putExtra(EXTRA_ERROR_LOG_PATH, config.coreLogPaths.errorLogPath)
     putExtra(EXTRA_DATA_DIR, config.dataDir)
+    config.hevSocks5TunnelConfig?.let { hevConfig ->
+        writeHevSocks5TunnelConfig(hevConfig)
+    }
+}
+
+private fun Intent.readHevSocks5TunnelConfig(): HevSocks5TunnelConfig? {
+    val configPath = getStringExtra(EXTRA_HEV_TUN_CONFIG_PATH) ?: return null
+    val logPath = getStringExtra(EXTRA_HEV_TUN_LOG_PATH) ?: return null
+    return HevSocks5TunnelConfig(
+        executablePath = getStringExtra(EXTRA_HEV_TUN_EXECUTABLE_PATH).orEmpty(),
+        configPath = configPath,
+        pidPath = getStringExtra(EXTRA_HEV_TUN_PID_PATH).orEmpty(),
+        logPath = logPath,
+        socksAddress = getStringExtra(EXTRA_HEV_TUN_SOCKS_ADDRESS).orEmpty().ifBlank {
+            LocalProxyLoopbackAddress
+        },
+        socksPort = getIntExtra(EXTRA_HEV_TUN_SOCKS_PORT, VpnDefaults.LOCAL_PROXY_PORT),
+        socksUsername = getStringExtra(EXTRA_HEV_TUN_SOCKS_USERNAME).orEmpty(),
+        socksPassword = getStringExtra(EXTRA_HEV_TUN_SOCKS_PASSWORD).orEmpty(),
+        mtu = getIntExtra(EXTRA_HEV_TUN_MTU, VpnDefaults.MTU),
+        ipv4Address = getStringExtra(EXTRA_HEV_TUN_IPV4_ADDRESS) ?: defaultIpv4TunAddress.address,
+        ipv6Address = getStringExtra(EXTRA_HEV_TUN_IPV6_ADDRESS),
+        tunnelName = getStringExtra(EXTRA_HEV_TUN_TUNNEL_NAME),
+        enableMultiQueue = getBooleanExtra(EXTRA_HEV_TUN_MULTI_QUEUE, false),
+        enableTcpFastOpen = getBooleanExtra(EXTRA_HEV_TUN_TCP_FAST_OPEN, false),
+        tcpReadWriteTimeoutMillis = getIntExtra(
+            EXTRA_HEV_TUN_TCP_RW_TIMEOUT,
+            DefaultHevSocks5TunnelTcpReadWriteTimeoutMillis,
+        ),
+        udpReadWriteTimeoutMillis = getIntExtra(
+            EXTRA_HEV_TUN_UDP_RW_TIMEOUT,
+            DefaultHevSocks5TunnelUdpReadWriteTimeoutMillis,
+        ),
+        logLevel = getStringExtra(EXTRA_HEV_TUN_LOG_LEVEL).orEmpty().ifBlank {
+            DefaultHevSocks5TunnelLogLevel
+        },
+    )
+}
+
+private fun Intent.writeHevSocks5TunnelConfig(config: HevSocks5TunnelConfig) {
+    putExtra(EXTRA_HEV_TUN_EXECUTABLE_PATH, config.executablePath)
+    putExtra(EXTRA_HEV_TUN_CONFIG_PATH, config.configPath)
+    putExtra(EXTRA_HEV_TUN_PID_PATH, config.pidPath)
+    putExtra(EXTRA_HEV_TUN_LOG_PATH, config.logPath)
+    putExtra(EXTRA_HEV_TUN_SOCKS_ADDRESS, config.socksAddress)
+    putExtra(EXTRA_HEV_TUN_SOCKS_PORT, config.socksPort)
+    putExtra(EXTRA_HEV_TUN_SOCKS_USERNAME, config.socksUsername)
+    putExtra(EXTRA_HEV_TUN_SOCKS_PASSWORD, config.socksPassword)
+    putExtra(EXTRA_HEV_TUN_MTU, config.mtu)
+    putExtra(EXTRA_HEV_TUN_IPV4_ADDRESS, config.ipv4Address)
+    putExtra(EXTRA_HEV_TUN_IPV6_ADDRESS, config.ipv6Address)
+    putExtra(EXTRA_HEV_TUN_TUNNEL_NAME, config.tunnelName)
+    putExtra(EXTRA_HEV_TUN_MULTI_QUEUE, config.enableMultiQueue)
+    putExtra(EXTRA_HEV_TUN_TCP_FAST_OPEN, config.enableTcpFastOpen)
+    putExtra(EXTRA_HEV_TUN_TCP_RW_TIMEOUT, config.tcpReadWriteTimeoutMillis)
+    putExtra(EXTRA_HEV_TUN_UDP_RW_TIMEOUT, config.udpReadWriteTimeoutMillis)
+    putExtra(EXTRA_HEV_TUN_LOG_LEVEL, config.logLevel)
 }
 
 private const val EXTRA_SESSION_NAME = "session_name"
@@ -122,3 +184,20 @@ private const val EXTRA_APPEND_HTTP_PROXY_ENABLED = "append_http_proxy_enabled"
 private const val EXTRA_APPEND_HTTP_PROXY_PORT = "append_http_proxy_port"
 private const val EXTRA_ERROR_LOG_PATH = "error_log_path"
 private const val EXTRA_DATA_DIR = "data_dir"
+private const val EXTRA_HEV_TUN_EXECUTABLE_PATH = "hev_tun_executable_path"
+private const val EXTRA_HEV_TUN_CONFIG_PATH = "hev_tun_config_path"
+private const val EXTRA_HEV_TUN_PID_PATH = "hev_tun_pid_path"
+private const val EXTRA_HEV_TUN_LOG_PATH = "hev_tun_log_path"
+private const val EXTRA_HEV_TUN_SOCKS_ADDRESS = "hev_tun_socks_address"
+private const val EXTRA_HEV_TUN_SOCKS_PORT = "hev_tun_socks_port"
+private const val EXTRA_HEV_TUN_SOCKS_USERNAME = "hev_tun_socks_username"
+private const val EXTRA_HEV_TUN_SOCKS_PASSWORD = "hev_tun_socks_password"
+private const val EXTRA_HEV_TUN_MTU = "hev_tun_mtu"
+private const val EXTRA_HEV_TUN_IPV4_ADDRESS = "hev_tun_ipv4_address"
+private const val EXTRA_HEV_TUN_IPV6_ADDRESS = "hev_tun_ipv6_address"
+private const val EXTRA_HEV_TUN_TUNNEL_NAME = "hev_tun_tunnel_name"
+private const val EXTRA_HEV_TUN_MULTI_QUEUE = "hev_tun_multi_queue"
+private const val EXTRA_HEV_TUN_TCP_FAST_OPEN = "hev_tun_tcp_fast_open"
+private const val EXTRA_HEV_TUN_TCP_RW_TIMEOUT = "hev_tun_tcp_rw_timeout"
+private const val EXTRA_HEV_TUN_UDP_RW_TIMEOUT = "hev_tun_udp_rw_timeout"
+private const val EXTRA_HEV_TUN_LOG_LEVEL = "hev_tun_log_level"

@@ -6,6 +6,7 @@
     <string name="error_qr_image_decode_failed">No QR code was found in this image</string>
     <string name="error_vpn_start_config_missing">VPN Service start configuration is missing</string>
     <string name="error_vpn_tunnel_establish_failed">Unable to establish VPN tunnel</string>
+    <string name="error_vpn_tun_fd_unavailable">VPN TUN file descriptor is unavailable</string>
     <string name="error_tproxy_root_required">ROOT access is required for TPROXY mode</string>
     <string name="error_tproxy_start_failed">Failed to start TPROXY mode: %1$s</string>
     <string name="error_tun_root_required">ROOT access is required for TUN mode</string>
@@ -243,6 +244,8 @@
     <string name="settings_local_proxy_summary_tun2socks">TUN2SOCKS SOCKS5 port {port}</string>
     <string name="settings_vpn_append_http_proxy">Append HTTP proxy</string>
     <string name="settings_vpn_append_http_proxy_summary">Supported apps use HTTP proxy directly</string>
+    <string name="settings_vpn_hev_tun">Use Hev TUN</string>
+    <string name="settings_vpn_hev_tun_summary">Use hev-socks5-tunnel to create the TUN device</string>
     <string name="settings_tun">TUN settings</string>
     <string name="settings_tun_summary">TUN stack {stack}, MTU {mtu}, VPN DNS {vpnDns}, IPv4 {ipv4}, IPv6 {ipv6}</string>
     <string name="settings_tun_summary_without_dns">TUN stack {stack}, MTU {mtu}, IPv4 {ipv4}, IPv6 {ipv6}</string>

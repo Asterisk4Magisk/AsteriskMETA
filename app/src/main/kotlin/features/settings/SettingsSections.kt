@@ -205,6 +205,7 @@ internal fun SettingsProxyModeSections(
     runMode: Int,
     localProxySettingsSummary: String,
     enableVpnAppendHttpProxy: Boolean,
+    enableVpnHevTun: Boolean,
     tunSettingsSummary: String,
     enableRootBootScript: Boolean,
     enableRootEbpfRules: Boolean,
@@ -216,6 +217,7 @@ internal fun SettingsProxyModeSections(
     privateAddressCidrsSummary: String,
     onOpenLocalProxySettings: () -> Unit,
     onEnableVpnAppendHttpProxyChange: (Boolean) -> Unit,
+    onEnableVpnHevTunChange: (Boolean) -> Unit,
     onOpenTunSettings: () -> Unit,
     onEnableRootBootScriptChange: (Boolean) -> Unit,
     onEnableRootEbpfRulesChange: (Boolean) -> Unit,
@@ -243,6 +245,12 @@ internal fun SettingsProxyModeSections(
                     summary = stringResource(R.string.settings_vpn_append_http_proxy_summary),
                     checked = enableVpnAppendHttpProxy,
                     onCheckedChange = onEnableVpnAppendHttpProxyChange,
+                )
+                SwitchPreference(
+                    title = stringResource(R.string.settings_vpn_hev_tun),
+                    summary = stringResource(R.string.settings_vpn_hev_tun_summary),
+                    checked = enableVpnHevTun,
+                    onCheckedChange = onEnableVpnHevTunChange,
                 )
                 ArrowPreference(
                     title = stringResource(R.string.settings_tun),

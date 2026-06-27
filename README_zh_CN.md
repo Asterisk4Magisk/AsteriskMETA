@@ -86,8 +86,10 @@ macOS 或 Linux：
 构建过程会：
 
 - 使用 Android SDK 和 NDK
-- 准备内置 Mihomo 和 `hev-socks5-tunnel` native 运行时文件
+- 准备内置 Mihomo native 运行时文件
 - 在 CMFA JNI 构建前将 Mihomo submodule checkout 到 `ProjectConfig.MIHOMO_CORE_VERSION`
+- 构建前将 `hev-socks5-tunnel` checkout 到 `ProjectConfig.HEV_SOCKS5_TUNNEL_VERSION`
+- 从 vendored submodule 构建 native `hev-socks5-tunnel` JNI library 和 CLI runtime
 - 构建 vendored CMFA Go core
 - 构建 native `setuidgid` 和 `ipv6disabler` helper
 - 产出 `arm64-v8a`、`armeabi-v7a`、`x86`、`x86_64` 四个 ABI split APK，以及一个 universal APK

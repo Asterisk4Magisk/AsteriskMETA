@@ -12,25 +12,40 @@ import android.net.ConnectivityManager
 import android.net.ProxyInfo
 import android.net.VpnService
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.os.ParcelFileDescriptor
 import app.R
 import app.modes.ProxyAppListModeBlacklist
 import app.modes.ProxyAppListModeGlobal
 import app.modes.ProxyAppListModeWhitelist
+import engine.mihomo.clearCoreLogs
 import engine.network.NetworkDefaults
 import engine.proxy.LocalProxyLoopbackAddress
 import engine.proxy.LocalProxyRuntime
-import engine.mihomo.clearCoreLogs
+import engine.vpn.hevtun.HevTunRuntime
 import features.logs.AndroidAppLogger
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
 import system.getInstalledApplicationsCompat
 import utils.toTrimmedNonEmptyDistinctList
 import java.net.InetSocketAddress
+import kotlin.time.Duration.Companion.milliseconds
 
 @SuppressLint("VpnServicePolicy")
 class AsteriskVpnService : VpnService() {
     private var tunFileDescriptor: ParcelFileDescriptor? = null
+    private var hevTunRuntime: HevTunRuntime? = null
+    private val serviceJob = SupervisorJob()
+    private val serviceScope = CoroutineScope(serviceJob + Dispatchers.IO)
+    private val operationMutex = Mutex()
+    private val mainHandler = Handler(Looper.getMainLooper())
     private val connectivityManager: ConnectivityManager by lazy {
         getSystemService(ConnectivityManager::class.java)
     }
@@ -38,8 +53,15 @@ class AsteriskVpnService : VpnService() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             AsteriskVpnServiceIntents.ACTION_STOP -> {
-                stopVpn()
-                stopSelf(startId)
+                serviceScope.launch {
+                    try {
+                        operationMutex.withLock {
+                            stopVpn()
+                        }
+                    } finally {
+                        stopSelfOnMain(startId)
+                    }
+                }
             }
 
             AsteriskVpnServiceIntents.ACTION_START -> {
@@ -49,15 +71,19 @@ class AsteriskVpnService : VpnService() {
                     stopSelf(startId)
                     return Service.START_NOT_STICKY
                 }
-                runCatching {
-                    startVpn(config)
-                }.onSuccess {
-                    completeStart(Result.success(Unit))
-                }.onFailure { error ->
-                    AndroidAppLogger.error(LogTag, "Failed to start VPN Service", error)
-                    stopVpn(resetCore = true)
-                    completeStart(Result.failure(error))
-                    stopSelf(startId)
+                serviceScope.launch {
+                    operationMutex.withLock {
+                        runCatching {
+                            startVpn(config)
+                        }.onSuccess {
+                            completeStart(Result.success(Unit))
+                        }.onFailure { error ->
+                            AndroidAppLogger.error(LogTag, "Failed to start VPN Service", error)
+                            stopVpn(resetCore = true)
+                            completeStart(Result.failure(error))
+                            stopSelfOnMain(startId)
+                        }
+                    }
                 }
             }
         }
@@ -65,8 +91,25 @@ class AsteriskVpnService : VpnService() {
     }
 
     override fun onDestroy() {
-        stopVpn()
+        serviceScope.launch {
+            runCatching {
+                operationMutex.withLock {
+                    stopVpn()
+                }
+            }.onFailure { error ->
+                AndroidAppLogger.warn(LogTag, "Failed to stop VPN Service while destroying service", error)
+            }
+            serviceJob.cancel()
+        }
         super.onDestroy()
+    }
+
+    private fun stopSelfOnMain(startId: Int) {
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            stopSelf(startId)
+        } else {
+            mainHandler.post { stopSelf(startId) }
+        }
     }
 
     private fun startVpn(config: VpnServiceStartConfig) {
@@ -74,14 +117,28 @@ class AsteriskVpnService : VpnService() {
         config.coreLogPaths.clearCoreLogs(LogTag)
         val tunDescriptor = establishTun(config)
         tunFileDescriptor = tunDescriptor
-        AndroidMihomoRuntime.start(
-            context = this,
-            config = config,
-            tunFileDescriptor = tunDescriptor,
-            markSocket = this::protect,
-            querySocketUid = this::querySocketUid,
-        )
-        tunFileDescriptor = null
+        val hevConfig = config.hevSocks5TunnelConfig
+        if (hevConfig == null) {
+            AndroidMihomoRuntime.start(
+                context = this,
+                config = config,
+                tunFileDescriptor = tunDescriptor,
+                markSocket = this::protect,
+                querySocketUid = this::querySocketUid,
+            )
+            tunFileDescriptor = null
+        } else {
+            val tunFd = tunFileDescriptor?.fd ?: error(getString(R.string.error_vpn_tun_fd_unavailable))
+            AndroidMihomoRuntime.startLocalProxy(
+                context = this,
+                config = config,
+                markSocket = this::protect,
+                querySocketUid = this::querySocketUid,
+            )
+            val runtime = hevTunRuntime ?: HevTunRuntime().also { hevTunRuntime = it }
+            runtime.start(hevConfig, tunFd)
+            AndroidAppLogger.info(LogTag, "Started Hev TUN with VPN file descriptor")
+        }
         LocalProxyRuntime.update(config.localProxyOptions)
         running = true
     }
@@ -199,6 +256,11 @@ class AsteriskVpnService : VpnService() {
 
     private fun stopVpn(resetCore: Boolean = false) {
         runCatching {
+            hevTunRuntime?.stop()
+        }.onFailure { error ->
+            AndroidAppLogger.warn(LogTag, "Failed to stop Hev TUN while stopping VPN Service", error)
+        }
+        runCatching {
             AndroidMihomoRuntime.stop(resetCore = resetCore)
         }.onFailure { error ->
             AndroidAppLogger.warn(LogTag, "Failed to stop mihomo while stopping VPN Service", error)
@@ -243,7 +305,7 @@ class AsteriskVpnService : VpnService() {
             pendingStart = result
             try {
                 context.startService(AsteriskVpnServiceIntents.startIntent(context, config))
-                withTimeout(10_000) {
+                withTimeout(10_000.milliseconds) {
                     result.await()
                 }.getOrThrow()
             } finally {

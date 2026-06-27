@@ -97,6 +97,32 @@ func startTun(fd C.int, stack, gateway, portal, dns C.c_string, callback unsafe.
 	return 0
 }
 
+//export startTunContext
+func startTunContext(callback unsafe.Pointer) {
+	rTunLock.Lock()
+	defer rTunLock.Unlock()
+
+	if rTun != nil {
+		rTun.close()
+		rTun = nil
+	}
+
+	remote := &remoteTun{callback: callback, closed: false, limit: semaphore.NewWeighted(4)}
+	app.ApplyTunContext(remote.markSocket, remote.querySocketUid)
+	rTun = remote
+}
+
+//export stopTunContext
+func stopTunContext() {
+	rTunLock.Lock()
+	defer rTunLock.Unlock()
+
+	if rTun != nil && rTun.closer == nil {
+		rTun.close()
+		rTun = nil
+	}
+}
+
 //export stopTun
 func stopTun() {
 	rTunLock.Lock()

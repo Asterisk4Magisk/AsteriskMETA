@@ -22,6 +22,8 @@ object Bridge {
     external fun nativeNotifyInstalledAppChanged(uidList: String)
     external fun nativeStartTun(fd: Int, stack: String, gateway: String, portal: String, dns: String, cb: TunInterface)
     external fun nativeStopTun()
+    external fun nativeStartTunContext(cb: TunInterface)
+    external fun nativeStopTunContext()
     external fun nativeStartHttp(listenAt: String): String?
     external fun nativeStopHttp()
     external fun nativeQueryGroupNames(excludeNotSelectable: Boolean): String

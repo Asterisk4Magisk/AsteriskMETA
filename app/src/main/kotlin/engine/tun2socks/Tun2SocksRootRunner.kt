@@ -3,6 +3,7 @@
 
 package engine.tun2socks
 
+import engine.hevtun.writeConfigFile
 import engine.root.RootModeRunner
 import engine.root.RootReadinessCheck
 import engine.root.RootRuntimeLayout

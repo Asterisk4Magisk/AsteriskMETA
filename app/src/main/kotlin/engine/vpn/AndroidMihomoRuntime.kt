@@ -23,6 +23,12 @@ internal object AndroidMihomoRuntime {
     private var running = false
 
     @Volatile
+    private var nativeTunRunning = false
+
+    @Volatile
+    private var tunContextRunning = false
+
+    @Volatile
     private var activeProfileDir: File? = null
 
     @Volatile
@@ -73,13 +79,41 @@ internal object AndroidMihomoRuntime {
             throw error
         }
         running = true
+        nativeTunRunning = true
+        tunContextRunning = true
         AndroidAppLogger.info(LogTag, "Started mihomo VPN runtime with profile ${config.mihomoProfilePath}")
+    }
+
+    @Synchronized
+    fun startLocalProxy(
+        context: Context,
+        config: VpnServiceStartConfig,
+        markSocket: (Int) -> Boolean,
+        querySocketUid: (protocol: Int, source: InetSocketAddress, target: InetSocketAddress) -> Int,
+    ) {
+        ensureLoadedLocked(context, config)
+        runCatching {
+            Clash.startTunContext(
+                markSocket = markSocket,
+                querySocketUid = querySocketUid,
+            )
+        }.onFailure { error ->
+            coreLogSubscriber?.stop()
+            coreLogSubscriber = null
+            throw error
+        }
+        running = true
+        nativeTunRunning = false
+        tunContextRunning = true
+        AndroidAppLogger.info(LogTag, "Started mihomo VPN runtime without native TUN using profile ${config.mihomoProfilePath}")
     }
 
     @Synchronized
     fun stop(resetCore: Boolean = true) {
         if (!loaded) {
             running = false
+            nativeTunRunning = false
+            tunContextRunning = false
             activeProfileDir = null
             activeConfigSignature = null
             runCatching { Clash.setAgeSecretKey(null) }
@@ -88,11 +122,17 @@ internal object AndroidMihomoRuntime {
             coreLogSubscriber = null
             return
         }
-        val shouldStopTun = running
+        val shouldStopTun = nativeTunRunning
+        val shouldStopTunContext = !nativeTunRunning && tunContextRunning
         running = false
+        nativeTunRunning = false
+        tunContextRunning = false
         if (shouldStopTun) {
             runCatching { Clash.stopTun() }
                 .onFailure { error -> AndroidAppLogger.warn(LogTag, "Failed to stop mihomo TUN runtime", error) }
+        } else if (shouldStopTunContext) {
+            runCatching { Clash.stopTunContext() }
+                .onFailure { error -> AndroidAppLogger.warn(LogTag, "Failed to stop mihomo TUN context", error) }
         }
         runCatching { Clash.stopHttp() }
             .onFailure { error -> AndroidAppLogger.warn(LogTag, "Failed to stop mihomo HTTP runtime", error) }
@@ -167,6 +207,8 @@ internal object AndroidMihomoRuntime {
         }
         loaded = true
         running = false
+        nativeTunRunning = false
+        tunContextRunning = false
         activeProfileDir = profileDir
         activeConfigSignature = signature
         AndroidAppLogger.info(LogTag, "Loaded mihomo runtime profile ${profileFile.absolutePath}")

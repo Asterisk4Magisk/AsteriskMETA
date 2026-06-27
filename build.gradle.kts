@@ -8,8 +8,6 @@ plugins {
 
 tasks.register<UpdateResourceFileAssetsTask>("updateResourceFileAssets") {
     mihomoCoreVersion.set(ProjectConfig.MIHOMO_CORE_VERSION)
-    hevSocks5TunnelVersion.set(ProjectConfig.HEV_SOCKS5_TUNNEL_VERSION)
     mihomoCoreJniLibsDir.set(layout.projectDirectory.dir("app/build/generated/mihomoCoreJniLibs"))
-    hevSocks5TunnelJniLibsDir.set(layout.projectDirectory.dir("app/build/generated/hevSocks5TunnelJniLibs"))
     resourceFileAssetsDir.set(layout.projectDirectory.dir("app/build/generated/resourceFileAssets"))
 }

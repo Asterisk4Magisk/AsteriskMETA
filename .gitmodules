@@ -2,3 +2,6 @@
 	path = cmfa-core/src/foss/golang/clash
 	url = https://github.com/MetaCubeX/mihomo
 	branch = Alpha
+[submodule "hevtun/src/main/jni/hev-socks5-tunnel"]
+	path = hevtun/src/main/jni/hev-socks5-tunnel
+	url = https://github.com/heiher/hev-socks5-tunnel

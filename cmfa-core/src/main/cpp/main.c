@@ -142,6 +142,23 @@ Java_com_github_kr328_clash_core_bridge_Bridge_nativeStopTun(JNIEnv *env, jobjec
     stopTun();
 }
 
+JNIEXPORT void JNICALL
+Java_com_github_kr328_clash_core_bridge_Bridge_nativeStartTunContext(JNIEnv *env, jobject thiz,
+                                                                     jobject cb) {
+    TRACE_METHOD();
+
+    jobject _interface = new_global(cb);
+
+    startTunContext(_interface);
+}
+
+JNIEXPORT void JNICALL
+Java_com_github_kr328_clash_core_bridge_Bridge_nativeStopTunContext(JNIEnv *env, jobject thiz) {
+    TRACE_METHOD();
+
+    stopTunContext();
+}
+
 JNIEXPORT jstring JNICALL
 Java_com_github_kr328_clash_core_bridge_Bridge_nativeStartHttp(JNIEnv *env, jobject thiz,
                                                                jstring listen_at) {

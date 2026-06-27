@@ -99,6 +99,29 @@ object Clash {
         Bridge.nativeStopTun()
     }
 
+    fun startTunContext(
+        markSocket: (Int) -> Boolean,
+        querySocketUid: (protocol: Int, source: InetSocketAddress, target: InetSocketAddress) -> Int
+    ) {
+        Bridge.nativeStartTunContext(object : TunInterface {
+            override fun markSocket(fd: Int) {
+                markSocket(fd)
+            }
+
+            override fun querySocketUid(protocol: Int, source: String, target: String): Int {
+                return querySocketUid(
+                    protocol,
+                    parseInetSocketAddress(source),
+                    parseInetSocketAddress(target)
+                )
+            }
+        })
+    }
+
+    fun stopTunContext() {
+        Bridge.nativeStopTunContext()
+    }
+
     fun startHttp(listenAt: String): String? {
         return Bridge.nativeStartHttp(listenAt)
     }
