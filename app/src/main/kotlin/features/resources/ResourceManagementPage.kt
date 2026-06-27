@@ -5,65 +5,59 @@
 
 package features.resources
 
-import app.ResourceFileKind
-import app.ResourceFilesStatus
-import app.AppState
-import app.CustomResourceFileState
-import app.CustomResourceFileStatus
-import app.LocalAppStateStore
-import app.LocalAppServices
-import app.LocalIsWideScreen
-import app.LocalNavigator
-import app.LocalUpdateAppState
-import app.collectAppState
-import app.customResourceFileNameOrNull
-import app.resourceFileUpdateSource
-import app.statusOf
-import app.nextAvailableCustomResourceFileId
-import app.navigation.Route
-import androidx.compose.foundation.text.input.clearText
-import androidx.compose.foundation.text.input.rememberTextFieldState
-import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.text.input.clearText
+import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import app.AppState
+import app.CustomResourceFileState
+import app.CustomResourceFileStatus
+import app.LocalAppServices
+import app.LocalAppStateStore
+import app.LocalIsWideScreen
+import app.LocalNavigator
+import app.LocalUpdateAppState
 import app.R
-import ui.components.BackNavigationIcon
-import ui.components.NavigationIcon
-import kotlin.coroutines.cancellation.CancellationException
+import app.ResourceFileKind
+import app.ResourceFilesStatus
+import app.collectAppState
+import app.customResourceFileNameOrNull
+import app.nextAvailableCustomResourceFileId
+import app.resourceFileUpdateSource
+import app.statusOf
+import engine.network.toPortOrNull
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.launch
-import androidx.compose.ui.res.stringResource
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
-import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.VerticalScrollBar
 import top.yukonga.miuix.kmp.basic.rememberScrollBarAdapter
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Add
-import top.yukonga.miuix.kmp.preference.ArrowPreference
+import top.yukonga.miuix.kmp.interfaces.ExperimentalScrollBarApi
+import ui.components.BackNavigationIcon
+import ui.components.NavigationIcon
 import ui.layout.AdaptiveTopAppBar
-import ui.text.formatTemplate
 import ui.layout.pageContentPaddingWithCutout
 import ui.layout.pageListPadding
 import ui.layout.pageScrollModifiers
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import engine.network.toPortOrNull
-import top.yukonga.miuix.kmp.interfaces.ExperimentalScrollBarApi
+import ui.text.formatTemplate
+import kotlin.coroutines.cancellation.CancellationException
 
 @Composable
 fun ResourceManagementPage(
@@ -275,20 +269,6 @@ fun ResourceManagementPage(
                 modifier = Modifier.pageScrollModifiers(topAppBarScrollBehavior),
                 contentPadding = listPadding,
             ) {
-                item(key = "proxy_providers") {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp)
-                            .padding(bottom = 12.dp),
-                    ) {
-                        ArrowPreference(
-                            title = stringResource(R.string.mihomo_providers_title),
-                            summary = stringResource(R.string.mihomo_providers_open),
-                            onClick = { navigator.push(Route.MihomoProviders) },
-                        )
-                    }
-                }
                 item(key = "resource_files_core_title") {
                     SmallTitle(text = stringResource(R.string.settings_resource_files_core_files))
                 }
