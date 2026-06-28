@@ -36,10 +36,11 @@ import java.io.EOFException
 import java.io.IOException
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
-import java.net.URI
 import java.net.SocketException
 import java.net.SocketTimeoutException
+import java.net.URI
 import java.net.URLEncoder
+import kotlin.time.Duration.Companion.milliseconds
 
 internal class MihomoControlClient {
     suspend fun isApiAvailable(config: MihomoControlConfig): Boolean {
@@ -95,7 +96,7 @@ internal class MihomoControlClient {
         mode: String,
     ): MihomoProxiesState {
         if (useBridge) {
-            return queryBridgeProxies(mode)
+            return queryBridgeProxies()
         }
         val root = requestJsonObject(config, "/proxies")
         val proxyObjects = root.objectValue("proxies").orEmpty()
@@ -132,7 +133,7 @@ internal class MihomoControlClient {
             ?.stringListValue("all")
             .orEmpty()
         return MihomoProxiesState(
-            groups = groups.filterSelectableForMode(mode, globalProxyNames),
+            groups = groups.filterVisibleForMode(mode, globalProxyNames),
             nodes = nodes.values.toList(),
             nodeByName = nodes,
             updatedAtMillis = System.currentTimeMillis(),
@@ -235,7 +236,7 @@ internal class MihomoControlClient {
     ): MihomoDelayResult {
         val delay = if (useBridge) {
             runDelayTestOrTimeout {
-                withTimeoutOrNull(timeoutMillis.toLong() + BridgeHealthCheckGraceMillis) {
+                withTimeoutOrNull((timeoutMillis.toLong() + BridgeHealthCheckGraceMillis).milliseconds) {
                     Clash.queryProxyDelay(proxyName, url, timeoutMillis)
                 } ?: MihomoTimeoutDelay
             }
@@ -266,7 +267,7 @@ internal class MihomoControlClient {
                 }.getOrDefault(emptyList())
             }
             val delays = runGroupDelayTestOrTimeout {
-                withTimeoutOrNull(timeoutMillis.toLong() + BridgeHealthCheckGraceMillis) {
+                withTimeoutOrNull((timeoutMillis.toLong() + BridgeHealthCheckGraceMillis).milliseconds) {
                     Clash.queryGroupDelay(groupName, url, timeoutMillis)
                 } ?: emptyMap()
             }
@@ -300,7 +301,7 @@ internal class MihomoControlClient {
                 break
             }
             emit(sample)
-            delay(BridgeTrafficPollIntervalMillis)
+            delay(BridgeTrafficPollIntervalMillis.milliseconds)
         }
         if (useBridge) {
             return@flow
@@ -328,13 +329,13 @@ internal class MihomoControlClient {
             } finally {
                 connection.disconnect()
             }
-            delay(StreamReconnectDelayMillis)
+            delay(StreamReconnectDelayMillis.milliseconds)
         }
     }
 
-    private fun queryBridgeProxies(mode: String): MihomoProxiesState {
+    private fun queryBridgeProxies(): MihomoProxiesState {
         val nodes = linkedMapOf<String, MihomoProxyNode>()
-        val groups = Clash.queryGroupNames(excludeNotSelectable = true).map { groupName ->
+        val groups = Clash.queryGroupNames(excludeNotSelectable = false).map { groupName ->
             val group = Clash.queryGroup(groupName, ProxySort.Default)
             val proxies = group.proxies
             val proxyNames = proxies.map { proxy -> proxy.name }
@@ -387,28 +388,6 @@ internal class MihomoControlClient {
     ): JsonObject {
         return RuntimeJson.parseToJsonElement(request(config, path)).jsonObjectOrNull()
             ?: error("Invalid Mihomo API response for $path")
-    }
-
-    private suspend fun requestFirstJsonObject(
-        config: MihomoControlConfig,
-        path: String,
-    ): JsonObject {
-        val connection = openConnection(config, path)
-        try {
-            val status = connection.responseCode
-            val stream = if (status in 200..299) connection.inputStream else connection.errorStream
-            val line = stream?.bufferedReader()?.use { reader ->
-                generateSequence { reader.readLine() }
-                    .firstOrNull { item -> item.isNotBlank() }
-            }.orEmpty()
-            if (status !in 200..299) {
-                error("Mihomo API GET $path failed with HTTP $status: $line")
-            }
-            return RuntimeJson.parseToJsonElement(line).jsonObjectOrNull()
-                ?: error("Invalid Mihomo API response for $path")
-        } finally {
-            connection.disconnect()
-        }
     }
 
     private suspend fun requestMemoryJsonObject(
@@ -591,7 +570,7 @@ private fun TunnelState.Mode.mihomoModeName(): String {
     }
 }
 
-private fun List<MihomoProxyGroup>.filterSelectableForMode(
+private fun List<MihomoProxyGroup>.filterVisibleForMode(
     mode: String,
     globalProxyNames: List<String>,
 ): List<MihomoProxyGroup> {
@@ -613,20 +592,13 @@ private fun List<MihomoProxyGroup>.filterSelectableForMode(
 
     candidateNames.forEach { name ->
         val group = groupByName[name] ?: return@forEach
-        if (group.name in added || group.hidden || !group.isSelectableGroup()) {
+        if (group.name in added || group.hidden) {
             return@forEach
         }
         result += group
         added += group.name
     }
     return result
-}
-
-private fun MihomoProxyGroup.isSelectableGroup(): Boolean {
-    return when (type.trim().lowercase().replace("-", "").replace("_", "").replace(" ", "")) {
-        "select", "selector" -> true
-        else -> false
-    }
 }
 
 private data class TrafficBytes(

@@ -407,13 +407,16 @@ fun MihomoProxyPage(
                             ) { nodeName ->
                                 val node = proxies.node(nodeName)
                                 val selectionEnabled = group.supportsManualSelection() && runtimeAvailable
-                                val selectedNodeName = pendingSelections[group.name] ?: group.now
                                 MihomoProxyNodeCard(
                                     modifier = Modifier
                                         .animateItem()
                                         .fillMaxWidth(),
                                     node = node,
-                                    selected = selectionEnabled && selectedNodeName == node.name,
+                                    selected = isMihomoProxyNodeCurrent(
+                                        group = group,
+                                        nodeName = node.name,
+                                        pendingSelections = pendingSelections,
+                                    ),
                                     selectionEnabled = selectionEnabled,
                                     runtimeAvailable = runtimeAvailable,
                                     compact = columns > 1,
@@ -948,6 +951,14 @@ private fun MihomoProxiesState.withGroupFilter(
 ): MihomoProxiesState {
     if (!excludeNotSelectable) return this
     return copy(groups = groups.filter(MihomoProxyGroup::supportsManualSelection))
+}
+
+internal fun isMihomoProxyNodeCurrent(
+    group: MihomoProxyGroup,
+    nodeName: String,
+    pendingSelections: Map<String, String>,
+): Boolean {
+    return (pendingSelections[group.name] ?: group.now) == nodeName
 }
 
 private fun Int.resolvedMihomoProxyLayout(isWideScreen: Boolean): Int {
