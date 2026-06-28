@@ -9,8 +9,12 @@ import app.R
 import app.modes.RunModeTun
 import app.modes.RunModeTun2Socks
 import app.modes.RunModeTproxy
+import app.modes.RunModeVpnService
 import engine.proxy.mode.AndroidModeProxyEngine
 import engine.root.RootModeEngine
+import engine.stats.MihomoTrafficStatsNotificationService
+import engine.stats.toMihomoTrafficStatsRuntime
+import engine.mihomo.withResolvedMihomoControlPort
 import engine.tun.TunRootRunner
 import engine.tun.buildTunStartConfig
 import engine.tproxy.TproxyRootRunner
@@ -83,12 +87,20 @@ class AndroidProxyEngine(
         startUnlocked(request)
     }
 
-    suspend fun status(preferredRunMode: Int? = null): ProxyEngineStatus = operationMutex.withLock {
-        statusUnlocked(preferredRunMode)
+    suspend fun status(
+        preferredRunMode: Int? = null,
+        appState: app.AppState? = null,
+    ): ProxyEngineStatus = operationMutex.withLock {
+        statusUnlocked(preferredRunMode, appState)
     }
 
     private suspend fun startUnlocked(request: ProxyEngineStartRequest): ProxyEngineStatus = withContext(Dispatchers.Default) {
-        val resolvedRequest = request.copy(appState = request.appState.withResolvedDynamicLocalProxyPort())
+        MihomoTrafficStatsNotificationService.reconcile(appContext, null)
+        val resolvedRequest = request.copy(
+            appState = request.appState
+                .withResolvedDynamicLocalProxyPort()
+                .withResolvedMihomoControlPort(),
+        )
         val nextEngine = when (resolvedRequest.appState.runMode) {
             RunModeTproxy -> tproxyEngine
             RunModeTun -> tunEngine
@@ -100,7 +112,20 @@ class AndroidProxyEngine(
             currentEngine.stop()
         }
         activeEngine = nextEngine
-        nextEngine.start(resolvedRequest).copy(appState = resolvedRequest.appState)
+        try {
+            val status = nextEngine.start(resolvedRequest)
+                .copy(appState = resolvedRequest.appState)
+            val runtime = if (status.running) {
+                resolvedRequest.appState.toMihomoTrafficStatsRuntime(status.runMode ?: resolvedRequest.appState.runMode)
+            } else {
+                null
+            }
+            MihomoTrafficStatsNotificationService.reconcile(appContext, runtime)
+            status
+        } catch (error: Throwable) {
+            MihomoTrafficStatsNotificationService.reconcile(appContext, null)
+            throw error
+        }
     }
 
     private suspend fun stopUnlocked(preferredRunMode: Int? = null): ProxyEngineStatus = withContext(Dispatchers.Default) {
@@ -108,6 +133,7 @@ class AndroidProxyEngine(
         val stoppedMode = engine?.runMode
         engine?.stop()
         activeEngine = null
+        MihomoTrafficStatsNotificationService.reconcile(appContext, null)
         ProxyEngineStatus(running = false, runMode = stoppedMode)
     }
 
@@ -118,6 +144,7 @@ class AndroidProxyEngine(
             ?.stop()
         val status = engine.stop()
         activeEngine = null
+        MihomoTrafficStatsNotificationService.reconcile(appContext, null)
         status
     }
 
@@ -135,10 +162,14 @@ class AndroidProxyEngine(
             ?: tun2SocksEngine.takeIf { it.ownsRuntime() }
     }
 
-    private suspend fun statusUnlocked(preferredRunMode: Int? = null): ProxyEngineStatus = withContext(Dispatchers.Default) {
+    private suspend fun statusUnlocked(
+        preferredRunMode: Int? = null,
+        appState: app.AppState? = null,
+    ): ProxyEngineStatus = withContext(Dispatchers.Default) {
         val activeStatus = activeEngine?.status()
         if (activeStatus?.running == true) {
             return@withContext activeStatus
+                .withTrafficStatsReconciled(appState)
         }
 
         var fallbackStatus = activeStatus
@@ -147,6 +178,7 @@ class AndroidProxyEngine(
             if (preferredStatus.running) {
                 activeEngine = preferredEngine
                 return@withContext preferredStatus
+                    .withTrafficStatsReconciled(appState)
             }
             fallbackStatus = preferredStatus
         }
@@ -158,11 +190,13 @@ class AndroidProxyEngine(
                 if (status.running) {
                     activeEngine = engine
                     return@withContext status
+                        .withTrafficStatsReconciled(appState)
                 }
             }
 
         activeEngine = null
-        fallbackStatus ?: ProxyEngineStatus(running = false, runMode = preferredRunMode)
+        (fallbackStatus ?: ProxyEngineStatus(running = false, runMode = preferredRunMode))
+            .withTrafficStatsReconciled(appState)
     }
 
     private fun Int.engine(): AndroidModeProxyEngine {
@@ -176,5 +210,23 @@ class AndroidProxyEngine(
 
     private suspend fun AndroidModeProxyEngine.ownsRootRuntime(): Boolean {
         return this is RootModeEngine<*> && ownsRuntime()
+    }
+
+    private fun ProxyEngineStatus.withTrafficStatsReconciled(appState: app.AppState?): ProxyEngineStatus {
+        if (!running) {
+            MihomoTrafficStatsNotificationService.reconcile(appContext, null)
+            return this
+        }
+        val activeRunMode = runMode ?: appState?.runMode
+        if (activeRunMode != RunModeVpnService) {
+            MihomoTrafficStatsNotificationService.reconcile(appContext, null)
+            return this
+        }
+        if (appState == null) {
+            return this
+        }
+        val runtime = appState.toMihomoTrafficStatsRuntime(activeRunMode)
+        MihomoTrafficStatsNotificationService.reconcile(appContext, runtime)
+        return this
     }
 }

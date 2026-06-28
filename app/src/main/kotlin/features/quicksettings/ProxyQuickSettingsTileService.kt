@@ -34,6 +34,7 @@ import system.AndroidRootShellGateway
 import java.lang.ref.WeakReference
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.time.Duration.Companion.milliseconds
 
 class ProxyQuickSettingsTileService : TileService() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -136,6 +137,7 @@ class ProxyQuickSettingsTileService : TileService() {
                     currentState.copy(
                         proxyRunning = result.proxyRunning,
                         localProxyPort = result.appState?.localProxyPort ?: currentState.localProxyPort,
+                        mihomoControlPort = result.appState?.mihomoControlPort ?: currentState.mihomoControlPort,
                     )
                 }
                 showToast(
@@ -158,7 +160,7 @@ class ProxyQuickSettingsTileService : TileService() {
 
     private suspend fun syncProxyRunningState(): Boolean {
         val currentState = stateStore.state.value
-        val running = runCatching { proxyEngine.status(currentState.runMode).running }
+        val running = runCatching { proxyEngine.status(currentState.runMode, currentState).running }
             .onFailure { error ->
                 AndroidAppLogger.warn(LogTag, "Failed to read proxy status from quick settings tile", error)
             }
@@ -235,13 +237,13 @@ class ProxyQuickSettingsTileService : TileService() {
                 AndroidAppLogger.warn(LogTag, "Failed to refresh quick settings tile after proxy toggle", error)
             }
 
-            delay(TileRefreshSettleDelayMillis)
+            delay(TileRefreshSettleDelayMillis.milliseconds)
             requestTileRefresh(context)
         }
 
         private fun requestTileRefresh(context: Context) {
             runCatching {
-                TileService.requestListeningState(
+                requestListeningState(
                     context,
                     ComponentName(context, ProxyQuickSettingsTileService::class.java),
                 )

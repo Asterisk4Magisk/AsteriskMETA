@@ -24,7 +24,9 @@ internal fun ProxyStatusSynchronizer(
         ) {
             return@LaunchedEffect
         }
-        val status = runCatching { proxyEngine.status(currentState.runMode) }.getOrNull() ?: return@LaunchedEffect
+        val status = runCatching {
+            proxyEngine.status(currentState.runMode, currentState)
+        }.getOrNull() ?: return@LaunchedEffect
         updateAppState { state ->
             if (state.proxyRunning == status.running) {
                 state

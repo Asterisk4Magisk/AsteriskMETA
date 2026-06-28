@@ -40,7 +40,7 @@ private suspend fun syncStartupProxyStatus(
     if (!currentState.shouldCheckProxyStatusBeforeRuntimeSync()) {
         return
     }
-    val status = runCatching { proxyEngine.status(currentState.runMode) }.getOrNull() ?: return
+    val status = runCatching { proxyEngine.status(currentState.runMode, currentState) }.getOrNull() ?: return
     updateAppState { state ->
         val runMode = status.runMode.takeIf { mode -> mode?.isRootRunMode() == true } ?: state.runMode
         if (state.proxyRunning == status.running && state.runMode == runMode) {

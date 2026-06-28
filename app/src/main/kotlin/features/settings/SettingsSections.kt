@@ -204,6 +204,7 @@ internal fun SettingsAdvancedSection(
 internal fun SettingsProxyModeSections(
     runMode: Int,
     localProxySettingsSummary: String,
+    enableTrafficStatsNotification: Boolean,
     enableVpnAppendHttpProxy: Boolean,
     enableVpnHevTun: Boolean,
     tunSettingsSummary: String,
@@ -216,6 +217,7 @@ internal fun SettingsProxyModeSections(
     ignoredInterfacesSummary: String,
     privateAddressCidrsSummary: String,
     onOpenLocalProxySettings: () -> Unit,
+    onEnableTrafficStatsNotificationChange: (Boolean) -> Unit,
     onEnableVpnAppendHttpProxyChange: (Boolean) -> Unit,
     onEnableVpnHevTunChange: (Boolean) -> Unit,
     onOpenTunSettings: () -> Unit,
@@ -239,6 +241,12 @@ internal fun SettingsProxyModeSections(
                     title = stringResource(R.string.settings_local_proxy),
                     summary = localProxySettingsSummary,
                     onClick = onOpenLocalProxySettings,
+                )
+                SwitchPreference(
+                    title = stringResource(R.string.settings_traffic_stats_notification),
+                    summary = stringResource(R.string.settings_traffic_stats_notification_summary),
+                    checked = enableTrafficStatsNotification,
+                    onCheckedChange = onEnableTrafficStatsNotificationChange,
                 )
                 SwitchPreference(
                     title = stringResource(R.string.settings_vpn_append_http_proxy),

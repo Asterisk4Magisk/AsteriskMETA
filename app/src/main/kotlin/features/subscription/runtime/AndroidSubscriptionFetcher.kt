@@ -4,10 +4,10 @@
 package features.subscription.runtime
 
 import app.MihomoSubscriptionInfo
-import features.subscription.DefaultSubscriptionUserAgent
 import engine.network.isPort
 import engine.proxy.LocalProxyLoopbackAddress
 import engine.proxy.LocalProxyRuntime
+import features.subscription.DefaultSubscriptionUserAgent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import utils.encodeBase64
@@ -21,12 +21,6 @@ import java.net.URI
 import java.net.URL
 
 internal class AndroidSubscriptionFetcher {
-    suspend fun fetch(
-        url: String,
-        userAgent: String,
-        options: AndroidSubscriptionFetchOptions,
-    ): String = fetchWithMetadata(url, userAgent, options).content
-
     suspend fun fetchWithMetadata(
         url: String,
         userAgent: String,
@@ -103,7 +97,8 @@ private fun fetchWithRedirects(
                 error("HTTP $code")
             }
             return AndroidSubscriptionFetchResult(
-                content = connection.inputStream.bufferedReader().use { reader -> reader.readText() },
+                content = connection.inputStream.bufferedReader()
+                    .use { reader -> reader.readText() },
                 subscriptionInfo = connection.getHeaderField("subscription-userinfo")
                     .toMihomoSubscriptionInfo(),
             )
@@ -176,7 +171,7 @@ private fun HttpURLConnection.setEmbeddedBasicAuth(rawUrl: String) {
     val parts = userInfo.split(":", limit = 2)
     val user = parts.getOrElse(0) { "" }
     val password = parts.getOrElse(1) { "" }
-    val token = "$user:$password".encodeToByteArray().encodeBase64()
+    val token = "$user:$password".encodeBase64()
     setRequestProperty("Authorization", "Basic $token")
 }
 

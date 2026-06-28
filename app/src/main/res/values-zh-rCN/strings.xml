@@ -24,6 +24,10 @@
     <string name="resource_file_download_notification_cancelled">资源文件更新已取消</string>
     <string name="resource_file_download_notification_complete">资源文件更新完成</string>
     <string name="resource_file_download_notification_failed">资源文件更新失败：%1$s</string>
+    <string name="proxy_traffic_stats_notification_channel">代理统计</string>
+    <string name="proxy_traffic_stats_notification_title">代理统计</string>
+    <string name="proxy_traffic_stats_notification_speed">速度：↑ %1$s / ↓ %2$s</string>
+    <string name="proxy_traffic_stats_notification_traffic">流量：↑ %1$s / ↓ %2$s</string>
     <string name="quick_settings_tile_label">AsteriskMETA</string>
     <string name="quick_settings_tile_running">代理运行中</string>
     <string name="quick_settings_tile_stopped">代理已停止</string>
@@ -104,7 +108,6 @@
     <string name="mihomo_providers_title">Proxy Providers</string>
     <string name="mihomo_providers_count">{count} 个 Provider</string>
     <string name="mihomo_providers_empty">当前配置不包含 proxy-providers</string>
-    <string name="mihomo_providers_open">打开 Proxy Providers</string>
     <string name="mihomo_providers_refresh_all">全部刷新</string>
     <string name="mihomo_providers_refresh_done">Provider 已刷新</string>
     <string name="mihomo_providers_refresh_failed">刷新 Provider 失败</string>
@@ -313,6 +316,8 @@
     <string name="settings_log_level">日志等级</string>
     <string name="settings_geodata_mode">Geodata 模式</string>
     <string name="settings_geodata_mode_summary">使用 geodata 文件处理 GeoIP 规则</string>
+    <string name="settings_traffic_stats_notification">显示统计数据</string>
+    <string name="settings_traffic_stats_notification_summary">在通知中显示当前速度和累计流量</string>
     <string name="settings_geodata_loader">Geodata 加载器</string>
     <string name="settings_geodata_loader_summary">memconservative 更省内存但加载较慢</string>
     <string name="settings_sniffer">Sniffer</string>

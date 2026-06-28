@@ -19,6 +19,7 @@ import app.effects.ResourceFileSynchronizer
 import app.effects.SubscriptionAutoUpdater
 import app.effects.RootBootScriptSynchronizer
 import app.effects.Tun2SocksRuntimeFileSynchronizer
+import app.effects.TrafficStatsNotificationSynchronizer
 import features.logs.AndroidCoreLogRepository
 import features.logs.AndroidLogcatRepository
 import data.AndroidAppStateStore
@@ -202,6 +203,9 @@ fun App(
     )
     Tun2SocksRuntimeFileSynchronizer(
         context = appContext,
+        stateStore = stateStore,
+    )
+    TrafficStatsNotificationSynchronizer(
         stateStore = stateStore,
     )
 

@@ -7,7 +7,6 @@ import java.net.Inet4Address
 import java.net.Inet6Address
 import java.net.InetAddress
 import java.net.NetworkInterface
-import java.util.Enumeration
 
 internal fun collectMihomoDeviceState(): MihomoDeviceState {
     return MihomoDeviceState(
@@ -105,12 +104,4 @@ private data class DisplayAddressCandidate(
 private enum class DisplayAddressType {
     Ipv4,
     Ipv6,
-}
-
-private fun <T> Enumeration<T>.asSequence(): Sequence<T> {
-    return sequence {
-        while (hasMoreElements()) {
-            yield(nextElement())
-        }
-    }
 }

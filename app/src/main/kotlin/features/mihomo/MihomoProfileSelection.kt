@@ -21,6 +21,7 @@ internal suspend fun stopProxyServiceAfterProfileChange(
                 state.copy(
                     proxyRunning = result.proxyRunning,
                     localProxyPort = result.appState?.localProxyPort ?: state.localProxyPort,
+                    mihomoControlPort = result.appState?.mihomoControlPort ?: state.mihomoControlPort,
                 )
             }
             services.tipNotifier.show(stoppedMessage)

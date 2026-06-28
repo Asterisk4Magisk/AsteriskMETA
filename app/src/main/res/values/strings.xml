@@ -24,6 +24,10 @@
     <string name="resource_file_download_notification_cancelled">Resource file update cancelled</string>
     <string name="resource_file_download_notification_complete">Resource files updated</string>
     <string name="resource_file_download_notification_failed">Resource file update failed: %1$s</string>
+    <string name="proxy_traffic_stats_notification_channel">Proxy statistics</string>
+    <string name="proxy_traffic_stats_notification_title">Proxy statistics</string>
+    <string name="proxy_traffic_stats_notification_speed">Speed: ↑ %1$s / ↓ %2$s</string>
+    <string name="proxy_traffic_stats_notification_traffic">Traffic: ↑ %1$s / ↓ %2$s</string>
     <string name="quick_settings_tile_label">AsteriskMETA</string>
     <string name="quick_settings_tile_running">Proxy running</string>
     <string name="quick_settings_tile_stopped">Proxy stopped</string>
@@ -104,7 +108,6 @@
     <string name="mihomo_providers_title">Proxy providers</string>
     <string name="mihomo_providers_count">{count} providers</string>
     <string name="mihomo_providers_empty">The current configuration does not contain proxy-providers</string>
-    <string name="mihomo_providers_open">Open proxy providers</string>
     <string name="mihomo_providers_refresh_all">Refresh all</string>
     <string name="mihomo_providers_refresh_done">Provider refreshed</string>
     <string name="mihomo_providers_refresh_failed">Failed to refresh provider</string>
@@ -313,6 +316,8 @@
     <string name="settings_log_level">Log level</string>
     <string name="settings_geodata_mode">Geodata mode</string>
     <string name="settings_geodata_mode_summary">Use geodata files for GeoIP rules</string>
+    <string name="settings_traffic_stats_notification">Show statistics</string>
+    <string name="settings_traffic_stats_notification_summary">Show current speed and total traffic in notifications</string>
     <string name="settings_geodata_loader">Geodata loader</string>
     <string name="settings_geodata_loader_summary">Memconservative saves memory but loads slower</string>
     <string name="settings_sniffer">Sniffer</string>
