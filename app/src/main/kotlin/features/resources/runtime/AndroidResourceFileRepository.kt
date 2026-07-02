@@ -31,8 +31,8 @@ internal class AndroidResourceFileRepository(
             store.status(customResourceFiles)
         }
 
-    suspend fun restoreBundledDefaults(): ResourceFilesStatus = withContext(Dispatchers.IO) {
-        store.restoreBundledDefaults()
+    suspend fun restoreBundledDefaults(resourceFileSource: Int): ResourceFilesStatus = withContext(Dispatchers.IO) {
+        store.restoreBundledDefaults(resourceFileSource)
         store.currentStatus()
     }
 

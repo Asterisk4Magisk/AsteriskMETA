@@ -5,15 +5,21 @@ package app.effects
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import data.AndroidAppStateStore
 import features.logs.AndroidAppLogger
 import features.resources.ResourceFileUseCase
 
 @Composable
 internal fun ResourceFileSynchronizer(
     resourceFileUseCase: ResourceFileUseCase,
+    stateStore: AndroidAppStateStore,
 ) {
-    LaunchedEffect(resourceFileUseCase) {
-        runCatching { resourceFileUseCase.restoreBundledDefaults() }
+    LaunchedEffect(resourceFileUseCase, stateStore) {
+        runCatching {
+            resourceFileUseCase.restoreBundledDefaults(
+                resourceFileSource = stateStore.state.value.resourceFileSource,
+            )
+        }
             .onFailure { error ->
                 AndroidAppLogger.warn(
                     LogTag,

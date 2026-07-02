@@ -185,6 +185,7 @@ fun App(
     )
     ResourceFileSynchronizer(
         resourceFileUseCase = resourceFileUseCase,
+        stateStore = stateStore,
     )
     LauncherIconSynchronizer(
         context = appContext,

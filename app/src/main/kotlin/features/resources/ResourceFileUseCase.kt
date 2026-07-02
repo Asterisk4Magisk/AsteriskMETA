@@ -21,8 +21,8 @@ class ResourceFileUseCase(
         return repository.status(customResourceFiles)
     }
 
-    suspend fun restoreBundledDefaults(): ResourceFilesStatus {
-        return repository.restoreBundledDefaults()
+    suspend fun restoreBundledDefaults(resourceFileSource: Int): ResourceFilesStatus {
+        return repository.restoreBundledDefaults(resourceFileSource)
     }
 
     suspend fun update(

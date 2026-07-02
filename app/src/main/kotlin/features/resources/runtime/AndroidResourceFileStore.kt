@@ -13,6 +13,7 @@ import app.ResourceFileKind
 import app.ResourceFileStatus
 import app.ResourceFilesStatus
 import app.sanitizeCustomResourceFileName
+import features.resources.ResourceFileSourceMetaCubeXGithub
 import utils.writeAtomically
 import java.io.File
 import java.io.FileNotFoundException
@@ -55,11 +56,11 @@ internal class AndroidResourceFileStore(
         )
     }
 
-    fun restoreBundledDefaults() {
+    fun restoreBundledDefaults(resourceFileSource: Int = ResourceFileSourceMetaCubeXGithub) {
         val bundledUpdatedAtMillis = appContext.packageUpdatedAtMillis()
         ResourceFileKind.entries.forEach { kind ->
             val target = file(kind)
-            if (!target.needsBundledRestore(bundledUpdatedAtMillis)) return@forEach
+            if (!target.needsBundledRestore(kind, resourceFileSource, bundledUpdatedAtMillis)) return@forEach
             if (!hasBundledFile(kind)) return@forEach
             runCatching { restoreBundled(kind) }
                 .onFailure { error ->
@@ -192,8 +193,15 @@ internal class AndroidResourceFileStore(
     }
 }
 
-private fun File.needsBundledRestore(bundledUpdatedAtMillis: Long): Boolean {
+private fun File.needsBundledRestore(
+    kind: ResourceFileKind,
+    resourceFileSource: Int,
+    bundledUpdatedAtMillis: Long,
+): Boolean {
     if (!exists() || length() <= 0) return true
+    if (kind != ResourceFileKind.MihomoCore && resourceFileSource != ResourceFileSourceMetaCubeXGithub) {
+        return false
+    }
     return bundledUpdatedAtMillis > 0 && lastModified() < bundledUpdatedAtMillis
 }
 
