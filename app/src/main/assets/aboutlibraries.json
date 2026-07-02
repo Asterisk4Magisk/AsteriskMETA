@@ -15,10 +15,10 @@
         },
         {
             "uniqueId": "androidx.navigation3:navigation3-runtime",
-            "artifactVersion": "1.1.3",
+            "artifactVersion": "1.1.4",
             "name": "Androidx Navigation 3 Runtime",
             "description": "Provides the building blocks for a Compose first Navigation solution that easily supports extensions.",
-            "website": "https://developer.android.com/jetpack/androidx/releases/navigation3#1.1.3",
+            "website": "https://developer.android.com/jetpack/androidx/releases/navigation3#1.1.4",
             "scm": {
                 "url": "https://cs.android.com/androidx/platform/frameworks/support"
             },
