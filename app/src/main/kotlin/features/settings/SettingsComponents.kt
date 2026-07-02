@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.R
+import app.modes.RunModeBpf2Socks
 import app.modes.RunModeTun2Socks
 import app.modes.RunModeTproxy
 import androidx.compose.ui.res.stringResource
@@ -40,6 +41,7 @@ internal fun localProxySettingsSummary(
     port: String,
     listenAllInterfaces: Boolean,
     transparentProxyPort: String,
+    bpf2SocksBridgePort: String,
     socks5ProxyPort: String,
 ): String {
     val summary = if (listenAllInterfaces) {
@@ -54,6 +56,12 @@ internal fun localProxySettingsSummary(
 
         RunModeTun2Socks -> stringResource(R.string.settings_local_proxy_summary_tun2socks)
             .formatTemplate("port" to socks5ProxyPort)
+
+        RunModeBpf2Socks -> stringResource(R.string.settings_local_proxy_summary_bpf2socks)
+            .formatTemplate(
+                "bridgePort" to bpf2SocksBridgePort,
+                "socksPort" to socks5ProxyPort,
+            )
 
         else -> ""
     }

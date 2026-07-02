@@ -8,21 +8,21 @@ import app.AppState
 import app.effectiveFakeIpEnabled
 import app.effectiveLocalDnsEnabled
 import engine.mihomo.DefaultMihomoDnsFakeIpRange
-import engine.network.parseCidrAddressOrNull
-import engine.network.toPortOrNull
-import engine.proxy.ProxyEngineStartRequest
-import engine.tun2socks.DefaultTun2SocksProxyPort
 import engine.mihomo.MihomoCoreLogPaths
 import engine.mihomo.MihomoProfileFactory
 import engine.mihomo.prepareMihomoCoreLogPaths
 import engine.mihomo.selectedMihomoProfileOrNull
+import engine.network.parseCidrAddressOrNull
+import engine.network.toPortOrNull
+import engine.proxy.ProxyEngineStartRequest
+import engine.tun2socks.DefaultTun2SocksProxyPort
 import features.resources.runtime.MihomoResourceFilePaths
 import features.resources.runtime.prepareMihomoResourceFilePaths
 
 internal class RootConfigBuildContext(
     private val androidContext: Context,
     val appState: AppState,
-    private val resourceFilePaths: MihomoResourceFilePaths,
+    val resourceFilePaths: MihomoResourceFilePaths,
     private val coreLogPaths: MihomoCoreLogPaths,
 ) {
     fun buildRootStartConfig(): RootStartConfig {
@@ -103,6 +103,10 @@ private fun AppState.toRootStartConfig(
 
 internal fun AppState.tun2SocksInternalProxyPortValue(): Int {
     return socks5ProxyPort.toPortOrNull() ?: DefaultTun2SocksProxyPort
+}
+
+internal fun AppState.bpf2SocksBridgePortValue(): Int {
+    return bpf2SocksBridgePort.toPortOrNull() ?: RootBpf2SocksDefaultBridgePort
 }
 
 private fun AppState.rootFakeIpIpv4Pool(): String {

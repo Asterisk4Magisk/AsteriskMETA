@@ -10,7 +10,7 @@ An Android Mihomo GUI client powered by [Mihomo](https://github.com/MetaCubeX/mi
 
 ## Features
 
-- VPN Service, TPROXY(ROOT), TUN(ROOT), and TUN2SOCKS(ROOT) run modes
+- VPN Service, TPROXY(ROOT), TUN(ROOT), TUN2SOCKS(ROOT), and BPF2SOCKS(ROOT) run modes
 - Add configurations from QR code, local file, or URL subscription
 - JavaScript override scripts for advanced configuration mutation
 - ROOT start-on-boot script generation through Magisk `service.d`
@@ -57,6 +57,14 @@ An Android Mihomo GUI client powered by [Mihomo](https://github.com/MetaCubeX/mi
 - Uses Mihomo's local SOCKS5 inbound as the tunnel target.
 - Shares most ROOT routing and app proxy behavior with TPROXY, but routes traffic through the TUN device instead of Mihomo's TPROXY inbound.
 
+### BPF2SOCKS(ROOT)
+
+- Requires root permission.
+- Runs the local Mihomo executable and native `bpf2socks` helper directly with libsu.
+- Uses eBPF plus a local bridge to send TCP and UDP traffic to Mihomo's SOCKS5 inbound.
+- Defaults to bridge port `65532` and SOCKS5 inbound port `65534`.
+- Requires the eBPF probe to pass before startup. Devices with insufficient support cannot start this mode.
+
 ## Resource Files
 
 - Runtime files are stored in the app private `files/clash` directory, commonly `/data/user/0/org.asterisk.zcc.ameta/files/clash`.
@@ -91,7 +99,7 @@ The build:
 - checks out `hev-socks5-tunnel` to `ProjectConfig.HEV_SOCKS5_TUNNEL_VERSION` before building it
 - builds the native `hev-socks5-tunnel` JNI library and CLI runtime from the vendored submodule
 - builds the vendored CMFA Go core
-- builds the native `setuidgid` and `ipv6disabler` helpers
+- builds the native `setuidgid`, `ipv6disabler`, and `bpf2socks` helpers
 - produces ABI split APKs for `arm64-v8a`, `armeabi-v7a`, `x86`, `x86_64`, plus a universal APK
 
 If Gradle cannot find Android NDK, set `ndk.dir` in `local.properties`, set `ANDROID_NDK_HOME`, or install an NDK under the Android SDK.

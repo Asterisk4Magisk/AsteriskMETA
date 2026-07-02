@@ -26,6 +26,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import app.modes.RunModeBpf2Socks
 import app.modes.RunModeTun
 import app.modes.RunModeTun2Socks
 import app.modes.RunModeTproxy
@@ -137,6 +138,7 @@ private fun SettingsContent(
         RunModeTproxy to stringResource(R.string.settings_run_mode_tproxy),
         RunModeTun to stringResource(R.string.settings_run_mode_tun),
         RunModeTun2Socks to stringResource(R.string.settings_run_mode_tun2socks),
+        RunModeBpf2Socks to stringResource(R.string.settings_run_mode_bpf2socks),
     )
     val runModeOptions = runModeItems.map { item -> item.second }
     val selectedRunModeIndex = runModeItems
@@ -169,6 +171,7 @@ private fun SettingsContent(
         port = appState.localProxyPort,
         listenAllInterfaces = appState.localProxyListenAllInterfaces,
         transparentProxyPort = appState.transparentProxyPort,
+        bpf2SocksBridgePort = appState.bpf2SocksBridgePort,
         socks5ProxyPort = appState.socks5ProxyPort,
     )
     val externalInterfacesSummary = externalInterfacesSummary(appState.externalInterfaces)

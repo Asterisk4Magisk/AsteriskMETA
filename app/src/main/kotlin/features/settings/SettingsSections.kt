@@ -3,6 +3,7 @@
 
 package features.settings
 
+import app.modes.RunModeBpf2Socks
 import app.modes.RunModeTun
 import app.modes.RunModeTun2Socks
 import app.modes.RunModeVpnService
@@ -279,6 +280,7 @@ internal fun SettingsProxyModeSections(
                     when (runMode) {
                         RunModeTun -> R.string.settings_proxy_tun
                         RunModeTun2Socks -> R.string.settings_proxy_tun2socks
+                        RunModeBpf2Socks -> R.string.settings_proxy_bpf2socks
                         else -> R.string.settings_proxy_tproxy
                     },
                 ),
@@ -296,14 +298,20 @@ internal fun SettingsProxyModeSections(
                         onCheckedChange = onEnableRootBootScriptChange,
                     )
                 }
-                SwitchPreference(
-                    title = stringResource(R.string.settings_root_ebpf_matcher),
-                    summary = stringResource(R.string.settings_root_ebpf_matcher_summary),
-                    checked = enableRootEbpfRules,
-                    onCheckedChange = onEnableRootEbpfRulesChange,
-                )
                 AnimatedVisibility(
-                    visible = enableRootEbpfRules,
+                    visible = runMode != RunModeBpf2Socks,
+                    enter = fadeIn() + expandVertically(),
+                    exit = shrinkVertically() + fadeOut(),
+                ) {
+                    SwitchPreference(
+                        title = stringResource(R.string.settings_root_ebpf_matcher),
+                        summary = stringResource(R.string.settings_root_ebpf_matcher_summary),
+                        checked = enableRootEbpfRules,
+                        onCheckedChange = onEnableRootEbpfRulesChange,
+                    )
+                }
+                AnimatedVisibility(
+                    visible = enableRootEbpfRules || runMode == RunModeBpf2Socks,
                     enter = fadeIn() + expandVertically(),
                     exit = shrinkVertically() + fadeOut(),
                 ) {

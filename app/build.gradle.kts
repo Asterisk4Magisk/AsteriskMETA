@@ -113,6 +113,7 @@ dependencies {
     implementation(dependencies.project(":setuidgid"))
     implementation(dependencies.project(":ipv6disabler"))
     implementation(dependencies.project(":bpfmatcher"))
+    implementation(dependencies.project(":bpf2socks"))
     implementation(dependencies.project(":hevtun"))
     implementation(libs.ktor.http)
     implementation(libs.kotlinx.serialization.json)

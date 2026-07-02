@@ -26,6 +26,7 @@ internal fun AppState.toTunSettingsDraft(): TunSettingsDraft {
 
 internal data class LocalProxySettingsDraft(
     val transparentProxyPort: String = "",
+    val bpf2SocksBridgePort: String = "",
     val socks5ProxyPort: String = "",
     val port: String = "",
     val enableDynamicPort: Boolean = false,
@@ -37,6 +38,7 @@ internal data class LocalProxySettingsDraft(
 internal fun AppState.toLocalProxySettingsDraft(): LocalProxySettingsDraft {
     return LocalProxySettingsDraft(
         transparentProxyPort = transparentProxyPort,
+        bpf2SocksBridgePort = bpf2SocksBridgePort,
         socks5ProxyPort = socks5ProxyPort,
         port = localProxyPort,
         enableDynamicPort = enableDynamicLocalProxyPort,

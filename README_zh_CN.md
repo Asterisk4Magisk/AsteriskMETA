@@ -10,7 +10,7 @@
 
 ## 功能
 
-- VPN Service、TPROXY(ROOT)、TUN(ROOT) 和 TUN2SOCKS(ROOT) 运行模式
+- VPN Service、TPROXY(ROOT)、TUN(ROOT)、TUN2SOCKS(ROOT) 和 BPF2SOCKS(ROOT) 运行模式
 - 支持通过二维码、本地文件、URL 订阅添加配置
 - 支持 JavaScript 覆写脚本，用于进阶配置修改
 - 通过 Magisk `service.d` 脚本支持 ROOT 模式开机自启
@@ -57,6 +57,14 @@
 - 使用 Mihomo 的本地 SOCKS5 入站作为隧道目标。
 - 与 TPROXY 共享大部分 ROOT 路由和应用代理行为，但流量会通过 TUN 设备转发，而不是通过 Mihomo 的 TPROXY 入站。
 
+### BPF2SOCKS(ROOT)
+
+- 需要 root 权限。
+- 通过 libsu 直接运行本地 Mihomo 可执行文件和 native `bpf2socks` helper。
+- 使用 eBPF 和本地 bridge 将 TCP、UDP 流量送入 Mihomo 的 SOCKS5 入站。
+- 默认 bridge 端口为 `65532`，SOCKS5 入站端口为 `65534`。
+- 启动前要求 eBPF probe 通过。设备支持不足时，该模式无法启动。
+
 ## 资源文件
 
 - 运行时文件存储在应用私有的 `files/clash` 目录中，通常为 `/data/user/0/org.asterisk.zcc.ameta/files/clash`。
@@ -91,7 +99,7 @@ macOS 或 Linux：
 - 构建前将 `hev-socks5-tunnel` checkout 到 `ProjectConfig.HEV_SOCKS5_TUNNEL_VERSION`
 - 从 vendored submodule 构建 native `hev-socks5-tunnel` JNI library 和 CLI runtime
 - 构建 vendored CMFA Go core
-- 构建 native `setuidgid` 和 `ipv6disabler` helper
+- 构建 native `setuidgid`、`ipv6disabler` 和 `bpf2socks` helper
 - 产出 `arm64-v8a`、`armeabi-v7a`、`x86`、`x86_64` 四个 ABI split APK，以及一个 universal APK
 
 如果 Gradle 找不到 Android NDK，请在 `local.properties` 中设置 `ndk.dir`，设置 `ANDROID_NDK_HOME`，或在 Android SDK 下安装 NDK。

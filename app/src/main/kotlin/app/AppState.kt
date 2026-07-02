@@ -11,6 +11,7 @@ import app.modes.MihomoProxySortDefault
 import app.modes.MihomoTunStackGvisor
 import app.modes.ProxyAppListModeGlobal
 import app.modes.RunModeVpnService
+import engine.root.RootBpf2SocksDefaultBridgePort
 import engine.tun2socks.DefaultTun2SocksProxyPort
 import engine.tproxy.DefaultTproxyPort
 import engine.vpn.VpnDefaults
@@ -109,6 +110,7 @@ data class AppState(
     val enableRootEbpfDirectCidrBypass: Boolean = false,
     val enableRootIpv6Disabler: Boolean = false,
     val socks5ProxyPort: String = DefaultTun2SocksProxyPort.toString(),
+    val bpf2SocksBridgePort: String = RootBpf2SocksDefaultBridgePort.toString(),
 
     val externalInterfaces: List<String> = emptyList(),
     val ignoredInterfaces: List<String> = emptyList(),

@@ -6,12 +6,15 @@ package engine.proxy
 import android.content.Context
 import android.content.Intent
 import app.R
+import app.modes.RunModeBpf2Socks
 import app.modes.RunModeTun
 import app.modes.RunModeTun2Socks
 import app.modes.RunModeTproxy
 import app.modes.RunModeVpnService
 import engine.proxy.mode.AndroidModeProxyEngine
 import engine.root.RootModeEngine
+import engine.root.bpf2socks.Bpf2SocksRootRunner
+import engine.root.bpf2socks.buildBpf2SocksStartConfig
 import engine.stats.MihomoTrafficStatsNotificationService
 import engine.stats.toMihomoTrafficStatsRuntime
 import engine.mihomo.withResolvedMihomoControlPort
@@ -68,6 +71,17 @@ class AndroidProxyEngine(
         logTag = "Tun2SocksEngine",
         buildConfig = { rootContext -> rootContext.buildTun2SocksStartConfig() },
     )
+    private val bpf2SocksEngine = RootModeEngine(
+        context = appContext,
+        rootAccess = rootAccess,
+        runner = Bpf2SocksRootRunner(rootAccess),
+        runMode = RunModeBpf2Socks,
+        rootRequiredErrorResId = R.string.error_bpf2socks_root_required,
+        startFailedErrorResId = R.string.error_bpf2socks_start_failed,
+        modeName = "BPF2SOCKS",
+        logTag = "Bpf2SocksEngine",
+        buildConfig = { rootContext -> rootContext.buildBpf2SocksStartConfig() },
+    )
     private val operationMutex = Mutex()
     private var activeEngine: AndroidModeProxyEngine? = null
 
@@ -105,6 +119,7 @@ class AndroidProxyEngine(
             RunModeTproxy -> tproxyEngine
             RunModeTun -> tunEngine
             RunModeTun2Socks -> tun2SocksEngine
+            RunModeBpf2Socks -> bpf2SocksEngine
             else -> vpnMihomoEngine
         }
         val currentEngine = activeEngine ?: findEngineToStop(resolvedRequest.appState.runMode)
@@ -156,10 +171,12 @@ class AndroidProxyEngine(
             ?: tproxyEngine.takeIf { it.status().running }
             ?: tunEngine.takeIf { it.status().running }
             ?: tun2SocksEngine.takeIf { it.status().running }
+            ?: bpf2SocksEngine.takeIf { it.status().running }
             ?: vpnMihomoEngine.takeIf { it.status().running }
             ?: tproxyEngine.takeIf { it.ownsRuntime() }
             ?: tunEngine.takeIf { it.ownsRuntime() }
             ?: tun2SocksEngine.takeIf { it.ownsRuntime() }
+            ?: bpf2SocksEngine.takeIf { it.ownsRuntime() }
     }
 
     private suspend fun statusUnlocked(
@@ -183,7 +200,7 @@ class AndroidProxyEngine(
             fallbackStatus = preferredStatus
         }
 
-        listOf(tproxyEngine, tunEngine, tun2SocksEngine, vpnMihomoEngine)
+        listOf(tproxyEngine, tunEngine, tun2SocksEngine, bpf2SocksEngine, vpnMihomoEngine)
             .filterNot { engine -> engine.runMode == preferredRunMode }
             .forEach { engine ->
                 val status = engine.status()
@@ -204,6 +221,7 @@ class AndroidProxyEngine(
             RunModeTproxy -> tproxyEngine
             RunModeTun -> tunEngine
             RunModeTun2Socks -> tun2SocksEngine
+            RunModeBpf2Socks -> bpf2SocksEngine
             else -> vpnMihomoEngine
         }
     }

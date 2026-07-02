@@ -7,9 +7,13 @@ const val RunModeVpnService = 0
 const val RunModeTproxy = 1
 const val RunModeTun2Socks = 2
 const val RunModeTun = 3
+const val RunModeBpf2Socks = 4
 
 fun Int.isRootRunMode(): Boolean {
-    return this == RunModeTproxy || this == RunModeTun || this == RunModeTun2Socks
+    return this == RunModeTproxy ||
+        this == RunModeTun ||
+        this == RunModeTun2Socks ||
+        this == RunModeBpf2Socks
 }
 
 const val MihomoModeRule = 0

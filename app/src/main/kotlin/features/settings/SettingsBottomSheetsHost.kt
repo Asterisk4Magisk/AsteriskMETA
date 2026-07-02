@@ -14,6 +14,7 @@ import features.settings.sheets.TunSettingsBottomSheet
 import features.settings.sheets.orderedBy
 import features.settings.sheets.sanitizeExternalInterfaces
 import features.settings.sheets.sanitizePrivateAddressCidrs
+import app.modes.RunModeBpf2Socks
 import app.modes.RunModeTun2Socks
 import app.modes.RunModeTproxy
 import app.modes.RunModeVpnService
@@ -27,15 +28,23 @@ internal fun SettingsBottomSheetsHost(
 ) {
     LocalProxySettingsBottomSheet(
         show = sheetState.showLocalProxySettings,
-        showInboundProxyPort = appState.runMode == RunModeTproxy || appState.runMode == RunModeTun2Socks,
+        showInboundProxyPort = appState.runMode == RunModeTproxy ||
+            appState.runMode == RunModeTun2Socks ||
+            appState.runMode == RunModeBpf2Socks,
         useTun2SocksProxyPort = appState.runMode == RunModeTun2Socks,
-        lockInboundProxyPort = (appState.runMode == RunModeTproxy || appState.runMode == RunModeTun2Socks) &&
+        useBpf2SocksProxyPort = appState.runMode == RunModeBpf2Socks,
+        lockInboundProxyPort = (appState.runMode == RunModeTproxy ||
+            appState.runMode == RunModeTun2Socks ||
+            appState.runMode == RunModeBpf2Socks) &&
             appState.proxyRunning,
         inboundProxyPort = if (appState.runMode == RunModeTun2Socks) {
+            sheetState.localProxySettingsDraft.socks5ProxyPort
+        } else if (appState.runMode == RunModeBpf2Socks) {
             sheetState.localProxySettingsDraft.socks5ProxyPort
         } else {
             sheetState.localProxySettingsDraft.transparentProxyPort
         },
+        bpf2SocksBridgePort = sheetState.localProxySettingsDraft.bpf2SocksBridgePort,
         port = sheetState.localProxySettingsDraft.port,
         enableDynamicPort = sheetState.localProxySettingsDraft.enableDynamicPort,
         listenAllInterfaces = sheetState.localProxySettingsDraft.listenAllInterfaces,
@@ -44,9 +53,14 @@ internal fun SettingsBottomSheetsHost(
         onInboundProxyPortChange = {
             sheetState.localProxySettingsDraft = if (appState.runMode == RunModeTun2Socks) {
                 sheetState.localProxySettingsDraft.copy(socks5ProxyPort = it)
+            } else if (appState.runMode == RunModeBpf2Socks) {
+                sheetState.localProxySettingsDraft.copy(socks5ProxyPort = it)
             } else {
                 sheetState.localProxySettingsDraft.copy(transparentProxyPort = it)
             }
+        },
+        onBpf2SocksBridgePortChange = {
+            sheetState.localProxySettingsDraft = sheetState.localProxySettingsDraft.copy(bpf2SocksBridgePort = it)
         },
         onPortChange = {
             sheetState.localProxySettingsDraft = sheetState.localProxySettingsDraft.copy(
@@ -66,9 +80,11 @@ internal fun SettingsBottomSheetsHost(
             sheetState.localProxySettingsDraft = sheetState.localProxySettingsDraft.copy(password = it)
         },
         onDismissRequest = { sheetState.showLocalProxySettings = false },
-        onSave = { inboundProxyPort, port, enableDynamicPort, listenAllInterfaces, username, password ->
+        onSave = { inboundProxyPort, bpf2SocksBridgePort, port, enableDynamicPort, listenAllInterfaces, username, password ->
             updateAppState { state ->
-                val lockInboundProxyPort = (state.runMode == RunModeTproxy || state.runMode == RunModeTun2Socks) &&
+                val lockInboundProxyPort = (state.runMode == RunModeTproxy ||
+                    state.runMode == RunModeTun2Socks ||
+                    state.runMode == RunModeBpf2Socks) &&
                     state.proxyRunning
                 state.copy(
                     transparentProxyPort = when {
@@ -78,8 +94,13 @@ internal fun SettingsBottomSheetsHost(
                     },
                     socks5ProxyPort = when {
                         lockInboundProxyPort -> state.socks5ProxyPort
-                        state.runMode == RunModeTun2Socks -> inboundProxyPort
+                        state.runMode == RunModeTun2Socks || state.runMode == RunModeBpf2Socks -> inboundProxyPort
                         else -> state.socks5ProxyPort
+                    },
+                    bpf2SocksBridgePort = when {
+                        lockInboundProxyPort -> state.bpf2SocksBridgePort
+                        state.runMode == RunModeBpf2Socks -> bpf2SocksBridgePort
+                        else -> state.bpf2SocksBridgePort
                     },
                     localProxyPort = port,
                     enableDynamicLocalProxyPort = enableDynamicPort,

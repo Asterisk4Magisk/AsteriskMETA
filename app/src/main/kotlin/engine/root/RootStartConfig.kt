@@ -55,5 +55,11 @@ internal val RootRuntimeLayout.rootEbpfDirectCidrPathV4: String
 internal val RootRuntimeLayout.rootEbpfDirectCidrPathV6: String
     get() = File(dataDir, RootEbpfDirectCidrV6FileName).absolutePath
 
+internal val RootRuntimeLayout.bpf2socksConfigPath: String
+    get() = File(dataDir, RootBpf2SocksConfigFileName).absolutePath
+
+internal val RootRuntimeLayout.bpf2socksPidPath: String
+    get() = File(dataDir, RootBpf2SocksPidFileName).absolutePath
+
 internal val RootStartConfig.ipv6DisablerLogPath: String
     get() = coreLogPaths.ipv6DisablerLogFile().absolutePath

@@ -12,6 +12,7 @@ import app.modes.MihomoModeDirect
 import app.modes.MihomoModeGlobal
 import app.modes.MihomoTunStackGvisor
 import app.modes.MihomoTunStackMixed
+import app.modes.RunModeBpf2Socks
 import app.modes.RunModeTun
 import app.modes.RunModeVpnService
 import app.modes.RunModeTproxy
@@ -21,6 +22,7 @@ import app.resourceFileUpdateSource
 import engine.network.isIpv4CidrAddress
 import engine.network.toPortOrNull
 import engine.proxy.LocalProxyLoopbackAddress
+import engine.root.bpf2socks.Bpf2SocksRuntimeMarkerKey
 import engine.tun.MihomoTunDevice
 import engine.tun.MihomoTunInboundName
 import engine.tun.MihomoTunRuntimeMarkerKey
@@ -153,8 +155,11 @@ private fun MutableMap<String, Any?>.putAsteriskRuntimeOverrides(
         if (runMode == RunModeTproxy) {
             put("tproxy-port", tproxyPort)
         }
-        if (runMode == RunModeTun2Socks) {
+        if (runMode == RunModeTun2Socks || runMode == RunModeBpf2Socks) {
             put("socks-port", socksPort)
+        }
+        if (runMode == RunModeBpf2Socks) {
+            put(Bpf2SocksRuntimeMarkerKey, true)
         }
         if (runMode == RunModeTun) {
             put(MihomoTunRuntimeMarkerKey, true)
@@ -536,6 +541,7 @@ private val AsteriskManagedTopLevelKeys = setOf(
     "geodata-loader",
     "ipv6",
     MihomoTunRuntimeMarkerKey,
+    Bpf2SocksRuntimeMarkerKey,
     "geox-url",
     "sniffer",
 )

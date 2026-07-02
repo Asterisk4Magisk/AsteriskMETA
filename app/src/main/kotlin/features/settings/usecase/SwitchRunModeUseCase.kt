@@ -5,6 +5,7 @@ package features.settings.usecase
 
 import android.content.Context
 import app.AppState
+import app.modes.RunModeBpf2Socks
 import app.modes.RunModeTun
 import app.modes.RunModeTun2Socks
 import app.modes.RunModeTproxy
@@ -42,6 +43,7 @@ internal class SwitchRunModeUseCase(
             RunModeTproxy -> RunModeTproxy
             RunModeTun -> RunModeTun
             RunModeTun2Socks -> RunModeTun2Socks
+            RunModeBpf2Socks -> RunModeBpf2Socks
             else -> RunModeVpnService
         }
         if (currentState.runMode == normalizedTargetMode) {

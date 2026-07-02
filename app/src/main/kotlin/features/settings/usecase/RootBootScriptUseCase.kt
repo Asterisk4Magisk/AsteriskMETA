@@ -5,6 +5,7 @@ package features.settings.usecase
 
 import android.content.Context
 import app.AppState
+import app.modes.RunModeBpf2Socks
 import app.modes.RunModeTun
 import app.modes.RunModeTproxy
 import app.modes.RunModeTun2Socks
@@ -12,6 +13,8 @@ import app.modes.isRootRunMode
 import engine.proxy.ProxyEngineStartRequest
 import engine.root.prepareRootConfigBuildContext
 import engine.root.prepareRootRuntimeLayout
+import engine.root.bpf2socks.Bpf2SocksRootRunner
+import engine.root.bpf2socks.buildBpf2SocksStartConfig
 import engine.root.removeRootBootScript
 import engine.mihomo.prepareMihomoCoreLogPaths
 import engine.tun.TunRootRunner
@@ -31,6 +34,7 @@ internal class RootBootScriptUseCase(
     private val tproxyRootRunner = TproxyRootRunner(rootAccess)
     private val tunRootRunner = TunRootRunner(rootAccess)
     private val tun2SocksRootRunner = Tun2SocksRootRunner(rootAccess)
+    private val bpf2SocksRootRunner = Bpf2SocksRootRunner(rootAccess)
 
     suspend fun setEnabled(
         state: AppState,
@@ -93,6 +97,7 @@ internal class RootBootScriptUseCase(
             RunModeTproxy -> tproxyRootRunner.installBootScript(rootContext.buildTproxyStartConfig())
             RunModeTun -> tunRootRunner.installBootScript(rootContext.buildTunStartConfig())
             RunModeTun2Socks -> tun2SocksRootRunner.installBootScript(rootContext.buildTun2SocksStartConfig())
+            RunModeBpf2Socks -> bpf2SocksRootRunner.installBootScript(rootContext.buildBpf2SocksStartConfig())
         }
     }
 }

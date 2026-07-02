@@ -4,12 +4,14 @@
 package engine.proxy
 
 import app.AppState
+import app.modes.RunModeBpf2Socks
 import app.modes.RunModeTun2Socks
 import app.modes.RunModeTproxy
 import engine.network.findAvailableTcpPort
 import engine.network.isTcpPortAvailable
 import engine.network.NetworkDefaults
 import engine.network.toPortOrNull
+import engine.root.RootBpf2SocksDefaultBridgePort
 import engine.tproxy.DefaultTproxyPort
 import engine.tun2socks.DefaultTun2SocksProxyPort
 import engine.vpn.VpnDefaults
@@ -86,6 +88,10 @@ private fun AppState.localProxyExcludedPorts(): Set<Int> {
         }
         if (runMode == RunModeTun2Socks) {
             add(socks5ProxyPort.toPortOrNull() ?: DefaultTun2SocksProxyPort)
+        }
+        if (runMode == RunModeBpf2Socks) {
+            add(socks5ProxyPort.toPortOrNull() ?: DefaultTun2SocksProxyPort)
+            add(bpf2SocksBridgePort.toPortOrNull() ?: RootBpf2SocksDefaultBridgePort)
         }
     }
 }
