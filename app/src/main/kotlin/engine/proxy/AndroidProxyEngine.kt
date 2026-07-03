@@ -13,8 +13,8 @@ import app.modes.RunModeTproxy
 import app.modes.RunModeVpnService
 import engine.proxy.mode.AndroidModeProxyEngine
 import engine.root.RootModeEngine
-import engine.root.bpf2socks.Bpf2SocksRootRunner
-import engine.root.bpf2socks.buildBpf2SocksStartConfig
+import engine.bpf2socks.Bpf2SocksRootRunner
+import engine.bpf2socks.buildBpf2SocksStartConfig
 import engine.stats.MihomoTrafficStatsNotificationService
 import engine.stats.toMihomoTrafficStatsRuntime
 import engine.mihomo.withResolvedMihomoControlPort

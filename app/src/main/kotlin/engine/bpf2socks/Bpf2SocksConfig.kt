@@ -1,7 +1,7 @@
 // Copyright 2026, AsteriskMETA contributors
 // SPDX-License-Identifier: GPL-3.0
 
-package engine.root.bpf2socks
+package engine.bpf2socks
 
 import app.modes.ProxyAppListModeWhitelist
 import engine.proxy.LocalProxyOptions

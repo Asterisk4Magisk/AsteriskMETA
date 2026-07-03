@@ -22,7 +22,7 @@ import app.resourceFileUpdateSource
 import engine.network.isIpv4CidrAddress
 import engine.network.toPortOrNull
 import engine.proxy.LocalProxyLoopbackAddress
-import engine.root.bpf2socks.Bpf2SocksRuntimeMarkerKey
+import engine.bpf2socks.Bpf2SocksRuntimeMarkerKey
 import engine.tun.MihomoTunDevice
 import engine.tun.MihomoTunInboundName
 import engine.tun.MihomoTunRuntimeMarkerKey
