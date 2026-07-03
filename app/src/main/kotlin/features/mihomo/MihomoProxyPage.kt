@@ -1015,7 +1015,7 @@ private fun Int?.toProxyDelaySortValue(): Int {
 
 private fun MihomoProxyGroup.supportsManualSelection(): Boolean {
     return when (type.normalizedMihomoGroupType()) {
-        "select", "selector" -> true
+        "select", "selector", "urltest", "fallback" -> true
         else -> false
     }
 }
