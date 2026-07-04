@@ -25,7 +25,6 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -127,17 +126,9 @@ fun ProxyAppListPage(
         ANDROID_APP_ICON_SIZE_DP.dp.roundToPx()
     }
 
-    LaunchedEffect(selfPackageName, appState.proxyAppListSelectedApps) {
-        val prunedSelection = appState.proxyAppListSelectedApps.filterNot { key ->
-            key == selfPackageName || key.substringAfter(':') == selfPackageName
-        }
-        if (prunedSelection != appState.proxyAppListSelectedApps) {
-            updateAppState { state -> state.copy(proxyAppListSelectedApps = prunedSelection) }
-        }
-    }
-
     ProxyAppListPageEffects(
         pageState = pageState,
+        selectedApps = appState.proxyAppListSelectedApps,
         selectedAppKeys = selectedAppKeys,
         isVpnServiceMode = isVpnServiceMode,
         vpnServiceUserId = vpnServiceUserId,
@@ -148,6 +139,15 @@ fun ProxyAppListPage(
         packageCatalog = packageCatalog,
         userSpaces = userSpaces,
         tipNotifier = tipNotifier,
+        onSelectedAppsPruned = { previousSelection, prunedSelection ->
+            updateAppState { state ->
+                if (state.proxyAppListSelectedApps == previousSelection) {
+                    state.copy(proxyAppListSelectedApps = prunedSelection)
+                } else {
+                    state
+                }
+            }
+        },
     )
 
     Scaffold(
