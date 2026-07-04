@@ -45,11 +45,14 @@ internal class Bpf2SocksRootRunner(
     runtimeConfigTag = "$Bpf2SocksRuntimeMarkerKey:",
     logTag = LogTag,
 ) {
-    override fun buildSetupRulesCommand(config: Bpf2SocksStartConfig): String {
+    override fun buildSetupRulesCommand(
+        config: Bpf2SocksStartConfig,
+        cleanupExistingRules: Boolean,
+    ): String {
         return buildString {
             append(buildApplyRootEbpfSelinuxPolicyCommand())
             appendBpf2SocksIpv6TokenRouteSetup(config.bpf2socksConfig)
-            appendBpf2SocksHotspotSetupRules(config.bpf2socksConfig)
+            appendBpf2SocksHotspotSetupRules(config.bpf2socksConfig, cleanupExistingRules)
         }
     }
 
@@ -188,10 +191,15 @@ internal class Bpf2SocksRootRunner(
     }
 }
 
-private fun StringBuilder.appendBpf2SocksHotspotSetupRules(config: Bpf2SocksConfig) {
+private fun StringBuilder.appendBpf2SocksHotspotSetupRules(
+    config: Bpf2SocksConfig,
+    cleanupExistingRules: Boolean,
+) {
     val prefixes = config.hotspotInterfacePrefixes
     if (prefixes.isEmpty()) return
-    appendBpf2SocksHotspotCleanupRules()
+    if (cleanupExistingRules) {
+        appendBpf2SocksHotspotCleanupRules()
+    }
     appendScript(
         """
         $RootIpCommand rule add priority $RootProxyRouteRulePriority fwmark $RootBpf2SocksFwmark table $RootBpf2SocksRouteTable 2>/dev/null || true

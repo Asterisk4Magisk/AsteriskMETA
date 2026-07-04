@@ -35,7 +35,7 @@ internal class RootModeEngine<Config : RootModeStartConfig>(
         if (!rootAccess.hasRootAccess()) {
             error(context.getString(rootRequiredErrorResId))
         }
-        stop()
+        clearStartupRuntimeState()
         val rootContext = context.prepareRootConfigBuildContext(request)
         val config = buildConfig(rootContext)
         if (!File(config.root.runtimeLayout.mihomoCorePath).canExecute()) {
@@ -99,5 +99,11 @@ internal class RootModeEngine<Config : RootModeStartConfig>(
     override suspend fun status(): ProxyEngineStatus {
         val running = runner.isRunning(context.prepareRootRuntimeLayout())
         return ProxyEngineStatus(running = running, runMode = runMode)
+    }
+
+    private fun clearStartupRuntimeState() {
+        logFileTailers.forEach { tailer -> tailer.stop() }
+        logFileTailers = emptyList()
+        LocalProxyRuntime.clear()
     }
 }

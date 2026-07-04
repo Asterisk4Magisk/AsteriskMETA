@@ -21,12 +21,16 @@ internal class TunRootRunner(
     runtimeConfigTag = MihomoTunRuntimeConfigTag,
     logTag = LogTag,
 ) {
-    override fun buildSetupRulesCommand(config: TunStartConfig): String {
+    override fun buildSetupRulesCommand(
+        config: TunStartConfig,
+        cleanupExistingRules: Boolean,
+    ): String {
         return config.iptablesConfig.buildSetupRulesCommand(
             enableIpv6 = config.root.enableIpv6,
             enableLocalDns = config.root.enableLocalDns,
             enableFakeIp = config.root.enableFakeIp,
             fakeIpIpv4Pool = config.root.fakeIpIpv4Pool,
+            cleanupExistingRules = cleanupExistingRules,
         )
     }
 

@@ -22,12 +22,16 @@ internal class Tun2SocksRootRunner(
     runtimeConfigTag = "socks-port:",
     logTag = LogTag,
 ) {
-    override fun buildSetupRulesCommand(config: Tun2SocksStartConfig): String {
+    override fun buildSetupRulesCommand(
+        config: Tun2SocksStartConfig,
+        cleanupExistingRules: Boolean,
+    ): String {
         return config.iptablesConfig.buildSetupRulesCommand(
             enableIpv6 = config.root.enableIpv6,
             enableLocalDns = config.root.enableLocalDns,
             enableFakeIp = config.root.enableFakeIp,
             fakeIpIpv4Pool = config.root.fakeIpIpv4Pool,
+            cleanupExistingRules = cleanupExistingRules,
         )
     }
 

@@ -62,7 +62,10 @@ internal abstract class RootModeRunner<Config : RootModeStartConfig>(
                 config.root.coreLogPaths.buildRepairCoreLogPermissionsCommand(),
             "Failed to repair $modeName runtime file permissions",
         )
-        runRootCommand(buildSetupRulesCommand(config), "Failed to install $modeName rules")
+        runRootCommand(
+            buildSetupRulesCommand(config, cleanupExistingRules = false),
+            "Failed to install $modeName rules",
+        )
     }
 
     suspend fun stop(runtimeLayout: RootRuntimeLayout) = withContext(Dispatchers.IO) {
@@ -84,7 +87,9 @@ internal abstract class RootModeRunner<Config : RootModeStartConfig>(
         prepareModeRuntimeFiles(config)
         val command = config.buildInstallRootBootScriptCommand(
             modeName = modeName,
-            buildSetupRulesCommand = ::buildSetupRulesCommand,
+            buildSetupRulesCommand = { targetConfig ->
+                buildSetupRulesCommand(targetConfig, cleanupExistingRules = true)
+            },
             buildPostCoreStartCommand = ::buildPostCoreStartCommand,
             buildReadinessCheck = ::buildReadinessCheck,
             bootReadinessCheckAttempts = BootReadinessCheckAttempts,
@@ -129,7 +134,10 @@ internal abstract class RootModeRunner<Config : RootModeStartConfig>(
         rootAccess.exec(command, ShellExecOptions(logFailure = false)).errno == 0
     }
 
-    protected abstract fun buildSetupRulesCommand(config: Config): String
+    protected abstract fun buildSetupRulesCommand(
+        config: Config,
+        cleanupExistingRules: Boolean,
+    ): String
 
     protected abstract fun buildCleanupRulesCommand(): String
 
