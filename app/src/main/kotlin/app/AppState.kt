@@ -68,6 +68,7 @@ data class AppState(
     val coreLogLevel: Int = 3,
     val enableGeodataMode: Boolean = false,
     val enableTrafficStatsNotification: Boolean = false,
+    val enableBroadcastControl: Boolean = false,
     val mihomoGeodataLoader: Int = MihomoGeodataLoaderStandard,
     val resourceFileSource: Int = ResourceFileSourceMetaCubeXGithub,
     val customResourceFileGeoIpUrl: String = "",

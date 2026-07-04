@@ -289,6 +289,8 @@
     <string name="settings_private_addresses_input">CIDR 地址</string>
     <string name="settings_private_addresses_invalid">无效 CIDR</string>
     <string name="settings_private_addresses_empty">还没有添加 CIDR 地址</string>
+    <string name="settings_broadcast_control">广播控制</string>
+    <string name="settings_broadcast_control_summary">允许外部广播启动和停止代理服务</string>
     <string name="settings_ipv6_summary">启用 IPv6 支持</string>
     <string name="settings_ipv6_prefer">IPv6 优先</string>
     <string name="settings_ipv6_prefer_summary">连接时优先使用 IPv6 地址</string>

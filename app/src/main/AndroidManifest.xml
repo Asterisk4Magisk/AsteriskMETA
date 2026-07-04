@@ -128,6 +128,14 @@
             android:name="features.resources.runtime.AndroidResourceFileDownloadCancelReceiver"
             android:exported="false" />
 
+        <!-- Intentionally exported for explicit broadcasts from automation apps such as Tasker.
+             A manifest permission would block those apps, so access is gated by the in-app
+             Broadcast control setting and this receiver is not exposed through an intent-filter. -->
+        <receiver
+            android:name="features.automation.BroadcastControlReceiver"
+            android:exported="true"
+            tools:ignore="ExportedReceiver" />
+
         <service
             android:name="features.quicksettings.ProxyQuickSettingsTileService"
             android:exported="true"

@@ -79,7 +79,6 @@ import top.yukonga.miuix.kmp.basic.NavigationBarDisplayMode
 import top.yukonga.miuix.kmp.basic.NavigationBarItem
 import top.yukonga.miuix.kmp.basic.NavigationItem
 import top.yukonga.miuix.kmp.basic.NavigationRail
-import top.yukonga.miuix.kmp.basic.NavigationRailDisplayMode
 import top.yukonga.miuix.kmp.basic.NavigationRailItem
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.icon.MiuixIcons
@@ -284,7 +283,6 @@ private fun WideScreenContent(
     Row {
         NavigationRail(
             modifier = Modifier.background(MiuixTheme.colorScheme.surface),
-            mode = NavigationRailDisplayMode.IconAndText,
         ) {
             navigationItems.forEachIndexed { index, item ->
                 NavigationRailItem(

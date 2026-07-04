@@ -94,6 +94,10 @@ internal class AppSettingsPreferences(
                 KeyEnableTrafficStatsNotification,
                 defaults.enableTrafficStatsNotification,
             ),
+            enableBroadcastControl = preferences.getBoolean(
+                KeyEnableBroadcastControl,
+                defaults.enableBroadcastControl,
+            ),
             mihomoGeodataLoader = preferences.getInt(KeyMihomoGeodataLoader, defaults.mihomoGeodataLoader),
             resourceFileSource = preferences.getInt(KeyResourceFileSource, defaults.resourceFileSource),
             customResourceFileGeoIpUrl = preferences.getString(
@@ -239,6 +243,7 @@ internal class AppSettingsPreferences(
             .putInt(KeyCoreLogLevel, state.coreLogLevel)
             .putBoolean(KeyEnableGeodataMode, state.enableGeodataMode)
             .putBoolean(KeyEnableTrafficStatsNotification, state.enableTrafficStatsNotification)
+            .putBoolean(KeyEnableBroadcastControl, state.enableBroadcastControl)
             .putInt(KeyMihomoGeodataLoader, state.mihomoGeodataLoader)
             .putInt(KeyResourceFileSource, state.resourceFileSource)
             .putString(KeyCustomResourceFileGeoIpUrl, state.customResourceFileGeoIpUrl)
@@ -341,6 +346,7 @@ private const val KeyTunIpv6Cidr = "tun_ipv6_cidr"
 private const val KeyCoreLogLevel = "core_log_level"
 private const val KeyEnableGeodataMode = "enable_geodata_mode"
 private const val KeyEnableTrafficStatsNotification = "enable_traffic_stats_notification"
+private const val KeyEnableBroadcastControl = "enable_broadcast_control"
 private const val KeyMihomoGeodataLoader = "mihomo_geodata_loader"
 private const val KeyResourceFileSource = "resource_file_source"
 private const val KeyCustomResourceFileGeoIpUrl = "custom_resource_file_geoip_url"
