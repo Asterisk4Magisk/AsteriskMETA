@@ -343,7 +343,9 @@
     <string name="settings_sniffer_override_destination">覆写目标地址</string>
     <string name="settings_sniffer_override_destination_summary">使用嗅探到的域名替换实际连接目标</string>
     <string name="settings_sniffer_force_dns_mapping">强制 DNS 映射</string>
+    <string name="settings_sniffer_force_dns_mapping_summary">对 redir-host 类型识别的流量进行强制嗅探</string>
     <string name="settings_sniffer_parse_pure_ip">解析纯 IP 连接</string>
+    <string name="settings_sniffer_parse_pure_ip_summary">对所有未获取到域名的流量进行强制嗅探</string>
     <string name="settings_sniffer_protocol_override_follow_global">跟随全局</string>
     <string name="settings_sniffer_protocol_override_enabled">启用</string>
     <string name="settings_sniffer_protocol_override_disabled">禁用</string>

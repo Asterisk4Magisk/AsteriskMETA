@@ -119,11 +119,13 @@ internal fun SnifferSettingsBottomSheet(
                     )
                     SwitchPreference(
                         title = stringResource(R.string.settings_sniffer_force_dns_mapping),
+                        summary = stringResource(R.string.settings_sniffer_force_dns_mapping_summary),
                         checked = draft.snifferForceDnsMapping,
                         onCheckedChange = { onDraftChange(draft.copy(snifferForceDnsMapping = it)) },
                     )
                     SwitchPreference(
                         title = stringResource(R.string.settings_sniffer_parse_pure_ip),
+                        summary = stringResource(R.string.settings_sniffer_parse_pure_ip_summary),
                         checked = draft.snifferParsePureIp,
                         onCheckedChange = { onDraftChange(draft.copy(snifferParsePureIp = it)) },
                     )

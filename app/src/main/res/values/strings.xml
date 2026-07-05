@@ -343,7 +343,9 @@
     <string name="settings_sniffer_override_destination">Override destination</string>
     <string name="settings_sniffer_override_destination_summary">Replace the connection destination with the sniffed domain</string>
     <string name="settings_sniffer_force_dns_mapping">Force DNS mapping</string>
+    <string name="settings_sniffer_force_dns_mapping_summary">Force sniffing for traffic identified as redir-host</string>
     <string name="settings_sniffer_parse_pure_ip">Parse pure IP connections</string>
+    <string name="settings_sniffer_parse_pure_ip_summary">Force sniffing for all traffic whose domain could not be obtained</string>
     <string name="settings_sniffer_protocol_override_follow_global">Follow global</string>
     <string name="settings_sniffer_protocol_override_enabled">Enabled</string>
     <string name="settings_sniffer_protocol_override_disabled">Disabled</string>
