@@ -197,7 +197,7 @@
         },
         {
             "uniqueId": "top.yukonga.miuix.kmp:miuix-icons",
-            "artifactVersion": "0.9.2",
+            "artifactVersion": "0.9.3",
             "name": "miuix-icons",
             "description": "Extended icon library for Miuix",
             "website": "https://github.com/compose-miuix-ui/miuix",
@@ -210,7 +210,7 @@
         },
         {
             "uniqueId": "top.yukonga.miuix.kmp:miuix-navigation3-ui",
-            "artifactVersion": "0.9.2",
+            "artifactVersion": "0.9.3",
             "name": "miuix-navigation3-ui",
             "description": "Navigation3 UI library for Miuix",
             "website": "https://github.com/compose-miuix-ui/miuix",
@@ -223,7 +223,7 @@
         },
         {
             "uniqueId": "top.yukonga.miuix.kmp:miuix-preference",
-            "artifactVersion": "0.9.2",
+            "artifactVersion": "0.9.3",
             "name": "miuix-preference",
             "description": "Preference components for Miuix",
             "website": "https://github.com/compose-miuix-ui/miuix",
@@ -236,7 +236,7 @@
         },
         {
             "uniqueId": "top.yukonga.miuix.kmp:miuix-ui",
-            "artifactVersion": "0.9.2",
+            "artifactVersion": "0.9.3",
             "name": "miuix-ui",
             "description": "A UI library for Compose Multiplatform",
             "website": "https://github.com/compose-miuix-ui/miuix",
