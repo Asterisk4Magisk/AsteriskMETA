@@ -51,6 +51,7 @@ import top.yukonga.miuix.kmp.icon.extended.Delete
 import top.yukonga.miuix.kmp.icon.extended.Edit
 import top.yukonga.miuix.kmp.icon.extended.Replace
 import top.yukonga.miuix.kmp.icon.extended.Reset
+import top.yukonga.miuix.kmp.icon.extended.Refresh
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.preference.OverlaySpinnerPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -256,6 +257,7 @@ internal fun ResourceFileCard(
     updating: Boolean,
     onReplace: () -> Unit,
     modifier: Modifier = Modifier,
+    onUpdate: (() -> Unit)? = null,
     onRestore: (() -> Unit)? = null,
     description: String? = null,
 ) {
@@ -265,6 +267,22 @@ internal fun ResourceFileCard(
         description = description,
         modifier = modifier,
     ) {
+        if (onUpdate != null) {
+            IconButton(
+                enabled = !updating,
+                onClick = onUpdate,
+            ) {
+                Icon(
+                    imageVector = MiuixIcons.Refresh,
+                    contentDescription = stringResource(R.string.common_update),
+                    tint = if (updating) {
+                        MiuixTheme.colorScheme.disabledOnSecondaryVariant
+                    } else {
+                        MiuixTheme.colorScheme.onSurface
+                    },
+                )
+            }
+        }
         IconButton(
             enabled = !updating,
             onClick = onReplace,
@@ -439,6 +457,7 @@ internal fun CustomResourceFileEditorDialog(
 internal fun CustomResourceFileCard(
     fileStatus: CustomResourceFileStatus,
     updating: Boolean,
+    onUpdate: (CustomResourceFileState) -> Unit,
     onReplace: (CustomResourceFileState) -> Unit,
     onEdit: (CustomResourceFileState) -> Unit,
     onDelete: (CustomResourceFileState) -> Unit,
@@ -449,6 +468,22 @@ internal fun CustomResourceFileCard(
         status = fileStatus.status,
         modifier = modifier,
     ) {
+        if (fileStatus.file.url.isNotBlank()) {
+            IconButton(
+                enabled = !updating,
+                onClick = { onUpdate(fileStatus.file) },
+            ) {
+                Icon(
+                    imageVector = MiuixIcons.Refresh,
+                    contentDescription = stringResource(R.string.common_update),
+                    tint = if (updating) {
+                        MiuixTheme.colorScheme.disabledOnSecondaryVariant
+                    } else {
+                        MiuixTheme.colorScheme.onSurface
+                    },
+                )
+            }
+        }
         IconButton(
             enabled = !updating,
             onClick = { onReplace(fileStatus.file) },

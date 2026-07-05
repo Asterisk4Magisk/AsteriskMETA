@@ -66,6 +66,31 @@ internal class AndroidResourceFileRepository(
         )
     }
 
+    suspend fun update(
+        kind: ResourceFileKind,
+        source: ResourceFileUpdateSource,
+        options: ResourceFileUpdateOptions,
+        customResourceFiles: List<CustomResourceFileState> = emptyList(),
+    ): ResourceFilesStatus = withContext(Dispatchers.IO) {
+        updateTargets(
+            downloads = listOfNotNull(kind.toDownloadTargetOrNull(source)),
+            options = options,
+            customResourceFiles = customResourceFiles,
+        )
+    }
+
+    suspend fun updateCustom(
+        customFile: CustomResourceFileState,
+        options: ResourceFileUpdateOptions,
+        customResourceFiles: List<CustomResourceFileState> = emptyList(),
+    ): ResourceFilesStatus = withContext(Dispatchers.IO) {
+        updateTargets(
+            downloads = listOfNotNull(customFile.toDownloadTargetOrNull()),
+            options = options,
+            customResourceFiles = customResourceFiles,
+        )
+    }
+
     private fun updateTargets(
         downloads: List<ResourceFileDownloadTarget>,
         options: ResourceFileUpdateOptions,
