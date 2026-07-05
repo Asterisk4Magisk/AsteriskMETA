@@ -25,9 +25,13 @@ import engine.mihomo.DefaultMihomoDnsNameserver
 import engine.mihomo.DefaultMihomoDnsNameserverPolicy
 import engine.mihomo.DefaultMihomoDnsProxyServerNameserver
 import engine.mihomo.DefaultMihomoControlPort
+import engine.mihomo.DefaultMihomoSnifferHttpPorts
+import engine.mihomo.DefaultMihomoSnifferQuicPorts
+import engine.mihomo.DefaultMihomoSnifferTlsPorts
 import engine.mihomo.MihomoGeodataLoaderStandard
 import engine.mihomo.MihomoDnsModeFakeIp
 import engine.mihomo.MihomoDnsModeRedirHost
+import engine.mihomo.MihomoSnifferProtocolOverrideFollowGlobal
 import features.resources.ResourceFileSourceMetaCubeXGithub
 
 data class AppState(
@@ -81,6 +85,18 @@ data class AppState(
     val nextCustomResourceFileId: Int = 1,
     val enableSniffer: Boolean = true,
     val enableSnifferOverrideDestination: Boolean = false,
+    val snifferForceDnsMapping: Boolean = false,
+    val snifferParsePureIp: Boolean = false,
+    val snifferHttpPorts: List<String> = DefaultMihomoSnifferHttpPorts,
+    val snifferTlsPorts: List<String> = DefaultMihomoSnifferTlsPorts,
+    val snifferQuicPorts: List<String> = DefaultMihomoSnifferQuicPorts,
+    val snifferHttpOverrideDestinationMode: Int = MihomoSnifferProtocolOverrideFollowGlobal,
+    val snifferTlsOverrideDestinationMode: Int = MihomoSnifferProtocolOverrideFollowGlobal,
+    val snifferQuicOverrideDestinationMode: Int = MihomoSnifferProtocolOverrideFollowGlobal,
+    val snifferForceDomain: List<String> = emptyList(),
+    val snifferSkipDomain: List<String> = emptyList(),
+    val snifferSkipSrcAddress: List<String> = emptyList(),
+    val snifferSkipDstAddress: List<String> = emptyList(),
 
     val enableIpv6: Boolean = false,
     val enableIpv6Prefer: Boolean = false,

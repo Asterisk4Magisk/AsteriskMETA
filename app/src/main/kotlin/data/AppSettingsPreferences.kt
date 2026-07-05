@@ -131,6 +131,39 @@ internal class AppSettingsPreferences(
                 KeyEnableSnifferOverrideDestination,
                 defaults.enableSnifferOverrideDestination,
             ),
+            snifferForceDnsMapping = preferences.getBoolean(
+                KeySnifferForceDnsMapping,
+                defaults.snifferForceDnsMapping,
+            ),
+            snifferParsePureIp = preferences.getBoolean(
+                KeySnifferParsePureIp,
+                defaults.snifferParsePureIp,
+            ),
+            snifferHttpPorts = preferences.getStringList(KeySnifferHttpPorts, defaults.snifferHttpPorts),
+            snifferTlsPorts = preferences.getStringList(KeySnifferTlsPorts, defaults.snifferTlsPorts),
+            snifferQuicPorts = preferences.getStringList(KeySnifferQuicPorts, defaults.snifferQuicPorts),
+            snifferHttpOverrideDestinationMode = preferences.getInt(
+                KeySnifferHttpOverrideDestinationMode,
+                defaults.snifferHttpOverrideDestinationMode,
+            ),
+            snifferTlsOverrideDestinationMode = preferences.getInt(
+                KeySnifferTlsOverrideDestinationMode,
+                defaults.snifferTlsOverrideDestinationMode,
+            ),
+            snifferQuicOverrideDestinationMode = preferences.getInt(
+                KeySnifferQuicOverrideDestinationMode,
+                defaults.snifferQuicOverrideDestinationMode,
+            ),
+            snifferForceDomain = preferences.getStringList(KeySnifferForceDomain, defaults.snifferForceDomain),
+            snifferSkipDomain = preferences.getStringList(KeySnifferSkipDomain, defaults.snifferSkipDomain),
+            snifferSkipSrcAddress = preferences.getStringList(
+                KeySnifferSkipSrcAddress,
+                defaults.snifferSkipSrcAddress,
+            ),
+            snifferSkipDstAddress = preferences.getStringList(
+                KeySnifferSkipDstAddress,
+                defaults.snifferSkipDstAddress,
+            ),
             enableIpv6 = preferences.getBoolean(KeyEnableIpv6, defaults.enableIpv6),
             enableIpv6Prefer = preferences.getBoolean(KeyEnableIpv6Prefer, defaults.enableIpv6Prefer),
             overrideDns = preferences.getBoolean(KeyOverrideDns, defaults.overrideDns),
@@ -256,6 +289,18 @@ internal class AppSettingsPreferences(
             .putInt(KeyNextCustomResourceFileId, state.nextCustomResourceFileId)
             .putBoolean(KeyEnableSniffer, state.enableSniffer)
             .putBoolean(KeyEnableSnifferOverrideDestination, state.enableSnifferOverrideDestination)
+            .putBoolean(KeySnifferForceDnsMapping, state.snifferForceDnsMapping)
+            .putBoolean(KeySnifferParsePureIp, state.snifferParsePureIp)
+            .putStringList(KeySnifferHttpPorts, state.snifferHttpPorts)
+            .putStringList(KeySnifferTlsPorts, state.snifferTlsPorts)
+            .putStringList(KeySnifferQuicPorts, state.snifferQuicPorts)
+            .putInt(KeySnifferHttpOverrideDestinationMode, state.snifferHttpOverrideDestinationMode)
+            .putInt(KeySnifferTlsOverrideDestinationMode, state.snifferTlsOverrideDestinationMode)
+            .putInt(KeySnifferQuicOverrideDestinationMode, state.snifferQuicOverrideDestinationMode)
+            .putStringList(KeySnifferForceDomain, state.snifferForceDomain)
+            .putStringList(KeySnifferSkipDomain, state.snifferSkipDomain)
+            .putStringList(KeySnifferSkipSrcAddress, state.snifferSkipSrcAddress)
+            .putStringList(KeySnifferSkipDstAddress, state.snifferSkipDstAddress)
             .putBoolean(KeyEnableIpv6, state.enableIpv6)
             .putBoolean(KeyEnableIpv6Prefer, state.enableIpv6Prefer)
             .putBoolean(KeyOverrideDns, state.overrideDns)
@@ -359,6 +404,18 @@ private const val KeyCustomResourceFiles = "custom_resource_files"
 private const val KeyNextCustomResourceFileId = "next_custom_resource_file_id"
 private const val KeyEnableSniffer = "enable_sniffer"
 private const val KeyEnableSnifferOverrideDestination = "enable_sniffer_override_destination"
+private const val KeySnifferForceDnsMapping = "sniffer_force_dns_mapping"
+private const val KeySnifferParsePureIp = "sniffer_parse_pure_ip"
+private const val KeySnifferHttpPorts = "sniffer_http_ports"
+private const val KeySnifferTlsPorts = "sniffer_tls_ports"
+private const val KeySnifferQuicPorts = "sniffer_quic_ports"
+private const val KeySnifferHttpOverrideDestinationMode = "sniffer_http_override_destination_mode"
+private const val KeySnifferTlsOverrideDestinationMode = "sniffer_tls_override_destination_mode"
+private const val KeySnifferQuicOverrideDestinationMode = "sniffer_quic_override_destination_mode"
+private const val KeySnifferForceDomain = "sniffer_force_domain"
+private const val KeySnifferSkipDomain = "sniffer_skip_domain"
+private const val KeySnifferSkipSrcAddress = "sniffer_skip_src_address"
+private const val KeySnifferSkipDstAddress = "sniffer_skip_dst_address"
 private const val KeyEnableIpv6 = "enable_ipv6"
 private const val KeyEnableIpv6Prefer = "enable_ipv6_prefer"
 private const val KeyOverrideDns = "override_dns"

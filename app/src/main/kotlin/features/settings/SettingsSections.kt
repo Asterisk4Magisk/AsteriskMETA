@@ -95,15 +95,13 @@ internal fun SettingsSubscriptionsSection(
 
 @Composable
 internal fun SettingsCoreSection(
-    enableSniffer: Boolean,
-    enableSnifferOverrideDestination: Boolean,
+    snifferSettingsSummary: String,
     enableGeodataMode: Boolean,
     geodataLoaderOptions: List<String>,
     geodataLoader: Int,
     coreLogLevel: Int,
     onOpenDnsSettings: () -> Unit,
-    onEnableSnifferChange: (Boolean) -> Unit,
-    onEnableSnifferOverrideDestinationChange: (Boolean) -> Unit,
+    onOpenSnifferSettings: () -> Unit,
     onEnableGeodataModeChange: (Boolean) -> Unit,
     onGeodataLoaderChange: (Int) -> Unit,
     onCoreLogLevelChange: (Int) -> Unit,
@@ -115,24 +113,11 @@ internal fun SettingsCoreSection(
             summary = stringResource(R.string.settings_dns_summary),
             onClick = onOpenDnsSettings,
         )
-        SwitchPreference(
+        ArrowPreference(
             title = stringResource(R.string.settings_sniffer),
-            summary = stringResource(R.string.settings_sniffer_summary),
-            checked = enableSniffer,
-            onCheckedChange = onEnableSnifferChange,
+            summary = snifferSettingsSummary,
+            onClick = onOpenSnifferSettings,
         )
-        AnimatedVisibility(
-            visible = enableSniffer,
-            enter = fadeIn() + expandVertically(),
-            exit = shrinkVertically() + fadeOut(),
-        ) {
-            SwitchPreference(
-                title = stringResource(R.string.settings_sniffer_override_destination),
-                summary = stringResource(R.string.settings_sniffer_override_destination_summary),
-                checked = enableSnifferOverrideDestination,
-                onCheckedChange = onEnableSnifferOverrideDestinationChange,
-            )
-        }
         SwitchPreference(
             title = stringResource(R.string.settings_geodata_mode),
             summary = stringResource(R.string.settings_geodata_mode_summary),

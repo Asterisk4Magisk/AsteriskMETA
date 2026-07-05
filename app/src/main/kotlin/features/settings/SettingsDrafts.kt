@@ -4,7 +4,11 @@
 package features.settings
 
 import app.AppState
+import engine.mihomo.DefaultMihomoSnifferHttpPorts
+import engine.mihomo.DefaultMihomoSnifferQuicPorts
+import engine.mihomo.DefaultMihomoSnifferTlsPorts
 import engine.mihomo.MihomoDnsModeRedirHost
+import engine.mihomo.MihomoSnifferProtocolOverrideFollowGlobal
 
 internal data class TunSettingsDraft(
     val tunStack: Int = 0,
@@ -93,6 +97,42 @@ internal fun AppState.toDnsSettingsDraft(): DnsSettingsDraft {
         dnsFallbackFilterIpcidr = dnsFallbackFilterIpcidr,
         dnsFallbackFilterDomain = dnsFallbackFilterDomain,
         dnsHosts = dnsHosts,
+    )
+}
+
+internal data class SnifferSettingsDraft(
+    val enableSniffer: Boolean = true,
+    val enableSnifferOverrideDestination: Boolean = false,
+    val snifferForceDnsMapping: Boolean = false,
+    val snifferParsePureIp: Boolean = false,
+    val snifferHttpPorts: List<String> = DefaultMihomoSnifferHttpPorts,
+    val snifferTlsPorts: List<String> = DefaultMihomoSnifferTlsPorts,
+    val snifferQuicPorts: List<String> = DefaultMihomoSnifferQuicPorts,
+    val snifferHttpOverrideDestinationMode: Int = MihomoSnifferProtocolOverrideFollowGlobal,
+    val snifferTlsOverrideDestinationMode: Int = MihomoSnifferProtocolOverrideFollowGlobal,
+    val snifferQuicOverrideDestinationMode: Int = MihomoSnifferProtocolOverrideFollowGlobal,
+    val snifferForceDomain: List<String> = emptyList(),
+    val snifferSkipDomain: List<String> = emptyList(),
+    val snifferSkipSrcAddress: List<String> = emptyList(),
+    val snifferSkipDstAddress: List<String> = emptyList(),
+)
+
+internal fun AppState.toSnifferSettingsDraft(): SnifferSettingsDraft {
+    return SnifferSettingsDraft(
+        enableSniffer = enableSniffer,
+        enableSnifferOverrideDestination = enableSnifferOverrideDestination,
+        snifferForceDnsMapping = snifferForceDnsMapping,
+        snifferParsePureIp = snifferParsePureIp,
+        snifferHttpPorts = snifferHttpPorts,
+        snifferTlsPorts = snifferTlsPorts,
+        snifferQuicPorts = snifferQuicPorts,
+        snifferHttpOverrideDestinationMode = snifferHttpOverrideDestinationMode,
+        snifferTlsOverrideDestinationMode = snifferTlsOverrideDestinationMode,
+        snifferQuicOverrideDestinationMode = snifferQuicOverrideDestinationMode,
+        snifferForceDomain = snifferForceDomain,
+        snifferSkipDomain = snifferSkipDomain,
+        snifferSkipSrcAddress = snifferSkipSrcAddress,
+        snifferSkipDstAddress = snifferSkipDstAddress,
     )
 }
 

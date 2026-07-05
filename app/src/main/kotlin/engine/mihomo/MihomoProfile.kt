@@ -225,24 +225,6 @@ private fun AppState.toMihomoGeoXUrlYamlMap(): Map<String, String> {
     )
 }
 
-private fun AppState.toMihomoSnifferYamlMap(): Map<String, Any?> {
-    return linkedMapOf(
-        "enable" to enableSniffer,
-        "override-destination" to enableSnifferOverrideDestination,
-        "sniff" to linkedMapOf(
-            "TLS" to linkedMapOf(
-                "ports" to DefaultMihomoSnifferTlsPorts,
-            ),
-            "HTTP" to linkedMapOf(
-                "ports" to DefaultMihomoSnifferHttpPorts,
-            ),
-            "QUIC" to linkedMapOf(
-                "ports" to DefaultMihomoSnifferQuicPorts,
-            ),
-        ),
-    )
-}
-
 private fun MutableMap<String, Any?>.putDnsOverrides(
     appState: AppState,
     forceDns: Boolean,
@@ -553,10 +535,6 @@ internal const val MihomoProfileMissingErrorMessage = "No Mihomo configuration s
 internal const val MihomoProfileEmptyErrorMessage = "Selected Mihomo configuration has no YAML content"
 
 private val LocalProxySkipAuthPrefixes = listOf("127.0.0.1/8", "::1/128")
-private val DefaultMihomoSnifferTlsPorts = listOf("443")
-private val DefaultMihomoSnifferHttpPorts = listOf("80", "8080-8880")
-private val DefaultMihomoSnifferQuicPorts = listOf("443")
-
 private val YamlDumpSettings = DumpSettings.builder()
     .setDefaultFlowStyle(FlowStyle.BLOCK)
     .build()

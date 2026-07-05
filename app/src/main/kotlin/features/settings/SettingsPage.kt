@@ -39,6 +39,7 @@ import engine.proxy.withResolvedDynamicLocalProxyPort
 import features.settings.sheets.externalInterfacesSummary
 import features.settings.sheets.ignoredInterfacesSummary
 import features.settings.sheets.privateAddressCidrsSummary
+import features.settings.sheets.snifferSettingsSummary
 import features.settings.sheets.tunSettingsSummary
 import features.settings.usecase.SwitchRunModeResult
 import features.settings.usecase.RootBootScriptResult
@@ -177,6 +178,12 @@ private fun SettingsContent(
     val externalInterfacesSummary = externalInterfacesSummary(appState.externalInterfaces)
     val ignoredInterfacesSummary = ignoredInterfacesSummary(appState.ignoredInterfaces)
     val privateAddressCidrsSummary = privateAddressCidrsSummary(appState.privateAddressCidrs)
+    val snifferSummary = snifferSettingsSummary(
+        enableSniffer = appState.enableSniffer,
+        snifferHttpPorts = appState.snifferHttpPorts,
+        snifferTlsPorts = appState.snifferTlsPorts,
+        snifferQuicPorts = appState.snifferQuicPorts,
+    )
     val overrideScriptSummary = stringResource(R.string.mihomo_override_scripts_count)
         .formatTemplate("count" to appState.mihomoOverrideScripts.size)
     val tunSettingsSummary = tunSettingsSummary(
@@ -220,19 +227,13 @@ private fun SettingsContent(
             }
             item(key = "settings_core") {
                 SettingsCoreSection(
-                    enableSniffer = appState.enableSniffer,
-                    enableSnifferOverrideDestination = appState.enableSnifferOverrideDestination,
+                    snifferSettingsSummary = snifferSummary,
                     enableGeodataMode = appState.enableGeodataMode,
                     geodataLoaderOptions = MihomoGeodataLoaderValues,
                     geodataLoader = appState.mihomoGeodataLoader,
                     coreLogLevel = appState.coreLogLevel,
                     onOpenDnsSettings = { sheetState.openDnsSettings(appState) },
-                    onEnableSnifferChange = { enabled ->
-                        updateAppState { state -> state.copy(enableSniffer = enabled) }
-                    },
-                    onEnableSnifferOverrideDestinationChange = { enabled ->
-                        updateAppState { state -> state.copy(enableSnifferOverrideDestination = enabled) }
-                    },
+                    onOpenSnifferSettings = { sheetState.openSnifferSettings(appState) },
                     onEnableGeodataModeChange = { enabled ->
                         updateAppState { state -> state.copy(enableGeodataMode = enabled) }
                     },

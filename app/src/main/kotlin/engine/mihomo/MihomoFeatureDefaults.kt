@@ -13,6 +13,10 @@ const val MihomoGeodataLoaderStandard = 0
 const val MihomoGeodataLoaderMemconservative = 1
 val MihomoGeodataLoaderValues = listOf("standard", "memconservative")
 
+const val MihomoSnifferProtocolOverrideFollowGlobal = 0
+const val MihomoSnifferProtocolOverrideEnabled = 1
+const val MihomoSnifferProtocolOverrideDisabled = 2
+
 const val DefaultMihomoDnsFakeIpRange = "198.18.0.1/16"
 val DefaultMihomoDnsDefaultNameserver = listOf("223.5.5.5")
 val DefaultMihomoDnsNameserver = listOf("https://dns.alidns.com/dns-query")
@@ -26,3 +30,7 @@ val DefaultMihomoDnsFallback = listOf("tls://1.1.1.1#RULES")
 val DefaultMihomoDnsFakeIpFilter = listOf("*.lan", "localhost.ptlogin2.qq.com")
 val DefaultMihomoDnsFallbackFilterIpcidr = listOf("240.0.0.0/4")
 val DefaultMihomoDnsFallbackFilterDomain = listOf("+.google.com", "+.facebook.com", "+.youtube.com")
+
+val DefaultMihomoSnifferHttpPorts = listOf("80", "8080-8880")
+val DefaultMihomoSnifferTlsPorts = listOf("443")
+val DefaultMihomoSnifferQuicPorts = listOf("443")

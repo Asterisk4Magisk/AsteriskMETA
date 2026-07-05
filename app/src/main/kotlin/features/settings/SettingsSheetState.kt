@@ -28,6 +28,9 @@ internal class SettingsSheetState(
     var showDnsSettings by mutableStateOf(false)
     var dnsSettingsDraft by mutableStateOf(DnsSettingsDraft())
 
+    var showSnifferSettings by mutableStateOf(false)
+    var snifferSettingsDraft by mutableStateOf(SnifferSettingsDraft())
+
     var showExternalInterfaces by mutableStateOf(false)
     var externalInterfacesDraft by mutableStateOf(emptyList<String>())
 
@@ -53,6 +56,11 @@ internal class SettingsSheetState(
     fun openDnsSettings(appState: AppState) {
         dnsSettingsDraft = appState.toDnsSettingsDraft()
         showDnsSettings = true
+    }
+
+    fun openSnifferSettings(appState: AppState) {
+        snifferSettingsDraft = appState.toSnifferSettingsDraft()
+        showSnifferSettings = true
     }
 
     fun openExternalInterfaces(appState: AppState) {

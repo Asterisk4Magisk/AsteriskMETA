@@ -10,6 +10,7 @@ import features.settings.sheets.ExternalInterfacesBottomSheet
 import features.settings.sheets.IgnoredInterfacesBottomSheet
 import features.settings.sheets.LocalProxySettingsBottomSheet
 import features.settings.sheets.PrivateAddressBottomSheet
+import features.settings.sheets.SnifferSettingsBottomSheet
 import features.settings.sheets.TunSettingsBottomSheet
 import features.settings.sheets.orderedBy
 import features.settings.sheets.sanitizeExternalInterfaces
@@ -174,6 +175,33 @@ internal fun SettingsBottomSheetsHost(
                 )
             }
             sheetState.showDnsSettings = false
+        },
+    )
+    SnifferSettingsBottomSheet(
+        show = sheetState.showSnifferSettings,
+        draft = sheetState.snifferSettingsDraft,
+        onDraftChange = { sheetState.snifferSettingsDraft = it },
+        onDismissRequest = { sheetState.showSnifferSettings = false },
+        onSave = { draft ->
+            updateAppState { state ->
+                state.copy(
+                    enableSniffer = draft.enableSniffer,
+                    enableSnifferOverrideDestination = draft.enableSnifferOverrideDestination,
+                    snifferForceDnsMapping = draft.snifferForceDnsMapping,
+                    snifferParsePureIp = draft.snifferParsePureIp,
+                    snifferHttpPorts = draft.snifferHttpPorts,
+                    snifferTlsPorts = draft.snifferTlsPorts,
+                    snifferQuicPorts = draft.snifferQuicPorts,
+                    snifferHttpOverrideDestinationMode = draft.snifferHttpOverrideDestinationMode,
+                    snifferTlsOverrideDestinationMode = draft.snifferTlsOverrideDestinationMode,
+                    snifferQuicOverrideDestinationMode = draft.snifferQuicOverrideDestinationMode,
+                    snifferForceDomain = draft.snifferForceDomain,
+                    snifferSkipDomain = draft.snifferSkipDomain,
+                    snifferSkipSrcAddress = draft.snifferSkipSrcAddress,
+                    snifferSkipDstAddress = draft.snifferSkipDstAddress,
+                )
+            }
+            sheetState.showSnifferSettings = false
         },
     )
     ExternalInterfacesBottomSheet(
