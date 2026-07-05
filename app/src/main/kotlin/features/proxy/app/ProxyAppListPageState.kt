@@ -48,6 +48,7 @@ internal class ProxyAppListPageState {
     var selectedUserId by mutableStateOf<Int?>(null)
     var appPackages by mutableStateOf<List<AppPackageEntry>>(emptyList())
     var loadingApps by mutableStateOf(false)
+    var refreshingApps by mutableStateOf(false)
     var loadedPackageFilterKey by mutableStateOf<Pair<Boolean, Boolean>?>(null)
     var refreshSeed by mutableIntStateOf(0)
     var preparedAppListData by mutableStateOf(ProxyAppListPreparedData.Empty)
@@ -59,6 +60,7 @@ internal class ProxyAppListPageState {
     fun requestRefresh() {
         if (!loadingApps) {
             loadingApps = true
+            refreshingApps = true
             refreshSeed += 1
         }
     }
@@ -281,6 +283,7 @@ private fun ProxyAppListPackageEffect(
             pageState.appPackages = emptyList()
         } finally {
             pageState.loadingApps = false
+            pageState.refreshingApps = false
         }
     }
 }

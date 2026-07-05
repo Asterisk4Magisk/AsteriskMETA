@@ -5,18 +5,17 @@
 
 package features.proxy.app
 
-import app.LocalAppStateStore
-import app.LocalAppServices
-import app.LocalIsWideScreen
-import app.LocalUpdateAppState
-import app.modes.RunModeVpnService
-import app.collectAppState
+import android.os.SystemClock
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -25,6 +24,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -36,36 +36,48 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import app.LocalAppServices
+import app.LocalAppStateStore
+import app.LocalIsWideScreen
+import app.LocalUpdateAppState
 import app.R
+import app.collectAppState
+import app.modes.RunModeVpnService
+import features.proxy.app.model.ProxyAppListItem
+import features.proxy.app.model.ProxyAppListUserSpaceTabUi
 import features.proxy.app.usecase.ProxyAppListClipboardData
 import features.proxy.app.usecase.applyProxyAppListClipboardImport
 import features.proxy.app.usecase.decodeProxyAppListFromClipboard
 import features.proxy.app.usecase.encodeProxyAppListForClipboard
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import system.ANDROID_APP_ICON_SIZE_DP
-import androidx.compose.ui.res.stringResource
+import top.yukonga.miuix.kmp.basic.InfiniteProgressIndicator
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.PullToRefresh
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.ScrollBehavior
+import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.VerticalScrollBar
 import top.yukonga.miuix.kmp.basic.rememberScrollBarAdapter
-import top.yukonga.miuix.kmp.theme.MiuixTheme
-import ui.layout.AdaptiveTopAppBar
-import features.proxy.app.model.ProxyAppListItem
-import features.proxy.app.model.ProxyAppListUserSpaceTabUi
-import ui.layout.pageContentPaddingWithCutout
-import ui.layout.pageListPadding
-import ui.layout.pageScrollModifiers
 import top.yukonga.miuix.kmp.interfaces.ExperimentalScrollBarApi
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import ui.clipboard.ClipboardImportException
 import ui.clipboard.ClipboardImportFailure
 import ui.clipboard.ClipboardImportMode
 import ui.clipboard.getPlainText
 import ui.clipboard.setPlainText
 import ui.components.ImportModeDialog
+import ui.layout.AdaptiveTopAppBar
+import ui.layout.pageContentPaddingWithCutout
+import ui.layout.pageListPadding
+import ui.layout.pageScrollModifiers
 import ui.text.formatTemplate
+import kotlin.time.Duration.Companion.milliseconds
+
+private const val ProxyAppListAutomaticLoadingMinVisibleMillis = 500L
 
 @Composable
 fun ProxyAppListPage(
@@ -342,9 +354,42 @@ private fun ProxyAppListContent(
     userPagerState: PagerState,
     onAppCheckedChange: (ProxyAppListItem, Boolean) -> Unit,
 ) {
+    var showAutomaticLoading by remember { mutableStateOf(false) }
+    var automaticLoadingStartedAtMillis by remember { mutableStateOf<Long?>(null) }
+    val automaticLoading = pageState.loadingApps && !pageState.refreshingApps
+
+    LaunchedEffect(pageState.loadingApps, pageState.refreshingApps) {
+        when {
+            automaticLoading -> {
+                automaticLoadingStartedAtMillis = SystemClock.elapsedRealtime()
+                showAutomaticLoading = true
+            }
+
+            pageState.refreshingApps -> {
+                automaticLoadingStartedAtMillis = null
+                showAutomaticLoading = false
+            }
+
+            showAutomaticLoading -> {
+                val startedAt = automaticLoadingStartedAtMillis
+                val elapsed = if (startedAt == null) {
+                    ProxyAppListAutomaticLoadingMinVisibleMillis
+                } else {
+                    SystemClock.elapsedRealtime() - startedAt
+                }
+                val remaining = ProxyAppListAutomaticLoadingMinVisibleMillis - elapsed
+                if (remaining > 0L) {
+                    delay(remaining.milliseconds)
+                }
+                automaticLoadingStartedAtMillis = null
+                showAutomaticLoading = false
+            }
+        }
+    }
+
     Box {
         PullToRefresh(
-            isRefreshing = pageState.loadingApps,
+            isRefreshing = pageState.refreshingApps,
             onRefresh = pageState::requestRefresh,
             modifier = Modifier.fillMaxWidth().fillMaxHeight(),
             contentPadding = listPadding,
@@ -376,6 +421,33 @@ private fun ProxyAppListContent(
                 )
             }
         }
+        if (showAutomaticLoading) {
+            ProxyAppListLoadingState(modifier = Modifier.fillMaxSize())
+        }
+    }
+}
+
+@Composable
+private fun ProxyAppListLoadingState(
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.background(MiuixTheme.colorScheme.surface),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        InfiniteProgressIndicator(
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            size = 28.dp,
+            strokeWidth = 2.dp,
+            orbitingDotSize = 2.dp,
+        )
+        Spacer(Modifier.height(14.dp))
+        Text(
+            text = stringResource(R.string.proxy_app_list_loading),
+            style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+        )
     }
 }
 

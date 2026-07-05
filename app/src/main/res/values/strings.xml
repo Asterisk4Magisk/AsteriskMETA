@@ -466,6 +466,7 @@
     <string name="proxy_app_list_release_to_refresh">Release to refresh</string>
     <string name="proxy_app_list_refreshing">Refreshing…</string>
     <string name="proxy_app_list_refreshed">Refresh complete</string>
+    <string name="proxy_app_list_loading">Loading apps…</string>
     <string name="proxy_app_list_load_failed">Unable to load app list</string>
     <string name="proxy_app_list_import_clipboard_title">Import app list</string>
     <string name="proxy_app_list_import_clipboard_message">Detected {count} apps. Choose how to import.</string>
