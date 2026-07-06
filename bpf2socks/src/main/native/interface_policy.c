@@ -61,6 +61,13 @@ static void clear_lpm4_map(int map_fd) {
     }
 }
 
+static void clear_lpm6_map(int map_fd) {
+    struct bpf2socks_lpm6_key key;
+    while (bpf2socks_get_next_key(map_fd, NULL, &key) == 0) {
+        if (bpf2socks_delete_map(map_fd, &key) != 0) break;
+    }
+}
+
 static int refresh_ignored_ifindices(const struct bpf2socks_interface_runtime *interfaces) {
     clear_ifindex_map(interfaces->bpf_runtime->ignored_ifindex_map_fd);
 
@@ -92,37 +99,66 @@ static uint32_t mask_ipv4_route_addr(uint32_t addr, uint8_t prefixlen) {
     return htonl(ntohl(addr) & mask);
 }
 
+static void mask_ipv6_route_addr(uint8_t addr[16], uint8_t prefixlen) {
+    if (prefixlen >= 128U) return;
+    size_t full_bytes = (size_t)(prefixlen / 8U);
+    uint8_t rest_bits = (uint8_t)(prefixlen % 8U);
+    if (full_bytes >= 16U) return;
+    if (rest_bits == 0U) {
+        memset(addr + full_bytes, 0, 16U - full_bytes);
+        return;
+    }
+    addr[full_bytes] &= (uint8_t)(0xffU << (8U - rest_bits));
+    memset(addr + full_bytes + 1U, 0, 16U - full_bytes - 1U);
+}
+
 static int add_ignored_route(const struct bpf2socks_interface_runtime *interfaces, const struct nlmsghdr *nh) {
     const struct rtmsg *rtm = (const struct rtmsg *)NLMSG_DATA(nh);
-    if (rtm->rtm_family != AF_INET || rtm->rtm_dst_len > 32U || rtm->rtm_type != RTN_UNICAST) {
+    if (rtm->rtm_type != RTN_UNICAST) {
         return 0;
     }
+    if (rtm->rtm_family == AF_INET && rtm->rtm_dst_len > 32U) return 0;
+    if (rtm->rtm_family == AF_INET6 && rtm->rtm_dst_len > 128U) return 0;
+    if (rtm->rtm_family != AF_INET && rtm->rtm_family != AF_INET6) return 0;
 
     int len = RTM_PAYLOAD(nh);
     const struct rtattr *attr = RTM_RTA(rtm);
     int oif = 0;
     uint32_t dst = 0U;
+    uint8_t dst6[16];
+    memset(dst6, 0, sizeof(dst6));
     for (; RTA_OK(attr, len); attr = RTA_NEXT(attr, len)) {
         if (attr->rta_type == RTA_OIF && RTA_PAYLOAD(attr) >= (int)sizeof(oif)) {
             memcpy(&oif, RTA_DATA(attr), sizeof(oif));
         } else if (attr->rta_type == RTA_DST && RTA_PAYLOAD(attr) >= (int)sizeof(dst)) {
-            memcpy(&dst, RTA_DATA(attr), sizeof(dst));
+            if (rtm->rtm_family == AF_INET) {
+                memcpy(&dst, RTA_DATA(attr), sizeof(dst));
+            } else if (RTA_PAYLOAD(attr) >= (int)sizeof(dst6)) {
+                memcpy(dst6, RTA_DATA(attr), sizeof(dst6));
+            }
         }
     }
 
     if (!ifindex_ignored(interfaces, oif)) return 0;
 
-    struct bpf2socks_lpm4_key key;
+    uint8_t value = 1U;
+    if (rtm->rtm_family == AF_INET) {
+        struct bpf2socks_lpm4_key key;
+        memset(&key, 0, sizeof(key));
+        key.prefixlen = rtm->rtm_dst_len;
+        key.addr = mask_ipv4_route_addr(dst, rtm->rtm_dst_len);
+        return bpf2socks_update_map(interfaces->bpf_runtime->ignored_route_cidr4_map_fd, &key, &value);
+    }
+    if (interfaces->bpf_runtime->ignored_route_cidr6_map_fd < 0) return 0;
+    struct bpf2socks_lpm6_key key;
     memset(&key, 0, sizeof(key));
     key.prefixlen = rtm->rtm_dst_len;
-    key.addr = mask_ipv4_route_addr(dst, rtm->rtm_dst_len);
-    uint8_t value = 1U;
-    return bpf2socks_update_map(interfaces->bpf_runtime->ignored_route_cidr4_map_fd, &key, &value);
+    memcpy(key.addr, dst6, sizeof(key.addr));
+    mask_ipv6_route_addr(key.addr, rtm->rtm_dst_len);
+    return bpf2socks_update_map(interfaces->bpf_runtime->ignored_route_cidr6_map_fd, &key, &value);
 }
 
-static int dump_ignored_routes(const struct bpf2socks_interface_runtime *interfaces) {
-    clear_lpm4_map(interfaces->bpf_runtime->ignored_route_cidr4_map_fd);
-
+static int dump_ignored_routes_family(const struct bpf2socks_interface_runtime *interfaces, int family) {
     int fd = open_route_netlink(0U);
     if (fd < 0) return -1;
 
@@ -135,7 +171,7 @@ static int dump_ignored_routes(const struct bpf2socks_interface_runtime *interfa
     req.nh.nlmsg_type = RTM_GETROUTE;
     req.nh.nlmsg_flags = NLM_F_REQUEST | NLM_F_DUMP;
     req.nh.nlmsg_seq = 1U;
-    req.rt.rtm_family = AF_INET;
+    req.rt.rtm_family = (uint8_t)family;
 
     struct sockaddr_nl kernel;
     memset(&kernel, 0, sizeof(kernel));
@@ -182,6 +218,22 @@ static int dump_ignored_routes(const struct bpf2socks_interface_runtime *interfa
     return result;
 }
 
+static int dump_ignored_routes4(const struct bpf2socks_interface_runtime *interfaces) {
+    clear_lpm4_map(interfaces->bpf_runtime->ignored_route_cidr4_map_fd);
+    return dump_ignored_routes_family(interfaces, AF_INET);
+}
+
+static int dump_ignored_routes6(const struct bpf2socks_interface_runtime *interfaces) {
+    if (interfaces->bpf_runtime->ignored_route_cidr6_map_fd < 0) return 0;
+    clear_lpm6_map(interfaces->bpf_runtime->ignored_route_cidr6_map_fd);
+    return dump_ignored_routes_family(interfaces, AF_INET6);
+}
+
+static int dump_ignored_routes(const struct bpf2socks_interface_runtime *interfaces) {
+    if (dump_ignored_routes4(interfaces) < 0) return -1;
+    return dump_ignored_routes6(interfaces);
+}
+
 static int refresh_interface_policy(const struct bpf2socks_interface_runtime *interfaces) {
     if (refresh_ignored_ifindices(interfaces) < 0) return -1;
     return dump_ignored_routes(interfaces);
@@ -226,7 +278,9 @@ int bpf2socks_interface_policy_start(
         return -1;
     }
     if (policy->ignored_interface_count == 0U) return 0;
-    if (runtime->ignored_ifindex_map_fd < 0 || runtime->ignored_route_cidr4_map_fd < 0) {
+    if (runtime->ignored_ifindex_map_fd < 0 ||
+        runtime->ignored_route_cidr4_map_fd < 0 ||
+        (policy->enable_ipv6 && runtime->ignored_route_cidr6_map_fd < 0)) {
         errno = EBADF;
         return -1;
     }
@@ -237,7 +291,7 @@ int bpf2socks_interface_policy_start(
     interfaces->policy = policy;
     interfaces->bpf_runtime = runtime;
 
-    interfaces->netlink_fd = open_route_netlink(RTMGRP_LINK | RTMGRP_IPV4_ROUTE);
+    interfaces->netlink_fd = open_route_netlink(RTMGRP_LINK | RTMGRP_IPV4_ROUTE | RTMGRP_IPV6_ROUTE);
     if (interfaces->netlink_fd < 0) {
         int saved = errno;
         free(interfaces);

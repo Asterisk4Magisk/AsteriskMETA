@@ -141,8 +141,12 @@ static void emit_sk_lookup_local_addr_bypass_v6(
 
 static int build_sk_lookup_assign_prog(
     int sock_map_fd,
-    int cidr4_map_fd,
-    int cidr6_map_fd,
+    int bypass_private_cidr4_map_fd,
+    int local_interface_cidr4_map_fd,
+    int direct_cidr4_map_fd,
+    int bypass_private_cidr6_map_fd,
+    int local_interface_cidr6_map_fd,
+    int direct_cidr6_map_fd,
     uint32_t worker_count,
     bool enable_ipv6,
     const char *name,
@@ -177,7 +181,9 @@ static int build_sk_lookup_assign_prog(
     emit(&b, BPF_ENDIAN_OP(BPF_REG_3, 32));
     emit(&b, BPF_ALU64_IMM_OP(BPF_AND, BPF_REG_3, 0xff000000U));
     pass_jumps[pass_jump_count++] = emit_jump(&b, BPF_JMP_IMM_OP(BPF_JEQ, BPF_REG_3, 0x7f000000U, 0));
-    emit_sk_lookup_local_addr_bypass_v4(&b, cidr4_map_fd, pass_jumps, &pass_jump_count);
+    emit_sk_lookup_local_addr_bypass_v4(&b, bypass_private_cidr4_map_fd, pass_jumps, &pass_jump_count);
+    emit_sk_lookup_local_addr_bypass_v4(&b, local_interface_cidr4_map_fd, pass_jumps, &pass_jump_count);
+    emit_sk_lookup_local_addr_bypass_v4(&b, direct_cidr4_map_fd, pass_jumps, &pass_jump_count);
 
     emit(&b, BPF_LDX_MEM(BPF_W, BPF_REG_9, BPF_REG_6, offsetof(struct bpf_sk_lookup, remote_ip4)));
     emit(&b, BPF_ALU64_REG_OP(BPF_XOR, BPF_REG_9, BPF_REG_7));
@@ -209,7 +215,9 @@ static int build_sk_lookup_assign_prog(
         emit(&b, BPF_ENDIAN_OP(BPF_REG_5, 32));
         pass_jumps[pass_jump_count++] = emit_jump(&b, BPF_JMP_IMM_OP(BPF_JEQ, BPF_REG_5, 1, 0));
         patch_jump(&b, not_v6_loopback, b.count);
-        emit_sk_lookup_local_addr_bypass_v6(&b, cidr6_map_fd, pass_jumps, &pass_jump_count);
+        emit_sk_lookup_local_addr_bypass_v6(&b, bypass_private_cidr6_map_fd, pass_jumps, &pass_jump_count);
+        emit_sk_lookup_local_addr_bypass_v6(&b, local_interface_cidr6_map_fd, pass_jumps, &pass_jump_count);
+        emit_sk_lookup_local_addr_bypass_v6(&b, direct_cidr6_map_fd, pass_jumps, &pass_jump_count);
 
         emit(&b, BPF_MOV64_IMM(BPF_REG_9, 0));
         emit(&b, BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_6, offsetof(struct bpf_sk_lookup, local_ip6)));
@@ -337,6 +345,10 @@ int bpf2socks_sk_lookup_probe(bool enable_ipv6, char *message, size_t message_si
         sock_map_fd,
         -1,
         -1,
+        -1,
+        -1,
+        -1,
+        -1,
         1U,
         enable_ipv6,
         "b2s_p_sklp",
@@ -376,8 +388,12 @@ int bpf2socks_sk_lookup_start(
     }
     runtime->sk_lookup_prog_fd = build_sk_lookup_assign_prog(
         runtime->sk_lookup_sock_map_fd,
-        runtime->bypass_cidr4_map_fd,
-        runtime->cidr6_map_fd,
+        runtime->bypass_private_cidr4_map_fd,
+        runtime->local_interface_cidr4_map_fd,
+        runtime->direct_cidr4_map_fd,
+        runtime->bypass_private_cidr6_map_fd,
+        runtime->local_interface_cidr6_map_fd,
+        runtime->direct_cidr6_map_fd,
         config->worker_count,
         policy->enable_ipv6,
         "b2s_sklp",

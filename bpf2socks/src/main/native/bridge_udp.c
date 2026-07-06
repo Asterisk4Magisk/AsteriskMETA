@@ -63,6 +63,7 @@ struct udp_client_packet {
     uint8_t token_addr[16];
     bool has_original_dst;
     bool original_from_socket;
+    bool connected_udp_token;
     struct bpf2socks_sockaddr original_dst;
     uint8_t *payload;
     size_t payload_len;
@@ -197,8 +198,13 @@ static int lookup_original_with_client_fallback(
 
 static bool packet_needs_original_reply_socket(const struct udp_client_packet *packet) {
     if (packet == NULL) return false;
-    // Connected UDP sockets only accept packets from their original peer, not from the loopback token.
+    if (packet->connected_udp_token) return false;
+    // UDP sockets that kept the original peer need replies sourced from that original destination.
     return packet->original_dst.family == AF_INET || packet->original_dst.family == AF_INET6;
+}
+
+static bool original_uses_connected_udp_token(const struct udp_client_packet *packet) {
+    return packet != NULL && packet->connected_udp_token;
 }
 
 static uint32_t checksum_add_bytes(uint32_t sum, const void *data, size_t len) {
@@ -741,6 +747,7 @@ static struct bpf2socks_udp_reply_binding *create_binding(
     const struct bpf2socks_sockaddr *original,
     const uint8_t *token_addr,
     size_t token_addr_len,
+    bool connected_udp_token,
     bool needs_original_reply_socket,
     bool fullcone,
     struct bpf2socks_bridge_worker *worker) {
@@ -754,6 +761,7 @@ static struct bpf2socks_udp_reply_binding *create_binding(
         memcpy(binding->token_addr, token_addr, token_addr_len);
     }
     binding->last_seen = time(NULL);
+    binding->connected_udp_token = connected_udp_token;
     if (needs_original_reply_socket) {
         binding->reply_fd = create_udp_client_reply_socket(original, &binding->reply_raw);
         if (binding->reply_fd < 0) {
@@ -786,7 +794,9 @@ static struct bpf2socks_udp_reply_binding *create_packet_binding(
         &packet->original_dst,
         packet->token_addr,
         packet->token_family == AF_INET6 ? 16U : 4U,
-        packet->original_from_socket || packet_needs_original_reply_socket(packet),
+        packet->connected_udp_token,
+        !original_uses_connected_udp_token(packet) &&
+            (packet->original_from_socket || packet_needs_original_reply_socket(packet)),
         false,
         worker);
 }
@@ -802,6 +812,7 @@ static struct bpf2socks_udp_reply_binding *create_fullcone_binding(
         remote,
         NULL,
         0U,
+        false,
         remote->family == AF_INET || remote->family == AF_INET6,
         true,
         worker);
@@ -884,6 +895,8 @@ static int lookup_udp_original(
         }
         return -1;
     }
+    packet->connected_udp_token =
+        (original.flags & BPF2SOCKS_ORIGINAL_DST_FLAG_CONNECTED_UDP) != 0U;
     return original_to_sockaddr(&original, &packet->original_dst);
 }
 
@@ -1148,6 +1161,21 @@ static void handle_udp_client_packets(
         } else {
             ++worker->stats.udp_reply_binding_hits;
             memcpy(binding->token_addr, packet.token_addr, packet.token_family == AF_INET6 ? 16U : 4U);
+            bool needs_original_reply_socket =
+                !original_uses_connected_udp_token(&packet) &&
+                (packet.original_from_socket || packet_needs_original_reply_socket(&packet));
+            if (!needs_original_reply_socket && binding->reply_fd >= 0) {
+                close(binding->reply_fd);
+                binding->reply_fd = -1;
+                binding->reply_raw = false;
+            } else if (needs_original_reply_socket && binding->reply_fd < 0) {
+                binding->reply_fd = create_udp_client_reply_socket(&binding->original_dst, &binding->reply_raw);
+                if (binding->reply_fd < 0) {
+                    fprintf(stderr, "failed to create UDP original reply socket: errno=%d\n", errno);
+                    continue;
+                }
+            }
+            binding->connected_udp_token = packet.connected_udp_token;
             binding->last_seen = time(NULL);
             binding_lru_touch(state, session, binding);
         }

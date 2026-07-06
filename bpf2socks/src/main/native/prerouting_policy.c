@@ -118,6 +118,40 @@ static size_t emit_exit(struct bpf_builder *builder, int result) {
     return label;
 }
 
+static void emit_ipv6_dns_drop_or_nomatch(
+    struct bpf_builder *builder,
+    const struct bpf2socks_policy_config *policy,
+    size_t *nomatch_jumps,
+    size_t *nomatch_jump_count) {
+    if (policy == NULL || !policy->enable_dns_hijack) return;
+
+    nomatch_jumps[(*nomatch_jump_count)++] = emit_skb_load_bytes_const(builder, 42, STACK_DPORT, 2);
+    emit(builder, BPF_LDX_MEM(BPF_H, BPF_REG_2, BPF_REG_10, STACK_DPORT));
+    nomatch_jumps[(*nomatch_jump_count)++] =
+        emit_jump(builder, BPF_JMP_IMM_OP(BPF_JEQ, BPF_REG_2, htons(53), 0));
+}
+
+static void emit_prerouting_cidr6_policy(
+    struct bpf_builder *builder,
+    int proxy_cidr6_map_fd,
+    int bypass_cidr6_map_fd,
+    size_t *match_jumps,
+    size_t *match_jump_count,
+    size_t *nomatch_jumps,
+    size_t *nomatch_jump_count) {
+    if (proxy_cidr6_map_fd < 0 && bypass_cidr6_map_fd < 0) return;
+
+    emit(builder, BPF_ST_MEM(BPF_W, BPF_REG_10, STACK_LPM6_KEY, 128));
+    nomatch_jumps[(*nomatch_jump_count)++] = emit_skb_load_bytes_const(
+        builder,
+        24,
+        STACK_LPM6_KEY + (int)offsetof(struct bpf2socks_lpm6_key, addr),
+        16);
+
+    emit_map_lookup_jump(builder, proxy_cidr6_map_fd, STACK_LPM6_KEY, match_jumps, match_jump_count, true);
+    emit_map_lookup_jump(builder, bypass_cidr6_map_fd, STACK_LPM6_KEY, nomatch_jumps, nomatch_jump_count, true);
+}
+
 static bool proxy_cidr4_map_required(const struct bpf2socks_policy_config *policy) {
     return policy != NULL && policy->proxy_private_cidr_v4_count > 0U;
 }
@@ -225,23 +259,16 @@ static int build_prerouting_ipv6_prog(
     emit(&b, BPF_ALU64_IMM_OP(BPF_AND, BPF_REG_2, 0xf0));
     nomatch_jumps[nomatch_jump_count++] = emit_jump(&b, BPF_JMP_IMM_OP(BPF_JNE, BPF_REG_2, 0x60, 0));
 
-    if (policy != NULL && policy->enable_dns_hijack) {
-        nomatch_jumps[nomatch_jump_count++] = emit_skb_load_bytes_const(&b, 42, STACK_DPORT, 2);
-        emit(&b, BPF_LDX_MEM(BPF_H, BPF_REG_2, BPF_REG_10, STACK_DPORT));
-        match_jumps[match_jump_count++] = emit_jump(&b, BPF_JMP_IMM_OP(BPF_JEQ, BPF_REG_2, htons(53), 0));
-    }
+    emit_ipv6_dns_drop_or_nomatch(&b, policy, nomatch_jumps, &nomatch_jump_count);
 
-    if (proxy_cidr6_map_fd >= 0 || bypass_cidr6_map_fd >= 0) {
-        emit(&b, BPF_ST_MEM(BPF_W, BPF_REG_10, STACK_LPM6_KEY, 128));
-        nomatch_jumps[nomatch_jump_count++] = emit_skb_load_bytes_const(
-            &b,
-            24,
-            STACK_LPM6_KEY + (int)offsetof(struct bpf2socks_lpm6_key, addr),
-            16);
-
-        emit_map_lookup_jump(&b, proxy_cidr6_map_fd, STACK_LPM6_KEY, match_jumps, &match_jump_count, true);
-        emit_map_lookup_jump(&b, bypass_cidr6_map_fd, STACK_LPM6_KEY, nomatch_jumps, &nomatch_jump_count, true);
-    }
+    emit_prerouting_cidr6_policy(
+        &b,
+        proxy_cidr6_map_fd,
+        bypass_cidr6_map_fd,
+        match_jumps,
+        &match_jump_count,
+        nomatch_jumps,
+        &nomatch_jump_count);
 
     size_t match_label = emit_exit(&b, XT_BPF_MATCH);
     size_t nomatch_label = emit_exit(&b, XT_BPF_NOMATCH);

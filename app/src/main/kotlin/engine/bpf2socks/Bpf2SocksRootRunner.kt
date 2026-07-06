@@ -19,6 +19,8 @@ import engine.root.RootProxyRouteRulePriority
 import engine.root.RootReadinessCheck
 import engine.root.RootRuntimeLayout
 import engine.root.appendDeleteRuleLoop
+import engine.root.appendRootFakeIpIcmpReplyCleanupRules
+import engine.root.appendRootFakeIpIcmpReplyRules
 import engine.root.appendIpRuleDeleteLoop
 import engine.root.appendScript
 import engine.root.bpf2socksConfigPath
@@ -51,6 +53,9 @@ internal class Bpf2SocksRootRunner(
     ): String {
         return buildString {
             append(buildApplyRootEbpfSelinuxPolicyCommand())
+            if (config.root.enableFakeIp) {
+                appendRootFakeIpIcmpReplyRules(config.root.fakeIpIpv4Pool, cleanupExistingRules)
+            }
             appendBpf2SocksIpv6TokenRouteSetup(config.bpf2socksConfig)
             appendBpf2SocksHotspotSetupRules(config.bpf2socksConfig, cleanupExistingRules)
         }
@@ -59,6 +64,7 @@ internal class Bpf2SocksRootRunner(
     override fun buildCleanupRulesCommand(): String {
         return buildString {
             appendBpf2SocksHotspotCleanupRules()
+            appendRootFakeIpIcmpReplyCleanupRules()
             appendBpf2SocksIpv6TokenRouteCleanup()
             appendScript("rm -rf ${RootBpf2SocksPinnedObjectDir.shellQuote()} 2>/dev/null || true")
         }
@@ -232,6 +238,7 @@ private fun StringBuilder.appendBpf2SocksHotspotSetupRules(
             val quotedInterface = prefix.shellQuote()
             appendScript(
                 """
+                ${if (config.enableDnsHijack) "$RootIp6tablesCommand -t mangle -A $RootBpf2SocksPreroutingChain -i $quotedInterface -p udp --dport 53 -j DROP" else ":"}
                 $RootIp6tablesCommand -t mangle -A $RootBpf2SocksPreroutingChain -i $quotedInterface -p tcp -m bpf --object-pinned $programPath6 -j MARK --set-xmark $RootBpf2SocksFwmark
                 $RootIp6tablesCommand -t mangle -A $RootBpf2SocksPreroutingChain -i $quotedInterface -p udp -m bpf --object-pinned $programPath6 -j MARK --set-xmark $RootBpf2SocksFwmark
                 """,

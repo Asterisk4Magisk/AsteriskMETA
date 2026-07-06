@@ -21,7 +21,9 @@
 #define BPF2SOCKS_MAX_PATH_LEN 512U
 #define BPF2SOCKS_UID_SELECTED 1U
 #define BPF2SOCKS_UID_BYPASS 2U
+#define BPF2SOCKS_ORIGINAL_DST_FLAG_CONNECTED_UDP 1U
 #define BPF2SOCKS_MAX_TOKEN_MAP_ENTRIES 65536U
+#define BPF2SOCKS_MAX_UDP_PEER_MAP_ENTRIES 65536U
 #define BPF2SOCKS_DEFAULT_CGROUP_PATH "/sys/fs/cgroup"
 #define BPF2SOCKS_DEFAULT_WORKER_COUNT 2U
 #define BPF2SOCKS_MAX_WORKER_COUNT 8U
@@ -122,6 +124,21 @@ struct bpf2socks_original_dst {
     uint8_t protocol;
     uint16_t port;
     uint8_t addr[16];
+    uint8_t flags;
+    uint8_t reserved[3];
+};
+
+struct bpf2socks_udp_peer_key {
+    uint64_t cookie;
+    uint8_t family;
+    uint8_t reserved[7];
+};
+
+struct bpf2socks_udp_peer_value {
+    uint8_t family;
+    uint8_t protocol;
+    uint16_t port;
+    uint8_t addr[16];
 };
 
 struct bpf2socks_runtime_config {
@@ -183,11 +200,18 @@ struct bpf2socks_bpf_runtime {
     int cgroup_fd;
     int uid_map_fd;
     int proxy_cidr4_map_fd;
-    int bypass_cidr4_map_fd;
+    int bypass_private_cidr4_map_fd;
+    int local_interface_cidr4_map_fd;
+    int direct_cidr4_map_fd;
+    int proxy_cidr6_map_fd;
+    int bypass_private_cidr6_map_fd;
+    int local_interface_cidr6_map_fd;
+    int direct_cidr6_map_fd;
     int ignored_ifindex_map_fd;
     int ignored_route_cidr4_map_fd;
-    int cidr6_map_fd;
+    int ignored_route_cidr6_map_fd;
     int token_map_fd;
+    int udp_peer_map_fd;
     int sk_lookup_sock_map_fd;
     int sk_lookup_prog_fd;
     int sk_lookup_link_fd;
@@ -196,8 +220,10 @@ struct bpf2socks_bpf_runtime {
     int connect6_v4mapped_prog_fd;
     int udp4_sendmsg_prog_fd;
     int udp6_sendmsg_prog_fd;
+    int udp6_v4mapped_sendmsg_prog_fd;
     int udp4_recvmsg_prog_fd;
     int udp6_recvmsg_prog_fd;
+    int udp6_v4mapped_recvmsg_prog_fd;
     struct bpf2socks_interface_runtime *interfaces;
 };
 

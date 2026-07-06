@@ -34,6 +34,7 @@ struct bpf2socks_udp_reply_binding {
     bool used;
     struct bpf2socks_sockaddr original_dst;
     uint8_t token_addr[16];
+    bool connected_udp_token;
     int reply_fd;
     bool reply_raw;
     time_t last_seen;
