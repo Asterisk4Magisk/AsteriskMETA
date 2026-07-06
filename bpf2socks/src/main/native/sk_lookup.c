@@ -125,6 +125,10 @@ static void emit_sk_lookup_local_addr_bypass_v6(
 
     emit(builder, BPF_LDX_MEM(BPF_W, BPF_REG_4, BPF_REG_6, offsetof(struct bpf_sk_lookup, local_port)));
     size_t dns_port = emit_jump(builder, BPF_JMP_IMM_OP(BPF_JEQ, BPF_REG_4, 53, 0));
+    emit(builder, BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_6, offsetof(struct bpf_sk_lookup, local_ip6)));
+    emit(builder, BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_6, offsetof(struct bpf_sk_lookup, local_ip6) + 4));
+    emit(builder, BPF_LDX_MEM(BPF_W, BPF_REG_1, BPF_REG_6, offsetof(struct bpf_sk_lookup, local_ip6) + 8));
+    emit(builder, BPF_LDX_MEM(BPF_W, BPF_REG_3, BPF_REG_6, offsetof(struct bpf_sk_lookup, local_ip6) + 12));
     emit_zero_region(builder, STACK_LPM6_KEY, sizeof(struct bpf2socks_lpm6_key));
     emit(builder, BPF_ST_MEM(BPF_W, BPF_REG_10, STACK_LPM6_KEY, 128));
     emit(builder, BPF_STX_MEM(BPF_W, BPF_REG_10, BPF_REG_7, STACK_LPM6_KEY + (int)offsetof(struct bpf2socks_lpm6_key, addr)));

@@ -564,13 +564,21 @@ static void emit_udp_peer_cache_restore_v6(
     emit(builder, BPF_LDX_MEM(BPF_W, BPF_REG_9, BPF_REG_0, offsetof(struct bpf2socks_udp_peer_value, addr) + 8));
     emit(builder, BPF_LDX_MEM(BPF_W, BPF_REG_4, BPF_REG_0, offsetof(struct bpf2socks_udp_peer_value, addr) + 12));
     emit(builder, BPF_LDX_MEM(BPF_H, BPF_REG_5, BPF_REG_0, offsetof(struct bpf2socks_udp_peer_value, port)));
+    size_t restored_peer = emit_jump(builder, BPF_JMP_IMM_OP(BPF_JA, 0, 0, 0));
 
+    size_t fallback = builder->count;
+    emit(builder, BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_6, offsetof(struct bpf_sock_addr, user_ip6)));
+    emit(builder, BPF_LDX_MEM(BPF_W, BPF_REG_8, BPF_REG_6, offsetof(struct bpf_sock_addr, user_ip6) + 4));
+    emit(builder, BPF_LDX_MEM(BPF_W, BPF_REG_9, BPF_REG_6, offsetof(struct bpf_sock_addr, user_ip6) + 8));
+    emit(builder, BPF_LDX_MEM(BPF_W, BPF_REG_4, BPF_REG_6, offsetof(struct bpf_sock_addr, user_ip6) + 12));
+    emit(builder, BPF_LDX_MEM(BPF_W, BPF_REG_5, BPF_REG_6, offsetof(struct bpf_sock_addr, user_port)));
     size_t done = builder->count;
+    patch_jump(builder, restored_peer, done);
     patch_jump(builder, has_complete_peer, done);
-    patch_jump(builder, no_cookie, done);
-    patch_jump(builder, no_peer, done);
-    patch_jump(builder, wrong_family, done);
-    patch_jump(builder, wrong_proto, done);
+    patch_jump(builder, no_cookie, fallback);
+    patch_jump(builder, no_peer, fallback);
+    patch_jump(builder, wrong_family, fallback);
+    patch_jump(builder, wrong_proto, fallback);
 }
 
 static void emit_ipv4_policy_checks_from_regs(
