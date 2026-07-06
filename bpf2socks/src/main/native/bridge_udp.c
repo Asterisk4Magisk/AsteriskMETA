@@ -20,14 +20,6 @@
 #include <time.h>
 #include <unistd.h>
 
-#ifndef IP_ORIGDSTADDR
-#define IP_ORIGDSTADDR 20
-#endif
-
-#ifndef IP_RECVORIGDSTADDR
-#define IP_RECVORIGDSTADDR IP_ORIGDSTADDR
-#endif
-
 #ifndef IP_FREEBIND
 #define IP_FREEBIND 15
 #endif
@@ -116,10 +108,6 @@ struct udp_state {
     size_t event_cap;
 };
 
-static bool ipv4_is_loopback(uint32_t addr_net) {
-    return (ntohl(addr_net) & 0xff000000U) == 0x7f000000U;
-}
-
 static bool same_sockaddr(
     const struct sockaddr_storage *a,
     socklen_t a_len,
@@ -174,15 +162,6 @@ static int original_to_sockaddr(const struct bpf2socks_original_dst *src, struct
         return 0;
     }
     return -1;
-}
-
-static int sockaddr_in_to_bpf_sockaddr(const struct sockaddr_in *addr, struct bpf2socks_sockaddr *dst) {
-    if (addr == NULL || dst == NULL || addr->sin_family != AF_INET) return -1;
-    memset(dst, 0, sizeof(*dst));
-    dst->family = AF_INET;
-    dst->port = ntohs(addr->sin_port);
-    memcpy(dst->addr, &addr->sin_addr, 4);
-    return 0;
 }
 
 static int lookup_original_with_client_fallback(
@@ -900,7 +879,10 @@ static int lookup_udp_original(
     return original_to_sockaddr(&original, &packet->original_dst);
 }
 
-static int parse_udp_client_packet_cmsgs(struct msghdr *msg, struct udp_client_packet *packet) {
+static int parse_udp_client_packet_cmsgs(
+    struct msghdr *msg,
+    const struct bpf2socks_runtime_config *config,
+    struct udp_client_packet *packet) {
     bool has_pktinfo = false;
     for (struct cmsghdr *cmsg = CMSG_FIRSTHDR(msg); cmsg != NULL; cmsg = CMSG_NXTHDR(msg, cmsg)) {
         if (cmsg->cmsg_level == IPPROTO_IP && cmsg->cmsg_type == IP_PKTINFO) {
@@ -908,18 +890,19 @@ static int parse_udp_client_packet_cmsgs(struct msghdr *msg, struct udp_client_p
             packet->token_family = AF_INET;
             memcpy(packet->token_addr, &pktinfo->ipi_addr, 4);
             has_pktinfo = true;
+            continue;
         } else if (cmsg->cmsg_level == IPPROTO_IPV6 && cmsg->cmsg_type == IPV6_PKTINFO) {
             const struct in6_pktinfo *pktinfo = (const struct in6_pktinfo *)CMSG_DATA(cmsg);
             packet->token_family = AF_INET6;
             memcpy(packet->token_addr, &pktinfo->ipi6_addr, 16);
             has_pktinfo = true;
-        } else if (cmsg->cmsg_level == IPPROTO_IP && cmsg->cmsg_type == IP_ORIGDSTADDR) {
-            const struct sockaddr_in *original = (const struct sockaddr_in *)CMSG_DATA(cmsg);
-            if (original->sin_family == AF_INET &&
-                !ipv4_is_loopback(original->sin_addr.s_addr) &&
-                sockaddr_in_to_bpf_sockaddr(original, &packet->original_dst) == 0) {
-                packet->has_original_dst = true;
-            }
+            continue;
+        }
+
+        struct bpf2socks_original_dst original;
+        if (bpf2socks_original_from_cmsg(cmsg, config, BPF2SOCKS_PROTO_UDP, &original) == 0 &&
+            original_to_sockaddr(&original, &packet->original_dst) == 0) {
+            packet->has_original_dst = true;
         }
     }
     return has_pktinfo ? 0 : -1;
@@ -1097,7 +1080,8 @@ static void handle_udp_client_packets(
     struct sockaddr_storage addrs[batch];
     char control[batch][CMSG_SPACE(sizeof(struct in_pktinfo)) +
                         CMSG_SPACE(sizeof(struct in6_pktinfo)) +
-                        CMSG_SPACE(sizeof(struct sockaddr_in))];
+                        CMSG_SPACE(sizeof(struct sockaddr_in)) +
+                        CMSG_SPACE(sizeof(struct sockaddr_in6))];
     memset(vec, 0, sizeof(vec));
     memset(addrs, 0, sizeof(addrs));
     memset(control, 0, sizeof(control));
@@ -1142,7 +1126,7 @@ static void handle_udp_client_packets(
         packet.payload_len = vec[i].msg_len;
         ++worker->stats.udp_packets_from_client;
 
-        if (parse_udp_client_packet_cmsgs(&vec[i].msg_hdr, &packet) < 0 ||
+        if (parse_udp_client_packet_cmsgs(&vec[i].msg_hdr, worker->config, &packet) < 0 ||
             lookup_udp_original(worker->config, &packet) < 0) {
             ++worker->stats.udp_token_misses;
             fprintf(stderr, "missing UDP original destination: errno=%d\n", errno);

@@ -7,6 +7,15 @@
 #include <netinet/in.h>
 #include <stdbool.h>
 #include <string.h>
+#include <sys/socket.h>
+
+#ifndef IP_ORIGDSTADDR
+#define IP_ORIGDSTADDR 20
+#endif
+
+#ifndef IPV6_ORIGDSTADDR
+#define IPV6_ORIGDSTADDR 74
+#endif
 
 static bool ipv4_is_loopback(uint32_t addr_net) {
     return (ntohl(addr_net) & 0xff000000U) == 0x7f000000U;
@@ -94,5 +103,32 @@ int bpf2socks_original_from_sockaddr_storage(
         return sockaddr_in6_to_original((const struct sockaddr_in6 *)addr, config, protocol, original);
     }
     errno = EAFNOSUPPORT;
+    return -1;
+}
+
+int bpf2socks_original_from_cmsg(
+    const struct cmsghdr *cmsg,
+    const struct bpf2socks_runtime_config *config,
+    uint8_t protocol,
+    struct bpf2socks_original_dst *original) {
+    if (cmsg == NULL || original == NULL) {
+        errno = EINVAL;
+        return -1;
+    }
+    if (cmsg->cmsg_level == IPPROTO_IP && cmsg->cmsg_type == IP_ORIGDSTADDR) {
+        if (cmsg->cmsg_len < CMSG_LEN(sizeof(struct sockaddr_in))) {
+            errno = EINVAL;
+            return -1;
+        }
+        return sockaddr_in_to_original((const struct sockaddr_in *)CMSG_DATA(cmsg), protocol, original);
+    }
+    if (cmsg->cmsg_level == IPPROTO_IPV6 && cmsg->cmsg_type == IPV6_ORIGDSTADDR) {
+        if (cmsg->cmsg_len < CMSG_LEN(sizeof(struct sockaddr_in6))) {
+            errno = EINVAL;
+            return -1;
+        }
+        return sockaddr_in6_to_original((const struct sockaddr_in6 *)CMSG_DATA(cmsg), config, protocol, original);
+    }
+    errno = ENOENT;
     return -1;
 }

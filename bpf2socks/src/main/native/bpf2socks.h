@@ -236,6 +236,11 @@ int bpf2socks_original_from_sockaddr_storage(
     const struct bpf2socks_runtime_config *config,
     uint8_t protocol,
     struct bpf2socks_original_dst *original);
+int bpf2socks_original_from_cmsg(
+    const struct cmsghdr *cmsg,
+    const struct bpf2socks_runtime_config *config,
+    uint8_t protocol,
+    struct bpf2socks_original_dst *original);
 
 long bpf2socks_bpf_sys(enum bpf_cmd cmd, union bpf_attr *attr, unsigned int size);
 int bpf2socks_create_map(enum bpf_map_type type, uint32_t key_size, uint32_t value_size, uint32_t max_entries, uint32_t flags);

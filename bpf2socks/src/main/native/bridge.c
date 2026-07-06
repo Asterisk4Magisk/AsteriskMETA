@@ -24,6 +24,14 @@
 #define IP_RECVORIGDSTADDR IP_ORIGDSTADDR
 #endif
 
+#ifndef IPV6_ORIGDSTADDR
+#define IPV6_ORIGDSTADDR 74
+#endif
+
+#ifndef IPV6_RECVORIGDSTADDR
+#define IPV6_RECVORIGDSTADDR IPV6_ORIGDSTADDR
+#endif
+
 #ifndef IP_TRANSPARENT
 #define IP_TRANSPARENT 19
 #endif
@@ -222,6 +230,7 @@ static int bind_udp6_listener(const struct bpf2socks_runtime_config *config) {
         errno = saved;
         return -1;
     }
+    (void)setsockopt(fd, IPPROTO_IPV6, IPV6_RECVORIGDSTADDR, &one, sizeof(one));
     if (config->sk_lookup_sock_map_fd >= 0 &&
         setsockopt(fd, IPPROTO_IPV6, IPV6_TRANSPARENT, &one, sizeof(one)) != 0) {
         int saved = errno;
