@@ -5,13 +5,12 @@ import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
-import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputDirectory
 import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.Optional
-import org.gradle.api.tasks.OutputDirectory
+import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
@@ -28,8 +27,8 @@ abstract class BuildHevTunTask : DefaultTask() {
     @get:PathSensitive(PathSensitivity.RELATIVE)
     abstract val sourceDirectory: DirectoryProperty
 
-    @get:OutputDirectory
-    abstract val outputDirectory: DirectoryProperty
+    @get:OutputFile
+    abstract val outputFile: RegularFileProperty
 
     @get:Optional
     @get:InputFile
@@ -40,7 +39,10 @@ abstract class BuildHevTunTask : DefaultTask() {
     abstract val minSdk: Property<Int>
 
     @get:Input
-    abstract val targetAbis: ListProperty<String>
+    abstract val androidAbi: Property<String>
+
+    @get:Input
+    abstract val artifact: Property<String>
 
     init {
         group = "build"
@@ -49,9 +51,13 @@ abstract class BuildHevTunTask : DefaultTask() {
 
     @TaskAction
     fun build() {
+        val artifact = HevTunArtifact.fromName(artifact.get())
+        val abi = androidAbi.get()
         val ndkBuild = findNdkBuild(findNdkDir())
         val sourceDir = prepareBuildSource(sourceDirectory.get().asFile)
-        val outputDir = outputDirectory.get().asFile
+        val finalOutput = outputFile.get().asFile
+        val outputDir = finalOutput.parentFile
+        val ndkLibsOutDir = outputDir.parentFile
         val projectDir = temporaryDir.resolve("ndk-project")
         val jniDir = projectDir.resolve("jni")
         val appBuildScript = jniDir.resolve("Android.mk")
@@ -62,6 +68,7 @@ abstract class BuildHevTunTask : DefaultTask() {
         jniDir.mkdirs()
         writeGeneratedAndroidMk(appBuildScript, sourceDir)
         outputDir.mkdirs()
+        ndkLibsOutDir.mkdirs()
 
         execOperations.exec {
             workingDir = projectDir
@@ -69,38 +76,33 @@ abstract class BuildHevTunTask : DefaultTask() {
                 ndkBuild.absolutePath,
                 "NDK_PROJECT_PATH=${projectDir.absolutePath}",
                 "APP_BUILD_SCRIPT=${appBuildScript.absolutePath}",
-                "APP_ABI=${targetAbis.get().joinToString(" ")}",
+                "APP_ABI=$abi",
+                "APP_MODULES=${artifact.moduleName}",
                 "APP_PLATFORM=android-${minSdk.get()}",
-                "NDK_LIBS_OUT=${outputDir.absolutePath}",
+                "NDK_LIBS_OUT=${ndkLibsOutDir.absolutePath}",
                 "NDK_OUT=${temporaryDir.resolve("obj").absolutePath}",
                 "APP_CFLAGS=-O3 -DPKGNAME=engine/vpn/hevtun -DCLSNAME=HevTunNative",
                 "APP_LDFLAGS=-Wl,--build-id=none -Wl,--hash-style=gnu",
             )
         }
 
-        targetAbis.get().forEach { abi ->
-            val jniLibrary = outputDir.resolve("$abi/libhev-socks5-tunnel.so")
-            if (!jniLibrary.exists() || jniLibrary.length() <= 0) {
-                throw GradleException("Failed to build Hev TUN JNI library: ${jniLibrary.absolutePath}")
+        val builtOutput = outputDir.resolve(artifact.builtFileName)
+        if (!builtOutput.exists() || builtOutput.length() <= 0) {
+            throw GradleException("Failed to build Hev TUN ${artifact.displayName}: ${builtOutput.absolutePath}")
+        }
+        if (builtOutput != finalOutput) {
+            if (finalOutput.exists() && !finalOutput.delete()) {
+                throw GradleException("Failed to replace ${finalOutput.absolutePath}")
             }
-
-            val cliExecutable = outputDir.resolve("$abi/hev-socks5-tunnel-cli")
-            val packagedCliExecutable = outputDir.resolve("$abi/libhev-socks5-tunnel-cli.so")
-            if (!cliExecutable.exists() || cliExecutable.length() <= 0) {
-                throw GradleException("Failed to build Hev TUN CLI executable: ${cliExecutable.absolutePath}")
-            }
-            if (packagedCliExecutable.exists() && !packagedCliExecutable.delete()) {
-                throw GradleException("Failed to replace ${packagedCliExecutable.absolutePath}")
-            }
-            if (!cliExecutable.renameTo(packagedCliExecutable)) {
-                cliExecutable.inputStream().use { input ->
-                    packagedCliExecutable.outputStream().use { output -> input.copyTo(output) }
+            if (!builtOutput.renameTo(finalOutput)) {
+                builtOutput.inputStream().use { input ->
+                    finalOutput.outputStream().use { output -> input.copyTo(output) }
                 }
-                cliExecutable.delete()
+                builtOutput.delete()
             }
-            if (!packagedCliExecutable.exists() || packagedCliExecutable.length() <= 0) {
-                throw GradleException("Failed to package Hev TUN CLI executable: ${packagedCliExecutable.absolutePath}")
-            }
+        }
+        if (!finalOutput.exists() || finalOutput.length() <= 0) {
+            throw GradleException("Failed to package Hev TUN ${artifact.displayName}: ${finalOutput.absolutePath}")
         }
     }
 
@@ -218,4 +220,31 @@ private fun File.latestChildDirectoryForHevTun(): File? {
     return listFiles()
         ?.filter(File::isDirectory)
         ?.maxByOrNull { directory -> directory.name }
+}
+
+private enum class HevTunArtifact(
+    val artifactName: String,
+    val moduleName: String,
+    val builtFileName: String,
+    val displayName: String,
+) {
+    JniLibrary(
+        artifactName = "jni",
+        moduleName = "hev-socks5-tunnel",
+        builtFileName = "libhev-socks5-tunnel.so",
+        displayName = "JNI library",
+    ),
+    CliExecutable(
+        artifactName = "cli",
+        moduleName = "hev-socks5-tunnel-cli",
+        builtFileName = "hev-socks5-tunnel-cli",
+        displayName = "CLI executable",
+    );
+
+    companion object {
+        fun fromName(name: String): HevTunArtifact {
+            return entries.firstOrNull { artifact -> artifact.artifactName == name }
+                ?: throw GradleException("Unsupported Hev TUN artifact: $name")
+        }
+    }
 }
