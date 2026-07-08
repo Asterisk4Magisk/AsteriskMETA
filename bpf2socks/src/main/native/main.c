@@ -259,6 +259,7 @@ static int load_runtime_config(
     }
     config->enable_udp = json_bool(json, "enableUdp", true);
     config->enable_ipv6 = json_bool(json, "enableIpv6", false);
+    config->enable_dns_hijack = json_bool(json, "enableDnsHijack", false);
     config->debug_stats = json_bool(json, "debugStats", false) || env_bool_enabled("BPF2SOCKS_DEBUG_STATS");
     char token_ipv6_prefix[128];
     if (json_string(json, "tokenIpv6Prefix", token_ipv6_prefix, sizeof(token_ipv6_prefix)) &&
@@ -292,7 +293,7 @@ static int load_runtime_config(
     policy->mode = json_uint(policy_json, "mode", BPF2SOCKS_MODE_GLOBAL);
     policy->bypass_direct_cidrs = json_bool(policy_json, "bypassDirectCidrs", false);
     policy->enable_ipv6 = config->enable_ipv6;
-    policy->enable_dns_hijack = json_bool(json, "enableDnsHijack", false);
+    policy->enable_dns_hijack = config->enable_dns_hijack;
     (void)json_string(policy_json, "directCidrPathV4", policy->direct_cidr_path_v4, sizeof(policy->direct_cidr_path_v4));
     (void)json_string(policy_json, "directCidrPathV6", policy->direct_cidr_path_v6, sizeof(policy->direct_cidr_path_v6));
     json_uint_array(policy_json, "uids", policy->uids, &policy->uid_count, BPF2SOCKS_MAX_UIDS);

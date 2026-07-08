@@ -152,6 +152,7 @@ struct bpf2socks_runtime_config {
     char cgroup_path[BPF2SOCKS_MAX_PATH_LEN];
     bool enable_udp;
     bool enable_ipv6;
+    bool enable_dns_hijack;
     bool debug_stats;
     uint8_t token_ipv6_prefix[16];
     uint32_t token_ipv6_prefix_bits;
