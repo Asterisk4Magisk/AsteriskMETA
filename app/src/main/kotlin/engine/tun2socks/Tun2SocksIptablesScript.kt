@@ -18,6 +18,7 @@ import engine.root.appendRootFakeIpIcmpReplyCleanupRules
 import engine.root.appendRootFakeIpIcmpReplyRules
 import engine.root.appendRootIpv6DnsRejectCleanupRules
 import engine.root.appendRootIpv6DnsRejectRules
+import engine.root.appendRootRemoveAndroidTetheringIpv6TcOffloadRules
 import engine.root.appendScript
 import utils.shellQuote
 
@@ -38,6 +39,7 @@ internal fun RootIptablesConfig.buildSetupRulesCommand(
             enableLocalDns = enableLocalDns,
         )
         if (enableIpv6) {
+            appendRootRemoveAndroidTetheringIpv6TcOffloadRules(externalInterfacePrefixes)
             appendIptablesVariantSetupRules(
                 config = this@buildSetupRulesCommand,
                 variant = Tun2SocksIptablesVariant.forIpv6(this@buildSetupRulesCommand),

@@ -101,6 +101,38 @@ internal fun StringBuilder.appendRootEbpfXtbpfInterfaceTproxyRules(
     }
 }
 
+internal fun StringBuilder.appendRootRemoveAndroidTetheringIpv6TcOffloadRules(interfacePrefixes: List<String>) {
+    if (interfacePrefixes.isEmpty()) return
+    val quotedPrefixes = interfacePrefixes.joinToString(" ") { prefix -> prefix.shellQuote() }
+    appendScript(
+        $$"""
+        if command -v tc >/dev/null 2>&1; then
+            for iface_path in /sys/class/net/*; do
+                [ -e "$iface_path" ] || continue
+                iface="${iface_path##*/}"
+                matched=0
+                for prefix in $${quotedPrefixes}; do
+                    case "$prefix" in
+                        *+)
+                            prefix_base="${prefix%+}"
+                            case "$iface" in "$prefix_base"*) matched=1 ;; esac
+                            ;;
+                        *)
+                            [ "$iface" = "$prefix" ] && matched=1
+                            ;;
+                    esac
+                    [ "$matched" = 1 ] && break
+                done
+                [ "$matched" = 1 ] || continue
+                if tc filter show dev "$iface" ingress protocol ipv6 2>/dev/null | grep -q 'prog_offload_schedcls_tether_'; then
+                    tc filter del dev "$iface" ingress protocol ipv6 pref 2 2>/dev/null || true
+                fi
+            done
+        fi
+        """,
+    )
+}
+
 private fun String.rootEbpfProgramPath(ipv4Path: String, ipv6Path: String): String {
     return if (this == RootIp6tablesCommand) ipv6Path else ipv4Path
 }
