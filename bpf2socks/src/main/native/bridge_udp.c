@@ -73,8 +73,10 @@ struct udp_client_packet {
 enum udp_fd_kind {
     UDP_FD_LISTENER4,
     UDP_FD_LISTENER6,
-    UDP_FD_SESSION,
-    UDP_FD_DNS_CHANNEL,
+    UDP_FD_SESSION_CONTROL,
+    UDP_FD_SESSION_RELAY,
+    UDP_FD_DNS_CONTROL,
+    UDP_FD_DNS_RELAY,
 };
 
 struct udp_fd_ref {
@@ -82,6 +84,11 @@ struct udp_fd_ref {
     int fd;
     struct bpf2socks_udp_client_session *session;
     uint32_t dns_channel_index;
+};
+
+struct udp_session_fd_refs {
+    struct udp_fd_ref control;
+    struct udp_fd_ref relay;
 };
 
 struct dns_channel {
@@ -92,7 +99,8 @@ struct dns_channel {
     uint64_t next_rebuild_ms;
     struct sockaddr_storage relay_addr;
     socklen_t relay_addr_len;
-    struct udp_fd_ref ref;
+    struct udp_fd_ref control_ref;
+    struct udp_fd_ref relay_ref;
 };
 
 struct udp_send_batch {
@@ -118,7 +126,7 @@ struct udp_state {
     struct bpf2socks_udp_pending_packet *pending_packets;
     struct bpf2socks_udp_pending_packet *free_pending_packets;
     uint8_t *pending_payloads;
-    struct udp_fd_ref *session_refs;
+    struct udp_session_fd_refs *session_refs;
     struct epoll_event *events;
     struct bpf2socks_udp_client_session **session_buckets;
     struct bpf2socks_udp_client_session *lru_head;
@@ -141,6 +149,19 @@ struct udp_state {
     size_t event_cap;
     uint32_t next_dns_channel;
 };
+
+static bool udp_control_fd_is_healthy(int fd) {
+    uint8_t byte = 0U;
+    ssize_t received = recv(fd, &byte, sizeof(byte), MSG_PEEK | MSG_DONTWAIT);
+    if (received == 0) return false;
+    if (received > 0) return false;
+    return errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR;
+}
+
+static bool udp_control_event_is_failure(int fd, uint32_t events) {
+    if ((events & (EPOLLERR | EPOLLHUP | EPOLLRDHUP)) != 0U) return true;
+    return (events & EPOLLIN) != 0U && !udp_control_fd_is_healthy(fd);
+}
 
 static bool same_sockaddr(
     const struct sockaddr_storage *a,
@@ -701,8 +722,8 @@ static int add_session_udp_epoll_fd(struct udp_state *state, struct bpf2socks_ud
         errno = EINVAL;
         return -1;
     }
-    struct udp_fd_ref *ref = &state->session_refs[index];
-    ref->kind = UDP_FD_SESSION;
+    struct udp_fd_ref *ref = &state->session_refs[index].relay;
+    ref->kind = UDP_FD_SESSION_RELAY;
     ref->fd = session->udp_fd;
     ref->session = session;
     return add_udp_epoll_fd(state, session->udp_fd, ref);
@@ -714,15 +735,27 @@ static int add_session_tcp_epoll_fd(struct udp_state *state, struct bpf2socks_ud
         errno = EINVAL;
         return -1;
     }
-    struct udp_fd_ref *ref = &state->session_refs[index];
-    ref->kind = UDP_FD_SESSION;
+    struct udp_fd_ref *ref = &state->session_refs[index].control;
+    ref->kind = UDP_FD_SESSION_CONTROL;
     ref->fd = session->tcp_fd;
     ref->session = session;
     return add_udp_epoll_fd_events(state, session->tcp_fd, ref, events);
 }
 
 static int switch_session_epoll_to_udp(struct udp_state *state, struct bpf2socks_udp_client_session *session) {
-    remove_udp_epoll_fd(state, session->tcp_fd);
+    size_t index = session_index(state, session);
+    if (index >= state->session_cap) {
+        errno = EINVAL;
+        return -1;
+    }
+    struct udp_fd_ref *control_ref = &state->session_refs[index].control;
+    if (mod_udp_epoll_fd_events(
+            state,
+            session->tcp_fd,
+            control_ref,
+            EPOLLIN | EPOLLRDHUP) < 0) {
+        return -1;
+    }
     return add_session_udp_epoll_fd(state, session);
 }
 
@@ -1162,7 +1195,7 @@ static int advance_udp_associate(
         if (result > 0) {
             size_t index = session_index(state, session);
             if (index < state->session_cap) {
-                struct udp_fd_ref *ref = &state->session_refs[index];
+                struct udp_fd_ref *ref = &state->session_refs[index].control;
                 if (mod_udp_epoll_fd_events(state, session->tcp_fd, ref, EPOLLIN) < 0) return -1;
             }
         }
@@ -1222,7 +1255,10 @@ static void drop_session(struct udp_state *state, struct bpf2socks_udp_client_se
     size_t index = session_index(state, session);
     if (index < state->session_cap) {
         memset(&state->session_refs[index], 0, sizeof(state->session_refs[index]));
-        state->session_refs[index].fd = -1;
+        state->session_refs[index].control.kind = UDP_FD_SESSION_CONTROL;
+        state->session_refs[index].control.fd = -1;
+        state->session_refs[index].relay.kind = UDP_FD_SESSION_RELAY;
+        state->session_refs[index].relay.fd = -1;
     }
     unlink_session_from_hash(state, session);
     lru_remove(state, session);
@@ -1230,6 +1266,16 @@ static void drop_session(struct udp_state *state, struct bpf2socks_udp_client_se
     if (state->session_count > 0U) --state->session_count;
     session->free_next = state->free_sessions;
     state->free_sessions = session;
+}
+
+static void udp_session_control_event(
+    struct udp_state *state,
+    struct bpf2socks_udp_client_session *session,
+    uint32_t events) {
+    if (session == NULL || session->tcp_fd < 0) return;
+    if (udp_control_event_is_failure(session->tcp_fd, events)) {
+        drop_session(state, session);
+    }
 }
 
 static struct bpf2socks_udp_client_session *alloc_session(struct udp_state *state, struct bpf2socks_bridge_worker *worker) {
@@ -1625,6 +1671,7 @@ static void release_dns_channel_transactions(struct udp_state *state, uint32_t c
 
 static void reset_dns_channel_fds(struct udp_state *state, struct dns_channel *channel) {
     if (channel == NULL) return;
+    if (channel->tcp_fd >= 0) remove_udp_epoll_fd(state, channel->tcp_fd);
     if (channel->udp_fd >= 0) remove_udp_epoll_fd(state, channel->udp_fd);
     if (channel->tcp_fd >= 0) close(channel->tcp_fd);
     if (channel->udp_fd >= 0) close(channel->udp_fd);
@@ -1633,10 +1680,14 @@ static void reset_dns_channel_fds(struct udp_state *state, struct dns_channel *c
     channel->available = false;
     memset(&channel->relay_addr, 0, sizeof(channel->relay_addr));
     channel->relay_addr_len = 0U;
-    memset(&channel->ref, 0, sizeof(channel->ref));
-    channel->ref.kind = UDP_FD_DNS_CHANNEL;
-    channel->ref.fd = -1;
-    channel->ref.dns_channel_index = channel->index;
+    memset(&channel->control_ref, 0, sizeof(channel->control_ref));
+    channel->control_ref.kind = UDP_FD_DNS_CONTROL;
+    channel->control_ref.fd = -1;
+    channel->control_ref.dns_channel_index = channel->index;
+    memset(&channel->relay_ref, 0, sizeof(channel->relay_ref));
+    channel->relay_ref.kind = UDP_FD_DNS_RELAY;
+    channel->relay_ref.fd = -1;
+    channel->relay_ref.dns_channel_index = channel->index;
 }
 
 static void close_dns_channel(struct udp_state *state, struct dns_channel *channel, uint64_t now_ms) {
@@ -1645,6 +1696,46 @@ static void close_dns_channel(struct udp_state *state, struct dns_channel *chann
     reset_dns_channel_fds(state, channel);
     if (now_ms == 0U) now_ms = monotonic_ms();
     channel->next_rebuild_ms = now_ms + BPF2SOCKS_DNS_CHANNEL_REBUILD_DELAY_MS;
+}
+
+static void udp_dns_control_event(
+    struct udp_state *state,
+    struct dns_channel *channel,
+    uint32_t events,
+    uint64_t now_ms) {
+    if (channel == NULL || channel->tcp_fd < 0) return;
+    if (udp_control_event_is_failure(channel->tcp_fd, events)) {
+        close_dns_channel(state, channel, now_ms);
+    }
+}
+
+static int register_dns_channel_epoll(struct udp_state *state, struct dns_channel *channel) {
+    if (state == NULL || channel == NULL || channel->tcp_fd < 0 || channel->udp_fd < 0) {
+        errno = EINVAL;
+        return -1;
+    }
+    channel->control_ref.kind = UDP_FD_DNS_CONTROL;
+    channel->control_ref.fd = channel->tcp_fd;
+    channel->control_ref.session = NULL;
+    channel->control_ref.dns_channel_index = channel->index;
+    channel->relay_ref.kind = UDP_FD_DNS_RELAY;
+    channel->relay_ref.fd = channel->udp_fd;
+    channel->relay_ref.session = NULL;
+    channel->relay_ref.dns_channel_index = channel->index;
+    if (add_udp_epoll_fd_events(
+            state,
+            channel->tcp_fd,
+            &channel->control_ref,
+            EPOLLIN | EPOLLRDHUP) < 0) {
+        return -1;
+    }
+    if (add_udp_epoll_fd(state, channel->udp_fd, &channel->relay_ref) < 0) {
+        int saved = errno;
+        remove_udp_epoll_fd(state, channel->tcp_fd);
+        errno = saved;
+        return -1;
+    }
+    return 0;
 }
 
 static int open_dns_channel(
@@ -1693,11 +1784,7 @@ static int open_dns_channel(
     channel->udp_fd = udp_fd;
     channel->relay_addr = relay_addr;
     channel->relay_addr_len = relay_addr_len;
-    channel->ref.kind = UDP_FD_DNS_CHANNEL;
-    channel->ref.fd = udp_fd;
-    channel->ref.session = NULL;
-    channel->ref.dns_channel_index = channel->index;
-    if (add_udp_epoll_fd(state, udp_fd, &channel->ref) < 0) {
+    if (register_dns_channel_epoll(state, channel) < 0) {
         int saved = errno;
         reset_dns_channel_fds(state, channel);
         channel->next_rebuild_ms = now_ms + BPF2SOCKS_DNS_CHANNEL_REBUILD_DELAY_MS;
@@ -1715,9 +1802,17 @@ static int ensure_dns_channel(
     struct bpf2socks_bridge_worker *worker,
     struct dns_channel *channel,
     uint64_t now_ms) {
-    if (channel != NULL && channel->available && channel->udp_fd >= 0) {
+    if (channel != NULL &&
+        channel->available &&
+        channel->tcp_fd >= 0 &&
+        channel->udp_fd >= 0 &&
+        udp_control_fd_is_healthy(channel->tcp_fd)) {
         ++worker->stats.udp_associate_reuses;
         return 0;
+    }
+    if (channel != NULL &&
+        (channel->available || channel->tcp_fd >= 0 || channel->udp_fd >= 0)) {
+        close_dns_channel(state, channel, now_ms);
     }
     return open_dns_channel(state, worker, channel, now_ms);
 }
@@ -2372,7 +2467,7 @@ static int init_state(struct udp_state *state, const struct bpf2socks_runtime_co
     size_t payload_stride = udp_payload_stride(config);
     state->pending_payloads = calloc(state->pending_packet_cap, payload_stride);
     state->session_refs = calloc(max_sessions, sizeof(*state->session_refs));
-    state->event_cap = max_sessions + 2U + BPF2SOCKS_DNS_CHANNELS_PER_WORKER;
+    state->event_cap = max_sessions * 2U + 2U + BPF2SOCKS_DNS_CHANNELS_PER_WORKER * 2U;
     state->events = calloc(state->event_cap, sizeof(*state->events));
     state->session_buckets = calloc(BPF2SOCKS_SESSION_HASH_BUCKETS, sizeof(*state->session_buckets));
     if (state->sessions == NULL || state->bindings == NULL ||
@@ -2395,7 +2490,10 @@ static int init_state(struct udp_state *state, const struct bpf2socks_runtime_co
         state->sessions[i].udp_fd = -1;
         state->sessions[i].free_next = state->free_sessions;
         state->free_sessions = &state->sessions[i];
-        state->session_refs[i].fd = -1;
+        state->session_refs[i].control.kind = UDP_FD_SESSION_CONTROL;
+        state->session_refs[i].control.fd = -1;
+        state->session_refs[i].relay.kind = UDP_FD_SESSION_RELAY;
+        state->session_refs[i].relay.fd = -1;
     }
     for (size_t i = 0; i < state->binding_cap; ++i) {
         state->bindings[i].reply_fd = -1;
@@ -2415,9 +2513,12 @@ static int init_state(struct udp_state *state, const struct bpf2socks_runtime_co
         state->dns_channels[i].index = i;
         state->dns_channels[i].tcp_fd = -1;
         state->dns_channels[i].udp_fd = -1;
-        state->dns_channels[i].ref.kind = UDP_FD_DNS_CHANNEL;
-        state->dns_channels[i].ref.fd = -1;
-        state->dns_channels[i].ref.dns_channel_index = i;
+        state->dns_channels[i].control_ref.kind = UDP_FD_DNS_CONTROL;
+        state->dns_channels[i].control_ref.fd = -1;
+        state->dns_channels[i].control_ref.dns_channel_index = i;
+        state->dns_channels[i].relay_ref.kind = UDP_FD_DNS_RELAY;
+        state->dns_channels[i].relay_ref.fd = -1;
+        state->dns_channels[i].relay_ref.dns_channel_index = i;
     }
     if (bpf2socks_dns_table_init(
             &state->dns_table,
@@ -2538,7 +2639,7 @@ int bpf2socks_bridge_udp_worker_run(struct bpf2socks_bridge_worker *worker) {
                 handle_udp_client_packets(&state, worker, worker->udp_listener_fd, client_payloads);
             } else if ((events & EPOLLIN) != 0 && ref->kind == UDP_FD_LISTENER6) {
                 handle_udp_client_packets(&state, worker, worker->udp_listener6_fd, client_payloads);
-            } else if (ref->kind == UDP_FD_SESSION &&
+            } else if (ref->kind == UDP_FD_SESSION_CONTROL &&
                 ref->session != NULL &&
                 ref->session->used) {
                 if (ref->session->stage != BPF2SOCKS_UDP_SESSION_READY) {
@@ -2546,14 +2647,28 @@ int bpf2socks_bridge_udp_worker_run(struct bpf2socks_bridge_worker *worker) {
                         ++worker->stats.udp_send_errors;
                         drop_session(&state, ref->session);
                     }
-                } else if ((events & (EPOLLERR | EPOLLHUP)) != 0) {
+                } else {
+                    udp_session_control_event(&state, ref->session, events);
+                }
+            } else if (ref->kind == UDP_FD_SESSION_RELAY &&
+                ref->session != NULL &&
+                ref->session->used &&
+                ref->session->stage == BPF2SOCKS_UDP_SESSION_READY) {
+                if ((events & (EPOLLERR | EPOLLHUP)) != 0) {
                     drop_session(&state, ref->session);
                 } else if ((events & EPOLLIN) != 0) {
                     handle_udp_upstream_packets(&state, worker, ref->session, upstream_packets);
                 }
-            } else if (ref->kind == UDP_FD_DNS_CHANNEL &&
+            } else if (ref->kind == UDP_FD_DNS_CONTROL &&
                 ref->dns_channel_index < BPF2SOCKS_DNS_CHANNELS_PER_WORKER) {
                 struct dns_channel *channel = &state.dns_channels[ref->dns_channel_index];
+                udp_dns_control_event(&state, channel, events, monotonic_ms());
+            } else if (ref->kind == UDP_FD_DNS_RELAY &&
+                ref->dns_channel_index < BPF2SOCKS_DNS_CHANNELS_PER_WORKER) {
+                struct dns_channel *channel = &state.dns_channels[ref->dns_channel_index];
+                if (!channel->available || channel->udp_fd < 0) {
+                    continue;
+                }
                 if ((events & (EPOLLERR | EPOLLHUP)) != 0) {
                     close_dns_channel(&state, channel, monotonic_ms());
                 } else if ((events & EPOLLIN) != 0) {
