@@ -341,20 +341,20 @@ internal class MihomoControlClient {
             val proxyNames = proxies.map { proxy -> proxy.name }
             nodes[groupName] = MihomoProxyNode(
                 name = groupName,
-                type = group.type.name,
+                type = group.type,
                 delay = null,
             )
             proxies.forEach { proxy ->
                 nodes[proxy.name] = MihomoProxyNode(
                     name = proxy.name,
-                    type = proxy.type.name,
+                    type = proxy.type,
                     udp = false,
                     delay = proxy.delay.toMihomoHistoryDelayOrNull(),
                 )
             }
             MihomoProxyGroup(
                 name = groupName,
-                type = group.type.name,
+                type = group.type,
                 now = group.now,
                 all = proxyNames,
                 hidden = false,
