@@ -65,6 +65,13 @@ An Android Mihomo GUI client powered by [Mihomo](https://github.com/MetaCubeX/mi
 - Defaults to bridge port `65532` and SOCKS5 inbound port `65534`.
 - Requires the eBPF probe to pass before startup. Devices with insufficient support cannot start this mode.
 
+### ROOT address monitor
+
+- All ROOT modes use the native `asteriskd` monitor after Mihomo and mode rules are ready.
+- It tracks local IPv4/IPv6 address changes and atomically refreshes direct-bypass iptables chains or BPF maps, so public addresses are not accidentally captured by the proxy path.
+- When system IPv6 disabling is enabled, it also applies the setting to newly appearing IPv6 interfaces. With IPv6 enabled, it reacts to configured tethering interfaces and removes Android IPv6 TC offload rules when needed.
+- The monitor log is `files/clash/logs/asteriskd.log`; generated `files/clash/stop.sh` is the single ROOT stop entry point and restores captured IPv6 state before cleanup.
+
 ## Resource Files
 
 - Runtime files are stored in the app private `files/clash` directory, commonly `/data/user/0/org.asterisk.zcc.ameta/files/clash`.
@@ -99,7 +106,7 @@ The build:
 - checks out `hev-socks5-tunnel` to `ProjectConfig.HEV_SOCKS5_TUNNEL_VERSION` before building it
 - builds the native `hev-socks5-tunnel` JNI library and CLI runtime from the vendored submodule
 - builds the vendored CMFA Go core
-- builds the native `setuidgid`, `ipv6disabler`, and `bpf2socks` helpers
+- builds the native `setuidgid`, `asteriskd`, and `bpf2socks` helpers
 - produces ABI split APKs for `arm64-v8a`, `armeabi-v7a`, `x86`, `x86_64`, plus a universal APK
 
 If Gradle cannot find Android NDK, set `ndk.dir` in `local.properties`, set `ANDROID_NDK_HOME`, or install an NDK under the Android SDK.

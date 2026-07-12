@@ -22,7 +22,6 @@ import engine.root.appendDeleteRuleLoop
 import engine.root.appendRootFakeIpIcmpReplyCleanupRules
 import engine.root.appendRootFakeIpIcmpReplyRules
 import engine.root.appendIpRuleDeleteLoop
-import engine.root.appendRootRemoveAndroidTetheringIpv6TcOffloadRules
 import engine.root.appendScript
 import engine.root.bpf2socksConfigPath
 import engine.root.bpf2socksPidPath
@@ -226,7 +225,6 @@ private fun StringBuilder.appendBpf2SocksHotspotSetupRules(
         )
     }
     if (config.enableIpv6) {
-        appendRootRemoveAndroidTetheringIpv6TcOffloadRules(prefixes)
         appendScript(
             """
             $RootIp6Command rule add priority $RootProxyRouteRulePriority fwmark $RootBpf2SocksFwmark table $RootBpf2SocksRouteTable 2>/dev/null || true

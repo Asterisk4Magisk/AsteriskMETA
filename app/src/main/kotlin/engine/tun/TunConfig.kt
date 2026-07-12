@@ -8,10 +8,13 @@ import engine.mihomo.MihomoProfileFactory
 import engine.proxy.LocalProxyOptions
 import engine.proxy.toLocalProxyOptions
 import engine.root.RootConfigBuildContext
+import engine.root.AsteriskdConfig
+import engine.root.AsteriskdMode
 import engine.root.RootEbpfRuntimeConfig
 import engine.root.RootIptablesConfig
 import engine.root.RootModeStartConfig
 import engine.root.RootStartConfig
+import engine.root.buildAsteriskdConfig
 import engine.tun2socks.Tun2SocksBaseIptablesConfig
 import engine.vpn.TunOptions
 import engine.vpn.toTunOptions
@@ -21,6 +24,7 @@ internal data class TunStartConfig(
     override val localProxyOptions: LocalProxyOptions,
     val tunConfig: MihomoTunConfig,
     val iptablesConfig: RootIptablesConfig,
+    override val asteriskdConfig: AsteriskdConfig,
     override val rootEbpfConfig: RootEbpfRuntimeConfig?,
 ) : RootModeStartConfig
 
@@ -38,15 +42,17 @@ internal fun RootConfigBuildContext.buildTunStartConfig(): TunStartConfig {
     val appState = this.appState
     val tunOptions = appState.toTunOptions()
     val rootStartConfig = buildRootStartConfig()
-    val iptablesConfig = buildRootIptablesConfig(
-        base = TunBaseIptablesConfig,
-        ignoredLocalInterfaceNames = setOf(MihomoTunDevice),
-    )
+    val iptablesConfig = buildRootIptablesConfig(TunBaseIptablesConfig)
     return TunStartConfig(
         root = rootStartConfig,
         localProxyOptions = appState.toLocalProxyOptions(),
         tunConfig = appState.buildMihomoTunConfig(tunOptions),
         iptablesConfig = iptablesConfig,
+        asteriskdConfig = rootStartConfig.buildAsteriskdConfig(
+            mode = AsteriskdMode.Tun,
+            iptablesConfig = iptablesConfig,
+            virtualInterfaces = listOf(MihomoTunDevice),
+        ),
         rootEbpfConfig = buildRootEbpfRuntimeConfig(iptablesConfig),
     )
 }

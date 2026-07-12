@@ -8,6 +8,7 @@ import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.InputDirectory
 import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.OutputDirectory
@@ -17,12 +18,12 @@ import java.io.File
 import java.util.Properties
 import javax.inject.Inject
 
-abstract class BuildIpv6DisablerTask : DefaultTask() {
+abstract class BuildAsteriskdTask : DefaultTask() {
     @get:Inject
     abstract val execOperations: ExecOperations
 
-    @get:InputFile
-    abstract val sourceFile: RegularFileProperty
+    @get:InputDirectory
+    abstract val sourceDirectory: DirectoryProperty
 
     @get:OutputDirectory
     abstract val outputDirectory: DirectoryProperty
@@ -39,17 +40,24 @@ abstract class BuildIpv6DisablerTask : DefaultTask() {
 
     init {
         group = "resources"
-        description = "Build the native IPv6 disabler helper."
+        description = "Build the native asteriskd helper."
     }
 
     @TaskAction
     fun build() {
-        val source = sourceFile.get().asFile
+        val sourceDir = sourceDirectory.get().asFile
+        val sources = sourceDir.listFiles()
+            ?.filter { file -> file.isFile && file.extension == "c" }
+            ?.sortedBy(File::getName)
+            .orEmpty()
+        if (sources.isEmpty()) {
+            throw GradleException("No asteriskd C sources found in ${sourceDir.absolutePath}")
+        }
         val ndkDir = findNdkDir()
         val outputDir = outputDirectory.get().asFile
         outputDir.mkdirs()
-        targetAbis.get().map { abi -> abi.toIpv6DisablerAbiTarget() }.forEach { target ->
-            val output = outputDir.resolve("${target.androidAbi}/libipv6disabler.so")
+        targetAbis.get().map { abi -> abi.toAsteriskdAbiTarget() }.forEach { target ->
+            val output = outputDir.resolve("${target.androidAbi}/libasteriskd.so")
             output.parentFile.mkdirs()
             execOperations.exec {
                 commandLine(
@@ -57,20 +65,21 @@ abstract class BuildIpv6DisablerTask : DefaultTask() {
                     "-O2",
                     "-Wall",
                     "-Wextra",
+                    "-std=c17",
                     "-fPIE",
                     "-pie",
-                    source.absolutePath,
+                    *sources.map(File::getAbsolutePath).toTypedArray(),
                     "-o",
                     output.absolutePath,
                 )
             }
             if (!output.exists() || output.length() <= 0) {
-                throw GradleException("Failed to build ipv6disabler: ${output.absolutePath}")
+                throw GradleException("Failed to build asteriskd: ${output.absolutePath}")
             }
         }
     }
 
-    private fun findNdkClang(ndkDir: File, target: Ipv6DisablerAbiTarget): File {
+    private fun findNdkClang(ndkDir: File, target: AsteriskdAbiTarget): File {
         val hostTag = when {
             System.getProperty("os.name").startsWith("Windows", ignoreCase = true) -> "windows-x86_64"
             System.getProperty("os.name").contains("Mac", ignoreCase = true) -> "darwin-x86_64"
@@ -81,49 +90,34 @@ abstract class BuildIpv6DisablerTask : DefaultTask() {
         } else {
             "${target.clangTarget}${minSdk.get()}-clang"
         }
-        val clang = ndkDir.resolve("toolchains/llvm/prebuilt/$hostTag/bin/$executableName")
-        if (!clang.exists()) {
-            throw GradleException("Android NDK clang not found: ${clang.absolutePath}")
+        return ndkDir.resolve("toolchains/llvm/prebuilt/$hostTag/bin/$executableName").also { clang ->
+            if (!clang.exists()) {
+                throw GradleException("Android NDK clang not found: ${clang.absolutePath}")
+            }
         }
-        return clang
     }
 
     private fun findNdkDir(): File {
         listOf("ANDROID_NDK_HOME", "ANDROID_NDK_ROOT").forEach { name ->
-            System.getenv(name)?.takeIf(String::isNotBlank)?.let { path ->
-                return File(path)
+            System.getenv(name)?.takeIf(String::isNotBlank)?.let(::File)?.let { return it }
+        }
+        localPropertiesFile.orNull?.asFile?.takeIf(File::exists)?.let { file ->
+            val properties = Properties().also { properties -> file.inputStream().use(properties::load) }
+            properties.getProperty("ndk.dir")?.takeIf(String::isNotBlank)?.let(::File)?.let { return it }
+            properties.getProperty("sdk.dir")?.takeIf(String::isNotBlank)?.let(::File)?.let { sdk ->
+                sdk.resolve("ndk").listFiles()?.filter(File::isDirectory)?.maxByOrNull(File::getName)?.let { return it }
             }
         }
-
-        val localProperties = localPropertiesFile.orNull?.asFile
-        if (localProperties != null && localProperties.exists()) {
-            val properties = Properties()
-            localProperties.inputStream().use(properties::load)
-            properties.getProperty("ndk.dir")?.takeIf(String::isNotBlank)?.let { path ->
-                return File(path)
-            }
-            properties.getProperty("sdk.dir")?.takeIf(String::isNotBlank)?.let { path ->
-                File(path, "ndk").latestChildDirectoryForIpv6Disabler()?.let { return it }
-            }
-        }
-
         listOf("ANDROID_HOME", "ANDROID_SDK_ROOT").forEach { name ->
-            System.getenv(name)?.takeIf(String::isNotBlank)?.let { path ->
-                File(path, "ndk").latestChildDirectoryForIpv6Disabler()?.let { return it }
+            System.getenv(name)?.takeIf(String::isNotBlank)?.let(::File)?.let { sdk ->
+                sdk.resolve("ndk").listFiles()?.filter(File::isDirectory)?.maxByOrNull(File::getName)?.let { return it }
             }
         }
-
         throw GradleException("Android NDK not found. Set ndk.dir, ANDROID_NDK_HOME, or install an NDK under the Android SDK.")
     }
 }
 
-private fun File.latestChildDirectoryForIpv6Disabler(): File? {
-    return listFiles()
-        ?.filter(File::isDirectory)
-        ?.maxByOrNull { directory -> directory.name }
-}
-
-private enum class Ipv6DisablerAbiTarget(
+private enum class AsteriskdAbiTarget(
     val androidAbi: String,
     val clangTarget: String,
 ) {
@@ -133,7 +127,11 @@ private enum class Ipv6DisablerAbiTarget(
     X64("x86_64", "x86_64-linux-android"),
 }
 
-private fun String.toIpv6DisablerAbiTarget(): Ipv6DisablerAbiTarget {
-    return Ipv6DisablerAbiTarget.entries.firstOrNull { target -> target.androidAbi == this }
-        ?: throw GradleException("Unsupported ipv6disabler ABI: $this")
+private fun String.toAsteriskdAbiTarget(): AsteriskdAbiTarget {
+    return AsteriskdAbiTarget.entries.firstOrNull { target -> target.androidAbi == this }
+        ?: throw GradleException("Unsupported asteriskd ABI: $this")
 }
+
+
+
+

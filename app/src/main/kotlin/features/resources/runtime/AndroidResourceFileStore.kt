@@ -182,7 +182,7 @@ internal class AndroidResourceFileStore(
         return MihomoResourceFilePaths(
             dataDir = dataDir.absolutePath,
             setuidgidPath = File(appContext.applicationInfo.nativeLibraryDir, SetuidgidLibraryName).absolutePath,
-            ipv6DisablerPath = File(appContext.applicationInfo.nativeLibraryDir, Ipv6DisablerLibraryName).absolutePath,
+            asteriskdPath = File(appContext.applicationInfo.nativeLibraryDir, AsteriskdLibraryName).absolutePath,
             bpfMatcherPath = File(appContext.applicationInfo.nativeLibraryDir, BpfMatcherLibraryName).absolutePath,
             bpf2socksPath = File(appContext.applicationInfo.nativeLibraryDir, Bpf2SocksLibraryName).absolutePath,
             mihomoCorePath = file(ResourceFileKind.MihomoCore).absolutePath,
@@ -208,7 +208,7 @@ private fun File.needsBundledRestore(
 internal data class MihomoResourceFilePaths(
     val dataDir: String,
     val setuidgidPath: String,
-    val ipv6DisablerPath: String,
+    val asteriskdPath: String,
     val bpfMatcherPath: String,
     val bpf2socksPath: String,
     val mihomoCorePath: String,
@@ -244,7 +244,7 @@ private fun Context.packageUpdatedAtMillis(): Long {
 }
 
 private const val SetuidgidLibraryName = "libsetuidgid.so"
-private const val Ipv6DisablerLibraryName = "libipv6disabler.so"
+private const val AsteriskdLibraryName = "libasteriskd.so"
 private const val BpfMatcherLibraryName = "libbpf-matcher.so"
 private const val Bpf2SocksLibraryName = "libbpf2socks.so"
 private const val MihomoCoreLibraryName = "libmihomo.so"

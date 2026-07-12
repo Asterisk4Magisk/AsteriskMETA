@@ -11,7 +11,7 @@ import java.io.File
 internal data class RootRuntimeLayout(
     val configPath: String,
     val mihomoCorePath: String,
-    val ipv6DisablerPath: String,
+    val asteriskdPath: String,
     val bpfMatcherPath: String,
     val bpf2socksPath: String,
     val hevSocks5TunnelPath: String,
@@ -29,7 +29,7 @@ internal fun MihomoResourceFilePaths.toRootRuntimeLayout(): RootRuntimeLayout {
     return RootRuntimeLayout(
         configPath = File(dir, RootConfigFileName).absolutePath,
         mihomoCorePath = mihomoCorePath,
-        ipv6DisablerPath = ipv6DisablerPath,
+        asteriskdPath = asteriskdPath,
         bpfMatcherPath = bpfMatcherPath,
         bpf2socksPath = bpf2socksPath,
         hevSocks5TunnelPath = hevSocks5TunnelPath,

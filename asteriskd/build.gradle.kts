@@ -1,5 +1,5 @@
-import com.android.build.api.variant.HasHostTestsBuilder
-import com.android.build.api.variant.HostTestBuilder
+// Copyright 2026, AsteriskMETA contributors
+// SPDX-License-Identifier: GPL-3.0
 
 plugins {
     alias(libs.plugins.android.library)
@@ -8,7 +8,7 @@ plugins {
 val generatedJniLibsDir: Provider<Directory> = layout.buildDirectory.dir("generated/jniLibs")
 
 android {
-    namespace = "ipv6disabler"
+    namespace = "asteriskd"
     compileSdk = ProjectConfig.TARGET_SDK
 
     defaultConfig {
@@ -19,14 +19,6 @@ android {
     }
 
     androidComponents {
-        beforeVariants(selector().all()) { variant ->
-            variant.enableAndroidTest = false
-            (variant as? HasHostTestsBuilder)
-                ?.hostTests
-                ?.get(HostTestBuilder.UNIT_TEST_TYPE)
-                ?.enable = false
-        }
-
         onVariants { variant ->
             variant.sources.jniLibs?.addStaticSourceDirectory("build/generated/jniLibs")
         }
@@ -37,8 +29,8 @@ android {
     }
 }
 
-val buildIpv6Disabler = tasks.register<BuildIpv6DisablerTask>("buildIpv6Disabler") {
-    sourceFile.set(layout.projectDirectory.file("src/main/native/ipv6disabler.c"))
+val buildAsteriskd = tasks.register<BuildAsteriskdTask>("buildAsteriskd") {
+    sourceDirectory.set(layout.projectDirectory.dir("src/main/native"))
     outputDirectory.set(generatedJniLibsDir)
     rootProject.layout.projectDirectory.file("local.properties")
         .takeIf { it.asFile.exists() }
@@ -48,5 +40,9 @@ val buildIpv6Disabler = tasks.register<BuildIpv6DisablerTask>("buildIpv6Disabler
 }
 
 tasks.named("preBuild") {
-    dependsOn(buildIpv6Disabler)
+    dependsOn(buildAsteriskd)
 }
+
+
+
+

@@ -1,3 +1,6 @@
+// Copyright 2026, AsteriskMETA contributors
+// SPDX-License-Identifier: GPL-3.0
+
 @file:Suppress("UnstableApiUsage")
 
 rootProject.name = "AsteriskMETA"
@@ -38,7 +41,7 @@ dependencyResolutionManagement {
 include(":app")
 include(":cmfa-core")
 include(":setuidgid")
-include(":ipv6disabler")
+include(":asteriskd")
 include(":bpfmatcher")
 include(":bpf2socks")
 include(":hevtun")

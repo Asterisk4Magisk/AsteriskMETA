@@ -102,14 +102,10 @@ struct bpf2socks_policy_config {
     size_t proxy_private_cidr_v4_count;
     char bypass_private_cidrs_v4[BPF2SOCKS_MAX_POLICY_CIDRS][BPF2SOCKS_MAX_CIDR_TEXT_LEN];
     size_t bypass_private_cidr_v4_count;
-    char local_interface_cidrs_v4[BPF2SOCKS_MAX_POLICY_CIDRS][BPF2SOCKS_MAX_CIDR_TEXT_LEN];
-    size_t local_interface_cidr_v4_count;
     char proxy_private_cidrs_v6[BPF2SOCKS_MAX_POLICY_CIDRS][BPF2SOCKS_MAX_CIDR_TEXT_LEN];
     size_t proxy_private_cidr_v6_count;
     char bypass_private_cidrs_v6[BPF2SOCKS_MAX_POLICY_CIDRS][BPF2SOCKS_MAX_CIDR_TEXT_LEN];
     size_t bypass_private_cidr_v6_count;
-    char local_interface_cidrs_v6[BPF2SOCKS_MAX_POLICY_CIDRS][BPF2SOCKS_MAX_CIDR_TEXT_LEN];
-    size_t local_interface_cidr_v6_count;
 };
 
 struct bpf2socks_sockaddr {
@@ -391,7 +387,9 @@ int bpf2socks_prerouting_policy_probe(
     size_t message_size);
 int bpf2socks_prerouting_policy_prepare(
     const struct bpf2socks_policy_config *policy,
-    const struct bpf2socks_runtime_config *config);
+    const struct bpf2socks_runtime_config *config,
+    int local_address_v4_map_fd,
+    int local_address_v6_map_fd);
 
 int bpf2socks_interface_policy_start(
     const struct bpf2socks_policy_config *policy,

@@ -377,13 +377,6 @@ static int load_runtime_config(
         BPF2SOCKS_MAX_POLICY_CIDRS);
     json_string_array(
         json,
-        "localInterfaceCidrsV4",
-        (char *)policy->local_interface_cidrs_v4,
-        BPF2SOCKS_MAX_CIDR_TEXT_LEN,
-        &policy->local_interface_cidr_v4_count,
-        BPF2SOCKS_MAX_POLICY_CIDRS);
-    json_string_array(
-        json,
         "proxyPrivateCidrsV6",
         (char *)policy->proxy_private_cidrs_v6,
         BPF2SOCKS_MAX_CIDR_TEXT_LEN,
@@ -395,13 +388,6 @@ static int load_runtime_config(
         (char *)policy->bypass_private_cidrs_v6,
         BPF2SOCKS_MAX_CIDR_TEXT_LEN,
         &policy->bypass_private_cidr_v6_count,
-        BPF2SOCKS_MAX_POLICY_CIDRS);
-    json_string_array(
-        json,
-        "localInterfaceCidrsV6",
-        (char *)policy->local_interface_cidrs_v6,
-        BPF2SOCKS_MAX_CIDR_TEXT_LEN,
-        &policy->local_interface_cidr_v6_count,
         BPF2SOCKS_MAX_POLICY_CIDRS);
 
     free(json);
@@ -622,20 +608,24 @@ static int start_with_config(const char *path, const char *pid_path) {
         return 1;
     }
 
-    if (bpf2socks_prerouting_policy_prepare(&policy, &config) < 0) {
-        int saved_errno = errno;
-        cleanup_prerouting_policy_pins(&config);
-        errno = saved_errno;
-        fprintf(stderr, "failed to prepare bpf2socks PREROUTING policy: errno=%d\n", errno);
-        return 1;
-    }
-
     struct bpf2socks_bpf_runtime runtime;
     if (bpf2socks_bpf_start(&config, &policy, &runtime) < 0) {
         int saved_errno = errno;
         cleanup_prerouting_policy_pins(&config);
         errno = saved_errno;
         fprintf(stderr, "failed to start bpf2socks BPF runtime: errno=%d\n", errno);
+        return 1;
+    }
+    if (bpf2socks_prerouting_policy_prepare(
+            &policy,
+            &config,
+            runtime.local_interface_cidr4_map_fd,
+            runtime.local_interface_cidr6_map_fd) < 0) {
+        int saved_errno = errno;
+        bpf2socks_bpf_stop(&runtime);
+        cleanup_prerouting_policy_pins(&config);
+        errno = saved_errno;
+        fprintf(stderr, "failed to prepare bpf2socks PREROUTING policy: errno=%d\n", errno);
         return 1;
     }
 

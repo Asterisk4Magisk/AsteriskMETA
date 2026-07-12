@@ -34,14 +34,10 @@ internal class RootConfigBuildContext(
         )
     }
 
-    fun buildRootIptablesConfig(
-        base: RootIptablesConfig,
-        ignoredLocalInterfaceNames: Set<String>,
-    ): RootIptablesConfig {
+    fun buildRootIptablesConfig(base: RootIptablesConfig): RootIptablesConfig {
         return base.withAppSettings(
             context = androidContext,
             appState = appState,
-            ignoredLocalInterfaceNames = ignoredLocalInterfaceNames,
         )
     }
 

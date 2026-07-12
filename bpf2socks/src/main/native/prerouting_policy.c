@@ -132,11 +132,12 @@ static void emit_prerouting_cidr6_policy(
     struct bpf_builder *builder,
     int proxy_cidr6_map_fd,
     int bypass_cidr6_map_fd,
+    int local_address_v6_map_fd,
     size_t *match_jumps,
     size_t *match_jump_count,
     size_t *nomatch_jumps,
     size_t *nomatch_jump_count) {
-    if (proxy_cidr6_map_fd < 0 && bypass_cidr6_map_fd < 0) return;
+    if (proxy_cidr6_map_fd < 0 && bypass_cidr6_map_fd < 0 && local_address_v6_map_fd < 0) return;
 
     emit(builder, BPF_ST_MEM(BPF_W, BPF_REG_10, STACK_LPM6_KEY, 128));
     nomatch_jumps[(*nomatch_jump_count)++] = emit_skb_load_bytes_const(
@@ -147,6 +148,7 @@ static void emit_prerouting_cidr6_policy(
 
     emit_map_lookup_jump(builder, proxy_cidr6_map_fd, STACK_LPM6_KEY, match_jumps, match_jump_count, true);
     emit_map_lookup_jump(builder, bypass_cidr6_map_fd, STACK_LPM6_KEY, nomatch_jumps, nomatch_jump_count, true);
+    emit_map_lookup_jump(builder, local_address_v6_map_fd, STACK_LPM6_KEY, nomatch_jumps, nomatch_jump_count, true);
 }
 
 static bool proxy_cidr4_map_required(const struct bpf2socks_policy_config *policy) {
@@ -156,7 +158,6 @@ static bool proxy_cidr4_map_required(const struct bpf2socks_policy_config *polic
 static bool bypass_cidr4_map_required(const struct bpf2socks_policy_config *policy) {
     return policy != NULL &&
         (policy->bypass_private_cidr_v4_count > 0U ||
-         policy->local_interface_cidr_v4_count > 0U ||
          policy->bypass_direct_cidrs);
 }
 
@@ -168,7 +169,6 @@ static bool bypass_cidr6_map_required(const struct bpf2socks_policy_config *poli
     return policy != NULL &&
         policy->enable_ipv6 &&
         (policy->bypass_private_cidr_v6_count > 0U ||
-         policy->local_interface_cidr_v6_count > 0U ||
          policy->bypass_direct_cidrs);
 }
 
@@ -176,6 +176,7 @@ static int build_prerouting_ipv4_prog(
     const struct bpf2socks_policy_config *policy,
     int proxy_cidr4_map_fd,
     int bypass_cidr4_map_fd,
+    int local_address_v4_map_fd,
     const char *name,
     bool log_error) {
     struct bpf_builder b = {0};
@@ -202,7 +203,7 @@ static int build_prerouting_ipv4_prog(
         patch_jump(&b, not_plain_ipv4, b.count);
     }
 
-    if (proxy_cidr4_map_fd >= 0 || bypass_cidr4_map_fd >= 0) {
+    if (proxy_cidr4_map_fd >= 0 || bypass_cidr4_map_fd >= 0 || local_address_v4_map_fd >= 0) {
         emit(&b, BPF_ST_MEM(BPF_W, BPF_REG_10, STACK_LPM4_KEY, 32));
         nomatch_jumps[nomatch_jump_count++] = emit_skb_load_bytes_const(
             &b,
@@ -212,6 +213,7 @@ static int build_prerouting_ipv4_prog(
 
         emit_map_lookup_jump(&b, proxy_cidr4_map_fd, STACK_LPM4_KEY, match_jumps, &match_jump_count, true);
         emit_map_lookup_jump(&b, bypass_cidr4_map_fd, STACK_LPM4_KEY, nomatch_jumps, &nomatch_jump_count, true);
+        emit_map_lookup_jump(&b, local_address_v4_map_fd, STACK_LPM4_KEY, nomatch_jumps, &nomatch_jump_count, true);
     }
 
     size_t match_label = emit_exit(&b, XT_BPF_MATCH);
@@ -240,6 +242,7 @@ static int build_prerouting_ipv6_prog(
     const struct bpf2socks_policy_config *policy,
     int proxy_cidr6_map_fd,
     int bypass_cidr6_map_fd,
+    int local_address_v6_map_fd,
     const char *name,
     bool log_error) {
     struct bpf_builder b = {0};
@@ -262,6 +265,7 @@ static int build_prerouting_ipv6_prog(
         &b,
         proxy_cidr6_map_fd,
         bypass_cidr6_map_fd,
+        local_address_v6_map_fd,
         match_jumps,
         &match_jump_count,
         nomatch_jumps,
@@ -358,11 +362,6 @@ static int load_policy_maps(
                 *bypass_cidr4_fd,
                 policy->bypass_private_cidrs_v4,
                 policy->bypass_private_cidr_v4_count,
-                AF_INET) < 0 ||
-            bpf2socks_load_cidr_strings(
-                *bypass_cidr4_fd,
-                policy->local_interface_cidrs_v4,
-                policy->local_interface_cidr_v4_count,
                 AF_INET) < 0) {
             return -1;
         }
@@ -385,11 +384,6 @@ static int load_policy_maps(
                 *bypass_cidr6_fd,
                 policy->bypass_private_cidrs_v6,
                 policy->bypass_private_cidr_v6_count,
-                AF_INET6) < 0 ||
-            bpf2socks_load_cidr_strings(
-                *bypass_cidr6_fd,
-                policy->local_interface_cidrs_v6,
-                policy->local_interface_cidr_v6_count,
                 AF_INET6) < 0) {
             return -1;
         }
@@ -489,7 +483,7 @@ int bpf2socks_prerouting_policy_probe(
         snprintf(message, message_size, "PREROUTING policy maps are unavailable: errno=%d", errno);
         goto done;
     }
-    prog_fd = build_prerouting_ipv4_prog(NULL, proxy_cidr4_fd, bypass_cidr4_fd, "b2s_p_pre4", false);
+    prog_fd = build_prerouting_ipv4_prog(NULL, proxy_cidr4_fd, bypass_cidr4_fd, -1, "b2s_p_pre4", false);
     if (prog_fd < 0) {
         snprintf(message, message_size, "PREROUTING socket filter cannot be loaded: errno=%d", errno);
         goto done;
@@ -502,7 +496,7 @@ int bpf2socks_prerouting_policy_probe(
     (void)bpf2socks_prerouting_probe_unpin(path4, &path4_pinned);
     if (enable_ipv6) {
         close_fd(&prog_fd);
-        prog_fd = build_prerouting_ipv6_prog(&probe_policy, proxy_cidr6_fd, bypass_cidr6_fd, "b2s_p_pre6", false);
+        prog_fd = build_prerouting_ipv6_prog(&probe_policy, proxy_cidr6_fd, bypass_cidr6_fd, -1, "b2s_p_pre6", false);
         if (prog_fd < 0) {
             snprintf(message, message_size, "PREROUTING IPv6 socket filter cannot be loaded: errno=%d", errno);
             goto done;
@@ -531,7 +525,9 @@ done:
 
 int bpf2socks_prerouting_policy_prepare(
     const struct bpf2socks_policy_config *policy,
-    const struct bpf2socks_runtime_config *config) {
+    const struct bpf2socks_runtime_config *config,
+    int local_address_v4_map_fd,
+    int local_address_v6_map_fd) {
     if (policy == NULL || config == NULL) {
         errno = EINVAL;
         return -1;
@@ -556,7 +552,13 @@ int bpf2socks_prerouting_policy_prepare(
     if (load_policy_maps(policy, &proxy_cidr4_fd, &bypass_cidr4_fd, &proxy_cidr6_fd, &bypass_cidr6_fd) < 0) {
         goto done;
     }
-    prog_fd = build_prerouting_ipv4_prog(policy, proxy_cidr4_fd, bypass_cidr4_fd, "b2s_pre4", true);
+    prog_fd = build_prerouting_ipv4_prog(
+        policy,
+        proxy_cidr4_fd,
+        bypass_cidr4_fd,
+        local_address_v4_map_fd,
+        "b2s_pre4",
+        true);
     if (prog_fd < 0) {
         goto done;
     }
@@ -565,7 +567,13 @@ int bpf2socks_prerouting_policy_prepare(
     }
     close_fd(&prog_fd);
     if (policy->enable_ipv6) {
-        prog_fd = build_prerouting_ipv6_prog(policy, proxy_cidr6_fd, bypass_cidr6_fd, "b2s_pre6", true);
+        prog_fd = build_prerouting_ipv6_prog(
+            policy,
+            proxy_cidr6_fd,
+            bypass_cidr6_fd,
+            local_address_v6_map_fd,
+            "b2s_pre6",
+            true);
         if (prog_fd < 0) {
             goto done;
         }

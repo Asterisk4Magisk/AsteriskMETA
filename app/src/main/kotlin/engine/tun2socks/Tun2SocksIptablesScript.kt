@@ -7,10 +7,14 @@ import app.modes.ProxyAppListModeBlacklist
 import app.modes.ProxyAppListModeGlobal
 import app.modes.ProxyAppListModeWhitelist
 import engine.root.RootMihomoGid
+import engine.root.RootIp6tablesCommand
+import engine.root.RootIptablesCommand
 import engine.root.RootIptablesConfig
 import engine.root.RootProxyRouteRulePriority
 import engine.root.RootProxyAppWhitelistSystemUids
 import engine.root.appendDeleteRuleLoop
+import engine.root.appendAsteriskdBypassAnchorCleanup
+import engine.root.appendAsteriskdBypassAnchorJump
 import engine.root.appendIpRuleDeleteLoop
 import engine.root.appendRootEbpfXtbpfInterfaceMarkRules
 import engine.root.appendRootEbpfXtbpfMarkRules
@@ -18,7 +22,6 @@ import engine.root.appendRootFakeIpIcmpReplyCleanupRules
 import engine.root.appendRootFakeIpIcmpReplyRules
 import engine.root.appendRootIpv6DnsRejectCleanupRules
 import engine.root.appendRootIpv6DnsRejectRules
-import engine.root.appendRootRemoveAndroidTetheringIpv6TcOffloadRules
 import engine.root.appendScript
 import utils.shellQuote
 
@@ -39,7 +42,6 @@ internal fun RootIptablesConfig.buildSetupRulesCommand(
             enableLocalDns = enableLocalDns,
         )
         if (enableIpv6) {
-            appendRootRemoveAndroidTetheringIpv6TcOffloadRules(externalInterfacePrefixes)
             appendIptablesVariantSetupRules(
                 config = this@buildSetupRulesCommand,
                 variant = Tun2SocksIptablesVariant.forIpv6(this@buildSetupRulesCommand),
@@ -61,6 +63,8 @@ internal fun RootIptablesConfig.buildCleanupRulesCommand(): String {
         appendRootFakeIpIcmpReplyCleanupRules()
         appendRootIpv6DnsRejectCleanupRules()
         appendIptablesVariantCleanupRules(this@buildCleanupRulesCommand, Tun2SocksIptablesVariant.forIpv6(this@buildCleanupRulesCommand))
+        appendAsteriskdBypassAnchorCleanup(RootIptablesCommand, ipv6 = false)
+        appendAsteriskdBypassAnchorCleanup(RootIp6tablesCommand, ipv6 = true)
     }
 }
 
@@ -96,10 +100,11 @@ private fun StringBuilder.appendIptablesVariantSetupRules(
         appendBypassReturnRules(
             command = variant.command,
             chain = variant.preroutingChain,
-            cidrs = variant.bypassPrivateCidrs + variant.localInterfaceCidrs,
+            cidrs = variant.bypassPrivateCidrs,
             interfaces = emptyList(),
             input = true,
         )
+        appendAsteriskdBypassAnchorJump(variant.command, variant.preroutingChain, variant.ipv6)
         appendRootEbpfXtbpfInterfaceMarkRules(
             command = variant.command,
             chain = variant.preroutingChain,
@@ -132,10 +137,11 @@ private fun StringBuilder.appendIptablesVariantSetupRules(
         appendBypassReturnRules(
             command = variant.command,
             chain = variant.outputChain,
-            cidrs = variant.bypassPrivateCidrs + variant.localInterfaceCidrs,
+            cidrs = variant.bypassPrivateCidrs,
             interfaces = emptyList(),
             input = false,
         )
+        appendAsteriskdBypassAnchorJump(variant.command, variant.outputChain, variant.ipv6)
         appendRootEbpfXtbpfMarkRules(
             command = variant.command,
             chain = variant.outputChain,
@@ -193,10 +199,11 @@ private fun StringBuilder.appendPreroutingTrafficMarkRules(
     appendBypassReturnRules(
         command = variant.command,
         chain = variant.preroutingChain,
-        cidrs = variant.bypassPrivateCidrs + variant.localInterfaceCidrs,
+        cidrs = variant.bypassPrivateCidrs,
         interfaces = emptyList(),
         input = true,
     )
+    appendAsteriskdBypassAnchorJump(variant.command, variant.preroutingChain, variant.ipv6)
     config.externalInterfacePrefixes.forEach { prefix ->
         appendPreroutingInterfaceMarkRules(variant.command, variant.preroutingChain, prefix, config.mark)
     }
@@ -233,10 +240,11 @@ private fun StringBuilder.appendOutputTrafficMarkRules(
     appendBypassReturnRules(
         command = variant.command,
         chain = variant.outputChain,
-        cidrs = variant.bypassPrivateCidrs + variant.localInterfaceCidrs,
+        cidrs = variant.bypassPrivateCidrs,
         interfaces = emptyList(),
         input = false,
     )
+    appendAsteriskdBypassAnchorJump(variant.command, variant.outputChain, variant.ipv6)
     appendScript("${variant.command} -t mangle -A ${variant.outputChain} -m owner --gid-owner $RootMihomoGid -j RETURN")
     appendOutputApplicationBypassRules(
         command = variant.command,

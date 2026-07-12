@@ -31,6 +31,13 @@ internal fun StringBuilder.appendDeleteRuleLoop(
     appendScript("while $command -t $table -D $chain $rule 2>/dev/null; do :; done")
 }
 
+/** Indents a complete shell fragment before embedding it in a compound command. */
+internal fun String.indentShellBlock(prefix: String = "    "): String {
+    return trim()
+        .lineSequence()
+        .joinToString("\n") { line -> if (line.isBlank()) "" else "$prefix$line" }
+}
+
 internal fun StringBuilder.appendIpRuleDeleteLoop(
     ipCommand: String,
     rule: String,
@@ -101,36 +108,33 @@ internal fun StringBuilder.appendRootEbpfXtbpfInterfaceTproxyRules(
     }
 }
 
-internal fun StringBuilder.appendRootRemoveAndroidTetheringIpv6TcOffloadRules(interfacePrefixes: List<String>) {
-    if (interfacePrefixes.isEmpty()) return
-    val quotedPrefixes = interfacePrefixes.joinToString(" ") { prefix -> prefix.shellQuote() }
-    appendScript(
-        $$"""
-        if command -v tc >/dev/null 2>&1; then
-            for iface_path in /sys/class/net/*; do
-                [ -e "$iface_path" ] || continue
-                iface="${iface_path##*/}"
-                matched=0
-                for prefix in $${quotedPrefixes}; do
-                    case "$prefix" in
-                        *+)
-                            prefix_base="${prefix%+}"
-                            case "$iface" in "$prefix_base"*) matched=1 ;; esac
-                            ;;
-                        *)
-                            [ "$iface" = "$prefix" ] && matched=1
-                            ;;
-                    esac
-                    [ "$matched" = 1 ] && break
-                done
-                [ "$matched" = 1 ] || continue
-                if tc filter show dev "$iface" ingress protocol ipv6 2>/dev/null | grep -q 'prog_offload_schedcls_tether_'; then
-                    tc filter del dev "$iface" ingress protocol ipv6 pref 2 2>/dev/null || true
-                fi
-            done
-        fi
-        """,
-    )
+internal fun StringBuilder.appendAsteriskdBypassAnchorJump(
+    command: String,
+    chain: String,
+    ipv6: Boolean,
+) {
+    val anchor = if (ipv6) RootAsteriskdBypass6Anchor else RootAsteriskdBypass4Anchor
+    appendScript("$command -t mangle -N $anchor 2>/dev/null || true")
+    appendScript("$command -t mangle -A $chain -j $anchor")
+}
+
+internal fun StringBuilder.appendAsteriskdBypassAnchorCleanup(
+    command: String,
+    ipv6: Boolean,
+) {
+    val chains = if (ipv6) {
+        listOf(RootAsteriskdBypass6SlotA, RootAsteriskdBypass6SlotB, RootAsteriskdBypass6Anchor)
+    } else {
+        listOf(RootAsteriskdBypass4SlotA, RootAsteriskdBypass4SlotB, RootAsteriskdBypass4Anchor)
+    }
+    chains.forEach { chain ->
+        appendScript(
+            """
+            $command -t mangle -F $chain 2>/dev/null || true
+            $command -t mangle -X $chain 2>/dev/null || true
+            """,
+        )
+    }
 }
 
 private fun String.rootEbpfProgramPath(ipv4Path: String, ipv6Path: String): String {

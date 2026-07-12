@@ -142,8 +142,7 @@ static bool bypass_private_cidr4_map_required(const struct bpf2socks_policy_conf
 }
 
 static bool local_interface_cidr4_map_required(const struct bpf2socks_policy_config *policy) {
-    return policy != NULL &&
-        policy->local_interface_cidr_v4_count > 0U;
+    return policy != NULL;
 }
 
 static bool direct_cidr4_map_required(const struct bpf2socks_policy_config *policy) {
@@ -161,9 +160,7 @@ static bool bypass_private_cidr6_map_required(const struct bpf2socks_policy_conf
 }
 
 static bool local_interface_cidr6_map_required(const struct bpf2socks_policy_config *policy) {
-    return policy != NULL &&
-        policy->enable_ipv6 &&
-        policy->local_interface_cidr_v6_count > 0U;
+    return policy != NULL;
 }
 
 static bool direct_cidr6_map_required(const struct bpf2socks_policy_config *policy) {
@@ -206,6 +203,21 @@ static int create_lpm6_map(uint32_t max_entries) {
         sizeof(uint8_t),
         max_entries,
         BPF_F_NO_PREALLOC);
+}
+
+static int pin_local_address_map(
+    const struct bpf2socks_runtime_config *config,
+    int map_fd,
+    const char *name) {
+    char path[BPF2SOCKS_MAX_PATH_LEN];
+    size_t directory_length = strlen(config->pinned_object_dir);
+    const char *separator = directory_length > 0U && config->pinned_object_dir[directory_length - 1U] == '/' ? "" : "/";
+    int written = snprintf(path, sizeof(path), "%s%s%s", config->pinned_object_dir, separator, name);
+    if (written < 0 || (size_t)written >= sizeof(path)) {
+        errno = ENAMETOOLONG;
+        return -1;
+    }
+    return bpf2socks_pin_fd(map_fd, path);
 }
 
 static void emit_zero_region(struct bpf_builder *builder, int base_off, size_t size) {
@@ -2056,6 +2068,8 @@ int bpf2socks_bpf_start(
         stage = "create local interface cidr4 map";
         runtime->local_interface_cidr4_map_fd = create_lpm4_map(BPF2SOCKS_MAX_CIDR_MAP_ENTRIES);
         if (runtime->local_interface_cidr4_map_fd < 0) goto fail;
+        stage = "pin local address v4 map";
+        if (pin_local_address_map(config, runtime->local_interface_cidr4_map_fd, "local_addr_v4") < 0) goto fail;
     }
     if (need_direct_cidr4_map) {
         stage = "create direct cidr4 map";
@@ -2082,6 +2096,8 @@ int bpf2socks_bpf_start(
         stage = "create local interface cidr6 map";
         runtime->local_interface_cidr6_map_fd = create_lpm6_map(BPF2SOCKS_MAX_CIDR_MAP_ENTRIES);
         if (runtime->local_interface_cidr6_map_fd < 0) goto fail;
+        stage = "pin local address v6 map";
+        if (pin_local_address_map(config, runtime->local_interface_cidr6_map_fd, "local_addr_v6") < 0) goto fail;
     }
     if (need_direct_cidr6_map) {
         stage = "create direct cidr6 map";
@@ -2124,11 +2140,6 @@ int bpf2socks_bpf_start(
         stage = "load bypass private cidr4 map";
         goto fail;
     }
-    if (need_local_interface_cidr4_map &&
-        bpf2socks_load_cidr_strings(runtime->local_interface_cidr4_map_fd, policy->local_interface_cidrs_v4, policy->local_interface_cidr_v4_count, AF_INET) < 0) {
-        stage = "load local interface cidr4 map";
-        goto fail;
-    }
     if (need_direct_cidr4_map &&
         bpf2socks_load_direct_cidrs(runtime->direct_cidr4_map_fd, policy->direct_cidr_path_v4, AF_INET) < 0) {
         stage = "load direct cidr4 map";
@@ -2142,11 +2153,6 @@ int bpf2socks_bpf_start(
     if (need_bypass_private_cidr6_map &&
         bpf2socks_load_cidr_strings(runtime->bypass_private_cidr6_map_fd, policy->bypass_private_cidrs_v6, policy->bypass_private_cidr_v6_count, AF_INET6) < 0) {
         stage = "load bypass private cidr6 map";
-        goto fail;
-    }
-    if (need_local_interface_cidr6_map &&
-        bpf2socks_load_cidr_strings(runtime->local_interface_cidr6_map_fd, policy->local_interface_cidrs_v6, policy->local_interface_cidr_v6_count, AF_INET6) < 0) {
-        stage = "load local interface cidr6 map";
         goto fail;
     }
     if (need_direct_cidr6_map &&

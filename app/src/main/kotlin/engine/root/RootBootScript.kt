@@ -27,6 +27,7 @@ internal fun <Config : RootModeStartConfig> Config.buildInstallRootBootScriptCom
     return buildString {
         appendScript("mkdir -p ${RootBootScriptDir.shellQuote()}")
         appendScript("mkdir -p ${root.runtimeLayout.dataDir.shellQuote()}")
+        appendScript("chmod 755 ${root.runtimeLayout.stopScriptPath.shellQuote()} || exit 1")
         appendScript("mkdir -p ${root.bootLogDirPath.shellQuote()}")
         append(root.coreLogPaths.buildRepairCoreLogPermissionsCommand())
         appendHeredoc(
@@ -61,10 +62,9 @@ private fun <Config : RootModeStartConfig> Config.buildRootStartupScript(
             appendStartupSummary = appendStartupSummary,
             appendStartupFailureDiagnostics = appendStartupFailureDiagnostics,
         )
-        if (root.shouldStartIpv6Disabler) {
-            appendScript("section \"Start IPv6 disabler\"")
-            append(root.buildStartIpv6DisablerCommand())
-        }
+        appendScript("# Prepare the native monitor and clear stale runtime markers.")
+        appendScript("section \"Prepare asteriskd\"")
+        append(root.buildPrepareAsteriskdCommand())
         appendScript("section \"Prepare core logs\"")
         append(root.coreLogPaths.buildPrepareCoreLogFilesCommand())
         appendScript("section \"Start mihomo\"")
@@ -88,6 +88,20 @@ private fun <Config : RootModeStartConfig> Config.buildRootStartupScript(
         append('\n')
         appendScript("section \"Install $modeName rules\"")
         append(buildSetupRulesCommand(this@buildRootStartupScript))
+        appendScript("# Rule cleanup can remove bypass slots; recreate the monitor chains before its first sync.")
+        appendScript("section \"Prepare asteriskd chains\"")
+        append(root.buildPrepareAsteriskdCommand())
+        appendScript("# Start the address monitor after rules and BPF maps are ready.")
+        appendScript("section \"Start asteriskd\"")
+        append(root.buildStartAsteriskdCommand())
+        appendRootBootReadinessCheck(
+            readinessCheck = RootReadinessCheck(
+                description = "asteriskd",
+                command = root.runtimeLayout.buildAsteriskdReadyCommand(),
+                failureMessage = "asteriskd did not become ready",
+            ),
+            attempts = bootReadinessCheckAttempts,
+        )
         appendScript("section \"$modeName boot setup is ready\"")
     }
 }
@@ -98,6 +112,7 @@ private fun StringBuilder.appendRootBootReadinessCheck(
 ) {
     val sectionTitle = "Wait for ${readinessCheck.description}".shellQuote()
     val failureMessage = "ERROR: ${readinessCheck.failureMessage}".shellQuote()
+    val readinessCommand = readinessCheck.command.indentShellBlock("        ")
     appendScript(
         $$"""
 
@@ -106,7 +121,9 @@ private fun StringBuilder.appendRootBootReadinessCheck(
         attempt=0
         while [ "$attempt" -lt $$attempts ]; do
             echo "Attempt $((attempt + 1))/$${attempts}"
-            if $${readinessCheck.command.trimEnd()}; then
+            if (
+            $$readinessCommand
+            ); then
                 runtime_ready=1
                 break
             fi
@@ -166,15 +183,13 @@ private fun <Config : RootModeStartConfig> StringBuilder.appendRootStartupPreamb
         """,
     )
     appendStartupFailureDiagnostics(config)
-    if (config.root.shouldStartIpv6Disabler) {
-        appendScript(
-            $$"""
-                echo
-                echo "IPv6 disabler log:"
-                tail -n 80 $${config.root.ipv6DisablerLogPath.shellQuote()} || true
-            """,
-        )
-    }
+    appendScript(
+        $$"""
+            echo
+            echo "Asteriskd log:"
+            tail -n 80 $${config.root.runtimeLayout.asteriskdLogPath.shellQuote()} || true
+        """,
+    )
     appendScript(
         $$"""
             echo
@@ -201,11 +216,11 @@ private fun <Config : RootModeStartConfig> StringBuilder.appendRootStartupPreamb
         appendScript(
             $$"""
         echo "IPv6 enabled: $${config.root.enableIpv6}"
-        echo "IPv6 disabler enabled: $${config.root.shouldStartIpv6Disabler}"
+        echo "System IPv6 disable requested: $${config.root.disableSystemIpv6}"
         echo "Local DNS enabled: $${config.root.enableLocalDns}"
         echo "FakeIp enabled: $${config.root.enableFakeIp}"
         echo "Core error log: $${config.root.coreLogPaths.errorLogPath.shellQuote()}"
-        echo "IPv6 disabler log: $${config.root.ipv6DisablerLogPath.shellQuote()}"
+        echo "Asteriskd log: $${config.root.runtimeLayout.asteriskdLogPath.shellQuote()}"
         echo "eBPF matcher enabled: $${config.rootEbpfConfig != null}"
 
         section "Prepare runtime"
@@ -216,6 +231,7 @@ private fun <Config : RootModeStartConfig> StringBuilder.appendRootStartupPreamb
         $$"""
         rm -f $${config.root.runtimeLayout.pidPath.shellQuote()} || true
         chmod 755 $${config.root.runtimeLayout.mihomoCorePath.shellQuote()}
+        chmod 755 $${config.root.runtimeLayout.stopScriptPath.shellQuote()} || exit 1
         chmod 644 $${config.root.configPath.shellQuote()}
         test -r $${config.root.configPath.shellQuote()} || exit 1
         """,

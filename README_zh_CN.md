@@ -65,6 +65,13 @@
 - 默认 bridge 端口为 `65532`，SOCKS5 入站端口为 `65534`。
 - 启动前要求 eBPF probe 通过。设备支持不足时，该模式无法启动。
 
+### ROOT 地址监控
+
+- 所有 ROOT 模式会在 Mihomo 与模式规则就绪后启动 native `asteriskd` 监控器。
+- 它会监听本地 IPv4/IPv6 地址变化，并原子更新直连绕过的 iptables 链或 BPF map，避免公网地址被错误送入代理路径。
+- 启用禁用系统 IPv6 时，它会对新出现的 IPv6 接口继续生效；启用 IPv6 时，它会响应已配置的热点接口，并按需移除 Android IPv6 TC offload 规则。
+- 日志路径为 `files/clash/logs/asteriskd.log`；生成的 `files/clash/stop.sh` 是唯一的 ROOT 停止入口，会先恢复已记录的 IPv6 状态再清理规则。
+
 ## 资源文件
 
 - 运行时文件存储在应用私有的 `files/clash` 目录中，通常为 `/data/user/0/org.asterisk.zcc.ameta/files/clash`。
@@ -99,7 +106,7 @@ macOS 或 Linux：
 - 构建前将 `hev-socks5-tunnel` checkout 到 `ProjectConfig.HEV_SOCKS5_TUNNEL_VERSION`
 - 从 vendored submodule 构建 native `hev-socks5-tunnel` JNI library 和 CLI runtime
 - 构建 vendored CMFA Go core
-- 构建 native `setuidgid`、`ipv6disabler` 和 `bpf2socks` helper
+- 构建 native `setuidgid`、`asteriskd` 和 `bpf2socks` helper
 - 产出 `arm64-v8a`、`armeabi-v7a`、`x86`、`x86_64` 四个 ABI split APK，以及一个 universal APK
 
 如果 Gradle 找不到 Android NDK，请在 `local.properties` 中设置 `ndk.dir`，设置 `ANDROID_NDK_HOME`，或在 Android SDK 下安装 NDK。

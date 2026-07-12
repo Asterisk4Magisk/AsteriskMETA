@@ -16,8 +16,6 @@ internal data class RootIptablesConfig(
     val enableEbpfDirectCidrBypass: Boolean = false,
     val externalInterfacePrefixes: List<String> = emptyList(),
     val ignoredInterfaces: List<String> = emptyList(),
-    val localInterfaceIpv4Cidrs: List<String> = emptyList(),
-    val localInterfaceIpv6Cidrs: List<String> = emptyList(),
     val proxyPrivateIpv4Cidrs: List<String> = emptyList(),
     val proxyPrivateIpv6Cidrs: List<String> = emptyList(),
     val bypassPrivateIpv4Cidrs: List<String> = emptyList(),
@@ -30,11 +28,7 @@ internal data class RootIptablesConfig(
 internal fun RootIptablesConfig.withAppSettings(
     context: Context,
     appState: AppState,
-    ignoredLocalInterfaceNames: Set<String>,
 ): RootIptablesConfig {
-    val localInterfaceCidrs = collectRootLocalInterfaceCidrs(
-        ignoredInterfaceNames = ignoredLocalInterfaceNames,
-    ).toTrimmedNonEmptyDistinctList()
     val proxyPrivateCidrs = appState.privateAddressCidrs.toTrimmedNonEmptyDistinctList()
     val bypassPrivateCidrs = RootDefaultBypassPrivateCidrs.toTrimmedNonEmptyDistinctList()
     val selectedAppKeys = appState.proxyAppListSelectedApps.toTrimmedNonEmptyDistinctList()
@@ -47,8 +41,6 @@ internal fun RootIptablesConfig.withAppSettings(
     return copy(
         externalInterfacePrefixes = appState.externalInterfaces.toTrimmedNonEmptyDistinctList(),
         ignoredInterfaces = appState.ignoredInterfaces.toTrimmedNonEmptyDistinctList(),
-        localInterfaceIpv4Cidrs = localInterfaceCidrs.ipv4Cidrs(),
-        localInterfaceIpv6Cidrs = localInterfaceCidrs.ipv6Cidrs(),
         proxyPrivateIpv4Cidrs = proxyPrivateCidrs.ipv4Cidrs(),
         proxyPrivateIpv6Cidrs = proxyPrivateCidrs.ipv6Cidrs(),
         bypassPrivateIpv4Cidrs = bypassPrivateCidrs.ipv4Cidrs(),

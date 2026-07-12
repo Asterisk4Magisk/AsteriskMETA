@@ -1,3 +1,6 @@
+// Copyright 2026, AsteriskMETA contributors
+// SPDX-License-Identifier: GPL-3.0
+
 @file:Suppress("UnstableApiUsage")
 
 import com.android.build.api.variant.HasHostTestsBuilder
@@ -111,7 +114,7 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(dependencies.project(":cmfa-core"))
     implementation(dependencies.project(":setuidgid"))
-    implementation(dependencies.project(":ipv6disabler"))
+    implementation(dependencies.project(":asteriskd"))
     implementation(dependencies.project(":bpfmatcher"))
     implementation(dependencies.project(":bpf2socks"))
     implementation(dependencies.project(":hevtun"))

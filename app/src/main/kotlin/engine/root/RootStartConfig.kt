@@ -27,6 +27,8 @@ internal data class RootStartConfig(
 internal interface RootModeStartConfig {
     val root: RootStartConfig
     val localProxyOptions: LocalProxyOptions
+    val asteriskdConfig: AsteriskdConfig?
+        get() = null
     val rootEbpfConfig: RootEbpfRuntimeConfig?
         get() = null
 }
@@ -43,8 +45,20 @@ internal val RootStartConfig.bootLogPath: String
 internal val RootRuntimeLayout.startupScriptPath: String
     get() = File(dataDir, RootStartupScriptFileName).absolutePath
 
-internal val RootRuntimeLayout.ipv6DisablerPidPath: String
-    get() = File(dataDir, RootIpv6DisablerPidFileName).absolutePath
+internal val RootRuntimeLayout.asteriskdConfigPath: String
+    get() = File(dataDir, RootAsteriskdConfigFileName).absolutePath
+
+internal val RootRuntimeLayout.asteriskdPidPath: String
+    get() = File(dataDir, RootAsteriskdPidFileName).absolutePath
+
+internal val RootRuntimeLayout.asteriskdReadyPath: String
+    get() = File(dataDir, RootAsteriskdReadyFileName).absolutePath
+
+internal val RootRuntimeLayout.asteriskdStatePath: String
+    get() = File(dataDir, RootAsteriskdStateFileName).absolutePath
+
+internal val RootRuntimeLayout.stopScriptPath: String
+    get() = File(dataDir, RootStopScriptFileName).absolutePath
 
 internal val RootRuntimeLayout.bpfPolicyPath: String
     get() = File(dataDir, RootEbpfPolicyFileName).absolutePath
@@ -61,5 +75,5 @@ internal val RootRuntimeLayout.bpf2socksConfigPath: String
 internal val RootRuntimeLayout.bpf2socksPidPath: String
     get() = File(dataDir, RootBpf2SocksPidFileName).absolutePath
 
-internal val RootStartConfig.ipv6DisablerLogPath: String
-    get() = coreLogPaths.ipv6DisablerLogFile().absolutePath
+internal val RootRuntimeLayout.asteriskdLogPath: String
+    get() = File(dataDir, "logs/$RootAsteriskdLogFileName").absolutePath

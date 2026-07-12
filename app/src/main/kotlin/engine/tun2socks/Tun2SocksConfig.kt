@@ -13,11 +13,14 @@ import engine.hevtun.hevSocks5TunnelLogFile
 import engine.proxy.LocalProxyOptions
 import engine.proxy.toLocalProxyOptions
 import engine.root.RootConfigBuildContext
+import engine.root.AsteriskdConfig
+import engine.root.AsteriskdMode
 import engine.root.RootEbpfRuntimeConfig
 import engine.root.RootIptablesConfig
 import engine.root.RootModeStartConfig
 import engine.root.RootRuntimeLayout
 import engine.root.RootStartConfig
+import engine.root.buildAsteriskdConfig
 import engine.root.tun2SocksInternalProxyPortValue
 import engine.root.toRootRuntimeLayout
 import engine.vpn.TunOptions
@@ -32,6 +35,7 @@ internal data class Tun2SocksStartConfig(
     override val localProxyOptions: LocalProxyOptions,
     val hevSocks5TunnelConfig: HevSocks5TunnelConfig,
     val iptablesConfig: RootIptablesConfig,
+    override val asteriskdConfig: AsteriskdConfig,
     override val rootEbpfConfig: RootEbpfRuntimeConfig?,
 ) : RootModeStartConfig
 
@@ -47,10 +51,7 @@ internal fun RootConfigBuildContext.buildTun2SocksStartConfig(): Tun2SocksStartC
     val localProxyOptions = appState.toLocalProxyOptions()
     val socks5ProxyPort = appState.tun2SocksInternalProxyPortValue()
     val rootStartConfig = buildRootStartConfig()
-    val iptablesConfig = buildRootIptablesConfig(
-        base = Tun2SocksBaseIptablesConfig,
-        ignoredLocalInterfaceNames = setOf("asterisk0"),
-    )
+    val iptablesConfig = buildRootIptablesConfig(Tun2SocksBaseIptablesConfig)
     return Tun2SocksStartConfig(
         root = rootStartConfig,
         localProxyOptions = localProxyOptions,
@@ -62,6 +63,11 @@ internal fun RootConfigBuildContext.buildTun2SocksStartConfig(): Tun2SocksStartC
             enableIpv6 = appState.enableIpv6,
         ),
         iptablesConfig = iptablesConfig,
+        asteriskdConfig = rootStartConfig.buildAsteriskdConfig(
+            mode = AsteriskdMode.Tun2Socks,
+            iptablesConfig = iptablesConfig,
+            virtualInterfaces = listOf("asterisk0"),
+        ),
         rootEbpfConfig = buildRootEbpfRuntimeConfig(iptablesConfig),
     )
 }
