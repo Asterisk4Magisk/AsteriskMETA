@@ -25,6 +25,8 @@ struct bpf2socks_udp_pending_budget {
     atomic_size_t peak_bytes;
 };
 
+struct bpf2socks_udp_downlink_channel;
+
 struct bpf2socks_tcp_session_budget {
     size_t cap;
     atomic_size_t used;
@@ -57,7 +59,9 @@ struct bpf2socks_udp_reply_binding {
     bool connected_udp_token;
     int reply_fd;
     bool reply_raw;
+    uint64_t reply_fd_generation;
     uint64_t last_seen_ms;
+    size_t downlink_pending_count;
     struct bpf2socks_udp_client_session *owner;
     struct bpf2socks_udp_reply_binding *next;
     struct bpf2socks_udp_reply_binding *lru_prev;
@@ -103,6 +107,10 @@ struct bpf2socks_udp_client_session {
     struct bpf2socks_udp_pending_packet *pending_head;
     struct bpf2socks_udp_pending_packet *pending_tail;
     size_t pending_count;
+    struct bpf2socks_udp_downlink_channel *downlink_channels;
+    size_t downlink_pending_count;
+    bool downlink_paused;
+    bool downlink_waiting_budget;
     struct bpf2socks_udp_reply_binding *bindings;
     struct bpf2socks_udp_reply_binding *binding_lru_head;
     struct bpf2socks_udp_reply_binding *binding_lru_tail;

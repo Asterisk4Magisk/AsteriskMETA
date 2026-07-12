@@ -5,6 +5,7 @@
 
 #include "bridge_dns.h"
 #include "bridge_internal.h"
+#include "udp_downlink_queue.h"
 
 #include <arpa/inet.h>
 #include <errno.h>
@@ -68,6 +69,8 @@ struct udp_client_packet {
     size_t payload_len;
 };
 
+struct bpf2socks_udp_downlink_channel;
+
 enum udp_fd_kind {
     UDP_FD_LISTENER4,
     UDP_FD_LISTENER6,
@@ -75,12 +78,14 @@ enum udp_fd_kind {
     UDP_FD_SESSION_RELAY,
     UDP_FD_DNS_CONTROL,
     UDP_FD_DNS_RELAY,
+    UDP_FD_DOWNLINK,
 };
 
 struct udp_fd_ref {
     enum udp_fd_kind kind;
     int fd;
     struct bpf2socks_udp_client_session *session;
+    struct bpf2socks_udp_downlink_channel *downlink;
     uint32_t dns_channel_index;
 };
 
@@ -116,6 +121,26 @@ struct udp_downlink_batch {
     unsigned int count;
 };
 
+struct udp_downlink_packet {
+    struct bpf2socks_udp_downlink_queue_node queue_node;
+    struct bpf2socks_udp_reply_binding *binding;
+    size_t payload_len;
+    size_t allocation_bytes;
+    uint8_t payload[];
+};
+
+struct bpf2socks_udp_downlink_channel {
+    struct bpf2socks_udp_downlink_channel *next;
+    struct udp_fd_ref ref;
+    struct bpf2socks_udp_downlink_queue queue;
+    struct bpf2socks_udp_reply_binding *source_binding;
+    int fd;
+    int source_fd;
+    uint64_t source_binding_generation;
+    bool use_pktinfo;
+    bool raw;
+};
+
 struct udp_state {
     struct bpf2socks_udp_client_session *sessions;
     struct bpf2socks_udp_client_session *free_sessions;
@@ -128,6 +153,7 @@ struct udp_state {
     struct bpf2socks_udp_client_session *lru_tail;
     struct bpf2socks_udp_reply_binding *binding_lru_head;
     struct bpf2socks_udp_reply_binding *binding_lru_tail;
+    struct bpf2socks_udp_downlink_channel *retired_downlink_channels;
     struct udp_fd_ref listener_ref;
     struct udp_fd_ref listener6_ref;
     struct dns_channel dns_channels[BPF2SOCKS_DNS_CHANNELS_PER_WORKER];
@@ -140,6 +166,8 @@ struct udp_state {
     size_t binding_cap;
     size_t binding_count;
     struct bpf2socks_udp_pending_budget *pending_budget;
+    size_t downlink_read_reservation;
+    struct bpf2socks_udp_downlink_waiter_tracker downlink_budget_waiters;
     size_t event_cap;
     uint32_t next_dns_channel;
 };
@@ -377,7 +405,9 @@ static int send_raw_udp_to_client(
     udp->check = htons(udp_ipv4_checksum(ip->saddr, ip->daddr, udp, body, payload_len));
 
     ssize_t sent = sendto(fd, packet, ip_len, 0, (const struct sockaddr *)client, sizeof(*client));
-    return sent == (ssize_t)ip_len ? 0 : -1;
+    if (sent == (ssize_t)ip_len) return 0;
+    if (sent >= 0) errno = EIO;
+    return -1;
 }
 
 static int send_raw_udp6_to_client(
@@ -421,7 +451,9 @@ static int send_raw_udp6_to_client(
     udp->check = htons(udp_ipv6_checksum(binding->original_dst.addr, client->sin6_addr.s6_addr, udp, body, payload_len));
 
     ssize_t sent = sendto(fd, packet, ip_len, 0, (const struct sockaddr *)client, sizeof(*client));
-    return sent == (ssize_t)ip_len ? 0 : -1;
+    if (sent == (ssize_t)ip_len) return 0;
+    if (sent >= 0) errno = EIO;
+    return -1;
 }
 
 static int create_raw_udp_reply_socket(void) {
@@ -625,6 +657,18 @@ static void close_binding(struct bpf2socks_udp_reply_binding *binding) {
     if (binding == NULL) return;
     if (binding->reply_fd >= 0) close(binding->reply_fd);
     binding->reply_fd = -1;
+    binding->reply_raw = false;
+    ++binding->reply_fd_generation;
+}
+
+static void set_binding_reply_fd(
+    struct bpf2socks_udp_reply_binding *binding,
+    int fd,
+    bool reply_raw) {
+    if (binding == NULL) return;
+    binding->reply_fd = fd;
+    binding->reply_raw = reply_raw;
+    ++binding->reply_fd_generation;
 }
 
 static void release_binding(struct udp_state *state, struct bpf2socks_udp_reply_binding *binding) {
@@ -667,9 +711,17 @@ static int evict_binding(
     struct udp_state *state,
     struct bpf2socks_udp_client_session *session,
     struct bpf2socks_bridge_worker *worker) {
-    struct bpf2socks_udp_reply_binding *binding = session != NULL ? session->binding_lru_head : NULL;
-    if (binding == NULL && state != NULL) {
-        binding = state->binding_lru_head;
+    struct bpf2socks_udp_reply_binding *binding = NULL;
+    if (session != NULL) {
+        for (binding = session->binding_lru_head;
+            binding != NULL && binding->downlink_pending_count > 0U;
+            binding = binding->lru_next) {
+        }
+    } else if (state != NULL) {
+        for (binding = state->binding_lru_head;
+            binding != NULL && binding->downlink_pending_count > 0U;
+            binding = binding->global_lru_next) {
+        }
         if (binding != NULL) session = binding->owner;
     }
     if (binding == NULL || session == NULL) {
@@ -806,6 +858,314 @@ static void release_session_pending_packets(struct udp_state *state, struct bpf2
     session->pending_head = NULL;
     session->pending_tail = NULL;
     session->pending_count = 0U;
+}
+
+static struct udp_downlink_packet *alloc_downlink_packet(
+    struct udp_state *state,
+    size_t payload_len) {
+    if (state == NULL || state->pending_budget == NULL ||
+        payload_len > SIZE_MAX - sizeof(struct udp_downlink_packet)) {
+        errno = ENOBUFS;
+        return NULL;
+    }
+    size_t allocation_bytes = sizeof(struct udp_downlink_packet) + payload_len;
+    bool uses_read_reservation = state->downlink_read_reservation >= allocation_bytes;
+    if (uses_read_reservation) {
+        state->downlink_read_reservation -= allocation_bytes;
+    } else if (bpf2socks_pending_budget_reserve(state->pending_budget, allocation_bytes) < 0) {
+        return NULL;
+    }
+    struct udp_downlink_packet *packet = malloc(allocation_bytes);
+    if (packet == NULL) {
+        if (uses_read_reservation) {
+            state->downlink_read_reservation += allocation_bytes;
+        } else {
+            (void)bpf2socks_pending_budget_release(state->pending_budget, allocation_bytes);
+        }
+        errno = ENOMEM;
+        return NULL;
+    }
+    memset(packet, 0, sizeof(*packet));
+    packet->allocation_bytes = allocation_bytes;
+    return packet;
+}
+
+static size_t max_downlink_packet_allocation(void) {
+    return sizeof(struct udp_downlink_packet) + BPF2SOCKS_UDP_BUFFER_SIZE;
+}
+
+static void release_downlink_read_reservation(struct udp_state *state) {
+    if (state == NULL || state->downlink_read_reservation == 0U) return;
+    size_t bytes = state->downlink_read_reservation;
+    state->downlink_read_reservation = 0U;
+    if (state->pending_budget != NULL) {
+        (void)bpf2socks_pending_budget_release(state->pending_budget, bytes);
+    }
+}
+
+static int reserve_downlink_read_slots(struct udp_state *state, uint32_t *batch) {
+    if (state == NULL || state->pending_budget == NULL || batch == NULL || *batch == 0U ||
+        state->downlink_read_reservation != 0U) {
+        errno = EINVAL;
+        return -1;
+    }
+    const size_t slot_bytes = max_downlink_packet_allocation();
+    uint32_t candidate = *batch;
+    for (;;) {
+        if ((size_t)candidate <= SIZE_MAX / slot_bytes) {
+            size_t bytes = (size_t)candidate * slot_bytes;
+            if (bpf2socks_pending_budget_reserve(state->pending_budget, bytes) == 0) {
+                state->downlink_read_reservation = bytes;
+                *batch = candidate;
+                return 0;
+            }
+        } else {
+            errno = EOVERFLOW;
+        }
+        if (candidate == 1U) return -1;
+        candidate = (candidate + 1U) / 2U;
+    }
+}
+
+static void release_downlink_packet(
+    struct udp_state *state,
+    struct bpf2socks_udp_client_session *session,
+    struct udp_downlink_packet *packet) {
+    if (state == NULL || packet == NULL) return;
+    if (session != NULL && session->downlink_pending_count > 0U) {
+        --session->downlink_pending_count;
+    }
+    if (packet->binding != NULL && packet->binding->downlink_pending_count > 0U) {
+        --packet->binding->downlink_pending_count;
+    }
+    size_t allocation_bytes = packet->allocation_bytes;
+    free(packet);
+    if (state->pending_budget != NULL) {
+        (void)bpf2socks_pending_budget_release(state->pending_budget, allocation_bytes);
+    }
+}
+
+static struct bpf2socks_udp_downlink_channel *find_downlink_channel(
+    const struct bpf2socks_udp_client_session *session,
+    const struct bpf2socks_udp_reply_binding *binding,
+    int source_fd,
+    bool use_pktinfo,
+    bool raw) {
+    if (session == NULL) return NULL;
+    bool binding_source = binding != NULL && binding->reply_fd == source_fd && source_fd >= 0;
+    for (struct bpf2socks_udp_downlink_channel *channel = session->downlink_channels;
+        channel != NULL;
+        channel = channel->next) {
+        if (channel->source_binding == (binding_source ? binding : NULL) &&
+            (!binding_source || channel->source_binding_generation == binding->reply_fd_generation) &&
+            channel->source_fd == source_fd &&
+            channel->use_pktinfo == use_pktinfo &&
+            channel->raw == raw) {
+            return channel;
+        }
+    }
+    return NULL;
+}
+
+static int set_session_downlink_pause(
+    struct udp_state *state,
+    struct bpf2socks_udp_client_session *session,
+    bool paused) {
+    if (state == NULL || session == NULL || !session->used ||
+        session->stage != BPF2SOCKS_UDP_SESSION_READY || session->udp_fd < 0) {
+        errno = EINVAL;
+        return -1;
+    }
+    if (session->downlink_paused == paused) return 0;
+    size_t index = session_index(state, session);
+    if (index >= state->session_cap) {
+        errno = EINVAL;
+        return -1;
+    }
+    if (mod_udp_epoll_fd_events(
+            state,
+            session->udp_fd,
+            &state->session_refs[index].relay,
+            paused ? 0U : EPOLLIN) < 0) {
+        return -1;
+    }
+    session->downlink_paused = paused;
+    return 0;
+}
+
+static void resume_budget_paused_sessions(struct udp_state *state) {
+    if (state == NULL || state->pending_budget == NULL ||
+        !bpf2socks_udp_downlink_waiter_tracker_has_waiters(&state->downlink_budget_waiters)) {
+        return;
+    }
+    const size_t slot_bytes = max_downlink_packet_allocation();
+    const size_t cap_bytes = state->pending_budget->cap_bytes;
+    const size_t used_bytes = bpf2socks_pending_budget_used(state->pending_budget);
+    if (cap_bytes < slot_bytes || used_bytes > cap_bytes - slot_bytes) return;
+    for (size_t i = 0U; i < state->session_cap; ++i) {
+        struct bpf2socks_udp_client_session *session = &state->sessions[i];
+        if (!session->used || !session->downlink_waiting_budget ||
+            session->downlink_pending_count != 0U) {
+            continue;
+        }
+        if (set_session_downlink_pause(state, session, false) == 0) {
+            (void)bpf2socks_udp_downlink_waiter_tracker_mark_ready(
+                &state->downlink_budget_waiters,
+                &session->downlink_waiting_budget);
+        }
+    }
+}
+
+static void unlink_downlink_channel(
+    struct bpf2socks_udp_client_session *session,
+    struct bpf2socks_udp_downlink_channel *channel) {
+    if (session == NULL || channel == NULL) return;
+    struct bpf2socks_udp_downlink_channel **slot = &session->downlink_channels;
+    while (*slot != NULL) {
+        if (*slot == channel) {
+            *slot = channel->next;
+            channel->next = NULL;
+            return;
+        }
+        slot = &(*slot)->next;
+    }
+}
+
+static void retire_downlink_channel(
+    struct udp_state *state,
+    struct bpf2socks_udp_client_session *session,
+    struct bpf2socks_udp_downlink_channel *channel,
+    bool resume_session) {
+    if (state == NULL || channel == NULL) return;
+    unlink_downlink_channel(session, channel);
+    remove_udp_epoll_fd(state, channel->fd);
+    if (channel->fd >= 0) close(channel->fd);
+    channel->fd = -1;
+    while (channel->queue.head != NULL) {
+        struct udp_downlink_packet *packet = (struct udp_downlink_packet *)
+            bpf2socks_udp_downlink_queue_pop(&channel->queue);
+        release_downlink_packet(state, session, packet);
+    }
+    channel->ref.session = NULL;
+    channel->next = state->retired_downlink_channels;
+    state->retired_downlink_channels = channel;
+    if (resume_session && session != NULL && session->used &&
+        session->downlink_pending_count == 0U && !session->downlink_waiting_budget &&
+        session->downlink_paused) {
+        (void)set_session_downlink_pause(state, session, false);
+    }
+}
+
+static void free_retired_downlink_channels(struct udp_state *state) {
+    if (state == NULL) return;
+    struct bpf2socks_udp_downlink_channel *channel = state->retired_downlink_channels;
+    while (channel != NULL) {
+        struct bpf2socks_udp_downlink_channel *next = channel->next;
+        free(channel);
+        channel = next;
+    }
+    state->retired_downlink_channels = NULL;
+}
+
+static void release_session_downlink_channels(
+    struct udp_state *state,
+    struct bpf2socks_udp_client_session *session) {
+    if (state == NULL || session == NULL) return;
+    while (session->downlink_channels != NULL) {
+        retire_downlink_channel(state, session, session->downlink_channels, false);
+    }
+    session->downlink_pending_count = 0U;
+    session->downlink_paused = false;
+    (void)bpf2socks_udp_downlink_waiter_tracker_mark_ready(
+        &state->downlink_budget_waiters,
+        &session->downlink_waiting_budget);
+}
+
+static struct bpf2socks_udp_downlink_channel *create_downlink_channel(
+    struct udp_state *state,
+    struct bpf2socks_udp_client_session *session,
+    struct bpf2socks_udp_reply_binding *binding,
+    int source_fd,
+    bool use_pktinfo,
+    bool raw) {
+    if (state == NULL || session == NULL || source_fd < 0) {
+        errno = EINVAL;
+        return NULL;
+    }
+    int fd = dup(source_fd);
+    if (fd < 0) return NULL;
+    struct bpf2socks_udp_downlink_channel *channel = calloc(1U, sizeof(*channel));
+    if (channel == NULL) {
+        int saved = errno;
+        close(fd);
+        errno = saved;
+        return NULL;
+    }
+    channel->fd = fd;
+    channel->source_fd = source_fd;
+    if (binding != NULL && binding->reply_fd == source_fd) {
+        channel->source_binding = binding;
+        channel->source_binding_generation = binding->reply_fd_generation;
+    }
+    channel->use_pktinfo = use_pktinfo;
+    channel->raw = raw;
+    bpf2socks_udp_downlink_queue_init(&channel->queue);
+    channel->ref.kind = UDP_FD_DOWNLINK;
+    channel->ref.fd = fd;
+    channel->ref.session = session;
+    channel->ref.downlink = channel;
+    if (add_udp_epoll_fd_events(state, fd, &channel->ref, EPOLLOUT) < 0) {
+        int saved = errno;
+        close(fd);
+        free(channel);
+        errno = saved;
+        return NULL;
+    }
+    channel->next = session->downlink_channels;
+    session->downlink_channels = channel;
+    return channel;
+}
+
+static int queue_udp_downlink_packet(
+    struct udp_state *state,
+    struct bpf2socks_udp_client_session *session,
+    struct bpf2socks_udp_reply_binding *binding,
+    const struct bpf2socks_udp_msg *message,
+    int source_fd,
+    bool use_pktinfo,
+    bool raw) {
+    if (state == NULL || session == NULL || binding == NULL || message == NULL || source_fd < 0) {
+        errno = EINVAL;
+        return -1;
+    }
+    struct bpf2socks_udp_downlink_channel *channel =
+        find_downlink_channel(session, binding, source_fd, use_pktinfo, raw);
+    bool created = false;
+    if (channel == NULL) {
+        channel = create_downlink_channel(state, session, binding, source_fd, use_pktinfo, raw);
+        if (channel == NULL) return -1;
+        created = true;
+    }
+    struct udp_downlink_packet *packet = alloc_downlink_packet(state, message->payload_len);
+    if (packet == NULL) {
+        if (created) retire_downlink_channel(state, session, channel, false);
+        return -1;
+    }
+    packet->binding = binding;
+    packet->payload_len = message->payload_len;
+    memcpy(packet->payload, message->payload, message->payload_len);
+    bpf2socks_udp_downlink_queue_push(&channel->queue, &packet->queue_node);
+    ++session->downlink_pending_count;
+    ++binding->downlink_pending_count;
+    (void)bpf2socks_udp_downlink_waiter_tracker_mark_ready(
+        &state->downlink_budget_waiters,
+        &session->downlink_waiting_budget);
+    uint64_t now_ms = monotonic_ms();
+    session->last_seen_ms = now_ms;
+    binding->last_seen_ms = now_ms;
+    lru_touch(state, session);
+    binding_lru_touch(state, session, binding);
+    return set_session_downlink_pause(state, session, true);
 }
 
 static int queue_pending_udp_packet(
@@ -1009,6 +1369,7 @@ static int update_udp_associate_response_expected(struct bpf2socks_udp_client_se
 static void close_session(struct udp_state *state, struct bpf2socks_udp_client_session *session) {
     if (session == NULL || !session->used) return;
     release_session_pending_packets(state, session);
+    release_session_downlink_channels(state, session);
     if (session->tcp_fd >= 0) close(session->tcp_fd);
     if (session->udp_fd >= 0) close(session->udp_fd);
     while (session->bindings != NULL) {
@@ -1295,8 +1656,12 @@ static struct bpf2socks_udp_client_session *alloc_session(struct udp_state *stat
         return session;
     }
     struct bpf2socks_udp_client_session *victim = state->lru_head;
+    while (victim != NULL &&
+        (victim->downlink_pending_count > 0U || victim->downlink_waiting_budget)) {
+        victim = victim->lru_next;
+    }
     if (victim == NULL) {
-        errno = ENOMEM;
+        errno = ENOBUFS;
         return NULL;
     }
     drop_session(state, victim);
@@ -1336,12 +1701,14 @@ static struct bpf2socks_udp_reply_binding *create_binding(
     binding->last_seen_ms = monotonic_ms();
     binding->connected_udp_token = connected_udp_token;
     if (needs_original_reply_socket) {
-        binding->reply_fd = create_udp_client_reply_socket(original, &binding->reply_raw);
-        if (binding->reply_fd < 0) {
+        bool reply_raw = false;
+        int reply_fd = create_udp_client_reply_socket(original, &reply_raw);
+        if (reply_fd < 0) {
             fprintf(stderr, "failed to create UDP original reply socket: errno=%d\n", errno);
             release_binding(state, binding);
             return NULL;
         }
+        set_binding_reply_fd(binding, reply_fd, reply_raw);
     }
     binding->used = true;
     binding->owner = session;
@@ -1572,7 +1939,88 @@ static int send_udp_downlink_mmsg(
     return sent;
 }
 
+static enum bpf2socks_udp_downlink_send_result send_downlink_channel_packet(
+    struct bpf2socks_udp_downlink_channel *channel,
+    const struct bpf2socks_udp_client_session *session,
+    const struct udp_downlink_packet *packet) {
+    if (channel == NULL || session == NULL || packet == NULL || packet->binding == NULL) {
+        errno = EINVAL;
+        return BPF2SOCKS_UDP_DOWNLINK_SEND_FATAL;
+    }
+    if (channel->raw) {
+        int sent = packet->binding->original_dst.family == AF_INET6
+            ? send_raw_udp6_to_client(
+                  channel->fd,
+                  session,
+                  packet->binding,
+                  packet->payload,
+                  packet->payload_len)
+            : send_raw_udp_to_client(
+                  channel->fd,
+                  session,
+                  packet->binding,
+                  packet->payload,
+                  packet->payload_len);
+        int send_errno = errno;
+        return sent == 0
+            ? BPF2SOCKS_UDP_DOWNLINK_SEND_COMPLETE
+            : bpf2socks_udp_downlink_classify_send_result(-1, 1U, send_errno);
+    }
+
+    struct mmsghdr vec;
+    struct iovec iov;
+    char control[CMSG_SPACE(sizeof(struct in_pktinfo)) + CMSG_SPACE(sizeof(struct in6_pktinfo))];
+    memset(&vec, 0, sizeof(vec));
+    memset(control, 0, sizeof(control));
+    iov.iov_base = (void *)packet->payload;
+    iov.iov_len = packet->payload_len;
+    vec.msg_hdr.msg_name = (void *)&session->client_addr;
+    vec.msg_hdr.msg_namelen = session->client_addr_len;
+    vec.msg_hdr.msg_iov = &iov;
+    vec.msg_hdr.msg_iovlen = 1U;
+    if (channel->use_pktinfo &&
+        fill_udp_downlink_pktinfo(
+            &vec.msg_hdr,
+            control,
+            sizeof(control),
+            session,
+            packet->binding) < 0) {
+        return BPF2SOCKS_UDP_DOWNLINK_SEND_FATAL;
+    }
+    int sent = send_udp_downlink_mmsg(channel->fd, &vec, 1U, false);
+    int send_errno = errno;
+    return bpf2socks_udp_downlink_classify_send_result(sent, 1U, send_errno);
+}
+
+static int flush_downlink_channel(
+    struct udp_state *state,
+    struct bpf2socks_bridge_worker *worker,
+    struct bpf2socks_udp_downlink_channel *channel) {
+    if (state == NULL || worker == NULL || channel == NULL || channel->ref.session == NULL) {
+        errno = EINVAL;
+        return -1;
+    }
+    struct bpf2socks_udp_client_session *session = channel->ref.session;
+    while (channel->queue.head != NULL) {
+        struct udp_downlink_packet *packet = (struct udp_downlink_packet *)channel->queue.head;
+        enum bpf2socks_udp_downlink_send_result result =
+            send_downlink_channel_packet(channel, session, packet);
+        if (result == BPF2SOCKS_UDP_DOWNLINK_SEND_RETRY) return 0;
+        if (result == BPF2SOCKS_UDP_DOWNLINK_SEND_FATAL) return -1;
+
+        uint64_t now_ms = monotonic_ms();
+        session->last_seen_ms = now_ms;
+        packet->binding->last_seen_ms = now_ms;
+        ++worker->stats.udp_packets_to_client;
+        (void)bpf2socks_udp_downlink_queue_pop(&channel->queue);
+        release_downlink_packet(state, session, packet);
+    }
+    retire_downlink_channel(state, session, channel, true);
+    return 0;
+}
+
 static int flush_udp_downlink_batch(
+    struct udp_state *state,
     struct udp_downlink_batch *batch,
     struct bpf2socks_bridge_worker *worker) {
     if (batch->count == 0U) return 0;
@@ -1604,18 +2052,38 @@ static int flush_udp_downlink_batch(
 
     bool zerocopy = udp_downlink_batch_should_zerocopy(batch);
     int sent = send_udp_downlink_mmsg(batch->fd, vec, batch->count, zerocopy);
-    if (sent <= 0) return -1;
+    int send_errno = errno;
+    enum bpf2socks_udp_downlink_send_result result =
+        bpf2socks_udp_downlink_classify_send_result(sent, batch->count, send_errno);
+    if (result == BPF2SOCKS_UDP_DOWNLINK_SEND_FATAL) {
+        errno = send_errno;
+        return -1;
+    }
 
     uint64_t now_ms = monotonic_ms();
     batch->session->last_seen_ms = now_ms;
-    for (int i = 0; i < sent; ++i) {
+    int accepted = sent > 0 ? sent : 0;
+    for (int i = 0; i < accepted; ++i) {
         batch->bindings[i]->last_seen_ms = now_ms;
         ++worker->stats.udp_packets_to_client;
     }
-    if ((unsigned int)sent < batch->count) {
-        init_udp_downlink_batch(batch);
-        errno = EIO;
-        return -1;
+    if (result == BPF2SOCKS_UDP_DOWNLINK_SEND_RETRY) {
+        if (state == NULL || batch->session->udp_fd < 0) {
+            errno = send_errno;
+            return -1;
+        }
+        for (unsigned int i = (unsigned int)accepted; i < batch->count; ++i) {
+            if (queue_udp_downlink_packet(
+                    state,
+                    batch->session,
+                    batch->bindings[i],
+                    batch->messages[i],
+                    batch->fd,
+                    batch->use_pktinfo,
+                    false) < 0) {
+                return -1;
+            }
+        }
     }
 
     init_udp_downlink_batch(batch);
@@ -1634,6 +2102,7 @@ static bool udp_downlink_batch_matches(
 }
 
 static int queue_udp_downlink_batch(
+    struct udp_state *state,
     struct udp_downlink_batch *batch,
     struct bpf2socks_bridge_worker *worker,
     struct bpf2socks_udp_client_session *session,
@@ -1641,8 +2110,12 @@ static int queue_udp_downlink_batch(
     const struct bpf2socks_udp_msg *message,
     int fd,
     bool use_pktinfo) {
+    if (find_downlink_channel(session, binding, fd, use_pktinfo, false) != NULL) {
+        if (batch->count > 0U && flush_udp_downlink_batch(state, batch, worker) < 0) return -1;
+        return queue_udp_downlink_packet(state, session, binding, message, fd, use_pktinfo, false);
+    }
     if (batch->count > 0U && !udp_downlink_batch_matches(batch, fd, use_pktinfo, session)) {
-        if (flush_udp_downlink_batch(batch, worker) < 0) return -1;
+        if (flush_udp_downlink_batch(state, batch, worker) < 0) return -1;
     }
     if (batch->count == 0U) {
         batch->fd = fd;
@@ -1653,7 +2126,7 @@ static int queue_udp_downlink_batch(
     batch->messages[batch->count] = message;
     ++batch->count;
     if (batch->count >= 64U) {
-        return flush_udp_downlink_batch(batch, worker);
+        return flush_udp_downlink_batch(state, batch, worker);
     }
     return 0;
 }
@@ -2018,10 +2491,10 @@ static int send_dns_response_with_binding(
         }
         struct udp_downlink_batch batch;
         init_udp_downlink_batch(&batch);
-        if (queue_udp_downlink_batch(&batch, worker, session, binding, message, binding->reply_fd, false) < 0) {
+        if (queue_udp_downlink_batch(NULL, &batch, worker, session, binding, message, binding->reply_fd, false) < 0) {
             return -1;
         }
-        return flush_udp_downlink_batch(&batch, worker);
+        return flush_udp_downlink_batch(NULL, &batch, worker);
     }
 
     int reply_listener_fd = session->client_addr.ss_family == AF_INET6 && worker->udp_listener6_fd >= 0
@@ -2029,10 +2502,10 @@ static int send_dns_response_with_binding(
         : worker->udp_listener_fd;
     struct udp_downlink_batch batch;
     init_udp_downlink_batch(&batch);
-    if (queue_udp_downlink_batch(&batch, worker, session, binding, message, reply_listener_fd, true) < 0) {
+    if (queue_udp_downlink_batch(NULL, &batch, worker, session, binding, message, reply_listener_fd, true) < 0) {
         return -1;
     }
-    return flush_udp_downlink_batch(&batch, worker);
+    return flush_udp_downlink_batch(NULL, &batch, worker);
 }
 
 static int send_dns_response_to_client(
@@ -2249,15 +2722,15 @@ static void handle_udp_client_packets(
                 !original_uses_connected_udp_token(&packet) &&
                 (packet.original_from_socket || packet_needs_original_reply_socket(&packet));
             if (!needs_original_reply_socket && binding->reply_fd >= 0) {
-                close(binding->reply_fd);
-                binding->reply_fd = -1;
-                binding->reply_raw = false;
+                close_binding(binding);
             } else if (needs_original_reply_socket && binding->reply_fd < 0) {
-                binding->reply_fd = create_udp_client_reply_socket(&binding->original_dst, &binding->reply_raw);
-                if (binding->reply_fd < 0) {
+                bool reply_raw = false;
+                int reply_fd = create_udp_client_reply_socket(&binding->original_dst, &reply_raw);
+                if (reply_fd < 0) {
                     fprintf(stderr, "failed to create UDP original reply socket: errno=%d\n", errno);
                     continue;
                 }
+                set_binding_reply_fd(binding, reply_fd, reply_raw);
             }
             binding->connected_udp_token = packet.connected_udp_token;
             binding->last_seen_ms = monotonic_ms();
@@ -2337,12 +2810,25 @@ static void handle_udp_upstream_packets(
     uint32_t batch = worker->config->udp_batch_size;
     if (batch == 0U) batch = BPF2SOCKS_DEFAULT_UDP_BATCH_SIZE;
     if (batch > 64U) batch = 64U;
+    if (reserve_downlink_read_slots(state, &batch) < 0) {
+        (void)bpf2socks_udp_downlink_waiter_tracker_mark_waiting(
+            &state->downlink_budget_waiters,
+            &session->downlink_waiting_budget);
+        if (set_session_downlink_pause(state, session, true) < 0) {
+            ++worker->stats.udp_send_errors;
+            drop_session(state, session);
+        }
+        return;
+    }
     size_t stride = udp_payload_stride(worker->config) + BPF2SOCKS_MAX_SOCKS5_UDP_HEADER;
 
     struct bpf2socks_udp_msg messages[batch];
     memset(messages, 0, sizeof(messages));
     int received = bpf2socks_socks5_udp_recvmmsg(session->udp_fd, messages, batch, upstream_packets, stride);
     if (received <= 0) {
+        int receive_errno = errno;
+        release_downlink_read_reservation(state);
+        errno = receive_errno;
         if (received < 0 && errno == EMSGSIZE) {
             ++worker->stats.udp_drops_oversized;
             return;
@@ -2353,6 +2839,7 @@ static void handle_udp_upstream_packets(
 
     struct udp_downlink_batch downlink_batch;
     init_udp_downlink_batch(&downlink_batch);
+    bool drop_session_after_reservation = false;
 
     for (int i = 0; i < received; ++i) {
         ++worker->stats.udp_packets_from_upstream;
@@ -2369,11 +2856,27 @@ static void handle_udp_upstream_packets(
         }
         if (binding->reply_fd >= 0) {
             if (binding->reply_raw) {
-                if (flush_udp_downlink_batch(&downlink_batch, worker) < 0) {
+                if (flush_udp_downlink_batch(state, &downlink_batch, worker) < 0) {
                     ++worker->stats.udp_send_errors;
                     fprintf(stderr, "failed to send UDP response batch to client: errno=%d\n", errno);
-                    drop_session(state, session);
-                    return;
+                    drop_session_after_reservation = true;
+                    goto done;
+                }
+                if (find_downlink_channel(session, binding, binding->reply_fd, false, true) != NULL) {
+                    if (queue_udp_downlink_packet(
+                            state,
+                            session,
+                            binding,
+                            &messages[i],
+                            binding->reply_fd,
+                            false,
+                            true) < 0) {
+                        ++worker->stats.udp_send_errors;
+                        fprintf(stderr, "failed to queue UDP raw response to client: errno=%d\n", errno);
+                        drop_session_after_reservation = true;
+                        goto done;
+                    }
+                    continue;
                 }
                 int send_result = binding->original_dst.family == AF_INET6
                     ? send_raw_udp6_to_client(
@@ -2389,10 +2892,24 @@ static void handle_udp_upstream_packets(
                           messages[i].payload,
                           messages[i].payload_len);
                 if (send_result < 0) {
+                    int send_errno = errno;
+                    if (bpf2socks_udp_downlink_classify_send_result(-1, 1U, send_errno) ==
+                        BPF2SOCKS_UDP_DOWNLINK_SEND_RETRY) {
+                        if (queue_udp_downlink_packet(
+                                state,
+                                session,
+                                binding,
+                                &messages[i],
+                                binding->reply_fd,
+                                false,
+                                true) == 0) {
+                            continue;
+                        }
+                    }
                     ++worker->stats.udp_send_errors;
                     fprintf(stderr, "failed to send UDP response to client: errno=%d\n", errno);
-                    drop_session(state, session);
-                    return;
+                    drop_session_after_reservation = true;
+                    goto done;
                 }
                 uint64_t now_ms = monotonic_ms();
                 session->last_seen_ms = now_ms;
@@ -2400,6 +2917,7 @@ static void handle_udp_upstream_packets(
                 ++worker->stats.udp_packets_to_client;
             } else {
                 if (queue_udp_downlink_batch(
+                        state,
                         &downlink_batch,
                         worker,
                         session,
@@ -2409,8 +2927,8 @@ static void handle_udp_upstream_packets(
                         false) < 0) {
                     ++worker->stats.udp_send_errors;
                     fprintf(stderr, "failed to send UDP response batch to client: errno=%d\n", errno);
-                    drop_session(state, session);
-                    return;
+                    drop_session_after_reservation = true;
+                    goto done;
                 }
             }
         } else {
@@ -2418,6 +2936,7 @@ static void handle_udp_upstream_packets(
                 ? worker->udp_listener6_fd
                 : worker->udp_listener_fd;
             if (queue_udp_downlink_batch(
+                    state,
                     &downlink_batch,
                     worker,
                     session,
@@ -2427,15 +2946,21 @@ static void handle_udp_upstream_packets(
                     true) < 0) {
                 ++worker->stats.udp_send_errors;
                 fprintf(stderr, "failed to send UDP response batch to client: errno=%d\n", errno);
-                drop_session(state, session);
-                return;
+                drop_session_after_reservation = true;
+                goto done;
             }
         }
     }
 
-    if (flush_udp_downlink_batch(&downlink_batch, worker) < 0) {
+    if (flush_udp_downlink_batch(state, &downlink_batch, worker) < 0) {
         ++worker->stats.udp_send_errors;
         fprintf(stderr, "failed to send UDP response batch to client: errno=%d\n", errno);
+        drop_session_after_reservation = true;
+    }
+
+done:
+    release_downlink_read_reservation(state);
+    if (drop_session_after_reservation) {
         drop_session(state, session);
     }
 }
@@ -2451,6 +2976,10 @@ static void expire_sessions(struct udp_state *state, const struct bpf2socks_runt
         struct bpf2socks_udp_client_session *next = session->lru_next;
         if (!session->used || now_ms - session->last_seen_ms < timeout_ms) {
             break;
+        }
+        if (session->downlink_pending_count > 0U || session->downlink_waiting_budget) {
+            session = next;
+            continue;
         }
         drop_session(state, session);
         session = next;
@@ -2470,6 +2999,10 @@ static void evict_idle_bindings(
     while (binding != NULL) {
         struct bpf2socks_udp_reply_binding *next = binding->global_lru_next;
         if (!binding->used || now_ms - binding->last_seen_ms < timeout_ms) break;
+        if (binding->downlink_pending_count > 0U) {
+            binding = next;
+            continue;
+        }
         struct bpf2socks_udp_client_session *session = binding->owner;
         destroy_binding(state, session, binding);
         ++worker->stats.udp_binding_evictions;
@@ -2479,7 +3012,8 @@ static void evict_idle_bindings(
 
 static int init_state(struct udp_state *state, struct bpf2socks_bridge_worker *worker) {
     if (state == NULL || worker == NULL || worker->config == NULL || worker->udp_pending_budget == NULL ||
-        worker->udp_session_cap == 0U || worker->udp_binding_cap == 0U) {
+        worker->udp_session_cap == 0U || worker->udp_binding_cap == 0U ||
+        worker->udp_pending_budget->cap_bytes < max_downlink_packet_allocation()) {
         errno = EINVAL;
         return -1;
     }
@@ -2490,10 +3024,12 @@ static int init_state(struct udp_state *state, struct bpf2socks_bridge_worker *w
     size_t max_sessions = worker->udp_session_cap;
     state->binding_cap = worker->udp_binding_cap;
     state->pending_budget = worker->udp_pending_budget;
+    bpf2socks_udp_downlink_waiter_tracker_init(&state->downlink_budget_waiters);
     state->sessions = calloc(max_sessions, sizeof(*state->sessions));
     state->bindings = calloc(state->binding_cap, sizeof(*state->bindings));
     state->session_refs = calloc(max_sessions, sizeof(*state->session_refs));
-    state->event_cap = max_sessions * 2U + 2U + BPF2SOCKS_DNS_CHANNELS_PER_WORKER * 2U;
+    state->event_cap = max_sessions * 3U + state->binding_cap + 2U +
+        BPF2SOCKS_DNS_CHANNELS_PER_WORKER * 2U;
     state->events = calloc(state->event_cap, sizeof(*state->events));
     state->session_buckets = calloc(BPF2SOCKS_SESSION_HASH_BUCKETS, sizeof(*state->session_buckets));
     if (state->sessions == NULL || state->bindings == NULL || state->session_refs == NULL ||
@@ -2573,6 +3109,7 @@ static void free_state(struct udp_state *state) {
     for (size_t i = 0; i < state->session_cap; ++i) {
         close_session(state, &state->sessions[i]);
     }
+    free_retired_downlink_channels(state);
     free(state->session_buckets);
     free(state->events);
     free(state->session_refs);
@@ -2639,6 +3176,7 @@ int bpf2socks_bridge_udp_worker_run(struct bpf2socks_bridge_worker *worker) {
             evict_idle_bindings(&state, worker->config, worker);
             expire_sessions(&state, worker->config);
             expire_dns_transactions(&state, worker, monotonic_ms());
+            resume_budget_paused_sessions(&state);
             publish_udp_stats_if_due(worker, monotonic_ms(), &next_stats_publish_ms, false);
             continue;
         }
@@ -2670,6 +3208,19 @@ int bpf2socks_bridge_udp_worker_run(struct bpf2socks_bridge_worker *worker) {
                 } else if ((events & EPOLLIN) != 0) {
                     handle_udp_upstream_packets(&state, worker, ref->session, upstream_packets);
                 }
+            } else if (ref->kind == UDP_FD_DOWNLINK &&
+                ref->downlink != NULL &&
+                ref->session != NULL &&
+                ref->session->used) {
+                if ((events & (EPOLLERR | EPOLLHUP)) != 0) {
+                    ++worker->stats.udp_send_errors;
+                    drop_session(&state, ref->session);
+                } else if ((events & EPOLLOUT) != 0 &&
+                    flush_downlink_channel(&state, worker, ref->downlink) < 0) {
+                    ++worker->stats.udp_send_errors;
+                    fprintf(stderr, "failed to retry UDP response to client: errno=%d\n", errno);
+                    drop_session(&state, ref->session);
+                }
             } else if (ref->kind == UDP_FD_DNS_CONTROL &&
                 ref->dns_channel_index < BPF2SOCKS_DNS_CHANNELS_PER_WORKER) {
                 struct dns_channel *channel = &state.dns_channels[ref->dns_channel_index];
@@ -2687,9 +3238,12 @@ int bpf2socks_bridge_udp_worker_run(struct bpf2socks_bridge_worker *worker) {
                 }
             }
         }
+        free_retired_downlink_channels(&state);
+        resume_budget_paused_sessions(&state);
         evict_idle_bindings(&state, worker->config, worker);
         expire_sessions(&state, worker->config);
         expire_dns_transactions(&state, worker, monotonic_ms());
+        free_retired_downlink_channels(&state);
         publish_udp_stats_if_due(worker, monotonic_ms(), &next_stats_publish_ms, false);
     }
 

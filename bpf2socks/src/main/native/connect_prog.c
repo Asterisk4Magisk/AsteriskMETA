@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 #include "bpf2socks.h"
+#include "connected_udp_redirect.h"
 
 #include <arpa/inet.h>
 #include <errno.h>
@@ -1308,8 +1309,8 @@ static int build_ipv6_sock_addr_prog(
         emit(&b, BPF_LDX_MEM(BPF_W, BPF_REG_4, BPF_REG_6, offsetof(struct bpf_sock_addr, user_ip6) + 12));
         emit(&b, BPF_LDX_MEM(BPF_W, BPF_REG_5, BPF_REG_6, offsetof(struct bpf_sock_addr, user_port)));
     }
-    // Connected UDP stacks observe getpeername(); keep the peer unchanged and redirect packets in UDP_SENDMSG.
-    // DNS is the exception: some Android UDP clients only hit CONNECT, so DNS must continue to policy here.
+    // Connected UDP send() may not hit UDP_SENDMSG on Android kernels. Rewrite at CONNECT so all
+    // packets reach the bridge; UDP6_SENDMSG remains a fallback for sendmsg() callers.
     if (attach_type == BPF_CGROUP_INET6_CONNECT && protocol_from_context) {
         emit(&b, BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_6, offsetof(struct bpf_sock_addr, protocol)));
         size_t tcp_connect = emit_jump(&b, BPF_JMP_IMM_OP(BPF_JEQ, BPF_REG_2, BPF2SOCKS_PROTO_TCP, 0));
@@ -1317,7 +1318,16 @@ static int build_ipv6_sock_addr_prog(
             emit_jump(&b, BPF_JMP_IMM_OP(BPF_JNE, BPF_REG_2, BPF2SOCKS_PROTO_UDP, 0));
         size_t dns_continue = emit_connected_udp_dns_continue(&b, policy, BPF_REG_5);
         emit_udp_peer_cache_update(&b, udp_peer_map_fd, true, bypass_jumps, &bypass_jump_count);
-        bypass_jumps[bypass_jump_count++] = emit_jump(&b, BPF_JMP_IMM_OP(BPF_JA, 0, 0, 0));
+        // map_update_elem() invalidates R1-R5. Reload the destination before either the DNS
+        // continuation or the common IPv6 policy path reads the address and port registers.
+        emit(&b, BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_6, offsetof(struct bpf_sock_addr, user_ip6)));
+        emit(&b, BPF_LDX_MEM(BPF_W, BPF_REG_8, BPF_REG_6, offsetof(struct bpf_sock_addr, user_ip6) + 4));
+        emit(&b, BPF_LDX_MEM(BPF_W, BPF_REG_9, BPF_REG_6, offsetof(struct bpf_sock_addr, user_ip6) + 8));
+        emit(&b, BPF_LDX_MEM(BPF_W, BPF_REG_4, BPF_REG_6, offsetof(struct bpf_sock_addr, user_ip6) + 12));
+        emit(&b, BPF_LDX_MEM(BPF_W, BPF_REG_5, BPF_REG_6, offsetof(struct bpf_sock_addr, user_port)));
+        if (!bpf2socks_connected_udp_rewrites_peer_during_connect(AF_INET6)) {
+            bypass_jumps[bypass_jump_count++] = emit_jump(&b, BPF_JMP_IMM_OP(BPF_JA, 0, 0, 0));
+        }
         patch_connected_udp_dns_continue(&b, dns_continue);
         patch_jump(&b, tcp_connect, b.count);
     }

@@ -50,7 +50,7 @@ internal data class Bpf2SocksConfig(
     val maxUdpSessions: Int = 4096,
     val maxUdpBindings: Int = 16384,
     val udpIdleTimeoutSeconds: Int = 60,
-    val maxUdpPendingBytes: Int = 32 * 1024 * 1024,
+    val maxUdpPendingBytes: Int = 64 * 1024 * 1024,
     val dnsTransactionTimeoutMilliseconds: Int = 60000,
     val socksHost: String,
     val socksPort: Int,
