@@ -4,6 +4,7 @@
 #include "bpf2socks.h"
 
 #include <arpa/inet.h>
+#include <dirent.h>
 #include <errno.h>
 #include <inttypes.h>
 #include <signal.h>
@@ -12,6 +13,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#define BPF2SOCKS_FD_RUNTIME_RESERVE 32ULL
+#define BPF2SOCKS_FD_SAFETY_MARGIN 256ULL
+#define BPF2SOCKS_FD_PER_WORKER_TCP 3ULL
+#define BPF2SOCKS_FD_PER_WORKER_TCP_IPV6 1ULL
+#define BPF2SOCKS_FD_PER_WORKER_UDP 7ULL
+#define BPF2SOCKS_FD_PER_WORKER_UDP_IPV6 2ULL
 
 volatile sig_atomic_t bpf2socks_stop_requested = 0;
 
@@ -152,44 +160,26 @@ static void json_string_array(
     }
 }
 
-static int parse_ipv6_prefix64(const char *cidr, uint8_t out[16], uint32_t *prefix_bits) {
-    if (cidr == NULL || out == NULL || prefix_bits == NULL) return -1;
-    char buffer[128];
-    snprintf(buffer, sizeof(buffer), "%s", cidr);
-    char *slash = strchr(buffer, '/');
-    if (slash == NULL) return -1;
-    *slash++ = '\0';
-    char *end = NULL;
-    errno = 0;
-    unsigned long prefix = strtoul(slash, &end, 10);
-    if (errno != 0 || end == slash || *end != '\0' || prefix != BPF2SOCKS_TOKEN_IPV6_PREFIX_BITS) {
-        errno = EINVAL;
-        return -1;
-    }
-    if (inet_pton(AF_INET6, buffer, out) != 1) {
-        errno = EINVAL;
-        return -1;
-    }
-    memset(out + 8U, 0, 8U);
-    *prefix_bits = (uint32_t)prefix;
-    return 0;
-}
-
 static void init_runtime_config_defaults(struct bpf2socks_runtime_config *config) {
     memset(config, 0, sizeof(*config));
     config->token_map_fd = -1;
     config->sk_lookup_sock_map_fd = -1;
-    (void)parse_ipv6_prefix64(
+    (void)bpf2socks_parse_token_ipv4_prefix(
+        BPF2SOCKS_DEFAULT_TOKEN_IPV4_PREFIX,
+        config->token_ipv4_prefix,
+        &config->token_ipv4_prefix_bits);
+    (void)bpf2socks_parse_token_ipv6_prefix(
         BPF2SOCKS_DEFAULT_TOKEN_IPV6_PREFIX,
         config->token_ipv6_prefix,
         &config->token_ipv6_prefix_bits);
     snprintf(config->cgroup_path, sizeof(config->cgroup_path), "%s", BPF2SOCKS_DEFAULT_CGROUP_PATH);
-    config->enable_udp = true;
     config->worker_count = 0U;
     config->tcp_buffer_size = BPF2SOCKS_DEFAULT_TCP_BUFFER_SIZE;
-    config->udp_recv_buffer_size = BPF2SOCKS_DEFAULT_UDP_RECV_BUFFER_SIZE;
+    config->max_tcp_sessions = BPF2SOCKS_DEFAULT_MAX_TCP_SESSIONS;
+    config->tcp_connect_timeout_milliseconds = BPF2SOCKS_DEFAULT_TCP_CONNECT_TIMEOUT_MILLISECONDS;
+    config->tcp_idle_timeout_milliseconds = BPF2SOCKS_DEFAULT_TCP_IDLE_TIMEOUT_MILLISECONDS;
+    config->udp_socket_buffer_size = BPF2SOCKS_DEFAULT_UDP_SOCKET_BUFFER_SIZE;
     config->udp_batch_size = BPF2SOCKS_DEFAULT_UDP_BATCH_SIZE;
-    config->udp_mtu = BPF2SOCKS_DEFAULT_UDP_MTU;
     config->max_udp_sessions = BPF2SOCKS_DEFAULT_MAX_UDP_SESSIONS;
     config->max_udp_bindings = BPF2SOCKS_DEFAULT_MAX_UDP_BINDINGS;
     config->udp_idle_timeout_seconds = BPF2SOCKS_DEFAULT_UDP_IDLE_TIMEOUT_SECONDS;
@@ -214,11 +204,35 @@ static void normalize_runtime_tunables(struct bpf2socks_runtime_config *config) 
     if (config->worker_count == 0U) config->worker_count = auto_worker_count();
     if (config->worker_count > BPF2SOCKS_MAX_WORKER_COUNT) config->worker_count = BPF2SOCKS_MAX_WORKER_COUNT;
     if (config->tcp_buffer_size == 0U) config->tcp_buffer_size = BPF2SOCKS_DEFAULT_TCP_BUFFER_SIZE;
-    if (config->udp_recv_buffer_size == 0U) config->udp_recv_buffer_size = BPF2SOCKS_DEFAULT_UDP_RECV_BUFFER_SIZE;
+    if (config->max_tcp_sessions == 0U) config->max_tcp_sessions = BPF2SOCKS_DEFAULT_MAX_TCP_SESSIONS;
+    if (config->max_tcp_sessions > BPF2SOCKS_MAX_TCP_SESSIONS) {
+        config->max_tcp_sessions = BPF2SOCKS_MAX_TCP_SESSIONS;
+    }
+    if (config->tcp_connect_timeout_milliseconds == 0U) {
+        config->tcp_connect_timeout_milliseconds = BPF2SOCKS_DEFAULT_TCP_CONNECT_TIMEOUT_MILLISECONDS;
+    }
+    if (config->tcp_connect_timeout_milliseconds < BPF2SOCKS_MIN_TCP_CONNECT_TIMEOUT_MILLISECONDS) {
+        config->tcp_connect_timeout_milliseconds = BPF2SOCKS_MIN_TCP_CONNECT_TIMEOUT_MILLISECONDS;
+    }
+    if (config->tcp_connect_timeout_milliseconds > BPF2SOCKS_MAX_TCP_CONNECT_TIMEOUT_MILLISECONDS) {
+        config->tcp_connect_timeout_milliseconds = BPF2SOCKS_MAX_TCP_CONNECT_TIMEOUT_MILLISECONDS;
+    }
+    if (config->tcp_idle_timeout_milliseconds != 0U &&
+        config->tcp_idle_timeout_milliseconds < BPF2SOCKS_MIN_TCP_IDLE_TIMEOUT_MILLISECONDS) {
+        config->tcp_idle_timeout_milliseconds = BPF2SOCKS_MIN_TCP_IDLE_TIMEOUT_MILLISECONDS;
+    }
+    if (config->tcp_idle_timeout_milliseconds > BPF2SOCKS_MAX_TCP_IDLE_TIMEOUT_MILLISECONDS) {
+        config->tcp_idle_timeout_milliseconds = BPF2SOCKS_MAX_TCP_IDLE_TIMEOUT_MILLISECONDS;
+    }
+    if (config->udp_socket_buffer_size == 0U) {
+        config->udp_socket_buffer_size = BPF2SOCKS_DEFAULT_UDP_SOCKET_BUFFER_SIZE;
+    }
     if (config->udp_batch_size == 0U) config->udp_batch_size = BPF2SOCKS_DEFAULT_UDP_BATCH_SIZE;
-    if (config->udp_mtu == 0U) config->udp_mtu = BPF2SOCKS_DEFAULT_UDP_MTU;
     if (config->max_udp_sessions == 0U) config->max_udp_sessions = BPF2SOCKS_DEFAULT_MAX_UDP_SESSIONS;
     if (config->max_udp_bindings == 0U) config->max_udp_bindings = BPF2SOCKS_DEFAULT_MAX_UDP_BINDINGS;
+    if (config->max_udp_bindings < config->max_udp_sessions) {
+        config->max_udp_bindings = config->max_udp_sessions;
+    }
     if (config->udp_idle_timeout_seconds == 0U) {
         config->udp_idle_timeout_seconds = BPF2SOCKS_DEFAULT_UDP_IDLE_TIMEOUT_SECONDS;
     }
@@ -240,6 +254,7 @@ static void normalize_runtime_tunables(struct bpf2socks_runtime_config *config) 
     if (config->dns_transaction_timeout_milliseconds > BPF2SOCKS_MAX_DNS_TRANSACTION_TIMEOUT_MILLISECONDS) {
         config->dns_transaction_timeout_milliseconds = BPF2SOCKS_MAX_DNS_TRANSACTION_TIMEOUT_MILLISECONDS;
     }
+    if (config->max_tcp_sessions < config->worker_count) config->worker_count = config->max_tcp_sessions;
     if (config->max_udp_sessions < config->worker_count) config->worker_count = config->max_udp_sessions;
     if (config->max_udp_bindings < config->worker_count) config->worker_count = config->max_udp_bindings;
 }
@@ -262,34 +277,46 @@ static int load_runtime_config(
     ok = json_string(json, "bridgeListenAddress", config->listen_host, sizeof(config->listen_host)) && ok;
     config->listen_port = (uint16_t)json_uint(json, "bridgePort", 0U);
     ok = json_string(json, "pinnedObjectDir", config->pinned_object_dir, sizeof(config->pinned_object_dir)) && ok;
-    (void)json_string(
-        json,
-        "preroutingPolicyIpv4Path",
-        config->prerouting_policy_ipv4_path,
-        sizeof(config->prerouting_policy_ipv4_path));
-    (void)json_string(
-        json,
-        "preroutingPolicyIpv6Path",
-        config->prerouting_policy_ipv6_path,
-        sizeof(config->prerouting_policy_ipv6_path));
     if (!json_string(json, "cgroupPath", config->cgroup_path, sizeof(config->cgroup_path))) {
         snprintf(config->cgroup_path, sizeof(config->cgroup_path), "%s", BPF2SOCKS_DEFAULT_CGROUP_PATH);
     }
-    config->enable_udp = json_bool(json, "enableUdp", true);
     config->enable_ipv6 = json_bool(json, "enableIpv6", false);
     config->enable_dns_hijack = json_bool(json, "enableDnsHijack", false);
     config->debug_stats = json_bool(json, "debugStats", false) || env_bool_enabled("BPF2SOCKS_DEBUG_STATS");
+    char token_ipv4_prefix[INET_ADDRSTRLEN + 4U];
+    if (json_string(json, "tokenIpv4Prefix", token_ipv4_prefix, sizeof(token_ipv4_prefix)) &&
+        bpf2socks_parse_token_ipv4_prefix(
+            token_ipv4_prefix,
+            config->token_ipv4_prefix,
+            &config->token_ipv4_prefix_bits) < 0) {
+        fprintf(stderr, "invalid bpf2socks IPv4 token prefix: %s\n", token_ipv4_prefix);
+        ok = false;
+    }
     char token_ipv6_prefix[128];
     if (json_string(json, "tokenIpv6Prefix", token_ipv6_prefix, sizeof(token_ipv6_prefix)) &&
-        parse_ipv6_prefix64(token_ipv6_prefix, config->token_ipv6_prefix, &config->token_ipv6_prefix_bits) < 0) {
+        bpf2socks_parse_token_ipv6_prefix(
+            token_ipv6_prefix,
+            config->token_ipv6_prefix,
+            &config->token_ipv6_prefix_bits) < 0) {
         fprintf(stderr, "invalid bpf2socks IPv6 token prefix: %s\n", token_ipv6_prefix);
         ok = false;
     }
     config->worker_count = json_uint(json, "workerCount", config->worker_count);
     config->tcp_buffer_size = json_uint(json, "tcpBufferSize", config->tcp_buffer_size);
-    config->udp_recv_buffer_size = json_uint(json, "udpRecvBufferSize", config->udp_recv_buffer_size);
+    config->max_tcp_sessions = json_uint(json, "maxTcpSessions", config->max_tcp_sessions);
+    config->tcp_connect_timeout_milliseconds = json_uint(
+        json,
+        "tcpConnectTimeoutMilliseconds",
+        config->tcp_connect_timeout_milliseconds);
+    config->tcp_idle_timeout_milliseconds = json_uint(
+        json,
+        "tcpIdleTimeoutMilliseconds",
+        config->tcp_idle_timeout_milliseconds);
+    config->udp_socket_buffer_size = json_uint(
+        json,
+        "udpSocketBufferSize",
+        config->udp_socket_buffer_size);
     config->udp_batch_size = json_uint(json, "udpBatchSize", config->udp_batch_size);
-    config->udp_mtu = json_uint(json, "udpMtu", config->udp_mtu);
     config->max_udp_sessions = json_uint(json, "maxUdpSessions", config->max_udp_sessions);
     config->max_udp_bindings = json_uint(json, "maxUdpBindings", config->max_udp_bindings);
     config->udp_idle_timeout_seconds = json_uint(
@@ -485,28 +512,92 @@ static int probe_with_config(const char *path) {
     return 1;
 }
 
-static void cleanup_prerouting_policy_pin(const char *configured_path, const char *dir, const char *name) {
-    char fallback[BPF2SOCKS_MAX_PATH_LEN];
-    const char *base_dir = dir != NULL && dir[0] != '\0' ? dir : "/sys/fs/bpf/asteriskmeta/bpf2socks";
-    snprintf(fallback, sizeof(fallback), "%s/%s", base_dir, name);
-    if (configured_path != NULL && configured_path[0] != '\0') {
-        (void)unlink(configured_path);
+static void cleanup_prerouting_policy_pin(
+    const struct bpf2socks_runtime_config *config,
+    const char *name) {
+    char path[BPF2SOCKS_MAX_PATH_LEN];
+    if (bpf2socks_prerouting_path(config, name, path, sizeof(path)) == 0) {
+        (void)unlink(path);
     }
-    (void)unlink(fallback);
 }
 
 static void cleanup_prerouting_policy_pins(const struct bpf2socks_runtime_config *config) {
     if (config == NULL) return;
-    cleanup_prerouting_policy_pin(
-        config->prerouting_policy_ipv4_path,
-        config->pinned_object_dir,
-        "prerouting_v4");
-    cleanup_prerouting_policy_pin(
-        config->prerouting_policy_ipv6_path,
-        config->pinned_object_dir,
-        "prerouting_v6");
-    cleanup_prerouting_policy_pin(NULL, config->pinned_object_dir, "probe_prerouting_v4");
-    cleanup_prerouting_policy_pin(NULL, config->pinned_object_dir, "probe_prerouting_v6");
+    cleanup_prerouting_policy_pin(config, "prerouting_v4");
+    cleanup_prerouting_policy_pin(config, "prerouting_v6");
+    cleanup_prerouting_policy_pin(config, "probe_prerouting_v4");
+    cleanup_prerouting_policy_pin(config, "probe_prerouting_v6");
+}
+
+static int current_open_fd_count(uint64_t *out_count) {
+    if (out_count == NULL) {
+        errno = EINVAL;
+        return -1;
+    }
+    DIR *directory = opendir("/proc/self/fd");
+    if (directory == NULL) return -1;
+    uint64_t count = 0U;
+    for (struct dirent *entry = readdir(directory); entry != NULL; entry = readdir(directory)) {
+        if (entry->d_name[0] == '.') continue;
+        ++count;
+    }
+    int close_result = closedir(directory);
+    if (close_result != 0) return -1;
+    *out_count = count;
+    return 0;
+}
+
+static uint64_t static_fd_reserve(const struct bpf2socks_runtime_config *config, uint32_t worker_count) {
+    uint64_t per_worker = BPF2SOCKS_FD_PER_WORKER_TCP + BPF2SOCKS_FD_PER_WORKER_UDP;
+    if (config->enable_ipv6) per_worker += BPF2SOCKS_FD_PER_WORKER_TCP_IPV6;
+    if (config->enable_ipv6) per_worker += BPF2SOCKS_FD_PER_WORKER_UDP_IPV6;
+    return BPF2SOCKS_FD_RUNTIME_RESERVE + BPF2SOCKS_FD_SAFETY_MARGIN + per_worker * worker_count;
+}
+
+static int apply_nofile_session_capacity(struct bpf2socks_runtime_config *config) {
+    if (config == NULL) {
+        errno = EINVAL;
+        return -1;
+    }
+    uint64_t nofile_limit = 0U;
+    uint64_t open_fds = 0U;
+    if (bpf2socks_nofile_soft_limit(&nofile_limit) < 0 || current_open_fd_count(&open_fds) < 0) {
+        return -1;
+    }
+    struct bpf2socks_session_capacity requested = {
+        .worker_count = config->worker_count,
+        .max_tcp_sessions = config->max_tcp_sessions,
+        .max_udp_sessions = config->max_udp_sessions,
+        .max_udp_bindings = config->max_udp_bindings,
+    };
+    for (uint32_t worker_count = requested.worker_count; worker_count > 0U; --worker_count) {
+        struct bpf2socks_session_capacity effective = requested;
+        effective.worker_count = worker_count;
+        uint64_t reserve_fds = open_fds + static_fd_reserve(config, worker_count);
+        if (bpf2socks_fit_session_capacity(
+                nofile_limit,
+                reserve_fds,
+                &effective) != 0) {
+            continue;
+        }
+        config->worker_count = effective.worker_count;
+        config->max_tcp_sessions = effective.max_tcp_sessions;
+        config->max_udp_sessions = effective.max_udp_sessions;
+        config->max_udp_bindings = effective.max_udp_bindings;
+        fprintf(stderr,
+            "bpf2socks capacity: nofile=%" PRIu64 " open=%" PRIu64 " reserve=%" PRIu64
+            " workers=%u tcp=%u udp=%u bindings=%u\n",
+            nofile_limit,
+            open_fds,
+            reserve_fds,
+            config->worker_count,
+            config->max_tcp_sessions,
+            config->max_udp_sessions,
+            config->max_udp_bindings);
+        return 0;
+    }
+    errno = EMFILE;
+    return -1;
 }
 
 static int start_with_config(const char *path, const char *pid_path) {
@@ -515,6 +606,10 @@ static int start_with_config(const char *path, const char *pid_path) {
     if (load_runtime_config(path, &config, &policy) < 0) return 2;
     if (bpf2socks_raise_nofile_limit(BPF2SOCKS_DEFAULT_NOFILE_LIMIT) != 0) {
         fprintf(stderr, "failed to raise bpf2socks file descriptor limit: errno=%d\n", errno);
+    }
+    if (apply_nofile_session_capacity(&config) < 0) {
+        fprintf(stderr, "insufficient file descriptor capacity for bpf2socks sessions: errno=%d\n", errno);
+        return 1;
     }
 
     char message[256];
@@ -574,6 +669,10 @@ static void print_bridge_stats_json(const struct bpf2socks_bridge_stats *stats) 
         "{"
         "\"tcpAccepts\":%" PRIu64 ","
         "\"tcpConnectFailures\":%" PRIu64 ","
+        "\"tcpDropsCapacity\":%" PRIu64 ","
+        "\"tcpConnectTimeouts\":%" PRIu64 ","
+        "\"tcpIdleTimeouts\":%" PRIu64 ","
+        "\"tcpFdExhaustions\":%" PRIu64 ","
         "\"tcpBytesClientToUpstream\":%" PRIu64 ","
         "\"tcpBytesUpstreamToClient\":%" PRIu64 ","
         "\"udpPacketsFromClient\":%" PRIu64 ","
@@ -592,10 +691,19 @@ static void print_bridge_stats_json(const struct bpf2socks_bridge_stats *stats) 
         "\"udpBindingEvictions\":%" PRIu64 ","
         "\"udpDropsMalformedSocks5\":%" PRIu64 ","
         "\"udpDropsOversized\":%" PRIu64 ","
-        "\"udpSendErrors\":%" PRIu64
+        "\"udpDropsPendingBudget\":%" PRIu64 ","
+        "\"udpPendingPeakBytes\":%" PRIu64 ","
+        "\"udpSendErrors\":%" PRIu64 ","
+        "\"dnsValidResponses\":%" PRIu64 ","
+        "\"dnsTransactionTimeouts\":%" PRIu64 ","
+        "\"dnsChannelTimeoutRebuilds\":%" PRIu64
         "}\n",
         stats->tcp_accepts,
         stats->tcp_connect_failures,
+        stats->tcp_drops_capacity,
+        stats->tcp_connect_timeouts,
+        stats->tcp_idle_timeouts,
+        stats->tcp_fd_exhaustions,
         stats->tcp_bytes_client_to_upstream,
         stats->tcp_bytes_upstream_to_client,
         stats->udp_packets_from_client,
@@ -614,7 +722,12 @@ static void print_bridge_stats_json(const struct bpf2socks_bridge_stats *stats) 
         stats->udp_binding_evictions,
         stats->udp_drops_malformed_socks5,
         stats->udp_drops_oversized,
-        stats->udp_send_errors);
+        stats->udp_drops_pending_budget,
+        stats->udp_pending_peak_bytes,
+        stats->udp_send_errors,
+        stats->dns_valid_responses,
+        stats->dns_transaction_timeouts,
+        stats->dns_channel_timeout_rebuilds);
 }
 
 static int stats_with_pid(const char *pid_path) {

@@ -201,7 +201,9 @@ int bpf2socks_dns_table_init(
     table->transactions = calloc(capacity, sizeof(*table->transactions));
     table->lookup = malloc((size_t)channel_count * 65536U * sizeof(*table->lookup));
     table->next_ids = calloc(channel_count, sizeof(*table->next_ids));
-    if (table->transactions == NULL || table->lookup == NULL || table->next_ids == NULL) {
+    table->response_generations = calloc(channel_count, sizeof(*table->response_generations));
+    if (table->transactions == NULL || table->lookup == NULL || table->next_ids == NULL ||
+        table->response_generations == NULL) {
         bpf2socks_dns_table_free(table);
         errno = ENOMEM;
         return -1;
@@ -225,6 +227,7 @@ void bpf2socks_dns_table_free(struct bpf2socks_dns_table *table) {
     free(table->transactions);
     free(table->lookup);
     free(table->next_ids);
+    free(table->response_generations);
     memset(table, 0, sizeof(*table));
     table->lru_head = DNS_LRU_NONE;
     table->lru_tail = DNS_LRU_NONE;
@@ -294,6 +297,7 @@ found_id:
     tx->original_id = original_id;
     tx->question_fingerprint = question_fingerprint;
     tx->sent_at_ms = now_ms;
+    tx->response_generation = table->response_generations[selected_channel];
     tx->reply_fd = -1;
     tx->lru_prev = DNS_LRU_NONE;
     tx->lru_next = DNS_LRU_NONE;
@@ -314,6 +318,13 @@ struct bpf2socks_dns_transaction *bpf2socks_dns_table_find(
     return tx->used ? tx : NULL;
 }
 
+void bpf2socks_dns_table_note_response(
+    struct bpf2socks_dns_table *table,
+    uint32_t channel_index) {
+    if (table == NULL || table->response_generations == NULL || channel_index >= table->channel_count) return;
+    ++table->response_generations[channel_index];
+}
+
 void bpf2socks_dns_table_release(
     struct bpf2socks_dns_table *table,
     struct bpf2socks_dns_transaction *tx) {
@@ -327,13 +338,20 @@ size_t bpf2socks_dns_table_expire(
     struct bpf2socks_dns_table *table,
     uint64_t now_ms,
     uint64_t timeout_ms,
-    size_t max_expire) {
+    size_t max_expire,
+    bool *stale_channels,
+    size_t stale_channel_count) {
     if (table == NULL || table->transactions == NULL || max_expire == 0U) return 0U;
     size_t expired = 0U;
     while (table->lru_head != DNS_LRU_NONE && expired < max_expire) {
         size_t index = table->lru_head;
         struct bpf2socks_dns_transaction *tx = &table->transactions[index];
         if (!tx->used || now_ms < tx->sent_at_ms || now_ms - tx->sent_at_ms < timeout_ms) break;
+        if (stale_channels != NULL && tx->channel_index < stale_channel_count &&
+            tx->channel_index < table->channel_count &&
+            tx->response_generation == table->response_generations[tx->channel_index]) {
+            stale_channels[tx->channel_index] = true;
+        }
         release_index(table, index);
         ++expired;
     }

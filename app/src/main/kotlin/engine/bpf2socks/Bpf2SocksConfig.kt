@@ -10,10 +10,8 @@ import engine.root.RootBpf2SocksCgroupPath
 import engine.root.RootBpf2SocksDefaultBridgePort
 import engine.root.RootBpf2SocksListenAddress
 import engine.root.RootBpf2SocksPinnedObjectDir
-import engine.root.RootBpf2SocksPreroutingV4ProgramPath
-import engine.root.RootBpf2SocksPreroutingV6ProgramPath
 import engine.root.RootBpf2SocksSocksInboundAddress
-import engine.root.RootBpf2SocksTokenIpv4
+import engine.root.RootBpf2SocksTokenIpv4Prefix
 import engine.root.RootBpf2SocksTokenIpv6Prefix
 import engine.root.RootConfigBuildContext
 import engine.root.RootIptablesConfig
@@ -35,18 +33,17 @@ internal data class Bpf2SocksConfig(
     val version: Int = 1,
     val bridgeListenAddress: String = RootBpf2SocksListenAddress,
     val bridgePort: Int = RootBpf2SocksDefaultBridgePort,
-    val tokenIpv4: String = RootBpf2SocksTokenIpv4,
+    val tokenIpv4Prefix: String = RootBpf2SocksTokenIpv4Prefix,
     val tokenIpv6Prefix: String = RootBpf2SocksTokenIpv6Prefix,
     val pinnedObjectDir: String = RootBpf2SocksPinnedObjectDir,
-    val preroutingPolicyIpv4Path: String = RootBpf2SocksPreroutingV4ProgramPath,
-    val preroutingPolicyIpv6Path: String = RootBpf2SocksPreroutingV6ProgramPath,
     val cgroupPath: String = RootBpf2SocksCgroupPath,
-    val enableUdp: Boolean = true,
     val workerCount: Int = 0,
     val tcpBufferSize: Int = 65536,
-    val udpRecvBufferSize: Int = 524288,
+    val maxTcpSessions: Int = 4096,
+    val tcpConnectTimeoutMilliseconds: Int = 10000,
+    val tcpIdleTimeoutMilliseconds: Int = 300000,
+    val udpSocketBufferSize: Int = 524288,
     val udpBatchSize: Int = 10,
-    val udpMtu: Int = 1500,
     val maxUdpSessions: Int = 4096,
     val maxUdpBindings: Int = 16384,
     val udpIdleTimeoutSeconds: Int = 60,

@@ -10,6 +10,7 @@
 #include <stddef.h>
 #include <stdatomic.h>
 #include <stdint.h>
+#include <pthread.h>
 #include <sys/socket.h>
 #include <time.h>
 
@@ -24,6 +25,11 @@ struct bpf2socks_udp_pending_budget {
     atomic_size_t peak_bytes;
 };
 
+struct bpf2socks_tcp_session_budget {
+    size_t cap;
+    atomic_size_t used;
+};
+
 struct bpf2socks_bridge_worker {
     uint32_t id;
     int tcp_listener_fd;
@@ -34,10 +40,14 @@ struct bpf2socks_bridge_worker {
     struct sockaddr_storage socks_addr;
     socklen_t socks_addr_len;
     const struct bpf2socks_runtime_config *config;
+    struct bpf2socks_tcp_session_budget *tcp_session_budget;
     size_t udp_session_cap;
     size_t udp_binding_cap;
     struct bpf2socks_udp_pending_budget *udp_pending_budget;
     struct bpf2socks_bridge_stats stats;
+    struct bpf2socks_bridge_stats stats_snapshot;
+    pthread_mutex_t stats_snapshot_mutex;
+    bool stats_snapshot_mutex_initialized;
 };
 
 struct bpf2socks_udp_reply_binding {
@@ -105,6 +115,18 @@ struct bpf2socks_udp_client_session {
 
 uint32_t bpf2socks_hash_bytes(const void *data, size_t len);
 uint32_t bpf2socks_worker_quota(uint32_t total, uint32_t worker_id, uint32_t worker_count);
+bool bpf2socks_tcp_connection_timed_out(
+    uint64_t now_ms,
+    uint64_t created_at_ms,
+    uint64_t last_activity_ms,
+    bool relay_established,
+    uint32_t connect_timeout_ms,
+    uint32_t idle_timeout_ms);
+void bpf2socks_bridge_publish_tcp_stats(struct bpf2socks_bridge_worker *worker);
+void bpf2socks_bridge_publish_udp_stats(struct bpf2socks_bridge_worker *worker);
+void bpf2socks_bridge_copy_stats_snapshot(
+    struct bpf2socks_bridge_worker *worker,
+    struct bpf2socks_bridge_stats *out);
 uint32_t bpf2socks_udp_effective_idle_timeout(
     uint32_t configured_timeout,
     uint32_t default_timeout);

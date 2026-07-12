@@ -46,6 +46,7 @@
 #define BPF2SOCKS_DNS_MAX_TRANSACTIONS_PER_WORKER 8192U
 #define BPF2SOCKS_DNS_CHANNEL_REBUILD_DELAY_MS 1000ULL
 #define BPF2SOCKS_DNS_MAX_EXPIRE_PER_LOOP 64U
+#define BPF2SOCKS_UDP_STATS_PUBLISH_MILLISECONDS 250U
 
 struct bpf2socks_udp_header {
     uint16_t source;
@@ -201,6 +202,21 @@ static uint64_t monotonic_ms(void) {
     struct timespec ts;
     if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0) return 0U;
     return ((uint64_t)ts.tv_sec * 1000ULL) + ((uint64_t)ts.tv_nsec / 1000000ULL);
+}
+
+static void publish_udp_stats_if_due(
+    struct bpf2socks_bridge_worker *worker,
+    uint64_t now_ms,
+    uint64_t *next_publish_ms,
+    bool force) {
+    if (worker == NULL || worker->config == NULL || !worker->config->debug_stats || next_publish_ms == NULL) {
+        return;
+    }
+    if (!force && (now_ms == 0U || (*next_publish_ms != 0U && now_ms < *next_publish_ms))) {
+        return;
+    }
+    bpf2socks_bridge_publish_udp_stats(worker);
+    if (now_ms != 0U) *next_publish_ms = now_ms + BPF2SOCKS_UDP_STATS_PUBLISH_MILLISECONDS;
 }
 
 static int original_to_sockaddr(const struct bpf2socks_original_dst *src, struct bpf2socks_sockaddr *dst) {
@@ -1107,8 +1123,8 @@ static int create_udp_associate_relay_socket(
     bpf2socks_bridge_tune_udp_advanced(udp_fd);
     bpf2socks_bridge_tune_socket_buffers(
         udp_fd,
-        worker->config->udp_recv_buffer_size,
-        worker->config->udp_recv_buffer_size);
+        worker->config->udp_socket_buffer_size,
+        worker->config->udp_socket_buffer_size);
     session->udp_fd = udp_fd;
     session->relay_addr = relay_addr;
     session->relay_addr_len = relay_addr_len;
@@ -1691,6 +1707,27 @@ static void close_dns_channel(struct udp_state *state, struct dns_channel *chann
     channel->next_rebuild_ms = now_ms + BPF2SOCKS_DNS_CHANNEL_REBUILD_DELAY_MS;
 }
 
+static void expire_dns_transactions(
+    struct udp_state *state,
+    struct bpf2socks_bridge_worker *worker,
+    uint64_t now_ms) {
+    if (state == NULL || worker == NULL || worker->config == NULL) return;
+    bool stale_channels[BPF2SOCKS_DNS_CHANNELS_PER_WORKER] = {false};
+    size_t expired = bpf2socks_dns_table_expire(
+        &state->dns_table,
+        now_ms,
+        worker->config->dns_transaction_timeout_milliseconds,
+        BPF2SOCKS_DNS_MAX_EXPIRE_PER_LOOP,
+        stale_channels,
+        BPF2SOCKS_DNS_CHANNELS_PER_WORKER);
+    worker->stats.dns_transaction_timeouts += (uint64_t)expired;
+    for (uint32_t i = 0U; i < BPF2SOCKS_DNS_CHANNELS_PER_WORKER; ++i) {
+        if (!stale_channels[i]) continue;
+        ++worker->stats.dns_channel_timeout_rebuilds;
+        close_dns_channel(state, &state->dns_channels[i], now_ms);
+    }
+}
+
 static void udp_dns_control_event(
     struct udp_state *state,
     struct dns_channel *channel,
@@ -1770,8 +1807,8 @@ static int open_dns_channel(
 
     bpf2socks_bridge_tune_socket_buffers(
         udp_fd,
-        worker->config->udp_recv_buffer_size,
-        worker->config->udp_recv_buffer_size);
+        worker->config->udp_socket_buffer_size,
+        worker->config->udp_socket_buffer_size);
 
     channel->tcp_fd = tcp_fd;
     channel->udp_fd = udp_fd;
@@ -2085,6 +2122,8 @@ static void handle_dns_upstream_packets(
             bpf2socks_dns_table_find(&state->dns_table, channel->index, info.id);
         if (tx == NULL) continue;
         if (info.has_question && info.question_fingerprint != tx->question_fingerprint) continue;
+        bpf2socks_dns_table_note_response(&state->dns_table, channel->index);
+        ++worker->stats.dns_valid_responses;
 
         bpf2socks_dns_set_id(messages[i].payload, messages[i].payload_len, tx->original_id);
         if (send_dns_response_to_client(state, worker, tx, &messages[i]) < 0) {
@@ -2149,11 +2188,7 @@ static void handle_udp_client_packets(
     memset(dns_transactions, 0, sizeof(dns_transactions));
     memset(dns_channel_indices, 0, sizeof(dns_channel_indices));
     memset(dns_messages, 0, sizeof(dns_messages));
-    (void)bpf2socks_dns_table_expire(
-        &state->dns_table,
-        now_ms,
-        worker->config->dns_transaction_timeout_milliseconds,
-        BPF2SOCKS_DNS_MAX_EXPIRE_PER_LOOP);
+    expire_dns_transactions(state, worker, now_ms);
 
     for (int i = 0; i < received; ++i) {
         struct udp_client_packet packet;
@@ -2591,6 +2626,7 @@ int bpf2socks_bridge_udp_worker_run(struct bpf2socks_bridge_worker *worker) {
         }
     }
 
+    uint64_t next_stats_publish_ms = 0U;
     while (!bpf2socks_stop_requested) {
         int ready = epoll_wait(state.epoll_fd, state.events, (int)state.event_cap, 1000);
         if (ready < 0 && errno == EINTR) {
@@ -2602,11 +2638,8 @@ int bpf2socks_bridge_udp_worker_run(struct bpf2socks_bridge_worker *worker) {
         if (ready == 0) {
             evict_idle_bindings(&state, worker->config, worker);
             expire_sessions(&state, worker->config);
-            (void)bpf2socks_dns_table_expire(
-                &state.dns_table,
-                monotonic_ms(),
-                worker->config->dns_transaction_timeout_milliseconds,
-                BPF2SOCKS_DNS_MAX_EXPIRE_PER_LOOP);
+            expire_dns_transactions(&state, worker, monotonic_ms());
+            publish_udp_stats_if_due(worker, monotonic_ms(), &next_stats_publish_ms, false);
             continue;
         }
         for (int i = 0; i < ready; ++i) {
@@ -2656,13 +2689,11 @@ int bpf2socks_bridge_udp_worker_run(struct bpf2socks_bridge_worker *worker) {
         }
         evict_idle_bindings(&state, worker->config, worker);
         expire_sessions(&state, worker->config);
-        (void)bpf2socks_dns_table_expire(
-            &state.dns_table,
-            monotonic_ms(),
-            worker->config->dns_transaction_timeout_milliseconds,
-            BPF2SOCKS_DNS_MAX_EXPIRE_PER_LOOP);
+        expire_dns_transactions(&state, worker, monotonic_ms());
+        publish_udp_stats_if_due(worker, monotonic_ms(), &next_stats_publish_ms, false);
     }
 
+    publish_udp_stats_if_due(worker, monotonic_ms(), &next_stats_publish_ms, true);
     free(client_payloads);
     free(upstream_packets);
     free_state(&state);

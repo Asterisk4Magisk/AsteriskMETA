@@ -1,8 +1,8 @@
-// Copyright 2026, AsteriskNG contributors
+// Copyright 2026, AsteriskMETA contributors
 // SPDX-License-Identifier: GPL-3.0
 
-#ifndef ASTERISKNG_BPF2SOCKS_H
-#define ASTERISKNG_BPF2SOCKS_H
+#ifndef ASTERISK_BPF2SOCKS_H
+#define ASTERISK_BPF2SOCKS_H
 
 #include <linux/bpf.h>
 #include <signal.h>
@@ -28,9 +28,16 @@
 #define BPF2SOCKS_DEFAULT_WORKER_COUNT 2U
 #define BPF2SOCKS_MAX_WORKER_COUNT 8U
 #define BPF2SOCKS_DEFAULT_TCP_BUFFER_SIZE 65536U
-#define BPF2SOCKS_DEFAULT_UDP_RECV_BUFFER_SIZE 524288U
+#define BPF2SOCKS_DEFAULT_MAX_TCP_SESSIONS 4096U
+#define BPF2SOCKS_MAX_TCP_SESSIONS 8192U
+#define BPF2SOCKS_DEFAULT_TCP_CONNECT_TIMEOUT_MILLISECONDS 10000U
+#define BPF2SOCKS_MIN_TCP_CONNECT_TIMEOUT_MILLISECONDS 1000U
+#define BPF2SOCKS_MAX_TCP_CONNECT_TIMEOUT_MILLISECONDS 60000U
+#define BPF2SOCKS_DEFAULT_TCP_IDLE_TIMEOUT_MILLISECONDS 300000U
+#define BPF2SOCKS_MIN_TCP_IDLE_TIMEOUT_MILLISECONDS 1000U
+#define BPF2SOCKS_MAX_TCP_IDLE_TIMEOUT_MILLISECONDS 3600000U
+#define BPF2SOCKS_DEFAULT_UDP_SOCKET_BUFFER_SIZE 524288U
 #define BPF2SOCKS_DEFAULT_UDP_BATCH_SIZE 10U
-#define BPF2SOCKS_DEFAULT_UDP_MTU 1500U
 #define BPF2SOCKS_DEFAULT_MAX_UDP_SESSIONS 4096U
 #define BPF2SOCKS_DEFAULT_MAX_UDP_BINDINGS 16384U
 #define BPF2SOCKS_DEFAULT_UDP_IDLE_TIMEOUT_SECONDS 60U
@@ -41,6 +48,8 @@
 #define BPF2SOCKS_MIN_DNS_TRANSACTION_TIMEOUT_MILLISECONDS 1000U
 #define BPF2SOCKS_MAX_DNS_TRANSACTION_TIMEOUT_MILLISECONDS 600000U
 #define BPF2SOCKS_DEFAULT_NOFILE_LIMIT 65535U
+#define BPF2SOCKS_DEFAULT_TOKEN_IPV4_PREFIX "127.0.0.0/8"
+#define BPF2SOCKS_TOKEN_IPV4_PREFIX_BITS 8U
 #define BPF2SOCKS_DEFAULT_TOKEN_IPV6_PREFIX "fd7a:7374:6572:6973::/64"
 #define BPF2SOCKS_TOKEN_IPV6_PREFIX_BITS 64U
 #define BPF2SOCKS_SK_LOOKUP_KEY(family, protocol, worker) \
@@ -153,20 +162,21 @@ struct bpf2socks_runtime_config {
     char listen_host[64];
     uint16_t listen_port;
     char pinned_object_dir[BPF2SOCKS_MAX_PATH_LEN];
-    char prerouting_policy_ipv4_path[BPF2SOCKS_MAX_PATH_LEN];
-    char prerouting_policy_ipv6_path[BPF2SOCKS_MAX_PATH_LEN];
     char cgroup_path[BPF2SOCKS_MAX_PATH_LEN];
-    bool enable_udp;
     bool enable_ipv6;
     bool enable_dns_hijack;
     bool debug_stats;
+    uint8_t token_ipv4_prefix[4];
+    uint32_t token_ipv4_prefix_bits;
     uint8_t token_ipv6_prefix[16];
     uint32_t token_ipv6_prefix_bits;
     uint32_t worker_count;
     uint32_t tcp_buffer_size;
-    uint32_t udp_recv_buffer_size;
+    uint32_t max_tcp_sessions;
+    uint32_t tcp_connect_timeout_milliseconds;
+    uint32_t tcp_idle_timeout_milliseconds;
+    uint32_t udp_socket_buffer_size;
     uint32_t udp_batch_size;
-    uint32_t udp_mtu;
     uint32_t max_udp_sessions;
     uint32_t max_udp_bindings;
     uint32_t udp_idle_timeout_seconds;
@@ -200,6 +210,13 @@ struct bpf2socks_bridge_stats {
     uint64_t udp_drops_pending_budget;
     uint64_t udp_pending_peak_bytes;
     uint64_t udp_send_errors;
+    uint64_t dns_valid_responses;
+    uint64_t dns_transaction_timeouts;
+    uint64_t dns_channel_timeout_rebuilds;
+    uint64_t tcp_drops_capacity;
+    uint64_t tcp_connect_timeouts;
+    uint64_t tcp_idle_timeouts;
+    uint64_t tcp_fd_exhaustions;
 };
 
 int bpf2socks_bridge_stats_dump(const char *pid_path, struct bpf2socks_bridge_stats *out);
@@ -273,6 +290,19 @@ int bpf2socks_pin_fd(int fd, const char *path);
 int bpf2socks_link_create(int prog_fd, int target_fd, enum bpf_attach_type attach_type, uint32_t flags);
 
 int bpf2socks_token_lookup(int map_fd, const struct bpf2socks_token_key *key, struct bpf2socks_original_dst *out);
+int bpf2socks_parse_token_ipv4_prefix(const char *text, uint8_t out[4], uint32_t *prefix_bits);
+bool bpf2socks_ipv4_matches_token_prefix(
+    uint32_t addr_net,
+    const uint8_t prefix[4],
+    uint32_t prefix_bits);
+uint32_t bpf2socks_ipv4_token_prefix_imm(const uint8_t prefix[4], uint32_t prefix_bits);
+uint32_t bpf2socks_ipv4_token_host_mask(uint32_t prefix_bits);
+int bpf2socks_parse_token_ipv6_prefix(const char *text, uint8_t out[16], uint32_t *prefix_bits);
+bool bpf2socks_ipv6_matches_token_prefix(
+    const uint8_t addr[16],
+    const uint8_t prefix[16],
+    uint32_t prefix_bits);
+uint32_t bpf2socks_ipv6_token_word(const uint8_t prefix[16], size_t offset);
 int bpf2socks_resolve_tcp_addr(const char *host, uint16_t port, struct sockaddr_storage *addr, socklen_t *addr_len);
 int bpf2socks_socks5_connect(const char *host, uint16_t port, const struct bpf2socks_sockaddr *dst);
 int bpf2socks_socks5_udp_associate(
@@ -316,6 +346,19 @@ int bpf2socks_socks5_udp_recvmmsg(
 int bpf2socks_splice_probe(char *message, size_t message_size);
 int bpf2socks_advanced_socket_probe(char *message, size_t message_size);
 int bpf2socks_raise_nofile_limit(uint32_t requested_limit);
+
+struct bpf2socks_session_capacity {
+    uint32_t worker_count;
+    uint32_t max_tcp_sessions;
+    uint32_t max_udp_sessions;
+    uint32_t max_udp_bindings;
+};
+
+int bpf2socks_fit_session_capacity(
+    uint64_t nofile_limit,
+    uint64_t reserve_fds,
+    struct bpf2socks_session_capacity *capacity);
+int bpf2socks_nofile_soft_limit(uint64_t *out_limit);
 int bpf2socks_bridge_run(const struct bpf2socks_runtime_config *config, const char *pid_path);
 
 int bpf2socks_sk_lookup_probe(bool enable_ipv6, char *message, size_t message_size);
@@ -331,7 +374,21 @@ int bpf2socks_sk_lookup_register_worker_sockets(
     int tcp6_fd,
     int udp6_fd);
 
-int bpf2socks_prerouting_policy_probe(bool enable_ipv6, char *message, size_t message_size);
+int bpf2socks_prerouting_probe_path(
+    const struct bpf2socks_runtime_config *config,
+    int family,
+    char *out,
+    size_t out_size);
+int bpf2socks_prerouting_path(
+    const struct bpf2socks_runtime_config *config,
+    const char *name,
+    char *out,
+    size_t out_size);
+int bpf2socks_prerouting_policy_probe(
+    const struct bpf2socks_runtime_config *config,
+    bool enable_ipv6,
+    char *message,
+    size_t message_size);
 int bpf2socks_prerouting_policy_prepare(
     const struct bpf2socks_policy_config *policy,
     const struct bpf2socks_runtime_config *config);

@@ -256,8 +256,33 @@ static int bpf2socks_prog_fd_by_id(uint32_t prog_id) {
     return (int)bpf2socks_bpf_sys(BPF_PROG_GET_FD_BY_ID, &attr, sizeof(attr));
 }
 
-static int bpf2socks_prog_name(int prog_fd, char *name, size_t name_size) {
-    if (name == NULL || name_size == 0U) return -1;
+#define BPF2SOCKS_MAX_QUERY_PROGS 64U
+
+struct bpf2socks_prog_identity {
+    uint32_t id;
+    uint32_t type;
+    char name[BPF_OBJ_NAME_LEN];
+    uint8_t tag[BPF_TAG_SIZE];
+};
+
+struct bpf2socks_prog_snapshot_entry {
+    int prog_fd;
+    struct bpf2socks_prog_identity identity;
+};
+
+struct bpf2socks_prog_snapshot {
+    enum bpf_attach_type queried_attach_type;
+    uint32_t prog_count;
+    struct bpf2socks_prog_snapshot_entry entries[BPF2SOCKS_MAX_QUERY_PROGS];
+};
+
+static int bpf2socks_prog_identity(
+    int prog_fd,
+    struct bpf2socks_prog_identity *identity) {
+    if (identity == NULL) {
+        errno = EINVAL;
+        return -1;
+    }
     struct bpf_prog_info info;
     memset(&info, 0, sizeof(info));
     union bpf_attr attr;
@@ -268,44 +293,178 @@ static int bpf2socks_prog_name(int prog_fd, char *name, size_t name_size) {
     if (bpf2socks_bpf_sys(BPF_OBJ_GET_INFO_BY_FD, &attr, sizeof(attr)) != 0) {
         return -1;
     }
-    snprintf(name, name_size, "%s", info.name);
+    memset(identity, 0, sizeof(*identity));
+    identity->id = info.id;
+    identity->type = info.type;
+    memcpy(identity->name, info.name, sizeof(identity->name));
+    memcpy(identity->tag, info.tag, sizeof(identity->tag));
+    return 0;
+}
+
+static int bpf2socks_query_prog_ids(
+    int cgroup_fd,
+    enum bpf_attach_type attach_type,
+    uint32_t *prog_ids,
+    uint32_t *prog_count) {
+    if (prog_ids == NULL || prog_count == NULL || *prog_count == 0U) {
+        errno = EINVAL;
+        return -1;
+    }
+    uint32_t capacity = *prog_count;
+    union bpf_attr attr;
+    memset(&attr, 0, sizeof(attr));
+    attr.query.target_fd = (uint32_t)cgroup_fd;
+    attr.query.attach_type = attach_type;
+    attr.query.prog_cnt = capacity;
+    attr.query.prog_ids = (uint64_t)(uintptr_t)prog_ids;
+    if (bpf2socks_bpf_sys(BPF_PROG_QUERY, &attr, sizeof(attr)) != 0) {
+        if (errno == ENOSPC || attr.query.prog_cnt > capacity) {
+            errno = E2BIG;
+        }
+        return -1;
+    }
+    if (attr.query.prog_cnt > capacity) {
+        errno = E2BIG;
+        return -1;
+    }
+    *prog_count = attr.query.prog_cnt;
+    return 0;
+}
+
+static void bpf2socks_close_prog_snapshot(struct bpf2socks_prog_snapshot *snapshot) {
+    if (snapshot == NULL) return;
+    for (uint32_t i = 0; i < snapshot->prog_count; ++i) {
+        if (snapshot->entries[i].prog_fd >= 0) {
+            close(snapshot->entries[i].prog_fd);
+            snapshot->entries[i].prog_fd = -1;
+        }
+    }
+}
+
+static int bpf2socks_take_prog_snapshot(
+    int cgroup_fd,
+    enum bpf_attach_type attach_type,
+    struct bpf2socks_prog_snapshot *snapshot) {
+    if (snapshot == NULL) {
+        errno = EINVAL;
+        return -1;
+    }
+    memset(snapshot, 0, sizeof(*snapshot));
+    for (size_t i = 0; i < BPF2SOCKS_MAX_QUERY_PROGS; ++i) {
+        snapshot->entries[i].prog_fd = -1;
+    }
+    snapshot->queried_attach_type = attach_type;
+
+    uint32_t prog_ids[BPF2SOCKS_MAX_QUERY_PROGS];
+    memset(prog_ids, 0, sizeof(prog_ids));
+    uint32_t prog_count = BPF2SOCKS_MAX_QUERY_PROGS;
+    if (bpf2socks_query_prog_ids(cgroup_fd, attach_type, prog_ids, &prog_count) != 0) {
+        return -1;
+    }
+    snapshot->prog_count = prog_count;
+    for (uint32_t i = 0; i < prog_count; ++i) {
+        int prog_fd = bpf2socks_prog_fd_by_id(prog_ids[i]);
+        if (prog_fd < 0) {
+            int saved_errno = errno;
+            bpf2socks_close_prog_snapshot(snapshot);
+            errno = saved_errno;
+            return -1;
+        }
+        snapshot->entries[i].prog_fd = prog_fd;
+        if (bpf2socks_prog_identity(prog_fd, &snapshot->entries[i].identity) != 0) {
+            int saved_errno = errno;
+            bpf2socks_close_prog_snapshot(snapshot);
+            errno = saved_errno;
+            return -1;
+        }
+        if (snapshot->entries[i].identity.id != prog_ids[i]) {
+            bpf2socks_close_prog_snapshot(snapshot);
+            errno = ESTALE;
+            return -1;
+        }
+    }
+    return 0;
+}
+
+static bool bpf2socks_prog_identity_equal(
+    const struct bpf2socks_prog_identity *left,
+    const struct bpf2socks_prog_identity *right) {
+    return left->id == right->id &&
+        left->type == right->type &&
+        memcmp(left->name, right->name, sizeof(left->name)) == 0 &&
+        memcmp(left->tag, right->tag, sizeof(left->tag)) == 0;
+}
+
+static bool bpf2socks_prog_is_owned(const struct bpf2socks_prog_identity *identity) {
+    return memcmp(identity->name, "b2s_", 4U) == 0;
+}
+
+typedef int (*bpf2socks_detach_prog_fn)(
+    int cgroup_fd,
+    int prog_fd,
+    enum bpf_attach_type attach_type);
+
+static int bpf2socks_detach_owned_snapshot_entries(
+    int cgroup_fd,
+    enum bpf_attach_type attach_type,
+    const struct bpf2socks_prog_snapshot *snapshot,
+    bpf2socks_detach_prog_fn detach_prog) {
+    if (snapshot == NULL || detach_prog == NULL) {
+        errno = EINVAL;
+        return -1;
+    }
+    for (uint32_t i = 0; i < snapshot->prog_count; ++i) {
+        if (bpf2socks_prog_is_owned(&snapshot->entries[i].identity) &&
+            detach_prog(cgroup_fd, snapshot->entries[i].prog_fd, attach_type) != 0) {
+            return -1;
+        }
+    }
     return 0;
 }
 
 static int bpf2socks_detach_named_for_type(int cgroup_fd, enum bpf_attach_type attach_type) {
-    uint32_t prog_ids[64];
-    union bpf_attr attr;
-    memset(prog_ids, 0, sizeof(prog_ids));
-    memset(&attr, 0, sizeof(attr));
-    attr.query.target_fd = (uint32_t)cgroup_fd;
-    attr.query.attach_type = attach_type;
-    attr.query.prog_cnt = (uint32_t)(sizeof(prog_ids) / sizeof(prog_ids[0]));
-    attr.query.prog_ids = (uint64_t)(uintptr_t)prog_ids;
-    if (bpf2socks_bpf_sys(BPF_PROG_QUERY, &attr, sizeof(attr)) != 0) {
+    struct bpf2socks_prog_snapshot first;
+    struct bpf2socks_prog_snapshot second;
+    if (bpf2socks_take_prog_snapshot(cgroup_fd, attach_type, &first) != 0) {
+        return -1;
+    }
+    if (bpf2socks_take_prog_snapshot(cgroup_fd, attach_type, &second) != 0) {
+        int saved_errno = errno;
+        bpf2socks_close_prog_snapshot(&first);
+        errno = saved_errno;
         return -1;
     }
 
-    int first_error = 0;
-    for (uint32_t i = 0; i < attr.query.prog_cnt && i < (uint32_t)(sizeof(prog_ids) / sizeof(prog_ids[0])); ++i) {
-        int prog_fd = bpf2socks_prog_fd_by_id(prog_ids[i]);
-        if (prog_fd < 0) {
-            if (first_error == 0) first_error = errno;
-            continue;
-        }
-        char name[BPF_OBJ_NAME_LEN];
-        if (bpf2socks_prog_name(prog_fd, name, sizeof(name)) == 0 &&
-            strncmp(name, "b2s_", 4) == 0 &&
-            bpf2socks_detach_prog(cgroup_fd, prog_fd, attach_type) != 0 &&
-            first_error == 0) {
-            first_error = errno;
-        }
-        close(prog_fd);
+    int result = 0;
+    int saved_errno = 0;
+    if (first.queried_attach_type != second.queried_attach_type ||
+        first.prog_count != second.prog_count) {
+        result = -1;
+        saved_errno = ESTALE;
+        goto done;
     }
-    if (first_error != 0) {
-        errno = first_error;
-        return -1;
+    for (uint32_t i = 0; i < first.prog_count; ++i) {
+        if (!bpf2socks_prog_identity_equal(&first.entries[i].identity, &second.entries[i].identity)) {
+            result = -1;
+            saved_errno = ESTALE;
+            goto done;
+        }
     }
-    return 0;
+    if (bpf2socks_detach_owned_snapshot_entries(
+            cgroup_fd,
+            attach_type,
+            &first,
+            bpf2socks_detach_prog) != 0) {
+        result = -1;
+        saved_errno = errno;
+        goto done;
+    }
+
+done:
+    bpf2socks_close_prog_snapshot(&second);
+    bpf2socks_close_prog_snapshot(&first);
+    if (result != 0) errno = saved_errno;
+    return result;
 }
 
 int bpf2socks_detach_named_progs(int cgroup_fd) {
@@ -313,7 +472,6 @@ int bpf2socks_detach_named_progs(int cgroup_fd) {
         errno = EBADF;
         return -1;
     }
-    int first_error = 0;
     const enum bpf_attach_type attach_types[] = {
         BPF_CGROUP_INET4_CONNECT,
         BPF_CGROUP_UDP4_SENDMSG,
@@ -323,17 +481,9 @@ int bpf2socks_detach_named_progs(int cgroup_fd) {
         BPF_CGROUP_UDP6_RECVMSG,
     };
     for (size_t i = 0; i < sizeof(attach_types) / sizeof(attach_types[0]); ++i) {
-        if (bpf2socks_detach_named_for_type(cgroup_fd, attach_types[i]) != 0 &&
-            first_error == 0 &&
-            errno != EINVAL &&
-            errno != ENOTSUP &&
-            errno != EOPNOTSUPP) {
-            first_error = errno;
+        if (bpf2socks_detach_named_for_type(cgroup_fd, attach_types[i]) != 0) {
+            return -1;
         }
-    }
-    if (first_error != 0) {
-        errno = first_error;
-        return -1;
     }
     return 0;
 }
@@ -342,13 +492,11 @@ int bpf2socks_detach_cgroup_path(const char *cgroup_path) {
     const char *path = cgroup_path != NULL && cgroup_path[0] != '\0' ? cgroup_path : BPF2SOCKS_DEFAULT_CGROUP_PATH;
     int cgroup_fd = open(path, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
     if (cgroup_fd < 0) return -1;
-    (void)bpf2socks_detach_named_progs(cgroup_fd);
-    (void)bpf2socks_detach_prog(cgroup_fd, -1, BPF_CGROUP_INET4_CONNECT);
-    (void)bpf2socks_detach_prog(cgroup_fd, -1, BPF_CGROUP_UDP4_SENDMSG);
-    (void)bpf2socks_detach_prog(cgroup_fd, -1, BPF_CGROUP_UDP4_RECVMSG);
-    (void)bpf2socks_detach_prog(cgroup_fd, -1, BPF_CGROUP_INET6_CONNECT);
-    (void)bpf2socks_detach_prog(cgroup_fd, -1, BPF_CGROUP_UDP6_SENDMSG);
-    (void)bpf2socks_detach_prog(cgroup_fd, -1, BPF_CGROUP_UDP6_RECVMSG);
-    close(cgroup_fd);
-    return 0;
+    int result = bpf2socks_detach_named_progs(cgroup_fd);
+    int saved_errno = errno;
+    if (close(cgroup_fd) != 0 && result == 0) {
+        return -1;
+    }
+    if (result != 0) errno = saved_errno;
+    return result;
 }

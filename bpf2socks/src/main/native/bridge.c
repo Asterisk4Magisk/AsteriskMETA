@@ -53,7 +53,7 @@ struct bridge_worker_threads {
 };
 
 struct bridge_stats_thread_args {
-    const struct bpf2socks_bridge_worker *workers;
+    struct bpf2socks_bridge_worker *workers;
     uint32_t worker_count;
     char stats_path[BPF2SOCKS_MAX_PATH_LEN];
 };
@@ -175,8 +175,8 @@ static int bind_udp_listener(const struct bpf2socks_runtime_config *config) {
     (void)setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
     (void)setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &one, sizeof(one));
     uint32_t udp_buffer = bpf2socks_bridge_clamp_socket_buffer(
-        config->udp_recv_buffer_size,
-        BPF2SOCKS_DEFAULT_UDP_RECV_BUFFER_SIZE);
+        config->udp_socket_buffer_size,
+        BPF2SOCKS_DEFAULT_UDP_SOCKET_BUFFER_SIZE);
     bpf2socks_bridge_tune_socket_buffers(fd, udp_buffer, udp_buffer);
     bpf2socks_bridge_tune_udp_advanced(fd);
     if (setsockopt(fd, IPPROTO_IP, IP_PKTINFO, &one, sizeof(one)) != 0) {
@@ -219,8 +219,8 @@ static int bind_udp6_listener(const struct bpf2socks_runtime_config *config) {
     (void)setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
     (void)setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &one, sizeof(one));
     uint32_t udp_buffer = bpf2socks_bridge_clamp_socket_buffer(
-        config->udp_recv_buffer_size,
-        BPF2SOCKS_DEFAULT_UDP_RECV_BUFFER_SIZE);
+        config->udp_socket_buffer_size,
+        BPF2SOCKS_DEFAULT_UDP_SOCKET_BUFFER_SIZE);
     bpf2socks_bridge_tune_socket_buffers(fd, udp_buffer, udp_buffer);
     bpf2socks_bridge_tune_udp_advanced(fd);
     (void)setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, &one, sizeof(one));
@@ -318,6 +318,87 @@ static void close_workers(struct bpf2socks_bridge_worker *workers, uint32_t work
     }
 }
 
+static void copy_tcp_stats(
+    struct bpf2socks_bridge_stats *destination,
+    const struct bpf2socks_bridge_stats *source) {
+    destination->tcp_accepts = source->tcp_accepts;
+    destination->tcp_connect_failures = source->tcp_connect_failures;
+    destination->tcp_bytes_client_to_upstream = source->tcp_bytes_client_to_upstream;
+    destination->tcp_bytes_upstream_to_client = source->tcp_bytes_upstream_to_client;
+    destination->tcp_drops_capacity = source->tcp_drops_capacity;
+    destination->tcp_connect_timeouts = source->tcp_connect_timeouts;
+    destination->tcp_idle_timeouts = source->tcp_idle_timeouts;
+    destination->tcp_fd_exhaustions = source->tcp_fd_exhaustions;
+}
+
+static void destroy_worker_stats_snapshot_mutexes(
+    struct bpf2socks_bridge_worker *workers,
+    uint32_t worker_count) {
+    if (workers == NULL) return;
+    for (uint32_t i = 0; i < worker_count; ++i) {
+        if (!workers[i].stats_snapshot_mutex_initialized) continue;
+        (void)pthread_mutex_destroy(&workers[i].stats_snapshot_mutex);
+        workers[i].stats_snapshot_mutex_initialized = false;
+    }
+}
+
+static void copy_udp_stats(
+    struct bpf2socks_bridge_stats *destination,
+    const struct bpf2socks_bridge_stats *source) {
+    destination->udp_packets_from_client = source->udp_packets_from_client;
+    destination->udp_packets_to_upstream = source->udp_packets_to_upstream;
+    destination->udp_packets_from_upstream = source->udp_packets_from_upstream;
+    destination->udp_packets_to_client = source->udp_packets_to_client;
+    destination->udp_token_misses = source->udp_token_misses;
+    destination->udp_session_hits = source->udp_session_hits;
+    destination->udp_session_misses = source->udp_session_misses;
+    destination->udp_session_evictions = source->udp_session_evictions;
+    destination->udp_associate_creates = source->udp_associate_creates;
+    destination->udp_associate_reuses = source->udp_associate_reuses;
+    destination->udp_reply_binding_creates = source->udp_reply_binding_creates;
+    destination->udp_reply_binding_hits = source->udp_reply_binding_hits;
+    destination->udp_fullcone_binding_creates = source->udp_fullcone_binding_creates;
+    destination->udp_binding_evictions = source->udp_binding_evictions;
+    destination->udp_drops_malformed_socks5 = source->udp_drops_malformed_socks5;
+    destination->udp_drops_oversized = source->udp_drops_oversized;
+    destination->udp_drops_pending_budget = source->udp_drops_pending_budget;
+    destination->udp_send_errors = source->udp_send_errors;
+    destination->dns_valid_responses = source->dns_valid_responses;
+    destination->dns_transaction_timeouts = source->dns_transaction_timeouts;
+    destination->dns_channel_timeout_rebuilds = source->dns_channel_timeout_rebuilds;
+}
+
+void bpf2socks_bridge_publish_tcp_stats(struct bpf2socks_bridge_worker *worker) {
+    if (worker == NULL || worker->config == NULL || !worker->config->debug_stats ||
+        !worker->stats_snapshot_mutex_initialized) {
+        return;
+    }
+    if (pthread_mutex_lock(&worker->stats_snapshot_mutex) != 0) return;
+    copy_tcp_stats(&worker->stats_snapshot, &worker->stats);
+    (void)pthread_mutex_unlock(&worker->stats_snapshot_mutex);
+}
+
+void bpf2socks_bridge_publish_udp_stats(struct bpf2socks_bridge_worker *worker) {
+    if (worker == NULL || worker->config == NULL || !worker->config->debug_stats ||
+        !worker->stats_snapshot_mutex_initialized) {
+        return;
+    }
+    if (pthread_mutex_lock(&worker->stats_snapshot_mutex) != 0) return;
+    copy_udp_stats(&worker->stats_snapshot, &worker->stats);
+    (void)pthread_mutex_unlock(&worker->stats_snapshot_mutex);
+}
+
+void bpf2socks_bridge_copy_stats_snapshot(
+    struct bpf2socks_bridge_worker *worker,
+    struct bpf2socks_bridge_stats *out) {
+    if (out == NULL) return;
+    memset(out, 0, sizeof(*out));
+    if (worker == NULL || !worker->stats_snapshot_mutex_initialized) return;
+    if (pthread_mutex_lock(&worker->stats_snapshot_mutex) != 0) return;
+    *out = worker->stats_snapshot;
+    (void)pthread_mutex_unlock(&worker->stats_snapshot_mutex);
+}
+
 static void add_worker_stats(struct bpf2socks_bridge_stats *total, const struct bpf2socks_bridge_stats *stats) {
     total->tcp_accepts += stats->tcp_accepts;
     total->tcp_connect_failures += stats->tcp_connect_failures;
@@ -341,6 +422,13 @@ static void add_worker_stats(struct bpf2socks_bridge_stats *total, const struct 
     total->udp_drops_oversized += stats->udp_drops_oversized;
     total->udp_drops_pending_budget += stats->udp_drops_pending_budget;
     total->udp_send_errors += stats->udp_send_errors;
+    total->dns_valid_responses += stats->dns_valid_responses;
+    total->dns_transaction_timeouts += stats->dns_transaction_timeouts;
+    total->dns_channel_timeout_rebuilds += stats->dns_channel_timeout_rebuilds;
+    total->tcp_drops_capacity += stats->tcp_drops_capacity;
+    total->tcp_connect_timeouts += stats->tcp_connect_timeouts;
+    total->tcp_idle_timeouts += stats->tcp_idle_timeouts;
+    total->tcp_fd_exhaustions += stats->tcp_fd_exhaustions;
 }
 
 static int stats_path_from_pid_path(const char *pid_path, char *out, size_t out_size) {
@@ -357,13 +445,15 @@ static int stats_path_from_pid_path(const char *pid_path, char *out, size_t out_
 }
 
 static void aggregate_worker_stats(
-    const struct bpf2socks_bridge_worker *workers,
+    struct bpf2socks_bridge_worker *workers,
     uint32_t worker_count,
     struct bpf2socks_bridge_stats *out) {
     memset(out, 0, sizeof(*out));
     if (workers == NULL) return;
     for (uint32_t i = 0; i < worker_count; ++i) {
-        add_worker_stats(out, &workers[i].stats);
+        struct bpf2socks_bridge_stats snapshot;
+        bpf2socks_bridge_copy_stats_snapshot(&workers[i], &snapshot);
+        add_worker_stats(out, &snapshot);
         size_t peak = bpf2socks_pending_budget_peak(workers[i].udp_pending_budget);
         if ((uint64_t)peak > out->udp_pending_peak_bytes) {
             out->udp_pending_peak_bytes = (uint64_t)peak;
@@ -412,7 +502,7 @@ static void *bridge_stats_thread(void *arg) {
 
 static int start_stats_thread(
     const char *pid_path,
-    const struct bpf2socks_bridge_worker *workers,
+    struct bpf2socks_bridge_worker *workers,
     uint32_t worker_count,
     pthread_t *thread) {
     struct bridge_stats_thread_args *args = calloc(1U, sizeof(*args));
@@ -437,6 +527,9 @@ int bpf2socks_bridge_run(const struct bpf2socks_runtime_config *config, const ch
     uint32_t worker_count = normalized_worker_count(config);
     struct bpf2socks_udp_pending_budget udp_pending_budget;
     bpf2socks_pending_budget_init(&udp_pending_budget, config->max_udp_pending_bytes);
+    struct bpf2socks_tcp_session_budget tcp_session_budget;
+    tcp_session_budget.cap = config->max_tcp_sessions;
+    atomic_init(&tcp_session_budget.used, 0U);
     struct sockaddr_storage socks_addr;
     socklen_t socks_addr_len = 0;
     if (bpf2socks_resolve_tcp_addr(config->socks_host, config->socks_port, &socks_addr, &socks_addr_len) < 0) {
@@ -463,20 +556,26 @@ int bpf2socks_bridge_run(const struct bpf2socks_runtime_config *config, const ch
         workers[i].socks_addr = socks_addr;
         workers[i].socks_addr_len = socks_addr_len;
         workers[i].config = config;
+        workers[i].tcp_session_budget = &tcp_session_budget;
         workers[i].udp_session_cap = bpf2socks_worker_quota(config->max_udp_sessions, i, worker_count);
         workers[i].udp_binding_cap = bpf2socks_worker_quota(config->max_udp_bindings, i, worker_count);
         workers[i].udp_pending_budget = &udp_pending_budget;
+        int mutex_result = pthread_mutex_init(&workers[i].stats_snapshot_mutex, NULL);
+        if (mutex_result != 0) {
+            errno = mutex_result;
+            bpf2socks_stop_requested = 1;
+            goto done;
+        }
+        workers[i].stats_snapshot_mutex_initialized = true;
 
-        if (config->enable_udp) {
-            workers[i].udp_listener_fd = bind_udp_listener(config);
-            if (workers[i].udp_listener_fd < 0) {
-                fprintf(stderr, "failed to bind bpf2socks UDP listener for worker %u: errno=%d\n", i, errno);
-                bpf2socks_stop_requested = 1;
-                goto done;
-            }
+        workers[i].udp_listener_fd = bind_udp_listener(config);
+        if (workers[i].udp_listener_fd < 0) {
+            fprintf(stderr, "failed to bind bpf2socks UDP listener for worker %u: errno=%d\n", i, errno);
+            bpf2socks_stop_requested = 1;
+            goto done;
         }
 
-        if (config->enable_udp && config->enable_ipv6) {
+        if (config->enable_ipv6) {
             workers[i].udp_listener6_fd = bind_udp6_listener(config);
             if (workers[i].udp_listener6_fd < 0) {
                 fprintf(stderr, "failed to bind bpf2socks UDP6 listener for worker %u: errno=%d\n", i, errno);
@@ -526,14 +625,12 @@ int bpf2socks_bridge_run(const struct bpf2socks_runtime_config *config, const ch
             bpf2socks_stop_requested = 1;
             goto done;
         }
-        if (config->enable_udp) {
-            if (start_worker_thread(&workers[i], true, &threads[i].udp_thread) == 0) {
-                threads[i].udp_started = true;
-            } else {
-                fprintf(stderr, "failed to start bpf2socks UDP worker %u: errno=%d\n", i, errno);
-                bpf2socks_stop_requested = 1;
-                goto done;
-            }
+        if (start_worker_thread(&workers[i], true, &threads[i].udp_thread) == 0) {
+            threads[i].udp_started = true;
+        } else {
+            fprintf(stderr, "failed to start bpf2socks UDP worker %u: errno=%d\n", i, errno);
+            bpf2socks_stop_requested = 1;
+            goto done;
         }
     }
 
@@ -549,6 +646,7 @@ done:
     }
     if (stats_started) pthread_join(stats_thread, NULL);
     close_workers(workers, worker_count);
+    destroy_worker_stats_snapshot_mutexes(workers, worker_count);
     free(threads);
     free(workers);
     return result;
@@ -563,9 +661,11 @@ int bpf2socks_bridge_stats_dump(const char *pid_path, struct bpf2socks_bridge_st
     if (file == NULL) {
         return errno == ENOENT ? 0 : -1;
     }
-    size_t count = fread(out, sizeof(*out), 1U, file);
+    size_t bytes = fread(out, 1U, sizeof(*out), file);
+    int read_error = ferror(file);
     int close_result = fclose(file);
-    if (count != 1U || close_result != 0) {
+    size_t legacy_size = offsetof(struct bpf2socks_bridge_stats, tcp_drops_capacity);
+    if ((bytes != legacy_size && bytes != sizeof(*out)) || read_error != 0 || close_result != 0) {
         memset(out, 0, sizeof(*out));
         errno = EIO;
         return -1;

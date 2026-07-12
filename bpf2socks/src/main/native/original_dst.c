@@ -17,39 +17,29 @@
 #define IPV6_ORIGDSTADDR 74
 #endif
 
-static bool ipv4_is_loopback(uint32_t addr_net) {
-    return (ntohl(addr_net) & 0xff000000U) == 0x7f000000U;
-}
-
-static bool ipv6_matches_prefix(const uint8_t addr[16], const uint8_t prefix[16], uint32_t prefix_bits) {
-    if (prefix_bits > 128U) return false;
-    if (prefix_bits == 0U) return true;
-
-    uint32_t full_bytes = prefix_bits / 8U;
-    uint32_t remaining_bits = prefix_bits % 8U;
-    if (full_bytes > 0U && memcmp(addr, prefix, full_bytes) != 0) return false;
-    if (remaining_bits == 0U) return true;
-
-    uint8_t mask = (uint8_t)(0xffU << (8U - remaining_bits));
-    return (addr[full_bytes] & mask) == (prefix[full_bytes] & mask);
-}
-
 static bool ipv6_is_token_address(
     const uint8_t addr[16],
     const struct bpf2socks_runtime_config *config) {
     if (config == NULL || config->token_ipv6_prefix_bits == 0U) return false;
-    return ipv6_matches_prefix(addr, config->token_ipv6_prefix, config->token_ipv6_prefix_bits);
+    return bpf2socks_ipv6_matches_token_prefix(
+        addr,
+        config->token_ipv6_prefix,
+        config->token_ipv6_prefix_bits);
 }
 
 static int sockaddr_in_to_original(
     const struct sockaddr_in *addr,
+    const struct bpf2socks_runtime_config *config,
     uint8_t protocol,
     struct bpf2socks_original_dst *original) {
     if (addr == NULL || original == NULL || addr->sin_family != AF_INET) {
         errno = EINVAL;
         return -1;
     }
-    if (ipv4_is_loopback(addr->sin_addr.s_addr)) {
+    if (config != NULL && bpf2socks_ipv4_matches_token_prefix(
+            addr->sin_addr.s_addr,
+            config->token_ipv4_prefix,
+            config->token_ipv4_prefix_bits)) {
         errno = EADDRNOTAVAIL;
         return -1;
     }
@@ -97,7 +87,7 @@ int bpf2socks_original_from_sockaddr_storage(
         return -1;
     }
     if (addr->ss_family == AF_INET) {
-        return sockaddr_in_to_original((const struct sockaddr_in *)addr, protocol, original);
+        return sockaddr_in_to_original((const struct sockaddr_in *)addr, config, protocol, original);
     }
     if (addr->ss_family == AF_INET6) {
         return sockaddr_in6_to_original((const struct sockaddr_in6 *)addr, config, protocol, original);
@@ -120,7 +110,11 @@ int bpf2socks_original_from_cmsg(
             errno = EINVAL;
             return -1;
         }
-        return sockaddr_in_to_original((const struct sockaddr_in *)CMSG_DATA(cmsg), protocol, original);
+        return sockaddr_in_to_original(
+            (const struct sockaddr_in *)CMSG_DATA(cmsg),
+            config,
+            protocol,
+            original);
     }
     if (cmsg->cmsg_level == IPPROTO_IPV6 && cmsg->cmsg_type == IPV6_ORIGDSTADDR) {
         if (cmsg->cmsg_len < CMSG_LEN(sizeof(struct sockaddr_in6))) {

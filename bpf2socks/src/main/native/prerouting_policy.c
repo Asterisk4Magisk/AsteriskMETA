@@ -21,9 +21,6 @@
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 #define XT_BPF_NOMATCH 0U
 #define XT_BPF_MATCH 0xffffU
-#define BPF2SOCKS_PROBE_PREROUTING_V4_PATH "/sys/fs/bpf/asteriskmeta/bpf2socks/probe_prerouting_v4"
-#define BPF2SOCKS_PROBE_PREROUTING_V6_PATH "/sys/fs/bpf/asteriskmeta/bpf2socks/probe_prerouting_v6"
-
 #define BPF_ALU64_IMM_OP(OP, DST, IMM) ((struct bpf_insn){.code = BPF_ALU64 | BPF_OP(OP) | BPF_K, .dst_reg = DST, .imm = (int32_t)(IMM)})
 #define BPF_ALU64_REG_OP(OP, DST, SRC) ((struct bpf_insn){.code = BPF_ALU64 | BPF_OP(OP) | BPF_X, .dst_reg = DST, .src_reg = SRC})
 #define BPF_MOV64_REG(DST, SRC) BPF_ALU64_REG_OP(BPF_MOV, DST, SRC)
@@ -404,41 +401,87 @@ static int load_policy_maps(
     return 0;
 }
 
-static const char *prerouting_ipv4_path(
-    const struct bpf2socks_runtime_config *config,
-    char *fallback,
-    size_t fallback_size) {
-    if (config != NULL && config->prerouting_policy_ipv4_path[0] != '\0') {
-        return config->prerouting_policy_ipv4_path;
-    }
-    const char *dir = config != NULL && config->pinned_object_dir[0] != '\0'
-        ? config->pinned_object_dir
-        : "/sys/fs/bpf/asteriskmeta/bpf2socks";
-    snprintf(fallback, fallback_size, "%s/prerouting_v4", dir);
-    return fallback;
+static bool prerouting_name_is_valid(const char *name) {
+    return name != NULL &&
+        (strcmp(name, "prerouting_v4") == 0 ||
+         strcmp(name, "prerouting_v6") == 0 ||
+         strcmp(name, "probe_prerouting_v4") == 0 ||
+         strcmp(name, "probe_prerouting_v6") == 0);
 }
 
-static const char *prerouting_ipv6_path(
+int bpf2socks_prerouting_path(
     const struct bpf2socks_runtime_config *config,
-    char *fallback,
-    size_t fallback_size) {
-    if (config != NULL && config->prerouting_policy_ipv6_path[0] != '\0') {
-        return config->prerouting_policy_ipv6_path;
+    const char *name,
+    char *out,
+    size_t out_size) {
+    if (config == NULL || config->pinned_object_dir[0] == '\0' ||
+        !prerouting_name_is_valid(name) || out == NULL || out_size == 0U) {
+        errno = EINVAL;
+        return -1;
     }
-    const char *dir = config != NULL && config->pinned_object_dir[0] != '\0'
-        ? config->pinned_object_dir
-        : "/sys/fs/bpf/asteriskmeta/bpf2socks";
-    snprintf(fallback, fallback_size, "%s/prerouting_v6", dir);
-    return fallback;
+    size_t dir_len = strlen(config->pinned_object_dir);
+    const char *separator = config->pinned_object_dir[dir_len - 1U] == '/' ? "" : "/";
+    int written = snprintf(out, out_size, "%s%s%s", config->pinned_object_dir, separator, name);
+    if (written < 0 || (size_t)written >= out_size) {
+        errno = ENAMETOOLONG;
+        return -1;
+    }
+    return 0;
 }
 
-int bpf2socks_prerouting_policy_probe(bool enable_ipv6, char *message, size_t message_size) {
+int bpf2socks_prerouting_probe_path(
+    const struct bpf2socks_runtime_config *config,
+    int family,
+    char *out,
+    size_t out_size) {
+    const char *name;
+    if (family == AF_INET) {
+        name = "probe_prerouting_v4";
+    } else if (family == AF_INET6) {
+        name = "probe_prerouting_v6";
+    } else {
+        errno = EAFNOSUPPORT;
+        return -1;
+    }
+    return bpf2socks_prerouting_path(config, name, out, out_size);
+}
+
+__attribute__((visibility("hidden")))
+int bpf2socks_prerouting_probe_unpin(const char *path, bool *pinned) {
+    if (path == NULL || pinned == NULL) {
+        errno = EINVAL;
+        return -1;
+    }
+    if (!*pinned) {
+        return 0;
+    }
+    *pinned = false;
+    if (unlink(path) < 0 && errno != ENOENT) {
+        return -1;
+    }
+    return 0;
+}
+
+int bpf2socks_prerouting_policy_probe(
+    const struct bpf2socks_runtime_config *config,
+    bool enable_ipv6,
+    char *message,
+    size_t message_size) {
     int proxy_cidr4_fd = -1;
     int bypass_cidr4_fd = -1;
     int proxy_cidr6_fd = -1;
     int bypass_cidr6_fd = -1;
     int prog_fd = -1;
     int result = -1;
+    bool path4_pinned = false;
+    bool path6_pinned = false;
+    char path4[BPF2SOCKS_MAX_PATH_LEN];
+    char path6[BPF2SOCKS_MAX_PATH_LEN];
+    if (bpf2socks_prerouting_probe_path(config, AF_INET, path4, sizeof(path4)) < 0 ||
+        (enable_ipv6 && bpf2socks_prerouting_probe_path(config, AF_INET6, path6, sizeof(path6)) < 0)) {
+        snprintf(message, message_size, "PREROUTING probe path is invalid: errno=%d", errno);
+        return -1;
+    }
     struct bpf2socks_policy_config probe_policy;
     memset(&probe_policy, 0, sizeof(probe_policy));
     probe_policy.enable_ipv6 = enable_ipv6;
@@ -451,11 +494,12 @@ int bpf2socks_prerouting_policy_probe(bool enable_ipv6, char *message, size_t me
         snprintf(message, message_size, "PREROUTING socket filter cannot be loaded: errno=%d", errno);
         goto done;
     }
-    if (bpf2socks_pin_fd(prog_fd, BPF2SOCKS_PROBE_PREROUTING_V4_PATH) < 0) {
+    if (bpf2socks_pin_fd(prog_fd, path4) < 0) {
         snprintf(message, message_size, "PREROUTING pinned object path is unavailable: errno=%d", errno);
         goto done;
     }
-    (void)unlink(BPF2SOCKS_PROBE_PREROUTING_V4_PATH);
+    path4_pinned = true;
+    (void)bpf2socks_prerouting_probe_unpin(path4, &path4_pinned);
     if (enable_ipv6) {
         close_fd(&prog_fd);
         prog_fd = build_prerouting_ipv6_prog(&probe_policy, proxy_cidr6_fd, bypass_cidr6_fd, "b2s_p_pre6", false);
@@ -463,15 +507,20 @@ int bpf2socks_prerouting_policy_probe(bool enable_ipv6, char *message, size_t me
             snprintf(message, message_size, "PREROUTING IPv6 socket filter cannot be loaded: errno=%d", errno);
             goto done;
         }
-        if (bpf2socks_pin_fd(prog_fd, BPF2SOCKS_PROBE_PREROUTING_V6_PATH) < 0) {
+        if (bpf2socks_pin_fd(prog_fd, path6) < 0) {
             snprintf(message, message_size, "PREROUTING IPv6 pinned object path is unavailable: errno=%d", errno);
             goto done;
         }
-        (void)unlink(BPF2SOCKS_PROBE_PREROUTING_V6_PATH);
+        path6_pinned = true;
+        (void)bpf2socks_prerouting_probe_unpin(path6, &path6_pinned);
     }
     result = 0;
 
 done:
+    (void)bpf2socks_prerouting_probe_unpin(path4, &path4_pinned);
+    if (enable_ipv6) {
+        (void)bpf2socks_prerouting_probe_unpin(path6, &path6_pinned);
+    }
     close_fd(&prog_fd);
     close_fd(&bypass_cidr6_fd);
     close_fd(&proxy_cidr6_fd);
@@ -496,10 +545,13 @@ int bpf2socks_prerouting_policy_prepare(
     int bypass_cidr6_fd = -1;
     int prog_fd = -1;
     int result = -1;
-    char path4_buf[BPF2SOCKS_MAX_PATH_LEN];
-    char path6_buf[BPF2SOCKS_MAX_PATH_LEN];
-    const char *path4 = prerouting_ipv4_path(config, path4_buf, sizeof(path4_buf));
-    const char *path6 = prerouting_ipv6_path(config, path6_buf, sizeof(path6_buf));
+    char path4[BPF2SOCKS_MAX_PATH_LEN];
+    char path6[BPF2SOCKS_MAX_PATH_LEN];
+    if (bpf2socks_prerouting_path(config, "prerouting_v4", path4, sizeof(path4)) < 0 ||
+        (policy->enable_ipv6 &&
+            bpf2socks_prerouting_path(config, "prerouting_v6", path6, sizeof(path6)) < 0)) {
+        goto done;
+    }
 
     if (load_policy_maps(policy, &proxy_cidr4_fd, &bypass_cidr4_fd, &proxy_cidr6_fd, &bypass_cidr6_fd) < 0) {
         goto done;

@@ -1,8 +1,8 @@
 // Copyright 2026, AsteriskMETA contributors
 // SPDX-License-Identifier: GPL-3.0
 
-#ifndef ASTERISKNG_BPF2SOCKS_BRIDGE_DNS_H
-#define ASTERISKNG_BPF2SOCKS_BRIDGE_DNS_H
+#ifndef ASTERISK_BPF2SOCKS_BRIDGE_DNS_H
+#define ASTERISK_BPF2SOCKS_BRIDGE_DNS_H
 
 #include "bpf2socks.h"
 
@@ -24,6 +24,7 @@ struct bpf2socks_dns_transaction {
     uint16_t original_id;
     uint32_t question_fingerprint;
     uint64_t sent_at_ms;
+    uint64_t response_generation;
     struct sockaddr_storage client_addr;
     socklen_t client_addr_len;
     struct bpf2socks_sockaddr original_dst;
@@ -41,6 +42,7 @@ struct bpf2socks_dns_table {
     struct bpf2socks_dns_transaction *transactions;
     int32_t *lookup;
     uint16_t *next_ids;
+    uint64_t *response_generations;
     size_t capacity;
     size_t count;
     uint32_t channel_count;
@@ -73,6 +75,9 @@ struct bpf2socks_dns_transaction *bpf2socks_dns_table_find(
     struct bpf2socks_dns_table *table,
     uint32_t channel_index,
     uint16_t rewritten_id);
+void bpf2socks_dns_table_note_response(
+    struct bpf2socks_dns_table *table,
+    uint32_t channel_index);
 void bpf2socks_dns_table_release(
     struct bpf2socks_dns_table *table,
     struct bpf2socks_dns_transaction *tx);
@@ -80,7 +85,9 @@ size_t bpf2socks_dns_table_expire(
     struct bpf2socks_dns_table *table,
     uint64_t now_ms,
     uint64_t timeout_ms,
-    size_t max_expire);
+    size_t max_expire,
+    bool *stale_channels,
+    size_t stale_channel_count);
 size_t bpf2socks_dns_table_count(const struct bpf2socks_dns_table *table);
 
 #endif
