@@ -28,12 +28,13 @@ private fun languageTagForMode(mode: Int): String? = when (mode) {
 @Composable
 fun ProvideAppLanguage(
     languageMode: Int,
+    systemLocale: Locale,
     content: @Composable () -> Unit,
 ) {
     val context = LocalContext.current
-    val systemLocale = LocalConfiguration.current.primaryLocale()
-    val languageTag = languageTagForMode(languageMode)
-    val locale = remember(languageTag, systemLocale) { languageTag.toAppLocale(systemLocale) }
+    val locale = remember(languageMode, systemLocale) {
+        resolveAppLocale(languageMode, systemLocale)
+    }
     val configuration = remember(context, locale) { context.localizedConfiguration(locale) }
     val localizedContext = remember(context, configuration) {
         context.createConfigurationContext(configuration)
@@ -52,15 +53,15 @@ fun ProvideAppLanguage(
     )
 }
 
-private fun String?.toAppLocale(systemLocale: Locale): Locale {
-    return this?.let(Locale::forLanguageTag) ?: systemLocale
+internal fun resolveAppLocale(languageMode: Int, systemLocale: Locale): Locale {
+    return languageTagForMode(languageMode)?.let(Locale::forLanguageTag) ?: systemLocale
 }
 
 internal fun Context.localizedAppContext(
     languageMode: Int,
     colorMode: Int? = null,
 ): Context {
-    val locale = languageTagForMode(languageMode).toAppLocale(resources.configuration.primaryLocale())
+    val locale = resolveAppLocale(languageMode, resources.configuration.primaryLocale())
     return createConfigurationContext(localizedConfiguration(locale, colorMode))
 }
 

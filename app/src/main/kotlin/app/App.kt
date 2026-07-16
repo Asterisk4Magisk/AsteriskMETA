@@ -51,6 +51,7 @@ fun App(
     requestVpnPermission: suspend (Intent) -> Boolean,
 ) {
     val appContext = LocalContext.current.applicationContext
+    val systemUiSnapshot = appContext.currentSystemUiSnapshot()
     val application = appContext as AsteriskApplication
     val appScope = application.appScope
     val rootAccess = remember { AndroidRootShellGateway() }
@@ -207,10 +208,14 @@ fun App(
         stateStore = stateStore,
     )
 
-    ProvideAppLanguage(languageMode = chromeState.languageMode) {
+    ProvideAppLanguage(
+        languageMode = chromeState.languageMode,
+        systemLocale = systemUiSnapshot.locale,
+    ) {
         AppTheme(
             colorMode = chromeState.colorMode,
             keyColor = keyColor,
+            systemDark = systemUiSnapshot.isDark,
         ) {
             CompositionLocalProvider(
                 LocalAppStateStore provides stateStore,

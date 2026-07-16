@@ -13,7 +13,6 @@ import android.os.Looper
 import android.provider.Settings
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -59,6 +58,7 @@ import ui.theme.LocalSpacing
 import ui.theme.resolveTheme
 
 val LocalColorMode = compositionLocalOf<Int> { ColorModeSystem }
+private val LocalResolvedDarkTheme = compositionLocalOf { false }
 
 private const val ThemeSchemeSwitchFraction = 0.35f
 private const val ThemeTransitionMaxAlpha = 0.12f
@@ -67,10 +67,10 @@ private const val ThemeTransitionMaxAlpha = 0.12f
 fun AppTheme(
     colorMode: Int = ColorModeSystem,
     keyColor: Color? = null,
+    systemDark: Boolean,
     content: @Composable () -> Unit,
 ) {
     SynchronizeSplashTheme(colorMode)
-    val systemDark = isSystemInDarkTheme()
     val resolution = resolveTheme(
         colorMode = colorMode,
         systemDark = systemDark,
@@ -157,6 +157,7 @@ fun AppTheme(
 
     CompositionLocalProvider(
         LocalColorMode provides colorMode,
+        LocalResolvedDarkTheme provides displayedIsDark,
         LocalReduceMotion provides !animationsEnabled,
     ) {
         CompositionLocalProvider(LocalSpacing provides AsteriskSpacing()) {
@@ -249,12 +250,7 @@ private fun ThemeTransitionOverlay(
 }
 
 @Composable
-fun isInDarkTheme(): Boolean = resolveTheme(
-    colorMode = LocalColorMode.current,
-    systemDark = isSystemInDarkTheme(),
-    supportsSystemDynamicColor = false,
-    hasCustomSeed = false,
-).isDark
+fun isInDarkTheme(): Boolean = LocalResolvedDarkTheme.current
 
 val KeyColors: List<Color> = listOf(
     Color(0xFF3482FF),
