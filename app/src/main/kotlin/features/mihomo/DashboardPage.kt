@@ -40,6 +40,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -149,6 +150,8 @@ fun MihomoDashboardPage(
     val homeState = remember(appState, runtimeState, rawMihomoMode, monitoringState) {
         buildHomeDisplayState(appState, runtimeState, rawMihomoMode, monitoringState)
     }
+    val latestAppState = rememberUpdatedState(appState)
+    val latestHomeState = rememberUpdatedState(homeState)
 
     val startFailedMessage = stringResource(R.string.mihomo_dashboard_start_failed)
     val startNoConfigurationMessage = stringResource(R.string.mihomo_dashboard_start_no_configuration)
@@ -211,12 +214,13 @@ fun MihomoDashboardPage(
     }
 
     fun changeMode(mode: Int) {
+        val stateSnapshot = latestAppState.value
         val modeChange = buildHomeModeChange(
-            appState = appState,
-            currentMode = homeState.mihomoMode,
+            appState = stateSnapshot,
+            currentMode = latestHomeState.value.mihomoMode,
             requestedMode = mode,
         ) ?: return
-        val previousMode = appState.mihomoMode
+        val previousMode = stateSnapshot.mihomoMode
         if (modeChange.persistSelection) {
             updateAppState { state -> state.copy(mihomoMode = mode) }
         }
