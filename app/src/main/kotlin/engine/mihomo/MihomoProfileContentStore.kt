@@ -23,14 +23,18 @@ internal class MihomoProfileContentStore(
     private val profilesDir = File(appContext.filesDir, ProfilesDirName)
 
     fun read(profile: MihomoProfileState): String {
+        return readBytes(profile).toString(Charsets.UTF_8)
+    }
+
+    fun readBytes(profile: MihomoProfileState): ByteArray {
         if (!profile.hasContent) {
             error(MihomoProfileEmptyErrorMessage)
         }
-        val content = File(profile.contentPath).readText(Charsets.UTF_8)
-        if (content.isBlank()) {
+        val bytes = File(profile.contentPath).readBytes()
+        if (bytes.isEmpty() || bytes.toString(Charsets.UTF_8).isBlank()) {
             error(MihomoProfileEmptyErrorMessage)
         }
-        return content
+        return bytes
     }
 
     fun readOrEmpty(profile: MihomoProfileState): String {
@@ -59,6 +63,13 @@ internal class MihomoProfileContentStore(
         if (bytes.isEmpty() || content.isBlank()) {
             error(MihomoProfileEmptyErrorMessage)
         }
+        return writeBytesTo(target, bytes)
+    }
+
+    private fun writeBytesTo(target: File, bytes: ByteArray): MihomoProfileContentRef {
+        if (bytes.isEmpty() || bytes.toString(Charsets.UTF_8).isBlank()) {
+            error(MihomoProfileEmptyErrorMessage)
+        }
         writeAtomically(target) { output -> output.write(bytes) }
         return MihomoProfileContentRef(
             path = target.absolutePath,
@@ -81,7 +92,7 @@ internal fun String.sha256Hex(): String {
     return toByteArray(Charsets.UTF_8).sha256Hex()
 }
 
-private fun ByteArray.sha256Hex(): String {
+internal fun ByteArray.sha256Hex(): String {
     val digest = MessageDigest.getInstance("SHA-256").digest(this)
     return digest.joinToString(separator = "") { byte -> "%02x".format(byte.toInt() and 0xff) }
 }

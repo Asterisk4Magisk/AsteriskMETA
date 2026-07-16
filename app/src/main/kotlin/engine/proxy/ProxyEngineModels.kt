@@ -4,12 +4,16 @@
 package engine.proxy
 
 import app.AppState
+import engine.mihomo.raw.MihomoRawConfigCheckResult
+import engine.mihomo.raw.MihomoRawConfigSnapshot
 
-data class ProxyEngineStartRequest(
+internal data class ProxyEngineStartRequest(
     val appState: AppState,
+    val rawConfig: MihomoRawConfigSnapshot? = null,
+    val rawConfigCheck: MihomoRawConfigCheckResult? = null,
 )
 
-data class ProxyEngineStatus(
+internal data class ProxyEngineStatus(
     val running: Boolean,
     val runMode: Int? = null,
     val appState: AppState? = null,

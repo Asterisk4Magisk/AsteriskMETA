@@ -34,6 +34,9 @@ internal object AndroidMihomoRuntime {
     @Volatile
     private var activeConfigSignature: MihomoRuntimeConfigSignature? = null
 
+    @Volatile
+    private var owner = MihomoRuntimeOwner.None
+
     private var coreLogSubscriber: MihomoCoreLogSubscriber? = null
 
     @Synchronized
@@ -46,6 +49,7 @@ internal object AndroidMihomoRuntime {
             return
         }
         ensureLoadedLocked(context, config)
+        if (!running) owner = MihomoRuntimeOwner.Standby
     }
 
     @Synchronized
@@ -81,6 +85,7 @@ internal object AndroidMihomoRuntime {
         running = true
         nativeTunRunning = true
         tunContextRunning = true
+        owner = MihomoRuntimeOwner.ProxyService
         AndroidAppLogger.info(LogTag, "Started mihomo VPN runtime with profile ${config.mihomoProfilePath}")
     }
 
@@ -105,6 +110,7 @@ internal object AndroidMihomoRuntime {
         running = true
         nativeTunRunning = false
         tunContextRunning = true
+        owner = MihomoRuntimeOwner.ProxyService
         AndroidAppLogger.info(LogTag, "Started mihomo VPN runtime without native TUN using profile ${config.mihomoProfilePath}")
     }
 
@@ -116,6 +122,7 @@ internal object AndroidMihomoRuntime {
             tunContextRunning = false
             activeProfileDir = null
             activeConfigSignature = null
+            owner = MihomoRuntimeOwner.None
             runCatching { Clash.setAgeSecretKey(null) }
                 .onFailure { error -> AndroidAppLogger.warn(LogTag, "Failed to clear mihomo age secret key", error) }
             coreLogSubscriber?.stop()
@@ -127,6 +134,7 @@ internal object AndroidMihomoRuntime {
         running = false
         nativeTunRunning = false
         tunContextRunning = false
+        owner = MihomoRuntimeOwner.None
         if (shouldStopTun) {
             runCatching { Clash.stopTun() }
                 .onFailure { error -> AndroidAppLogger.warn(LogTag, "Failed to stop mihomo TUN runtime", error) }
@@ -157,6 +165,13 @@ internal object AndroidMihomoRuntime {
 
     fun isLoaded(): Boolean {
         return loaded
+    }
+
+    @Synchronized
+    fun releaseStandby(): Boolean {
+        if (!owner.canLifecycleRelease()) return false
+        stop(resetCore = true)
+        return true
     }
 
     suspend fun reloadProfile() {

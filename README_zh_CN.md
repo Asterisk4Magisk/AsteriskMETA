@@ -14,7 +14,7 @@
 - 支持通过二维码、本地文件、URL 订阅添加配置
 - 支持 JavaScript 覆写脚本，用于进阶配置修改
 - 通过 Magisk `service.d` 脚本支持 ROOT 模式开机自启
-- MIUIX Compose UI
+- Material 3 Compose UI
 
 ## 预览
 
@@ -129,4 +129,4 @@ appops set org.asterisk.zcc.ameta ACTIVATE_VPN allow
 - [ClashMetaForAndroid](https://github.com/MetaCubeX/ClashMetaForAndroid)
 - [hev-socks5-tunnel](https://github.com/heiher/hev-socks5-tunnel)
 - [libsu](https://github.com/topjohnwu/libsu)
-- [MIUIX](https://github.com/compose-miuix-ui/miuix)
+- [Jetpack Compose Material 3](https://developer.android.com/develop/ui/compose/designsystems/material3)

@@ -24,7 +24,6 @@ import kotlinx.serialization.json.longOrNull
 import org.snakeyaml.engine.v2.api.Dump
 import org.snakeyaml.engine.v2.api.DumpSettings
 import org.snakeyaml.engine.v2.api.Load
-import org.snakeyaml.engine.v2.api.LoadSettings
 import org.snakeyaml.engine.v2.common.FlowStyle
 
 private val OverrideJson = Json {
@@ -119,7 +118,7 @@ internal fun debugMihomoProfileScriptOverride(
 
     val escaped = rawProfileContent.escapeSupplementaryYamlCodePoints()
     val root = runCatching {
-        Load(LoadSettings.builder().build()).loadFromString(escaped.value) as? Map<*, *>
+        Load(MihomoYamlLoadSettings).loadFromString(escaped.value) as? Map<*, *>
     }.getOrElse { error ->
         return MihomoProfileScriptDebugResult(error = error.message ?: error.toString())
     }

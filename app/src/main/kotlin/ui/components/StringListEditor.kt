@@ -4,86 +4,50 @@
 package ui.components
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsFocusedAsState
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.input.InputTransformation
-import androidx.compose.foundation.text.input.TextFieldLineLimits
-import androidx.compose.foundation.text.input.TextFieldState
-import androidx.compose.foundation.text.input.clearText
-import androidx.compose.foundation.text.input.rememberTextFieldState
-import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
+import ui.icons.AsteriskIcons as Icons
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextLayoutResult
-import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import app.LocalAppServices
 import app.R
-import kotlinx.coroutines.launch
-import top.yukonga.miuix.kmp.basic.Card
-import top.yukonga.miuix.kmp.basic.Icon
-import top.yukonga.miuix.kmp.basic.IconButton
-import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.basic.TextButton
-import top.yukonga.miuix.kmp.basic.TextField
-import top.yukonga.miuix.kmp.icon.MiuixIcons
-import top.yukonga.miuix.kmp.icon.extended.Add
-import top.yukonga.miuix.kmp.icon.extended.Close
-import top.yukonga.miuix.kmp.icon.extended.Delete
-import top.yukonga.miuix.kmp.icon.extended.Edit
-import top.yukonga.miuix.kmp.icon.extended.Ok
-import top.yukonga.miuix.kmp.theme.MiuixTheme
-import top.yukonga.miuix.kmp.window.WindowDialog
+import ui.theme.AsteriskShapeTokens
+import ui.theme.AsteriskMotion
 import utils.toTrimmedNonEmptyList
-
-private typealias StringListItemValidator = (String) -> String?
 
 @Composable
 internal fun StringListEditor(
@@ -97,210 +61,269 @@ internal fun StringListEditor(
     validateInput: (String) -> String? = { null },
 ) {
     var input by remember(editorKey, title) { mutableStateOf("") }
-    val inputState = rememberTextFieldState()
-    var editingIndex by remember(editorKey, title) { mutableIntStateOf(NoEditingIndex) }
+    var editingIndex by remember(editorKey, title) { mutableIntStateOf(-1) }
     var editInput by remember(editorKey, title) { mutableStateOf("") }
-    val editInputState = rememberTextFieldState()
     var showBulkEditor by remember(editorKey, title) { mutableStateOf(false) }
     var bulkInput by remember(editorKey, title) { mutableStateOf("") }
-    val tipNotifier = LocalAppServices.current.tipNotifier
-    val scope = rememberCoroutineScope()
+    val focusManager = LocalFocusManager.current
+    val sanitizedValues = values.toTrimmedNonEmptyList()
+    val inputError = input.trim().takeIf(String::isNotEmpty)?.let(validateInput)
+    val canAdd = input.trim().isNotEmpty() && inputError == null
+
     LaunchedEffect(editorKey, title) {
         input = ""
-        inputState.clearText()
-        editingIndex = NoEditingIndex
+        editingIndex = -1
         editInput = ""
-        editInputState.clearText()
         showBulkEditor = false
-        bulkInput = ""
-    }
-    val sanitizedValues = values.toTrimmedNonEmptyList()
-    LaunchedEffect(sanitizedValues.size, editingIndex) {
-        if (editingIndex != NoEditingIndex && editingIndex !in sanitizedValues.indices) {
-            editingIndex = NoEditingIndex
-            editInput = ""
-            editInputState.clearText()
-        }
-    }
-    val trimmedInput = input.trim()
-    val inputError = when {
-        trimmedInput.isEmpty() -> null
-        else -> validateInput(trimmedInput)
-    }
-    val canAddInput = trimmedInput.isNotEmpty() && inputError == null
-    val addInput = {
-        if (canAddInput) {
-            onValuesChange((sanitizedValues + trimmedInput).toTrimmedNonEmptyList())
-            input = ""
-            inputState.clearText()
-        }
-    }
-    val emptyItemText = stringResource(R.string.string_list_item_empty)
-    val editError = if (editingIndex in sanitizedValues.indices) {
-        validateStringListItem(
-            input = editInput,
-            emptyText = emptyItemText,
-            validateInput = validateInput,
-        )
-    } else {
-        null
-    }
-    val canSaveEdit = editingIndex in sanitizedValues.indices && editError == null
-    val cancelEdit = {
-        editingIndex = NoEditingIndex
-        editInput = ""
-        editInputState.clearText()
-    }
-    val saveEdit = {
-        if (canSaveEdit) {
-            val nextValues = sanitizedValues.toMutableList()
-            nextValues[editingIndex] = editInput.trim()
-            onValuesChange(nextValues.toTrimmedNonEmptyList())
-            cancelEdit()
-        }
-    }
-    val showBulkEdit = {
-        val draft = sanitizedValues.joinToString(separator = "\n")
-        bulkInput = draft
-        showBulkEditor = true
-    }
-    val bulkParseResult = parseStringListDraft(
-        text = bulkInput,
-        validateInput = validateInput,
-    )
-    val bulkErrorText = bulkParseResult.error?.let { error ->
-        stringResource(R.string.string_list_line_error, error.lineNumber, error.message)
-    }
-    val saveBulkEdit: () -> Unit = {
-        if (bulkErrorText != null) {
-            scope.launch {
-                tipNotifier.show(bulkErrorText)
-            }
-        } else {
-            cancelEdit()
-            onValuesChange(bulkParseResult.values)
-            showBulkEditor = false
-        }
     }
 
     Card(
-        modifier = modifier.fillMaxWidth(),
-        insideMargin = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+        modifier = modifier.padding(horizontal = 16.dp).fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+        shape = MaterialTheme.shapes.large,
     ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 8.dp, end = 0.dp, top = 2.dp, bottom = 2.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
+        Column(Modifier.fillMaxWidth().padding(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = title,
-                    fontSize = StringListTitleFontSize,
-                    fontWeight = FontWeight.Medium,
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
+                AsteriskInfoChip(text = sanitizedValues.size.toString())
                 IconButton(
-                    modifier = Modifier.size(StringListBulkEditButtonSize),
-                    onClick = showBulkEdit,
+                    onClick = {
+                        bulkInput = sanitizedValues.joinToString("\n")
+                        showBulkEditor = true
+                    },
                 ) {
-                    Icon(
-                        modifier = Modifier.size(StringListBulkEditIconSize),
-                        imageVector = MiuixIcons.Edit,
-                        contentDescription = stringResource(R.string.common_edit_all),
-                        tint = MiuixTheme.colorScheme.onSurface,
-                    )
+                    Icon(Icons.Rounded.EditNote, stringResource(R.string.common_edit_all))
                 }
             }
-            description?.let {
-                StringListStatusText(
-                    text = it,
-                    modifier = Modifier.padding(bottom = 2.dp),
+            description?.let { StringListStatusText(it) }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                StringListEditableField(
+                    value = input,
+                    onValueChange = { input = it },
+                    isError = inputError != null,
+                    supportingText = inputError,
                 )
-            }
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 2.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                TextField(
-                    state = inputState,
-                    lineLimits = TextFieldLineLimits.SingleLine,
-                    inputTransformation = InputTransformation {
-                        input = asCharSequence().toString()
-                    },
-                    insideMargin = DpSize(width = 10.dp, height = 8.dp),
-                    cornerRadius = 12.dp,
-                    textStyle = MiuixTheme.textStyles.main.copy(fontSize = 14.sp),
-                    modifier = Modifier.weight(1f),
-                )
-                Spacer(Modifier.width(2.dp))
+                Spacer(Modifier.width(4.dp))
                 IconButton(
-                    modifier = Modifier.size(36.dp),
-                    onClick = addInput,
-                    enabled = canAddInput,
-                ) {
-                    Icon(
-                        modifier = Modifier.size(20.dp),
-                        imageVector = MiuixIcons.Add,
-                        contentDescription = stringResource(R.string.common_add),
-                        tint = if (canAddInput) {
-                            MiuixTheme.colorScheme.onSurface
-                        } else {
-                            MiuixTheme.colorScheme.disabledOnSecondaryVariant
-                        },
-                    )
-                }
-            }
-            inputError?.let {
-                StringListStatusText(text = it, error = true)
-            }
-            if (sanitizedValues.isEmpty()) {
-                StringListStatusText(text = emptyText)
-            } else {
-                Spacer(Modifier.height(4.dp))
-            }
-            sanitizedValues.forEachIndexed { index, value ->
-                StringListItem(
-                    value = value,
-                    editing = index == editingIndex,
-                    editState = editInputState,
-                    editError = editError.takeIf { index == editingIndex },
-                    canSaveEdit = canSaveEdit,
-                    onEditInputChange = { editInput = it },
-                    onStartEdit = {
-                        editingIndex = index
-                        editInput = value
-                        editInputState.setTextAndPlaceCursorAtEnd(value)
-                    },
-                    onSaveEdit = saveEdit,
-                    onCancelEdit = cancelEdit,
-                    onDelete = {
-                        if (editingIndex != NoEditingIndex) {
-                            cancelEdit()
+                    enabled = canAdd,
+                    onClick = {
+                        val result = addStringListValue(sanitizedValues, input, validateInput)
+                        if (result.error == null) {
+                            onValuesChange(result.values.toTrimmedNonEmptyList())
+                            input = ""
                         }
-                        onValuesChange(sanitizedValues.filterIndexed { valueIndex, _ -> valueIndex != index })
                     },
-                )
+                ) {
+                    Icon(Icons.Rounded.Add, stringResource(R.string.common_add))
+                }
+            }
+            if (sanitizedValues.isEmpty()) StringListStatusText(emptyText)
+            sanitizedValues.forEachIndexed { index, value ->
+                val editing = editingIndex == index
+                val contentSizeMotion = AsteriskMotion.spatial<androidx.compose.ui.unit.IntSize>()
+                val actionMotion = AsteriskMotion.fastSpatial<Float>()
+                val editError = if (editing) {
+                    editInput.trim().takeIf(String::isNotEmpty)?.let(validateInput)
+                        ?: if (editInput.trim().isEmpty()) stringResource(R.string.string_list_item_empty) else null
+                } else {
+                    null
+                }
+                key(stringListItemKey(index)) {
+                    val focusRequester = remember { FocusRequester() }
+                    LaunchedEffect(editing) {
+                        if (editing) focusRequester.requestFocus()
+                    }
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 6.dp)
+                            .animateContentSize(animationSpec = contentSizeMotion),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+                        shape = AsteriskShapeTokens.InnerContainer,
+                    ) {
+                        Column {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 56.dp)
+                                    .padding(horizontal = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                StringListItemField(
+                                    editing = editing,
+                                    value = value,
+                                    editValue = editInput,
+                                    onEditValueChange = { editInput = it },
+                                    isError = editError != null,
+                                    focusRequester = focusRequester,
+                                )
+                                AnimatedContent(
+                                    targetState = editing,
+                                    modifier = Modifier.width(96.dp),
+                                    transitionSpec = {
+                                        scaleIn(
+                                            initialScale = 0.92f,
+                                            animationSpec = actionMotion,
+                                        ).togetherWith(
+                                            scaleOut(
+                                                targetScale = 0.92f,
+                                                animationSpec = actionMotion,
+                                            ),
+                                        )
+                                    },
+                                    contentAlignment = Alignment.CenterEnd,
+                                    label = "string-list-actions",
+                                ) { isEditing ->
+                                    Row(modifier = Modifier.fillMaxWidth()) {
+                                        if (isEditing) {
+                                            StringListAction(
+                                                icon = Icons.Rounded.Check,
+                                                description = stringResource(R.string.common_save),
+                                                enabled = editError == null,
+                                            ) {
+                                                val result = editStringListValue(
+                                                    sanitizedValues,
+                                                    index,
+                                                    editInput,
+                                                    validateInput,
+                                                )
+                                                if (result.error == null) {
+                                                    onValuesChange(result.values.toTrimmedNonEmptyList())
+                                                    focusManager.clearFocus()
+                                                    editingIndex = -1
+                                                }
+                                            }
+                                            StringListAction(
+                                                Icons.Rounded.Close,
+                                                stringResource(R.string.common_cancel),
+                                            ) {
+                                                focusManager.clearFocus()
+                                                editingIndex = -1
+                                            }
+                                        } else {
+                                            StringListAction(
+                                                Icons.Rounded.Edit,
+                                                stringResource(R.string.common_edit),
+                                            ) {
+                                                editInput = value
+                                                editingIndex = index
+                                            }
+                                            StringListAction(
+                                                Icons.Rounded.Delete,
+                                                stringResource(R.string.common_delete),
+                                            ) {
+                                                onValuesChange(
+                                                    sanitizedValues.filterIndexed { valueIndex, _ ->
+                                                        valueIndex != index
+                                                    },
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            editError?.let { StringListStatusText(it, error = true) }
+                        }
+                    }
+                }
             }
         }
     }
 
-    StringListBulkEditorDialog(
+    StringListBulkEditorSheet(
         show = showBulkEditor,
         title = title,
         value = bulkInput,
-        onInputChange = { bulkInput = it },
-        onDismissRequest = {
+        onValueChange = { bulkInput = it },
+        validateInput = validateInput,
+        onDismissRequest = { showBulkEditor = false },
+        onSave = { nextValues ->
+            editingIndex = -1
+            onValuesChange(nextValues.toTrimmedNonEmptyList())
             showBulkEditor = false
         },
-        onSave = saveBulkEdit,
     )
+}
+
+@Composable
+private fun RowScope.StringListItemField(
+    editing: Boolean,
+    value: String,
+    editValue: String,
+    onEditValueChange: (String) -> Unit,
+    isError: Boolean,
+    focusRequester: FocusRequester,
+) {
+    val activeContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+    val activeBorderColor = MaterialTheme.colorScheme.outlineVariant
+    val containerColor by animateColorAsState(
+        targetValue = if (editing) {
+            activeContainerColor
+        } else {
+            activeContainerColor.copy(alpha = 0f)
+        },
+        animationSpec = AsteriskMotion.effects(),
+        label = "string-list-field-container",
+    )
+    val borderColor by animateColorAsState(
+        targetValue = when {
+            editing && isError -> MaterialTheme.colorScheme.error
+            editing -> activeBorderColor
+            else -> activeBorderColor.copy(alpha = 0f)
+        },
+        animationSpec = AsteriskMotion.effects(),
+        label = "string-list-field-border",
+    )
+    OutlinedTextField(
+        value = if (editing) editValue else value,
+        onValueChange = { if (editing) onEditValueChange(it) },
+        modifier = Modifier
+            .weight(1f)
+            .focusRequester(focusRequester),
+        enabled = editing,
+        singleLine = true,
+        isError = editing && isError,
+        textStyle = MaterialTheme.typography.bodyMedium,
+        shape = AsteriskShapeTokens.InnerContainer,
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+            disabledTextColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            focusedContainerColor = containerColor,
+            unfocusedContainerColor = containerColor,
+            disabledContainerColor = containerColor,
+            errorContainerColor = containerColor,
+            focusedBorderColor = borderColor,
+            unfocusedBorderColor = borderColor,
+            disabledBorderColor = borderColor,
+            errorBorderColor = MaterialTheme.colorScheme.error,
+        ),
+    )
+}
+
+@Composable
+private fun RowScope.StringListEditableField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    isError: Boolean,
+    supportingText: String? = null,
+) {
+    Box(modifier = Modifier.weight(1f)) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            isError = isError,
+            supportingText = supportingText?.let { message -> ({ Text(message) }) },
+            shape = AsteriskShapeTokens.InnerContainer,
+        )
+    }
 }
 
 @Composable
@@ -311,377 +334,67 @@ internal fun StringListStatusText(
 ) {
     Text(
         text = text,
-        fontSize = 13.sp,
-        color = if (error) MiuixTheme.colorScheme.error else MiuixTheme.colorScheme.onSurfaceVariantSummary,
-        modifier = modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+        modifier = modifier.padding(horizontal = 4.dp, vertical = 4.dp),
+        style = MaterialTheme.typography.bodySmall,
+        color = if (error) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
     )
 }
 
 @Composable
-private fun StringListItem(
-    value: String,
-    editing: Boolean,
-    editState: TextFieldState,
-    editError: String?,
-    canSaveEdit: Boolean,
-    onEditInputChange: (String) -> Unit,
-    onStartEdit: () -> Unit,
-    onSaveEdit: () -> Unit,
-    onCancelEdit: () -> Unit,
-    onDelete: () -> Unit,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(bottom = 2.dp)
-            .clip(RoundedCornerShape(6.dp))
-            .background(MiuixTheme.colorScheme.primary.copy(alpha = 0.08f))
-            .padding(start = 8.dp, end = 4.dp, top = 1.dp, bottom = 1.dp),
-    ) {
-        AnimatedContent(
-            targetState = editing,
-            transitionSpec = {
-                (fadeIn() + expandVertically()) togetherWith (fadeOut() + shrinkVertically())
-            },
-            label = "stringListItemEditState",
-        ) { isEditing ->
-            if (isEditing) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(StringListItemRowHeight)
-                        .padding(vertical = StringListItemEditingRowVerticalPadding),
-                    horizontalArrangement = Arrangement.spacedBy(StringListItemActionSpacing),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    TextField(
-                        state = editState,
-                        lineLimits = TextFieldLineLimits.SingleLine,
-                        inputTransformation = InputTransformation {
-                            onEditInputChange(asCharSequence().toString())
-                        },
-                        insideMargin = StringListItemEditFieldInsideMargin,
-                        cornerRadius = StringListItemEditFieldCornerRadius,
-                        textStyle = MiuixTheme.textStyles.main.copy(fontSize = 14.sp),
-                        modifier = Modifier.weight(1f),
-                    )
-                    StringListItemActionButton(
-                        imageVector = MiuixIcons.Ok,
-                        contentDescription = stringResource(R.string.common_save),
-                        enabled = canSaveEdit,
-                        onClick = {
-                            if (canSaveEdit) {
-                                onSaveEdit()
-                            }
-                        },
-                    )
-                    StringListItemActionButton(
-                        imageVector = MiuixIcons.Close,
-                        contentDescription = stringResource(R.string.common_cancel),
-                        onClick = onCancelEdit,
-                    )
-                }
-            } else {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(StringListItemRowHeight)
-                        .padding(vertical = StringListItemEditingRowVerticalPadding),
-                    horizontalArrangement = Arrangement.spacedBy(StringListItemActionSpacing),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = value,
-                        color = MiuixTheme.colorScheme.onSurface,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f),
-                    )
-                    StringListItemActionButton(
-                        imageVector = MiuixIcons.Edit,
-                        contentDescription = stringResource(R.string.common_edit),
-                        onClick = onStartEdit,
-                    )
-                    StringListItemActionButton(
-                        imageVector = MiuixIcons.Delete,
-                        contentDescription = stringResource(R.string.common_delete),
-                        onClick = onDelete,
-                    )
-                }
-            }
-        }
-        AnimatedVisibility(
-            visible = editing && editError != null,
-            enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically(),
-        ) {
-            editError?.let {
-                StringListStatusText(text = it, error = true)
-            }
-        }
-    }
-}
-
-@Composable
-private fun StringListItemActionButton(
-    imageVector: ImageVector,
-    contentDescription: String,
-    onClick: () -> Unit,
+private fun StringListAction(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    description: String,
     enabled: Boolean = true,
+    onClick: () -> Unit,
 ) {
-    IconButton(
-        modifier = Modifier.size(StringListItemActionButtonSize),
-        onClick = onClick,
-        enabled = enabled,
-    ) {
-        Icon(
-            modifier = Modifier.size(StringListItemActionIconSize),
-            imageVector = imageVector,
-            contentDescription = contentDescription,
-            tint = if (enabled) {
-                MiuixTheme.colorScheme.onSurface
-            } else {
-                MiuixTheme.colorScheme.disabledOnSecondaryVariant
-            },
-        )
+    IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(48.dp)) {
+        Icon(icon, description)
     }
 }
 
 @Composable
-private fun StringListBulkEditorDialog(
+@OptIn(ExperimentalMaterial3Api::class)
+private fun StringListBulkEditorSheet(
     show: Boolean,
     title: String,
     value: String,
-    onInputChange: (String) -> Unit,
-    onDismissRequest: () -> Unit,
-    onSave: () -> Unit,
-) {
-    WindowDialog(
-        show = show,
-        title = title,
-        onDismissRequest = onDismissRequest,
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            StringListBulkTextField(
-                value = value,
-                onValueChange = onInputChange,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 180.dp)
-                    .padding(bottom = 16.dp),
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                TextButton(
-                    text = stringResource(R.string.common_cancel),
-                    onClick = onDismissRequest,
-                    modifier = Modifier.weight(1f),
-                )
-                Spacer(Modifier.width(20.dp))
-                TextButton(
-                    text = stringResource(R.string.common_save),
-                    onClick = onSave,
-                    modifier = Modifier.weight(1f),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun StringListBulkTextField(
-    value: String,
     onValueChange: (String) -> Unit,
-    modifier: Modifier = Modifier,
+    validateInput: (String) -> String?,
+    onDismissRequest: () -> Unit,
+    onSave: (List<String>) -> Unit,
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isFocused by interactionSource.collectIsFocusedAsState()
-    val horizontalScrollState = rememberScrollState()
-    val density = LocalDensity.current
-    var fieldValue by remember {
-        mutableStateOf(TextFieldValue(text = value, selection = TextRange(value.length)))
-    }
-    var textLayoutResult by remember {
-        mutableStateOf<TextLayoutResult?>(null)
-    }
-    var textViewportWidth by remember {
-        mutableIntStateOf(0)
-    }
-    val shape = RoundedCornerShape(StringListBulkTextFieldCornerRadius)
-    val borderWidth by animateDpAsState(
-        targetValue = if (isFocused) StringListBulkTextFieldBorderWidth else 0.dp,
-        label = "stringListBulkTextFieldBorderWidth",
-    )
-    val borderColor by animateColorAsState(
-        targetValue = if (isFocused) {
-            MiuixTheme.colorScheme.primary
-        } else {
-            MiuixTheme.colorScheme.secondaryContainer
+    val result = parseStringListBatch(value, validateInput)
+    val error = result.error?.let { stringResource(R.string.string_list_line_error, result.errorLine ?: 1, it) }
+    AsteriskModalBottomSheet(
+        show = show,
+        onDismissRequest = onDismissRequest,
+        title = title,
+        startAction = {
+            AsteriskActionButton(
+                text = stringResource(R.string.common_cancel),
+                icon = Icons.Rounded.Close,
+                onClick = onDismissRequest,
+            )
         },
-        label = "stringListBulkTextFieldBorderColor",
-    )
-    val resolvedTextStyle = MiuixTheme.textStyles.main.copy(
-        color = MiuixTheme.colorScheme.onSurface,
-        fontSize = 14.sp,
-    )
-
-    LaunchedEffect(value) {
-        if (value != fieldValue.text) {
-            fieldValue = TextFieldValue(text = value, selection = TextRange(value.length))
-        }
-    }
-
-    LaunchedEffect(
-        fieldValue.selection,
-        fieldValue.text,
-        textLayoutResult,
-        textViewportWidth,
-        horizontalScrollState.maxValue,
+        endAction = {
+            AsteriskActionButton(
+                text = stringResource(R.string.common_save),
+                icon = Icons.Rounded.Save,
+                enabled = error == null,
+                onClick = { result.values?.let(onSave) },
+            )
+        },
     ) {
-        val layoutResult = textLayoutResult ?: return@LaunchedEffect
-        if (textViewportWidth <= 0 || horizontalScrollState.maxValue <= 0) {
-            return@LaunchedEffect
-        }
-
-        val cursorOffset = fieldValue.selection.end.coerceIn(0, fieldValue.text.length)
-        val cursorRect = layoutResult.getCursorRect(cursorOffset)
-        val cursorPaddingPx = with(density) { StringListBulkTextFieldCursorScrollPadding.toPx() }
-        val nextHorizontalScroll = scrollToVisible(
-            current = horizontalScrollState.value,
-            viewportSize = textViewportWidth,
-            targetStart = cursorRect.left - cursorPaddingPx,
-            targetEnd = cursorRect.right + cursorPaddingPx,
-            maxValue = horizontalScrollState.maxValue,
-        )
-        if (nextHorizontalScroll != horizontalScrollState.value) {
-            horizontalScrollState.scrollTo(nextHorizontalScroll)
+        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 24.dp)) {
+            OutlinedTextField(
+                value = value,
+                onValueChange = onValueChange,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 220.dp).padding(top = 12.dp),
+                minLines = 8,
+                isError = error != null,
+                supportingText = error?.let { message -> ({ Text(message) }) },
+                shape = AsteriskShapeTokens.InnerContainer,
+            )
         }
     }
-
-    BoxWithConstraints(modifier = modifier) {
-        val contentMinWidth = (maxWidth - StringListBulkTextFieldHorizontalPadding * 2)
-            .coerceAtLeast(0.dp)
-
-        BasicTextField(
-            value = fieldValue,
-            onValueChange = { nextValue ->
-                fieldValue = nextValue
-                onValueChange(nextValue.text)
-            },
-            textStyle = resolvedTextStyle,
-            minLines = StringListBulkTextFieldMinLines,
-            maxLines = StringListBulkTextFieldMaxLines,
-            onTextLayout = { textLayoutResult = it },
-            interactionSource = interactionSource,
-            cursorBrush = SolidColor(MiuixTheme.colorScheme.primary),
-            decorationBox = { innerTextField ->
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(shape)
-                        .background(MiuixTheme.colorScheme.secondaryContainer)
-                        .border(borderWidth, borderColor, shape)
-                        .padding(
-                            horizontal = StringListBulkTextFieldHorizontalPadding,
-                            vertical = StringListBulkTextFieldVerticalPadding,
-                        ),
-                    contentAlignment = Alignment.TopStart,
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .onSizeChanged { size ->
-                                textViewportWidth = size.width
-                            }
-                            .horizontalScroll(horizontalScrollState),
-                    ) {
-                        Box(modifier = Modifier.widthIn(min = contentMinWidth)) {
-                            innerTextField()
-                        }
-                    }
-                }
-            },
-        )
-    }
 }
-
-private fun validateStringListItem(
-    input: String,
-    emptyText: String,
-    validateInput: StringListItemValidator,
-): String? {
-    val trimmed = input.trim()
-    if (trimmed.isEmpty()) return emptyText
-
-    return validateInput(trimmed)
-}
-
-private fun parseStringListDraft(
-    text: String,
-    validateInput: StringListItemValidator,
-): StringListParseResult {
-    val values = mutableListOf<String>()
-
-    text.lineSequence().forEachIndexed { index, line ->
-        val trimmed = line.trim()
-        if (trimmed.isEmpty()) return@forEachIndexed
-        validateInput(trimmed)?.let { error ->
-            return StringListParseResult(error = StringListLineError(index + 1, error))
-        }
-        values += trimmed
-    }
-
-    return StringListParseResult(values = values)
-}
-
-private data class StringListParseResult(
-    val values: List<String> = emptyList(),
-    val error: StringListLineError? = null,
-)
-
-private data class StringListLineError(
-    val lineNumber: Int,
-    val message: String,
-)
-
-private fun scrollToVisible(
-    current: Int,
-    viewportSize: Int,
-    targetStart: Float,
-    targetEnd: Float,
-    maxValue: Int,
-): Int {
-    if (viewportSize <= 0 || maxValue <= 0) return current
-
-    val next = when {
-        targetStart < current -> targetStart.toInt()
-        targetEnd > current + viewportSize -> (targetEnd - viewportSize + 1f).toInt()
-        else -> current
-    }
-    return next.coerceIn(0, maxValue)
-}
-
-private val StringListItemActionSpacing = 2.dp
-private val StringListItemRowHeight = 34.dp
-private val StringListItemActionButtonSize = 30.dp
-private val StringListItemActionIconSize = 17.dp
-private val StringListItemEditingRowVerticalPadding = 1.dp
-private val StringListItemEditFieldInsideMargin = DpSize(width = 8.dp, height = 6.dp)
-private val StringListItemEditFieldCornerRadius = 6.dp
-private val StringListTitleFontSize = 17.sp
-private val StringListBulkEditButtonSize = 38.dp
-private val StringListBulkEditIconSize = 20.dp
-private val StringListBulkTextFieldCornerRadius = 16.dp
-private val StringListBulkTextFieldBorderWidth = 2.dp
-private val StringListBulkTextFieldHorizontalPadding = 16.dp
-private val StringListBulkTextFieldVerticalPadding = 16.dp
-private val StringListBulkTextFieldCursorScrollPadding = 24.dp
-private const val StringListBulkTextFieldMinLines = 8
-private const val StringListBulkTextFieldMaxLines = 20
-private const val NoEditingIndex = -1

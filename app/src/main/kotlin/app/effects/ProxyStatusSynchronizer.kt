@@ -6,6 +6,7 @@ package app.effects
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import app.AppState
+import app.withMihomoRestartApplied
 import app.modes.isRootRunMode
 import data.AndroidAppStateStore
 import engine.proxy.AndroidProxyEngine
@@ -20,7 +21,8 @@ internal fun ProxyStatusSynchronizer(
         val currentState = stateStore.state.value
         if (
             !currentState.runMode.isRootRunMode() &&
-            !currentState.proxyRunning
+            !currentState.proxyRunning &&
+            currentState.pendingMihomoRestartProfileId == 0
         ) {
             return@LaunchedEffect
         }
@@ -28,10 +30,8 @@ internal fun ProxyStatusSynchronizer(
             proxyEngine.status(currentState.runMode, currentState)
         }.getOrNull() ?: return@LaunchedEffect
         updateAppState { state ->
-            if (state.proxyRunning == status.running) {
-                state
-            } else {
-                state.copy(proxyRunning = status.running)
+            state.copy(proxyRunning = status.running).let { updated ->
+                if (status.running) updated else updated.withMihomoRestartApplied()
             }
         }
     }

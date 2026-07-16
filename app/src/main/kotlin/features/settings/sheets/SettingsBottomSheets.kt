@@ -7,12 +7,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.ui.res.stringResource
 import app.R
+import ui.icons.AsteriskIcons as Icons
 import engine.network.isCidrAddress
 import engine.network.isIpAddress
 import engine.vpn.VpnDefaults
-import top.yukonga.miuix.kmp.basic.TextButton
-import top.yukonga.miuix.kmp.preference.WindowDropdownPreference
-import top.yukonga.miuix.kmp.window.WindowBottomSheet
 import ui.text.formatTemplate
 import utils.toIntInRangeOrNull
 
@@ -80,18 +78,20 @@ internal fun TunSettingsBottomSheet(
     }
     val canSave = listOf(mtuError, vpnDnsError, ipv4CidrError, ipv6CidrError).all { it == null }
 
-    WindowBottomSheet(
+    SettingsModalBottomSheet(
         show = show,
         title = stringResource(R.string.settings_tun),
         startAction = {
             TextButton(
                 text = stringResource(R.string.common_cancel),
+                icon = Icons.Rounded.Close,
                 onClick = onDismissRequest,
             )
         },
         endAction = {
             TextButton(
                 text = stringResource(R.string.common_save),
+                icon = Icons.Rounded.Save,
                 onClick = {
                     if (canSave) {
                         onSave(
@@ -112,6 +112,7 @@ internal fun TunSettingsBottomSheet(
                 if (showTunStack) {
                     WindowDropdownPreference(
                         title = stringResource(R.string.settings_tun_stack),
+                        icon = Icons.Rounded.AccountTree,
                         items = tunStackOptions,
                         selectedIndex = tunStack.coerceIn(tunStackOptions.indices),
                         onSelectedIndexChange = onTunStackChange,
@@ -151,19 +152,19 @@ internal fun TunSettingsBottomSheet(
 }
 
 
-private fun isTunMtu(value: String): Boolean {
+internal fun isTunMtu(value: String): Boolean {
     return value.toIntInRangeOrNull(VpnDefaults.MTU_MIN..VpnDefaults.MTU_MAX) != null
 }
 
-private fun isTunVpnDns(value: String): Boolean {
+internal fun isTunVpnDns(value: String): Boolean {
     val trimmed = value.trim()
     return trimmed.contains(".") && !trimmed.contains(":") && isIpAddress(trimmed)
 }
 
-private fun isTunIpv4Cidr(value: String): Boolean {
+internal fun isTunIpv4Cidr(value: String): Boolean {
     return value.contains(".") && !value.contains(":") && isCidrAddress(value)
 }
 
-private fun isTunIpv6Cidr(value: String): Boolean {
+internal fun isTunIpv6Cidr(value: String): Boolean {
     return value.contains(":") && isCidrAddress(value)
 }

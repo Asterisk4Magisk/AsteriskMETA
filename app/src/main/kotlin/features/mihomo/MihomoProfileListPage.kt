@@ -1,32 +1,46 @@
 // Copyright 2026, AsteriskMETA contributors
 // SPDX-License-Identifier: GPL-3.0
 
-@file:OptIn(ExperimentalScrollBarApi::class)
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 
 package features.mihomo
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
+import ui.icons.AsteriskIcons as Icons
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import ui.components.AsteriskModalBottomSheet
+import ui.components.AsteriskActionButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -36,18 +50,17 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import app.DefaultMihomoOverrideScriptId
 import app.DefaultMihomoProfileId
 import app.LocalAppServices
@@ -62,45 +75,29 @@ import app.R
 import app.collectAppState
 import app.navigation.Route
 import app.nextAvailableMihomoProfileId
+import app.hasRuntimeRelevantChanges
+import app.withMihomoRestartApplied
+import app.withMihomoRestartRequired
 import engine.mihomo.hasMihomoProxyProviders
 import engine.mihomo.MihomoProfileContentRef
 import engine.mihomo.MihomoProfileContentStore
 import engine.mihomo.MihomoProfileFactory
+import engine.proxy.ProxyServiceResult
 import features.subscription.SubscriptionInstallConfig
 import features.subscription.toSubscriptionInstallConfigOrNull
 import features.subscription.usecase.launchMihomoProfileSubscriptionUpdate
 import features.subscription.usecase.subscriptionUpdateMessage
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import ui.components.BackNavigationIcon
-import ui.components.IconDropdownMenu
-import ui.components.IconDropdownMenuEntry
-import ui.components.NavigationIcon
-import top.yukonga.miuix.kmp.basic.Card
-import top.yukonga.miuix.kmp.basic.CardDefaults
-import top.yukonga.miuix.kmp.basic.Icon
-import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
-import top.yukonga.miuix.kmp.basic.Scaffold
-import top.yukonga.miuix.kmp.basic.SmallTitle
-import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.basic.TextButton
-import top.yukonga.miuix.kmp.basic.VerticalScrollBar
-import top.yukonga.miuix.kmp.basic.rememberScrollBarAdapter
-import top.yukonga.miuix.kmp.icon.MiuixIcons
-import top.yukonga.miuix.kmp.icon.extended.Add
-import top.yukonga.miuix.kmp.icon.extended.File
-import top.yukonga.miuix.kmp.icon.extended.Link
-import top.yukonga.miuix.kmp.icon.extended.More
-import top.yukonga.miuix.kmp.icon.extended.Scan
-import top.yukonga.miuix.kmp.interfaces.ExperimentalScrollBarApi
-import top.yukonga.miuix.kmp.theme.MiuixTheme
-import top.yukonga.miuix.kmp.window.WindowDialog
-import ui.layout.AdaptiveTopAppBar
 import ui.layout.pageContentPaddingWithCutout
 import ui.layout.pageListPadding
-import ui.layout.pageScrollModifiers
+import ui.components.AsteriskInfoChip
+import ui.components.AsteriskExtendedFab
+import ui.components.AsteriskSelectionCard
+import ui.theme.AsteriskShapeTokens
 import ui.text.formatTemplate
 import utils.ReadableByteUnit
 import utils.toReadableBytes
@@ -114,20 +111,27 @@ import android.provider.OpenableColumns
 @Composable
 fun MihomoProfileListPage(
     padding: PaddingValues,
+    onBack: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val isWideScreen = LocalIsWideScreen.current
+    val navigationBarBottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val floatingActionButtonBottomPadding = (
+        padding.calculateBottomPadding() - navigationBarBottomPadding
+    ).coerceAtLeast(0.dp)
     val navigator = LocalNavigator.current
-    val appState by LocalAppStateStore.current.collectAppState()
+    val stateStore = LocalAppStateStore.current
+    val appState by stateStore.collectAppState()
     val updateAppState = LocalUpdateAppState.current
     val services = LocalAppServices.current
     val scope = rememberCoroutineScope()
-    val topAppBarScrollBehavior = MiuixScrollBehavior()
     var showImportDialog by remember { mutableStateOf(false) }
     var previewProfileName by remember { mutableStateOf("") }
     var previewProfileContent by remember { mutableStateOf<String?>(null) }
     var syncingProfileIds by remember { mutableStateOf<Set<Int>>(emptySet()) }
     var profilesWithProxyProviders by remember { mutableStateOf<Set<Int>>(emptySet()) }
+    var showRestartRequired by remember { mutableStateOf(false) }
+    var restartInProgress by remember { mutableStateOf(false) }
     val syncSuccessMessage = stringResource(R.string.subscription_update_result)
     val syncFailedMessage = stringResource(R.string.subscription_update_result_with_failed)
     val providerSyncResultMessage = stringResource(R.string.mihomo_configuration_provider_sync_result)
@@ -141,6 +145,7 @@ fun MihomoProfileListPage(
     val invalidQrMessage = stringResource(R.string.mihomo_configuration_invalid_qr_content)
     val serviceStoppedMessage = stringResource(R.string.proxy_service_stopped)
     val stopFailedMessage = stringResource(R.string.mihomo_dashboard_stop_failed)
+    val restartFailedMessage = stringResource(R.string.mihomo_configuration_restart_failed)
 
     val profileContentSignatures = appState.mihomoProfiles.map { profile ->
         MihomoProfileContentSignature(
@@ -181,10 +186,14 @@ fun MihomoProfileListPage(
                     },
                 )
             } else {
+                val previousProfile = state.mihomoProfiles.firstOrNull { it.id == profile.id }
                 state.copy(
                     mihomoProfiles = state.mihomoProfiles.map { item ->
                         if (item.id == profile.id) profile else item
                     },
+                ).withMihomoRestartRequired(
+                    profileId = profile.id,
+                    contentChanged = previousProfile?.hasRuntimeRelevantChanges(profile) == true,
                 )
             }
         }
@@ -285,8 +294,42 @@ fun MihomoProfileListPage(
         scope.launch {
             try {
                 syncJob.join()
+                if (stateStore.state.value.pendingMihomoRestartProfileId == profile.id) {
+                    showRestartRequired = true
+                }
             } finally {
                 syncingProfileIds = syncingProfileIds - profile.id
+            }
+        }
+    }
+
+    fun restartWithUpdatedSubscription() {
+        if (restartInProgress) return
+        restartInProgress = true
+        val completed = CompletableDeferred<ProxyServiceResult>()
+        services.appScope.launch {
+            completed.complete(services.proxyServiceUseCase.restart(stateStore.state.value))
+        }
+        scope.launch {
+            try {
+                when (val result = completed.await()) {
+                    is ProxyServiceResult.Success -> {
+                        updateAppState { state ->
+                            state.copy(
+                                proxyRunning = result.proxyRunning,
+                                localProxyPort = result.appState?.localProxyPort ?: state.localProxyPort,
+                                mihomoControlPort = result.appState?.mihomoControlPort ?: state.mihomoControlPort,
+                            ).withMihomoRestartApplied()
+                        }
+                        showRestartRequired = false
+                    }
+
+                    is ProxyServiceResult.Failed -> {
+                        services.tipNotifier.showError(result.error, restartFailedMessage)
+                    }
+                }
+            } finally {
+                restartInProgress = false
             }
         }
     }
@@ -347,11 +390,6 @@ fun MihomoProfileListPage(
         )
     }
 
-    fun importSubscription(config: SubscriptionInstallConfig) {
-        val savedProfile = saveSubscriptionProfile(config)
-        syncProfile(savedProfile)
-    }
-
     fun importFile() {
         services.appScope.launch {
             runCatching {
@@ -409,34 +447,41 @@ fun MihomoProfileListPage(
 
     Scaffold(
         topBar = {
-            AdaptiveTopAppBar(
-                title = stringResource(R.string.mihomo_configurations_title),
-                subtitle = stringResource(R.string.mihomo_configurations_count)
-                    .formatTemplate("count" to appState.mihomoProfiles.size),
-                isWideScreen = isWideScreen,
-                scrollBehavior = topAppBarScrollBehavior,
-                navigationIcon = {
-                    BackNavigationIcon(onClick = { navigator.pop() })
-                },
-                actions = {
-                    NavigationIcon(
-                        onClick = {
-                            showImportDialog = true
-                        },
-                        imageVector = MiuixIcons.Add,
-                        contentDescription = stringResource(R.string.mihomo_configuration_add),
+            TopAppBar(
+                title = {
+                    Text(
+                        text = stringResource(R.string.mihomo_configurations_title),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
+                },
+                navigationIcon = {
+                    onBack?.let { navigateBack ->
+                        IconButton(onClick = navigateBack) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                                contentDescription = stringResource(R.string.common_back),
+                            )
+                        }
+                    }
                 },
             )
         },
+        floatingActionButton = {
+            AsteriskExtendedFab(
+                onClick = { showImportDialog = true },
+                icon = Icons.Rounded.Add,
+                text = stringResource(R.string.mihomo_configuration_add),
+                modifier = Modifier.padding(bottom = floatingActionButtonBottomPadding),
+            )
+        },
     ) { innerPadding ->
-        val lazyListState = rememberLazyListState()
         val contentPadding = pageContentPaddingWithCutout(
             innerPadding = innerPadding,
             outerPadding = padding,
             isWideScreen = isWideScreen,
         )
-        val listPadding = pageListPadding(contentPadding)
+        val listPadding = pageListPadding(contentPadding, bottomExtra = 88.dp)
         val layoutDirection = LocalLayoutDirection.current
         val pageListContentPadding = PaddingValues(
             start = listPadding.calculateStartPadding(layoutDirection),
@@ -444,58 +489,47 @@ fun MihomoProfileListPage(
             bottom = listPadding.calculateBottomPadding(),
         )
 
-        Box {
-            LazyColumn(
-                state = lazyListState,
-                modifier = Modifier
-                    .padding(top = listPadding.calculateTopPadding())
-                    .pageScrollModifiers(topAppBarScrollBehavior),
-                contentPadding = pageListContentPadding,
-            ) {
-                if (appState.mihomoProfiles.isEmpty()) {
-                    item(key = "profile_empty", contentType = "empty") {
-                        MihomoProfileListEmptyState()
-                    }
-                } else {
-                    item("profiles_title") {
-                        SmallTitle(text = stringResource(R.string.mihomo_configurations_list))
-                    }
-                    items(
-                        items = appState.mihomoProfiles,
-                        key = { profile -> profile.id },
-                    ) { profile ->
-                        MihomoProfileCard(
-                            profile = profile,
-                            overrideScripts = appState.mihomoOverrideScripts,
-                            selected = profile.id == appState.selectedMihomoProfileId,
-                            syncing = profile.id in syncingProfileIds,
-                            hasProxyProviders = profile.id in profilesWithProxyProviders,
-                            onSelect = { selectProfile(profile) },
-                            onAction = { action ->
-                                when (action) {
-                                    MihomoProfileAction.Edit -> {
-                                        navigator.push(
-                                            Route.MihomoProfileEdit(
-                                                profileId = profile.id,
-                                                type = profile.type.storageValue,
-                                            ),
-                                        )
-                                    }
-                                    MihomoProfileAction.Preview -> previewProfile(profile)
-                                    MihomoProfileAction.Sync -> syncProfile(profile)
-                                    MihomoProfileAction.SyncProviders -> syncProfileProviders(profile)
-                                    MihomoProfileAction.Delete -> deleteProfile(profile)
+        LazyColumn(
+            modifier = Modifier.padding(top = listPadding.calculateTopPadding()),
+            contentPadding = pageListContentPadding,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            if (appState.mihomoProfiles.isEmpty()) {
+                item(key = "profile_empty", contentType = "empty") {
+                    MihomoProfileListEmptyState()
+                }
+            } else {
+                items(
+                    items = appState.mihomoProfiles,
+                    key = { profile -> profile.id },
+                ) { profile ->
+                    MihomoProfileCard(
+                        profile = profile,
+                        overrideScripts = appState.mihomoOverrideScripts,
+                        selected = profile.id == appState.selectedMihomoProfileId,
+                        restartRequired = profile.id == appState.pendingMihomoRestartProfileId,
+                        syncing = profile.id in syncingProfileIds,
+                        hasProxyProviders = profile.id in profilesWithProxyProviders,
+                        onSelect = { selectProfile(profile) },
+                        onAction = { action ->
+                            when (action) {
+                                MihomoProfileAction.Edit -> {
+                                    navigator.push(
+                                        Route.MihomoProfileEdit(
+                                            profileId = profile.id,
+                                            type = profile.type.storageValue,
+                                        ),
+                                    )
                                 }
-                            },
-                        )
-                    }
+                                MihomoProfileAction.Preview -> previewProfile(profile)
+                                MihomoProfileAction.Sync -> syncProfile(profile)
+                                MihomoProfileAction.SyncProviders -> syncProfileProviders(profile)
+                                MihomoProfileAction.Delete -> deleteProfile(profile)
+                            }
+                        },
+                    )
                 }
             }
-            VerticalScrollBar(
-                adapter = rememberScrollBarAdapter(lazyListState),
-                modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
-                trackPadding = contentPadding,
-            )
         }
         MihomoProfileImportDialog(
             show = showImportDialog,
@@ -521,22 +555,39 @@ fun MihomoProfileListPage(
             content = previewProfileContent.orEmpty(),
             onDismissRequest = { previewProfileContent = null },
         )
+        RestartRequiredDialog(
+            show = showRestartRequired,
+            restarting = restartInProgress,
+            onRestartNow = ::restartWithUpdatedSubscription,
+            onLater = { showRestartRequired = false },
+        )
     }
 }
 
 @Composable
 private fun MihomoProfileListEmptyState() {
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp)
-            .padding(vertical = 28.dp),
-        contentAlignment = Alignment.Center,
+            .padding(horizontal = 24.dp, vertical = 56.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        Surface(
+            shape = AsteriskShapeTokens.InnerContainer,
+            color = MaterialTheme.colorScheme.secondaryContainer,
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Description,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.padding(18.dp).size(32.dp),
+            )
+        }
         Text(
             text = stringResource(R.string.common_empty),
-            style = MiuixTheme.textStyles.body2,
-            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
@@ -553,135 +604,183 @@ private fun MihomoProfileCard(
     profile: MihomoProfileState,
     overrideScripts: List<MihomoOverrideScriptState>,
     selected: Boolean,
+    restartRequired: Boolean,
     syncing: Boolean,
     hasProxyProviders: Boolean,
     onSelect: () -> Unit,
     onAction: (MihomoProfileAction) -> Unit,
 ) {
+    val displayState = reduceMihomoProfileDisplay(profile)
     val overrideScriptName = profile.overrideScriptName(overrideScripts)
-    val interactionSource = remember { MutableInteractionSource() }
-    val menuEntries = buildList {
-        add(
-            IconDropdownMenuEntry(
-                key = MihomoProfileAction.Edit,
-                title = stringResource(R.string.common_edit),
-                action = MihomoProfileAction.Edit,
-            ),
-        )
-        add(
-            IconDropdownMenuEntry(
-                key = MihomoProfileAction.Preview,
-                title = stringResource(R.string.mihomo_configuration_preview),
-                action = MihomoProfileAction.Preview,
-            ),
-        )
-        if (profile.type == MihomoProfileType.Url && profile.url.isNotBlank() && !syncing) {
-            add(
-                IconDropdownMenuEntry(
-                    key = MihomoProfileAction.Sync,
-                    title = stringResource(R.string.mihomo_configuration_sync),
-                    action = MihomoProfileAction.Sync,
-                ),
-            )
-        }
-        if (hasProxyProviders && !syncing) {
-            add(
-                IconDropdownMenuEntry(
-                    key = MihomoProfileAction.SyncProviders,
-                    title = stringResource(R.string.mihomo_configuration_sync_providers),
-                    action = MihomoProfileAction.SyncProviders,
-                ),
-            )
-        }
-        if (!profile.builtIn) {
-            add(
-                IconDropdownMenuEntry(
-                    key = MihomoProfileAction.Delete,
-                    title = stringResource(R.string.common_delete),
-                    action = MihomoProfileAction.Delete,
-                ),
-            )
-        }
-    }
+    var menuExpanded by remember { mutableStateOf(false) }
 
-    Card(
+    AsteriskSelectionCard(
+        selected = selected,
+        onClick = onSelect,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp)
-            .padding(bottom = 12.dp)
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                enabled = !selected,
-                onClick = onSelect,
-            ),
-        colors = CardDefaults.defaultColors(color = mihomoProfileCardColor(selected)),
-        insideMargin = PaddingValues(16.dp),
+            .semantics { this.selected = selected },
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
+        Column(
+            modifier = Modifier.padding(start = 16.dp, top = 14.dp, end = 8.dp, bottom = 16.dp),
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = profile.name,
-                        fontSize = 18.sp,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
-                        color = MiuixTheme.colorScheme.onSurface,
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
                         text = profile.summaryText(),
-                        style = MiuixTheme.textStyles.body2,
-                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
-                MihomoProfileSubscriptionInfo(profile = profile)
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 10.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = profile.lastUpdatedText(),
-                        style = MiuixTheme.textStyles.body2,
-                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f),
+                if (syncing) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.primary,
                     )
-                    if (overrideScriptName != null) {
-                        MihomoProfileChip(
-                            text = stringResource(R.string.mihomo_configuration_override_script_applied)
-                                .formatTemplate("name" to overrideScriptName),
+                    Spacer(modifier = Modifier.width(4.dp))
+                }
+                Box {
+                    IconButton(onClick = { menuExpanded = true }) {
+                        Icon(
+                            imageVector = Icons.Rounded.MoreVert,
+                            contentDescription = stringResource(R.string.mihomo_configuration_actions),
                         )
+                    }
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false },
+                    ) {
+                        MihomoProfileMenuItem(
+                            text = stringResource(R.string.common_edit),
+                            action = MihomoProfileAction.Edit,
+                            onAction = onAction,
+                            onDismiss = { menuExpanded = false },
+                        )
+                        MihomoProfileMenuItem(
+                            text = stringResource(R.string.mihomo_configuration_preview),
+                            action = MihomoProfileAction.Preview,
+                            onAction = onAction,
+                            onDismiss = { menuExpanded = false },
+                        )
+                        if (displayState.showSync && !syncing) {
+                            MihomoProfileMenuItem(
+                                text = stringResource(R.string.mihomo_configuration_sync),
+                                action = MihomoProfileAction.Sync,
+                                onAction = onAction,
+                                onDismiss = { menuExpanded = false },
+                            )
+                        }
+                        if (hasProxyProviders && !syncing) {
+                            MihomoProfileMenuItem(
+                                text = stringResource(R.string.mihomo_configuration_sync_providers),
+                                action = MihomoProfileAction.SyncProviders,
+                                onAction = onAction,
+                                onDismiss = { menuExpanded = false },
+                            )
+                        }
+                        if (!profile.builtIn) {
+                            MihomoProfileMenuItem(
+                                text = stringResource(R.string.common_delete),
+                                action = MihomoProfileAction.Delete,
+                                onAction = onAction,
+                                onDismiss = { menuExpanded = false },
+                            )
+                        }
                     }
                 }
             }
-            Spacer(modifier = Modifier.width(12.dp))
-            IconDropdownMenu(
-                imageVector = MiuixIcons.More,
-                contentDescription = stringResource(R.string.mihomo_configuration_actions),
-                entries = menuEntries,
-                onAction = onAction,
+
+            MihomoProfileSubscriptionInfo(profile = profile)
+            Text(
+                text = profile.lastUpdatedText(),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 10.dp, end = 8.dp),
             )
+            Row(
+                modifier = Modifier.padding(top = 12.dp, end = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                AsteriskInfoChip(
+                    text = stringResource(
+                        when (displayState.kind) {
+                            MihomoProfileDisplayKind.RemoteSubscription -> {
+                                R.string.mihomo_configuration_chip_remote_subscription
+                            }
+                            MihomoProfileDisplayKind.LocalFile -> R.string.mihomo_configuration_chip_local_file
+                        },
+                    ),
+                    emphasized = selected,
+                )
+                if (displayState.rawConfiguration) {
+                    AsteriskInfoChip(
+                        text = stringResource(R.string.mihomo_configuration_raw_chip),
+                        emphasized = selected,
+                    )
+                }
+                if (restartRequired) {
+                    AsteriskInfoChip(
+                        text = stringResource(R.string.mihomo_configuration_restart_required),
+                        emphasized = selected,
+                    )
+                }
+                if (overrideScriptName != null) {
+                    AsteriskInfoChip(
+                        text = if (displayState.rawConfiguration) {
+                            stringResource(R.string.mihomo_configuration_override_script_stopped)
+                        } else {
+                            stringResource(R.string.mihomo_configuration_override_script_applied)
+                                .formatTemplate("name" to overrideScriptName)
+                        },
+                        emphasized = selected,
+                    )
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun mihomoProfileCardColor(selected: Boolean): Color {
-    return if (selected) {
-        MiuixTheme.colorScheme.primary.copy(alpha = 0.10f)
-    } else {
-        MiuixTheme.colorScheme.surface
+private fun MihomoProfileMenuItem(
+    text: String,
+    action: MihomoProfileAction,
+    onAction: (MihomoProfileAction) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    DropdownMenuItem(
+        text = { Text(text) },
+        leadingIcon = { Icon(action.icon(), contentDescription = null) },
+        onClick = {
+            onDismiss()
+            onAction(action)
+        },
+    )
+}
+
+private fun MihomoProfileAction.icon(): ImageVector {
+    return when (this) {
+        MihomoProfileAction.Edit -> Icons.Rounded.Edit
+        MihomoProfileAction.Preview -> Icons.Rounded.Visibility
+        MihomoProfileAction.Sync -> Icons.Rounded.Sync
+        MihomoProfileAction.SyncProviders -> Icons.Rounded.CloudSync
+        MihomoProfileAction.Delete -> Icons.Rounded.Delete
     }
 }
 
@@ -705,34 +804,39 @@ private fun MihomoProfileImportDialog(
     onDismissRequest: () -> Unit,
     onAction: (MihomoProfileImportAction) -> Unit,
 ) {
-    WindowDialog(
+    AsteriskModalBottomSheet(
         show = show,
-        title = stringResource(R.string.mihomo_configuration_add_method_title),
         onDismissRequest = onDismissRequest,
     ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.mihomo_configuration_add_method_title),
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.padding(bottom = 6.dp),
+            )
             MihomoProfileImportOption(
                 title = stringResource(R.string.mihomo_configuration_add_qr),
                 summary = stringResource(R.string.mihomo_configuration_add_qr_summary),
-                icon = { Icon(imageVector = MiuixIcons.Scan, contentDescription = null) },
+                icon = { Icon(imageVector = Icons.Rounded.QrCodeScanner, contentDescription = null) },
                 onClick = { onAction(MihomoProfileImportAction.QrCode) },
             )
             MihomoProfileImportOption(
                 title = stringResource(R.string.mihomo_configuration_add_file),
                 summary = stringResource(R.string.mihomo_configuration_add_file_summary),
-                icon = { Icon(imageVector = MiuixIcons.File, contentDescription = null) },
+                icon = { Icon(imageVector = Icons.Rounded.FolderOpen, contentDescription = null) },
                 onClick = { onAction(MihomoProfileImportAction.File) },
             )
             MihomoProfileImportOption(
                 title = stringResource(R.string.mihomo_configuration_add_url),
                 summary = stringResource(R.string.mihomo_configuration_add_url_summary),
-                icon = { Icon(imageVector = MiuixIcons.Link, contentDescription = null) },
+                icon = { Icon(imageVector = Icons.Rounded.Link, contentDescription = null) },
                 onClick = { onAction(MihomoProfileImportAction.Url) },
-            )
-            TextButton(
-                text = stringResource(R.string.common_cancel),
-                onClick = onDismissRequest,
-                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
             )
         }
     }
@@ -745,42 +849,44 @@ private fun MihomoProfileImportOption(
     icon: @Composable () -> Unit,
     onClick: () -> Unit,
 ) {
-    Card(
+    Surface(
+        onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = 10.dp)
-            .clickable(onClick = onClick),
-        insideMargin = PaddingValues(14.dp),
+            .heightIn(min = 76.dp),
+        shape = AsteriskShapeTokens.InnerContainer,
+        color = MaterialTheme.colorScheme.surfaceContainer,
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(MiuixTheme.colorScheme.primary.copy(alpha = 0.12f))
-                    .padding(8.dp),
+            Surface(
+                shape = AsteriskShapeTokens.SmallContainer,
+                color = MaterialTheme.colorScheme.secondaryContainer,
             ) {
-                icon()
+                Box(
+                    modifier = Modifier.padding(10.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    icon()
+                }
             }
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
-                    fontSize = 16.sp,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = MiuixTheme.colorScheme.onSurface,
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = summary,
-                    style = MiuixTheme.textStyles.body2,
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 3.dp),
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }
@@ -799,21 +905,12 @@ private fun MihomoProfileSubscriptionInfo(
             .fillMaxWidth()
             .padding(top = 12.dp),
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(6.dp)
-                .clip(RoundedCornerShape(999.dp))
-                .background(MiuixTheme.colorScheme.primary.copy(alpha = 0.14f)),
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(progress)
-                    .height(6.dp)
-                    .clip(RoundedCornerShape(999.dp))
-                    .background(MiuixTheme.colorScheme.primary),
-            )
-        }
+        LinearProgressIndicator(
+            progress = { progress },
+            modifier = Modifier.fillMaxWidth().height(6.dp).padding(end = 8.dp),
+            color = MaterialTheme.colorScheme.primary,
+            trackColor = MaterialTheme.colorScheme.primaryContainer,
+        )
         Text(
             text = stringResource(R.string.mihomo_configuration_traffic_summary)
                 .formatTemplate(
@@ -821,17 +918,18 @@ private fun MihomoProfileSubscriptionInfo(
                     "total" to info.totalBytes.toReadableBytes(maxUnit = ReadableByteUnit.GiB),
                     "expire" to info.expireText(),
                 ),
-            style = MiuixTheme.textStyles.body2,
-            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = 6.dp),
+            modifier = Modifier.padding(top = 6.dp, end = 8.dp),
         )
     }
 }
 
 @Composable
 private fun MihomoProfileState.summaryText(): String {
+    if (disableOverrides) return stringResource(R.string.mihomo_configuration_raw_summary)
     return when (type) {
         MihomoProfileType.Url -> url.ifBlank { stringResource(R.string.mihomo_configuration_type_url) }
         MihomoProfileType.File -> stringResource(R.string.mihomo_configuration_type_file)
@@ -846,65 +944,52 @@ private fun MihomoProfileState.overrideScriptName(
 }
 
 @Composable
-private fun MihomoProfileChip(
-    text: String,
-) {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(MiuixTheme.colorScheme.disabledOnSecondaryVariant.copy(alpha = 0.10f))
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-    ) {
-        Text(
-            text = text,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium,
-            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
-
-@Composable
 private fun MihomoProfilePreviewDialog(
     show: Boolean,
     profileName: String,
     content: String,
     onDismissRequest: () -> Unit,
 ) {
-    val previewValue = remember(content) {
-        TextFieldValue(
-            text = content,
-            selection = TextRange(0),
-        )
+    if (!show) return
+    val previewEditorState = remember(content) {
+        MihomoCodeEditorState(content).also { state ->
+            state.replaceText(content, placeCursorAtEnd = false)
+        }
     }
 
-    WindowDialog(
-        show = show,
-        title = stringResource(R.string.mihomo_configuration_preview_title)
-            .formatTemplate("name" to profileName.ifBlank { "-" }),
+    Dialog(
         onDismissRequest = onDismissRequest,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .widthIn(max = 880.dp)
+                .padding(24.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
         ) {
-            YamlCodeEditor(
-                label = stringResource(R.string.mihomo_configuration_content),
-                value = previewValue,
-                onValueChange = {},
-                readOnly = true,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 360.dp, max = 520.dp)
-                    .padding(bottom = 16.dp),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default),
-            )
-            TextButton(
-                text = stringResource(R.string.common_complete),
-                onClick = onDismissRequest,
-                modifier = Modifier.fillMaxWidth(),
-            )
+            Column(modifier = Modifier.padding(20.dp)) {
+                Text(
+                    text = stringResource(R.string.mihomo_configuration_preview_title)
+                        .formatTemplate("name" to profileName.ifBlank { "-" }),
+                    style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier.padding(bottom = 16.dp),
+                )
+                YamlCodeEditor(
+                    label = stringResource(R.string.mihomo_configuration_content),
+                    state = previewEditorState,
+                    readOnly = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 360.dp, max = 560.dp),
+                )
+                AsteriskActionButton(
+                    text = stringResource(R.string.common_complete),
+                    icon = Icons.Rounded.Check,
+                    onClick = onDismissRequest,
+                    modifier = Modifier.align(Alignment.End).padding(top = 8.dp),
+                )
+            }
         }
     }
 }

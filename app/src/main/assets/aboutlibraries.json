@@ -27,6 +27,19 @@
             ]
         },
         {
+            "uniqueId": "androidx.navigation3:navigation3-ui",
+            "artifactVersion": "1.1.4",
+            "name": "Androidx Navigation 3 UI",
+            "description": "Provides a Navigation3 display that uses the building blocks from runtime to create a higher level solution.",
+            "website": "https://developer.android.com/jetpack/androidx/releases/navigation3#1.1.4",
+            "scm": {
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ]
+        },
+        {
             "uniqueId": "github:MetaCubeX/ClashMetaForAndroid",
             "artifactVersion": "v2.11.31-asterisk",
             "name": "CMFA Mihomo wrapper",
@@ -79,6 +92,32 @@
             ]
         },
         {
+            "uniqueId": "org.jetbrains.compose.material:material-icons-extended",
+            "artifactVersion": "1.7.3",
+            "name": "Compose Material Icons Extended",
+            "description": "Compose Material Design extended icons. This module contains all Material icons. It is a very large dependency and should not be included directly.",
+            "website": "https://github.com/JetBrains/compose-jb",
+            "scm": {
+                "url": "https://github.com/JetBrains/compose-jb"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ]
+        },
+        {
+            "uniqueId": "org.jetbrains.compose.material3:material3",
+            "artifactVersion": "1.11.0-alpha07",
+            "name": "Compose Material3 Components",
+            "description": "Compose Material You Design Components library",
+            "website": "https://github.com/JetBrains/compose-multiplatform",
+            "scm": {
+                "url": "https://github.com/JetBrains/compose-multiplatform"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ]
+        },
+        {
             "uniqueId": "org.jetbrains.compose.ui:ui",
             "artifactVersion": "1.11.1",
             "name": "Compose UI",
@@ -105,6 +144,19 @@
             ]
         },
         {
+            "uniqueId": "io.github.rosemoe:editor",
+            "artifactVersion": "0.24.6",
+            "name": "editor",
+            "description": "An awesome code editor library on Android",
+            "website": "https://github.com/Rosemoe/sora-editor",
+            "scm": {
+                "url": "https://github.com/Rosemoe/sora-editor/tree/master"
+            },
+            "licenses": [
+                "LGPL v2.1"
+            ]
+        },
+        {
             "uniqueId": "github:heiher/hev-socks5-tunnel",
             "artifactVersion": "2.15.0",
             "name": "hev-socks5-tunnel",
@@ -119,7 +171,7 @@
         },
         {
             "uniqueId": "org.jetbrains.kotlin:kotlin-stdlib",
-            "artifactVersion": "2.4.0",
+            "artifactVersion": "2.4.10",
             "name": "Kotlin Stdlib",
             "description": "Kotlin Standard Library",
             "website": "https://kotlinlang.org/",
@@ -183,6 +235,19 @@
             ]
         },
         {
+            "uniqueId": "com.materialkolor:material-kolor",
+            "artifactVersion": "5.0.0",
+            "name": "MaterialKolor",
+            "description": "Material You dynamic color for Compose Multiplatform",
+            "website": "https://github.com/jordond/materialkolor",
+            "scm": {
+                "url": "https://github.com/jordond/materialkolor"
+            },
+            "licenses": [
+                "MIT"
+            ]
+        },
+        {
             "uniqueId": "github:MetaCubeX/mihomo",
             "artifactVersion": "v1.19.28",
             "name": "Mihomo",
@@ -193,58 +258,6 @@
             },
             "licenses": [
                 "GPL-3.0"
-            ]
-        },
-        {
-            "uniqueId": "top.yukonga.miuix.kmp:miuix-icons",
-            "artifactVersion": "0.9.3",
-            "name": "miuix-icons",
-            "description": "Extended icon library for Miuix",
-            "website": "https://github.com/compose-miuix-ui/miuix",
-            "scm": {
-                "url": "https://github.com/compose-miuix-ui/miuix"
-            },
-            "licenses": [
-                "Apache-2.0"
-            ]
-        },
-        {
-            "uniqueId": "top.yukonga.miuix.kmp:miuix-navigation3-ui",
-            "artifactVersion": "0.9.3",
-            "name": "miuix-navigation3-ui",
-            "description": "Navigation3 UI library for Miuix",
-            "website": "https://github.com/compose-miuix-ui/miuix",
-            "scm": {
-                "url": "https://github.com/compose-miuix-ui/miuix"
-            },
-            "licenses": [
-                "Apache-2.0"
-            ]
-        },
-        {
-            "uniqueId": "top.yukonga.miuix.kmp:miuix-preference",
-            "artifactVersion": "0.9.3",
-            "name": "miuix-preference",
-            "description": "Preference components for Miuix",
-            "website": "https://github.com/compose-miuix-ui/miuix",
-            "scm": {
-                "url": "https://github.com/compose-miuix-ui/miuix"
-            },
-            "licenses": [
-                "Apache-2.0"
-            ]
-        },
-        {
-            "uniqueId": "top.yukonga.miuix.kmp:miuix-ui",
-            "artifactVersion": "0.9.3",
-            "name": "miuix-ui",
-            "description": "A UI library for Compose Multiplatform",
-            "website": "https://github.com/compose-miuix-ui/miuix",
-            "scm": {
-                "url": "https://github.com/compose-miuix-ui/miuix"
-            },
-            "licenses": [
-                "Apache-2.0"
             ]
         },
         {

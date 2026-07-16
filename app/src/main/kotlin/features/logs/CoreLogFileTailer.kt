@@ -12,6 +12,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.File
 import java.io.RandomAccessFile
+import kotlin.time.Duration.Companion.milliseconds
 
 internal data class CoreLogFile(
     val path: String,
@@ -46,7 +47,7 @@ internal class CoreLogFileTailer(
 
         while (scope.isActive) {
             if (!file.exists()) {
-                delay(TailIntervalMillis)
+                delay(TailIntervalMillis.milliseconds)
                 continue
             }
 
@@ -73,7 +74,7 @@ internal class CoreLogFileTailer(
                 }
             }
 
-            delay(TailIntervalMillis)
+            delay(TailIntervalMillis.milliseconds)
         }
     }
 
@@ -95,8 +96,8 @@ internal data class ParsedCoreLogLine(
     val message: String,
 )
 
-private val MihomoLogLineRegex = Regex("""^(\d{4}/\d{2}/\d{2}\s+\d{2}:\d{2}:\d{2})\s+\[([A-Za-z]+)]\s*(.*)$""")
-private val MihomoLogLineWithoutLevelRegex = Regex("""^(\d{4}/\d{2}/\d{2}\s+\d{2}:\d{2}:\d{2})\s+(.*)$""")
+private val MihomoLogLineRegex = Regex("""^(\d{4}[-/]\d{2}[-/]\d{2}\s+\d{2}:\d{2}:\d{2})\s+\[([A-Za-z]+)]\s*(.*)$""")
+private val MihomoLogLineWithoutLevelRegex = Regex("""^(\d{4}[-/]\d{2}[-/]\d{2}\s+\d{2}:\d{2}:\d{2})\s+(.*)$""")
 
 internal fun CoreLogRepository.appendParsedCoreLogLine(line: String, defaultLevel: String) {
     val parsedLine = parseCoreLogLine(line, defaultLevel) ?: return

@@ -14,15 +14,26 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import system.AndroidAppIconFetcher
+import app.effects.AppActivityForegroundTracker
+import app.effects.MihomoRuntimeLifecycleCoordinator
+import engine.mihomo.runtime.MihomoRuntimeRepository
 
 class AsteriskApplication : Application(), SingletonImageLoader.Factory {
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    internal val mihomoRuntime: MihomoRuntimeRepository by lazy { MihomoRuntimeRepository(appScope, this) }
+    internal val mihomoRuntimeLifecycle: MihomoRuntimeLifecycleCoordinator by lazy {
+        MihomoRuntimeLifecycleCoordinator(appScope, mihomoRuntime)
+    }
+
+    private lateinit var foregroundTracker: AppActivityForegroundTracker
 
     override fun onCreate() {
         super.onCreate()
         Global.init(this)
         AndroidLogcatRepository.initialize(applicationContext)
         AndroidCoreLogRepository.initialize(applicationContext)
+        foregroundTracker = AppActivityForegroundTracker(mihomoRuntimeLifecycle)
+        registerActivityLifecycleCallbacks(foregroundTracker)
     }
 
     override fun newImageLoader(context: PlatformContext): ImageLoader {

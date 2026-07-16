@@ -7,9 +7,9 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,46 +17,51 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import app.R
-import system.ANDROID_APP_ICON_SIZE_DP
+import app.modes.ProxyAppListModeBlacklist
+import app.modes.ProxyAppListModeGlobal
+import app.modes.ProxyAppListModeWhitelist
 import coil3.compose.AsyncImage
-import androidx.compose.ui.res.stringResource
-import top.yukonga.miuix.kmp.basic.Card
-import top.yukonga.miuix.kmp.basic.CardDefaults
-import top.yukonga.miuix.kmp.basic.Checkbox
-import top.yukonga.miuix.kmp.basic.InputField
-import top.yukonga.miuix.kmp.basic.SearchBar
-import top.yukonga.miuix.kmp.basic.TabRowDefaults
-import top.yukonga.miuix.kmp.basic.TabRowWithContour
-import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.icon.MiuixIcons
-import top.yukonga.miuix.kmp.icon.extended.More
-import top.yukonga.miuix.kmp.icon.extended.Tune
-import top.yukonga.miuix.kmp.theme.MiuixTheme
 import features.proxy.app.model.AppPackageEntry
 import features.proxy.app.model.ProxyAppIconRequest
 import features.proxy.app.model.ProxyAppListUserSpaceTabUi
-import ui.text.formatTemplate
 import features.proxy.app.model.name
-import androidx.compose.runtime.getValue
-import ui.components.IconDropdownMenu
-import ui.components.IconDropdownMenuEntry
+import system.ANDROID_APP_ICON_SIZE_DP
+import ui.components.AsteriskCheckbox
+import ui.components.AsteriskChipTone
+import ui.components.AsteriskFilterChip
+import ui.components.AsteriskInfoChip
+import ui.components.AsteriskSelectionCard
+import ui.text.formatTemplate
+import ui.theme.AsteriskShapeTokens
+import ui.icons.AsteriskIcons as Icons
 
 internal enum class ProxyAppListMoreAction {
     ToggleSystemApps,
@@ -71,27 +76,26 @@ internal fun ProxyAppListUserSpaceTabs(
     onSelectedUserIdChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    if (tabs.isEmpty()) return
+    if (tabs.size <= 1) return
 
     val hapticFeedback = LocalHapticFeedback.current
-    val selectedIndex = tabs.indexOfFirst { tab -> tab.id == selectedUserId }
-        .coerceAtLeast(0)
-    TabRowWithContour(
-        tabs = tabs.map { tab -> "${tab.label} (${tab.checkedCount})" },
-        selectedTabIndex = selectedIndex,
-        onTabSelected = { index ->
-            hapticFeedback.performHapticFeedback(HapticFeedbackType.Confirm)
-            onSelectedUserIdChange(tabs[index].id)
-        },
-        colors = TabRowDefaults.tabRowColors(
-            selectedBackgroundColor = MiuixTheme.colorScheme.primary.copy(alpha = 0.16f),
-            selectedContentColor = MiuixTheme.colorScheme.primary,
-        ),
+    Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp),
-        maxWidth = 132.dp,
-    )
+            .horizontalScroll(rememberScrollState()),
+    ) {
+        tabs.forEach { tab ->
+            AsteriskFilterChip(
+                selected = tab.id == selectedUserId,
+                onClick = {
+                    hapticFeedback.performHapticFeedback(HapticFeedbackType.Confirm)
+                    onSelectedUserIdChange(tab.id)
+                },
+                label = "${tab.label} (${tab.checkedCount})",
+                modifier = Modifier.padding(end = 8.dp),
+            )
+        }
+    }
 }
 
 @Composable
@@ -99,29 +103,36 @@ internal fun ProxyAppListMoreActionsMenu(
     showSystemApps: Boolean,
     onAction: (ProxyAppListMoreAction) -> Unit,
 ) {
-    IconDropdownMenu(
-        imageVector = MiuixIcons.More,
-        contentDescription = stringResource(R.string.proxy_app_list_more_actions),
-        entries = listOf(
-            IconDropdownMenuEntry(
-                key = "show-system-apps",
-                title = stringResource(R.string.proxy_app_list_show_system_apps),
-                selected = showSystemApps,
-                action = ProxyAppListMoreAction.ToggleSystemApps,
-            ),
-            IconDropdownMenuEntry(
-                key = "import-clipboard",
-                title = stringResource(R.string.common_import_from_clipboard),
-                action = ProxyAppListMoreAction.ImportClipboard,
-            ),
-            IconDropdownMenuEntry(
-                key = "export-clipboard",
-                title = stringResource(R.string.common_export_to_clipboard),
-                action = ProxyAppListMoreAction.ExportClipboard,
-            ),
-        ),
-        onAction = onAction,
-    )
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { expanded = true }) {
+            Icon(Icons.Rounded.MoreVert, stringResource(R.string.proxy_app_list_more_actions))
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.proxy_app_list_show_system_apps)) },
+                onClick = { onAction(ProxyAppListMoreAction.ToggleSystemApps) },
+                leadingIcon = { Icon(Icons.Rounded.Apps, contentDescription = null) },
+                trailingIcon = { AsteriskCheckbox(checked = showSystemApps, onCheckedChange = null) },
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.common_import_from_clipboard)) },
+                onClick = {
+                    expanded = false
+                    onAction(ProxyAppListMoreAction.ImportClipboard)
+                },
+                leadingIcon = { Icon(Icons.Rounded.FileDownload, contentDescription = null) },
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.common_export_to_clipboard)) },
+                onClick = {
+                    expanded = false
+                    onAction(ProxyAppListMoreAction.ExportClipboard)
+                },
+                leadingIcon = { Icon(Icons.Rounded.FileUpload, contentDescription = null) },
+            )
+        }
+    }
 }
 
 @Composable
@@ -130,19 +141,34 @@ internal fun ProxyAppListModeMenu(
     selectedIndex: Int,
     onSelectedIndexChange: (Int) -> Unit,
 ) {
-    IconDropdownMenu(
-        imageVector = MiuixIcons.Tune,
-        contentDescription = stringResource(R.string.proxy_app_list_mode),
-        entries = modes.mapIndexed { index, mode ->
-            IconDropdownMenuEntry(
-                key = mode,
-                title = mode,
-                selected = selectedIndex == index,
-                action = index,
-            )
-        },
-        onAction = onSelectedIndexChange,
-    )
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { expanded = true }) {
+            Icon(Icons.Rounded.Tune, stringResource(R.string.proxy_app_list_mode))
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            modes.forEachIndexed { index, mode ->
+                DropdownMenuItem(
+                    text = { Text(mode) },
+                    leadingIcon = { Icon(proxyAppListModeIcon(index), contentDescription = null) },
+                    onClick = {
+                        expanded = false
+                        onSelectedIndexChange(index)
+                    },
+                    trailingIcon = { RadioButton(selected = selectedIndex == index, onClick = null) },
+                )
+            }
+        }
+    }
+}
+
+internal fun proxyAppListModeIcon(mode: Int): ImageVector {
+    return when (mode) {
+        ProxyAppListModeBlacklist -> Icons.Rounded.Block
+        ProxyAppListModeWhitelist -> Icons.Rounded.CheckCircle
+        ProxyAppListModeGlobal -> Icons.Rounded.Public
+        else -> Icons.Rounded.Tune
+    }
 }
 
 @Composable
@@ -161,23 +187,21 @@ internal fun ProxyAppListItemCard(
         }
     }
 
-    Card(
+    AsteriskSelectionCard(
+        selected = checked,
+        onClick = toggle,
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp)
-            .padding(bottom = 8.dp),
-        colors = CardDefaults.defaultColors(
-            color = if (app.system) {
-                MiuixTheme.colorScheme.primary.copy(alpha = 0.08f)
-            } else {
-                MiuixTheme.colorScheme.surface
-            },
-        ),
-        insideMargin = PaddingValues(14.dp),
-        onClick = toggle,
+            .padding(bottom = 12.dp),
+        enabled = enabled,
+        containerColor = if (app.system) {
+            MaterialTheme.colorScheme.surfaceContainerHigh
+        } else {
+            MaterialTheme.colorScheme.surfaceContainerLow
+        },
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             AppIcon(
@@ -193,25 +217,16 @@ internal fun ProxyAppListItemCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = app.name,
-                        fontSize = 17.sp,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Medium,
-                        color = if (enabled) {
-                            MiuixTheme.colorScheme.onSurface
-                        } else {
-                            MiuixTheme.colorScheme.disabledOnSecondaryVariant
-                        },
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
                         text = stringResource(R.string.proxy_app_list_entry_summary)
                             .formatTemplate("package" to app.packageName),
-                        style = MiuixTheme.textStyles.body2,
-                        color = if (enabled) {
-                            MiuixTheme.colorScheme.onSurfaceVariantSummary
-                        } else {
-                            MiuixTheme.colorScheme.disabledOnSecondaryVariant
-                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -219,41 +234,16 @@ internal fun ProxyAppListItemCard(
                 Spacer(Modifier.width(8.dp))
                 UidChip(
                     uid = app.uid,
-                    enabled = enabled,
                     sharedUid = sharedUid,
                 )
+                AsteriskCheckbox(
+                    checked = checked,
+                    onCheckedChange = { onCheckedChange(it) },
+                    enabled = enabled,
+                )
             }
-            Spacer(Modifier.width(12.dp))
-            Checkbox(
-                state = ToggleableState(checked),
-                onClick = toggle,
-                enabled = enabled,
-            )
         }
     }
-}
-
-@Composable
-internal fun ProxyAppListSearchBar(
-    searchValue: String,
-    onSearchValueChange: (String) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    SearchBar(
-        modifier = modifier,
-        inputField = {
-            InputField(
-                query = searchValue,
-                onQueryChange = onSearchValueChange,
-                onSearch = {},
-                expanded = false,
-                onExpandedChange = {},
-                label = stringResource(R.string.proxy_app_list_search_label),
-            )
-        },
-        expanded = false,
-        onExpandedChange = {},
-    ) {}
 }
 
 @Composable
@@ -263,14 +253,13 @@ internal fun ProxyAppListEmptyState(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp)
             .padding(vertical = 28.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             text = stringResource(R.string.common_empty),
-            style = MiuixTheme.textStyles.body2,
-            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
@@ -278,42 +267,16 @@ internal fun ProxyAppListEmptyState(
 @Composable
 private fun UidChip(
     uid: Int?,
-    enabled: Boolean,
     sharedUid: Boolean,
 ) {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(
-                if (!enabled) {
-                    MiuixTheme.colorScheme.disabledOnSecondaryVariant.copy(alpha = 0.10f)
-                } else if (sharedUid) {
-                    MiuixTheme.colorScheme.primary
-                } else {
-                    MiuixTheme.colorScheme.primary.copy(alpha = 0.14f)
-                },
-            )
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-    ) {
-        Text(
-            text = if (sharedUid) {
-                "SUID:${uid?.toString() ?: "..."}"
-            } else {
-                "UID:${uid?.toString() ?: "..."}"
-            },
-            fontSize = 12.sp,
-            fontWeight = if (sharedUid) FontWeight.SemiBold else FontWeight.Medium,
-            color = if (!enabled) {
-                MiuixTheme.colorScheme.disabledOnSecondaryVariant
-            } else if (sharedUid) {
-                MiuixTheme.colorScheme.onPrimary
-            } else {
-                MiuixTheme.colorScheme.primary
-            },
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
+    AsteriskInfoChip(
+        text = if (sharedUid) {
+            "SUID:${uid?.toString() ?: "..."}"
+        } else {
+            "UID:${uid?.toString() ?: "..."}"
+        },
+        tone = if (sharedUid) AsteriskChipTone.Tertiary else AsteriskChipTone.Secondary,
+    )
 }
 
 @Composable
@@ -324,9 +287,13 @@ private fun AppIcon(
 ) {
     val backgroundColor by animateColorAsState(
         targetValue = if (enabled) {
-            MiuixTheme.colorScheme.primary.copy(alpha = if (app.system) 0.10f else 0.16f)
+            if (app.system) {
+                MaterialTheme.colorScheme.secondaryContainer
+            } else {
+                MaterialTheme.colorScheme.primaryContainer
+            }
         } else {
-            MiuixTheme.colorScheme.disabledOnSecondaryVariant.copy(alpha = 0.10f)
+            MaterialTheme.colorScheme.surfaceContainerHighest
         },
         animationSpec = tween(180),
         label = "per-app-icon-background",
@@ -345,7 +312,7 @@ private fun AppIcon(
     Box(
         modifier = Modifier
             .size(ANDROID_APP_ICON_SIZE_DP.dp)
-            .clip(RoundedCornerShape(12.dp))
+            .clip(AsteriskShapeTokens.SmallContainer)
             .background(backgroundColor),
         contentAlignment = Alignment.Center,
     ) {

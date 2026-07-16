@@ -30,6 +30,21 @@ sealed interface Route : NavKey {
     data object ResourceManagement : Route
 
     @Serializable
+    data object ResourceMonitor : Route
+
+    @Serializable
+    data object ConnectionsMonitor : Route
+
+    @Serializable
+    data object TrafficMonitor : Route
+
+    @Serializable
+    data object NetworkMonitor : Route
+
+    @Serializable
+    data object ProxyAppList : Route
+
+    @Serializable
     data object MihomoProfileList : Route
 
     @Serializable

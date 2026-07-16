@@ -19,7 +19,7 @@ import java.io.File
 internal fun writeRootConfigFile(config: RootStartConfig) {
     val configFile = File(config.configPath)
     writeAtomically(configFile) { output ->
-        output.write(config.mihomoProfileYaml.toByteArray(Charsets.UTF_8))
+        output.write(config.mihomoProfileBytes)
     }
     configFile.setReadable(true, false)
     configFile.setWritable(true, true)

@@ -4,10 +4,6 @@
 package features.settings.sheets
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.R
+import ui.icons.AsteriskIcons as Icons
 import engine.mihomo.DefaultMihomoDnsFakeIpRange
 import engine.mihomo.MihomoDnsModeFakeIp
 import engine.mihomo.MihomoDnsModeValues
@@ -28,13 +25,10 @@ import engine.network.isCidrAddress
 import engine.network.isIpv4CidrAddress
 import engine.network.isIpAddress
 import features.settings.DnsSettingsDraft
-import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.basic.TextButton
-import top.yukonga.miuix.kmp.preference.SwitchPreference
-import top.yukonga.miuix.kmp.preference.WindowDropdownPreference
-import top.yukonga.miuix.kmp.theme.MiuixTheme
-import top.yukonga.miuix.kmp.window.WindowBottomSheet
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import ui.components.StringListEditor
+import ui.theme.AsteriskMotion
 import utils.toTrimmedNonEmptyDistinctList
 
 private const val DnsHostSeparator = ':'
@@ -95,18 +89,20 @@ internal fun DnsSettingsBottomSheet(
     }
     val canSave = fakeIpRangeError == null && geoipCodeError == null
 
-    WindowBottomSheet(
+    SettingsModalBottomSheet(
         show = show,
         title = stringResource(R.string.settings_dns),
         startAction = {
             TextButton(
                 text = stringResource(R.string.common_cancel),
+                icon = Icons.Rounded.Close,
                 onClick = onDismissRequest,
             )
         },
         endAction = {
             TextButton(
                 text = stringResource(R.string.common_save),
+                icon = Icons.Rounded.Save,
                 onClick = {
                     if (canSave) {
                         onSave(sanitizedDraft)
@@ -121,29 +117,34 @@ internal fun DnsSettingsBottomSheet(
                 DnsSheetSection(title = stringResource(R.string.settings_dns_section_basic)) {
                     SwitchPreference(
                         title = stringResource(R.string.settings_vpn_local_dns),
+                        icon = Icons.Rounded.Dns,
                         summary = stringResource(R.string.settings_vpn_local_dns_summary),
                         checked = draft.enableLocalDns,
                         onCheckedChange = { onDraftChange(draft.copy(enableLocalDns = it)) },
                     )
                     SwitchPreference(
                         title = stringResource(R.string.settings_dns_override),
+                        icon = Icons.AutoMirrored.Rounded.AltRoute,
                         summary = stringResource(R.string.settings_dns_override_summary),
                         checked = draft.overrideDns,
                         onCheckedChange = { onDraftChange(draft.copy(overrideDns = it)) },
                     )
                     WindowDropdownPreference(
                         title = stringResource(R.string.settings_dns_enhanced_mode),
+                        icon = Icons.Rounded.Tune,
                         items = MihomoDnsModeValues,
                         selectedIndex = draft.dnsEnhancedMode.coerceIn(MihomoDnsModeValues.indices),
                         onSelectedIndexChange = { onDraftChange(draft.copy(dnsEnhancedMode = it)) },
                     )
                     SwitchPreference(
                         title = stringResource(R.string.settings_dns_respect_rules),
+                        icon = Icons.Rounded.Policy,
                         checked = draft.dnsRespectRules,
                         onCheckedChange = { onDraftChange(draft.copy(dnsRespectRules = it)) },
                     )
                     SwitchPreference(
                         title = stringResource(R.string.settings_dns_prefer_h3),
+                        icon = Icons.Rounded.Speed,
                         checked = draft.dnsPreferH3,
                         onCheckedChange = { onDraftChange(draft.copy(dnsPreferH3 = it)) },
                     )
@@ -151,8 +152,8 @@ internal fun DnsSettingsBottomSheet(
 
                 AnimatedVisibility(
                     visible = draft.dnsEnhancedMode == MihomoDnsModeFakeIp,
-                    enter = fadeIn() + expandVertically(),
-                    exit = shrinkVertically() + fadeOut(),
+                    enter = AsteriskMotion.expandEnter(),
+                    exit = AsteriskMotion.expandExit(),
                 ) {
                     DnsSheetSection(title = stringResource(R.string.settings_dns_section_fake_ip)) {
                         DnsInlineTextField(
@@ -231,13 +232,14 @@ internal fun DnsSettingsBottomSheet(
                 DnsSheetSection(title = stringResource(R.string.settings_dns_section_fallback_filter)) {
                     SwitchPreference(
                         title = stringResource(R.string.settings_dns_geoip_filter),
+                        icon = Icons.Rounded.Public,
                         checked = draft.dnsFallbackFilterGeoip,
                         onCheckedChange = { onDraftChange(draft.copy(dnsFallbackFilterGeoip = it)) },
                     )
                     AnimatedVisibility(
                         visible = draft.dnsFallbackFilterGeoip,
-                        enter = fadeIn() + expandVertically(),
-                        exit = shrinkVertically() + fadeOut(),
+                    enter = AsteriskMotion.expandEnter(),
+                    exit = AsteriskMotion.expandExit(),
                     ) {
                         DnsInlineTextField(
                             value = draft.dnsFallbackFilterGeoipCode,
@@ -283,17 +285,19 @@ internal fun DnsSettingsBottomSheet(
                 DnsSheetSection(title = stringResource(R.string.settings_dns_section_hosts)) {
                     SwitchPreference(
                         title = stringResource(R.string.settings_dns_use_hosts),
+                        icon = Icons.Rounded.Storage,
                         checked = draft.dnsUseHosts,
                         onCheckedChange = { onDraftChange(draft.copy(dnsUseHosts = it)) },
                     )
                     AnimatedVisibility(
                         visible = draft.dnsUseHosts,
-                        enter = fadeIn() + expandVertically(),
-                        exit = shrinkVertically() + fadeOut(),
+                    enter = AsteriskMotion.expandEnter(),
+                    exit = AsteriskMotion.expandExit(),
                     ) {
                         Column {
                             SwitchPreference(
                                 title = stringResource(R.string.settings_dns_use_system_hosts),
+                                icon = Icons.Rounded.HomeWork,
                                 checked = draft.dnsUseSystemHosts,
                                 onCheckedChange = { onDraftChange(draft.copy(dnsUseSystemHosts = it)) },
                             )
@@ -326,10 +330,10 @@ private fun DnsSheetSection(
     ) {
         Text(
             text = title,
-            color = MiuixTheme.colorScheme.primary,
+            color = MaterialTheme.colorScheme.primary,
             fontSize = 15.sp,
             fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         )
         content()
     }
@@ -342,7 +346,7 @@ private fun DnsInlineTextField(
     label: String,
     errorText: String?,
 ) {
-    Column(modifier = Modifier.padding(horizontal = 8.dp)) {
+    Column {
         SettingsTextField(
             value = value,
             onValueChange = onValueChange,
@@ -352,7 +356,7 @@ private fun DnsInlineTextField(
     }
 }
 
-private fun DnsSettingsDraft.sanitized(): DnsSettingsDraft {
+internal fun DnsSettingsDraft.sanitized(): DnsSettingsDraft {
     return copy(
         enableLocalDns = enableLocalDns,
         dnsEnhancedMode = dnsEnhancedMode.coerceIn(MihomoDnsModeValues.indices),
@@ -371,7 +375,7 @@ private fun DnsSettingsDraft.sanitized(): DnsSettingsDraft {
     )
 }
 
-private fun dnsServerInputError(input: String, invalidMessage: String): String? {
+internal fun dnsServerInputError(input: String, invalidMessage: String): String? {
     val trimmed = input.trim()
     if (trimmed.isEmpty() || trimmed.any(Char::isWhitespace)) return invalidMessage
     return if (isMihomoDnsServer(trimmed)) null else invalidMessage
@@ -425,7 +429,7 @@ private fun isMihomoDnsAuthority(authority: String): Boolean {
     return isIpAddress(trimmed)
 }
 
-private fun dnsDomainInputError(input: String, invalidMessage: String): String? {
+internal fun dnsDomainInputError(input: String, invalidMessage: String): String? {
     val trimmed = input.trim()
     if (trimmed.isEmpty() || trimmed.any(Char::isWhitespace)) return invalidMessage
     if (trimmed.startsWith("regexp:", ignoreCase = true)) {
@@ -442,7 +446,7 @@ private fun dnsDomainInputError(input: String, invalidMessage: String): String? 
     return if (trimmed.contains("://") || trimmed.contains("/")) invalidMessage else null
 }
 
-private fun nameserverPolicyInputError(
+internal fun nameserverPolicyInputError(
     input: String,
     invalidMessage: String,
     invalidServerMessage: String,
@@ -460,7 +464,7 @@ private fun nameserverPolicyInputError(
     return servers.firstNotNullOfOrNull { server -> dnsServerInputError(server, invalidServerMessage) }
 }
 
-private fun dnsHostInputError(input: String, invalidMessage: String): String? {
+internal fun dnsHostInputError(input: String, invalidMessage: String): String? {
     val separatorIndex = input.indexOf(DnsHostSeparator)
     if (separatorIndex <= 0 || separatorIndex == input.lastIndex) return invalidMessage
 

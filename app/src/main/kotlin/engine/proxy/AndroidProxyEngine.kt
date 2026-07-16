@@ -18,6 +18,10 @@ import engine.bpf2socks.buildBpf2SocksStartConfig
 import engine.stats.MihomoTrafficStatsNotificationService
 import engine.stats.toMihomoTrafficStatsRuntime
 import engine.mihomo.withResolvedMihomoControlPort
+import engine.mihomo.MihomoProfileFactory
+import engine.mihomo.raw.requireStartableRawConfig
+import engine.mihomo.raw.usesRawMihomoConfig
+import engine.mihomo.raw.loadSelectedRawConfig
 import engine.tun.TunRootRunner
 import engine.tun.buildTunStartConfig
 import engine.tproxy.TproxyRootRunner
@@ -31,7 +35,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import system.AndroidRootShellGateway
 
-class AndroidProxyEngine(
+internal class AndroidProxyEngine(
     context: Context,
     rootAccess: AndroidRootShellGateway,
     requestVpnPermission: suspend (Intent) -> Boolean,
@@ -109,11 +113,26 @@ class AndroidProxyEngine(
     }
 
     private suspend fun startUnlocked(request: ProxyEngineStartRequest): ProxyEngineStatus = withContext(Dispatchers.Default) {
+        val raw = appContext.requireStartableRawConfig(request.appState)
+        if (raw == null) {
+            // Build once before any notification, engine replacement, VPN permission,
+            // Root command, or routing change. This makes an explicit restart atomic
+            // with respect to invalid YAML and override-script failures.
+            MihomoProfileFactory.buildProfileBytes(appContext, request.appState)
+        }
+        val validatedRequest = request.copy(
+            rawConfig = raw?.first,
+            rawConfigCheck = raw?.second,
+        )
         MihomoTrafficStatsNotificationService.reconcile(appContext, null)
-        val resolvedRequest = request.copy(
-            appState = request.appState
-                .withResolvedDynamicLocalProxyPort()
-                .withResolvedMihomoControlPort(),
+        val resolvedRequest = validatedRequest.copy(
+            appState = if (validatedRequest.appState.usesRawMihomoConfig()) {
+                validatedRequest.appState
+            } else {
+                validatedRequest.appState
+                    .withResolvedDynamicLocalProxyPort()
+                    .withResolvedMihomoControlPort()
+            },
         )
         val nextEngine = when (resolvedRequest.appState.runMode) {
             RunModeTproxy -> tproxyEngine
@@ -129,9 +148,18 @@ class AndroidProxyEngine(
         activeEngine = nextEngine
         try {
             val status = nextEngine.start(resolvedRequest)
-                .copy(appState = resolvedRequest.appState)
+                .copy(
+                    appState = if (request.appState.usesRawMihomoConfig()) {
+                        request.appState
+                    } else {
+                        resolvedRequest.appState
+                    },
+                )
             val runtime = if (status.running) {
-                resolvedRequest.appState.toMihomoTrafficStatsRuntime(status.runMode ?: resolvedRequest.appState.runMode)
+                resolvedRequest.appState.toMihomoTrafficStatsRuntime(
+                    runMode = status.runMode ?: resolvedRequest.appState.runMode,
+                    rawConfig = resolvedRequest.rawConfig,
+                )
             } else {
                 null
             }
@@ -243,7 +271,12 @@ class AndroidProxyEngine(
         if (appState == null) {
             return this
         }
-        val runtime = appState.toMihomoTrafficStatsRuntime(activeRunMode)
+        val rawConfig = if (appState.usesRawMihomoConfig()) {
+            appContext.loadSelectedRawConfig(appState)?.snapshot
+        } else {
+            null
+        }
+        val runtime = appState.toMihomoTrafficStatsRuntime(activeRunMode, rawConfig)
         MihomoTrafficStatsNotificationService.reconcile(appContext, runtime)
         return this
     }

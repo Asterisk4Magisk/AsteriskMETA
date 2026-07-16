@@ -19,3 +19,16 @@ func Total() (up int64, down int64) {
 func Memory() uint64 {
 	return statistic.DefaultManager.Memory()
 }
+
+func Snapshot() *statistic.Snapshot {
+	return statistic.DefaultManager.Snapshot()
+}
+
+func CloseConnection(id string) bool {
+	connection := statistic.DefaultManager.Get(id)
+	if connection == nil {
+		return false
+	}
+	_ = connection.Close()
+	return true
+}

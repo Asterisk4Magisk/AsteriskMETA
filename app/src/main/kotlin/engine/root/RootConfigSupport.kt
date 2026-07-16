@@ -15,6 +15,8 @@ import engine.mihomo.selectedMihomoProfileOrNull
 import engine.network.parseCidrAddressOrNull
 import engine.network.toPortOrNull
 import engine.proxy.ProxyEngineStartRequest
+import engine.mihomo.raw.MihomoRawConfigSnapshot
+import engine.mihomo.raw.runtimeIpv6Enabled
 import engine.tun2socks.DefaultTun2SocksProxyPort
 import features.resources.runtime.MihomoResourceFilePaths
 import features.resources.runtime.prepareMihomoResourceFilePaths
@@ -24,13 +26,15 @@ internal class RootConfigBuildContext(
     val appState: AppState,
     val resourceFilePaths: MihomoResourceFilePaths,
     private val coreLogPaths: MihomoCoreLogPaths,
+    val rawConfig: MihomoRawConfigSnapshot? = null,
 ) {
     fun buildRootStartConfig(): RootStartConfig {
         return appState.toRootStartConfig(
-            mihomoProfileYaml = MihomoProfileFactory.buildProfile(androidContext, appState),
+            mihomoProfileBytes = MihomoProfileFactory.buildProfileBytes(androidContext, appState),
             resourceFilePaths = resourceFilePaths,
             runtimeLayout = resourceFilePaths.toRootRuntimeLayout(),
             coreLogPaths = coreLogPaths,
+            rawConfig = rawConfig,
         )
     }
 
@@ -52,7 +56,7 @@ internal class RootConfigBuildContext(
             directCidrSourcePathsV4 = listOf(resourceFilePaths.directCidrIpv4Path),
             directCidrSourcePathsV6 = listOf(resourceFilePaths.directCidrIpv6Path),
             policy = iptablesConfig.toRootEbpfPolicy(
-                enableIpv6 = appState.enableIpv6,
+                enableIpv6 = rawConfig.runtimeIpv6Enabled(appState.enableIpv6),
                 directCidrPathV4 = runtimeLayout.rootEbpfDirectCidrPathV4,
                 directCidrPathV6 = runtimeLayout.rootEbpfDirectCidrPathV6,
                 xtOutputV4ProgramPath = RootEbpfXtOutputV4ProgramPath,
@@ -74,24 +78,27 @@ internal fun Context.prepareRootConfigBuildContext(request: ProxyEngineStartRequ
         appState = appState,
         resourceFilePaths = resourceFilePaths,
         coreLogPaths = coreLogPaths,
+        rawConfig = request.rawConfig,
     )
 }
 
 private fun AppState.toRootStartConfig(
-    mihomoProfileYaml: String,
+    mihomoProfileBytes: ByteArray,
     resourceFilePaths: MihomoResourceFilePaths,
     runtimeLayout: RootRuntimeLayout,
     coreLogPaths: MihomoCoreLogPaths,
+    rawConfig: MihomoRawConfigSnapshot?,
 ): RootStartConfig {
+    val rawDnsHijack = rawConfig?.dnsHijack?.value?.proven == true && enableLocalDns
     return RootStartConfig(
-        mihomoProfileYaml = mihomoProfileYaml,
+        mihomoProfileBytes = mihomoProfileBytes,
         ageSecretKey = selectedMihomoProfileOrNull()?.ageSecretKey.orEmpty(),
         setuidgidPath = resourceFilePaths.setuidgidPath,
         runtimeLayout = runtimeLayout,
-        enableIpv6 = enableIpv6,
+        enableIpv6 = rawConfig.runtimeIpv6Enabled(enableIpv6),
         enableRootIpv6Disabler = enableRootIpv6Disabler,
-        enableLocalDns = effectiveLocalDnsEnabled,
-        enableFakeIp = effectiveFakeIpEnabled,
+        enableLocalDns = if (rawConfig == null) effectiveLocalDnsEnabled else rawDnsHijack,
+        enableFakeIp = if (rawConfig == null) effectiveFakeIpEnabled else false,
         fakeIpIpv4Pool = rootFakeIpIpv4Pool(),
         coreLogPaths = coreLogPaths,
     )

@@ -7,6 +7,7 @@ import app.AppState
 import engine.proxy.LocalProxyOptions
 import engine.proxy.toLocalProxyOptions
 import engine.network.toPortOrNull
+import engine.proxy.toLocalProxyOptionsOrNull
 import engine.root.RootConfigBuildContext
 import engine.root.AsteriskdConfig
 import engine.root.AsteriskdMode
@@ -18,7 +19,7 @@ import engine.root.buildAsteriskdConfig
 
 internal data class TproxyStartConfig(
     override val root: RootStartConfig,
-    override val localProxyOptions: LocalProxyOptions,
+    override val localProxyOptions: LocalProxyOptions?,
     val tproxyPort: Int,
     val iptablesConfig: RootIptablesConfig,
     override val asteriskdConfig: AsteriskdConfig,
@@ -33,12 +34,16 @@ internal val TproxyBaseIptablesConfig = RootIptablesConfig(
 
 internal fun RootConfigBuildContext.buildTproxyStartConfig(): TproxyStartConfig {
     val appState = this.appState
-    val tproxyPort = appState.tproxyPortValue()
+    val tproxyPort = rawConfig?.let { config ->
+        requireNotNull(config.tproxyPort.value) {
+            "Raw Mihomo configuration requires tproxy-port for TPROXY mode"
+        }
+    } ?: appState.tproxyPortValue()
     val rootStartConfig = buildRootStartConfig()
     val iptablesConfig = buildRootIptablesConfig(TproxyBaseIptablesConfig)
     return TproxyStartConfig(
         root = rootStartConfig,
-        localProxyOptions = appState.toLocalProxyOptions(),
+        localProxyOptions = rawConfig?.toLocalProxyOptionsOrNull() ?: appState.toLocalProxyOptions().takeIf { rawConfig == null },
         tproxyPort = tproxyPort,
         iptablesConfig = iptablesConfig,
         asteriskdConfig = rootStartConfig.buildAsteriskdConfig(

@@ -5,6 +5,7 @@ package features.subscription.usecase
 
 import app.AppState
 import app.MihomoProfileState
+import app.withMihomoRestartRequired
 import com.github.kr328.clash.core.Clash
 import engine.mihomo.MihomoProfileContentRef
 import engine.mihomo.MihomoProfileContentStore
@@ -163,6 +164,10 @@ internal fun AppState.withUpdatedMihomoProfiles(
 ): AppState {
     if (updates.isEmpty()) return this
     val updatesById = updates.associateBy { update -> update.profileId }
+    val changedSelectedProfile = updatesById[selectedMihomoProfileId]?.let { update ->
+        mihomoProfiles.firstOrNull { profile -> profile.id == selectedMihomoProfileId }
+            ?.contentSha256 != update.contentRef.sha256
+    } == true
     return copy(
         mihomoProfiles = mihomoProfiles.map { profile ->
             val update = updatesById[profile.id] ?: return@map profile
@@ -174,7 +179,7 @@ internal fun AppState.withUpdatedMihomoProfiles(
                 lastUpdatedAtMillis = updatedAtMillis,
             )
         },
-    )
+    ).withMihomoRestartRequired(selectedMihomoProfileId, changedSelectedProfile)
 }
 
 internal fun List<MihomoProfileState>.dueSubscriptionProfiles(nowMillis: Long): List<MihomoProfileState> {

@@ -10,6 +10,10 @@ import data.AndroidAppStateStore
 import engine.stats.MihomoTrafficStatsNotificationService
 import engine.stats.MihomoTrafficStatsRuntime
 import engine.stats.toMihomoTrafficStatsRuntime
+import engine.mihomo.raw.loadSelectedRawConfig
+import engine.mihomo.raw.usesRawMihomoConfig
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Composable
 internal fun TrafficStatsNotificationSynchronizer(
@@ -20,7 +24,14 @@ internal fun TrafficStatsNotificationSynchronizer(
         var activeRuntime: MihomoTrafficStatsRuntime? = null
         stateStore.state.collect { appState ->
             val runtime = if (appState.proxyRunning) {
-                appState.toMihomoTrafficStatsRuntime()
+                val rawConfig = if (appState.usesRawMihomoConfig()) {
+                    withContext(Dispatchers.IO) {
+                        appContext.loadSelectedRawConfig(appState)?.snapshot
+                    }
+                } else {
+                    null
+                }
+                appState.toMihomoTrafficStatsRuntime(rawConfig = rawConfig)
             } else {
                 null
             }

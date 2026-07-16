@@ -3,31 +3,20 @@
 
 package features.mihomo
 
+import android.content.Context
+import android.graphics.Typeface
+import android.text.InputType
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicText
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -35,53 +24,101 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.TextLayoutResult
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.input.OffsetMapping
-import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.text.input.TransformedText
-import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import top.yukonga.miuix.kmp.basic.TextFieldDefaults
-import top.yukonga.miuix.kmp.theme.MiuixTheme
+import androidx.compose.ui.viewinterop.AndroidView
+import io.github.rosemoe.sora.event.ContentChangeEvent
+import io.github.rosemoe.sora.lang.EmptyLanguage
+import io.github.rosemoe.sora.lang.analysis.AnalyzeManager
+import io.github.rosemoe.sora.lang.analysis.AsyncIncrementalAnalyzeManager
+import io.github.rosemoe.sora.lang.analysis.IncrementalAnalyzeManager.LineTokenizeResult
+import io.github.rosemoe.sora.lang.styling.CodeBlock
+import io.github.rosemoe.sora.lang.styling.Span
+import io.github.rosemoe.sora.lang.styling.SpanFactory
+import io.github.rosemoe.sora.lang.styling.TextStyle
+import io.github.rosemoe.sora.text.Content
+import io.github.rosemoe.sora.widget.CodeEditor
+import io.github.rosemoe.sora.widget.schemes.EditorColorScheme
 import ui.isInDarkTheme
+import ui.theme.AsteriskShapeTokens
+
+@Stable
+internal class MihomoCodeEditorState(
+    initialText: String = "",
+) {
+    private var editor: CodeEditor? = null
+    private var retainedText = initialText
+    private var moveCursorToEnd = true
+
+    var documentVersion by mutableIntStateOf(0)
+        private set
+
+    var isEmpty by mutableStateOf(initialText.isEmpty())
+        private set
+
+    var isFocused by mutableStateOf(false)
+        private set
+
+    internal fun attach(editor: CodeEditor) {
+        if (this.editor === editor) return
+        this.editor = editor
+        applyRetainedText(editor)
+    }
+
+    internal fun detach(editor: CodeEditor) {
+        if (this.editor !== editor) return
+        retainedText = editor.text.toString()
+        isEmpty = editor.text.length == 0
+        isFocused = false
+        this.editor = null
+    }
+
+    internal fun onContentChanged(editor: CodeEditor, action: Int) {
+        if (this.editor !== editor || action == ContentChangeEvent.ACTION_SET_NEW_TEXT) return
+        isEmpty = editor.text.length == 0
+        documentVersion += 1
+    }
+
+    internal fun onFocusChanged(editor: CodeEditor, focused: Boolean) {
+        if (this.editor === editor) {
+            isFocused = focused
+        }
+    }
+
+    fun snapshotText(): String = editor?.text?.toString() ?: retainedText
+
+    fun replaceText(text: String, placeCursorAtEnd: Boolean = true) {
+        if (text == retainedText && editor?.text?.toString() == text) return
+        retainedText = text
+        moveCursorToEnd = placeCursorAtEnd
+        isEmpty = text.isEmpty()
+        editor?.let(::applyRetainedText)
+        documentVersion += 1
+    }
+
+    private fun applyRetainedText(editor: CodeEditor) {
+        editor.setText(retainedText)
+        if (moveCursorToEnd) {
+            val lastLine = editor.lineCount - 1
+            editor.setSelection(lastLine, editor.text.getColumnCount(lastLine), false)
+        } else {
+            editor.setSelection(0, 0, false)
+        }
+    }
+}
 
 @Composable
 internal fun JavaScriptCodeEditor(
     label: String,
-    value: TextFieldValue,
-    onValueChange: (TextFieldValue) -> Unit,
+    state: MihomoCodeEditorState,
     modifier: Modifier = Modifier,
-    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     readOnly: Boolean = false,
 ) {
-    val editorColors = rememberScriptEditorColors()
-    val highlighting = rememberJavaScriptSyntaxHighlightTransformation(editorColors)
-    ScriptCodeTextField(
+    SoraCodeEditor(
         label = label,
-        value = value,
-        onValueChange = onValueChange,
-        visualTransformation = highlighting,
-        textStyle = TextStyle(
-            color = editorColors.foreground,
-            fontFamily = FontFamily.Monospace,
-            fontSize = 14.sp,
-            lineHeight = 20.sp,
-        ),
-        keyboardOptions = keyboardOptions,
-        cursorBrush = SolidColor(editorColors.accent),
-        editorColors = editorColors,
+        state = state,
+        language = MihomoCodeLanguage.JavaScript,
         readOnly = readOnly,
         modifier = modifier,
     )
@@ -90,76 +127,228 @@ internal fun JavaScriptCodeEditor(
 @Composable
 internal fun YamlCodeEditor(
     label: String,
-    value: TextFieldValue,
-    onValueChange: (TextFieldValue) -> Unit,
+    state: MihomoCodeEditorState,
     modifier: Modifier = Modifier,
-    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     readOnly: Boolean = false,
 ) {
-    val editorColors = rememberScriptEditorColors()
-    ScriptCodeTextField(
+    SoraCodeEditor(
         label = label,
-        value = value,
-        onValueChange = onValueChange,
-        visualTransformation = VisualTransformation.None,
-        textStyle = TextStyle(
-            color = editorColors.foreground,
-            fontFamily = FontFamily.Monospace,
-            fontSize = 14.sp,
-            lineHeight = 20.sp,
-        ),
-        keyboardOptions = keyboardOptions,
-        cursorBrush = SolidColor(editorColors.accent),
-        editorColors = editorColors,
+        state = state,
+        language = MihomoCodeLanguage.Yaml,
         readOnly = readOnly,
         modifier = modifier,
     )
 }
 
 @Composable
-private fun rememberScriptEditorColors(): ScriptEditorColors {
-    val colorScheme = MiuixTheme.colorScheme
-    val primary = colorScheme.primary
-    val background = colorScheme.secondaryContainer
-    val foreground = colorScheme.onSurface
+private fun SoraCodeEditor(
+    label: String,
+    state: MihomoCodeEditorState,
+    language: MihomoCodeLanguage,
+    readOnly: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val colors = rememberCodeEditorColors()
+    val colorScheme = remember(colors) { colors.toSoraColorScheme() }
+    val borderWidth by animateDpAsState(if (state.isFocused) FocusedBorderWidth else 0.dp)
+    val borderColor by animateColorAsState(
+        if (state.isFocused) colors.accent else colors.border,
+    )
+
+    Surface(
+        modifier = modifier,
+        shape = AsteriskShapeTokens.SmallContainer,
+        color = colors.background,
+        border = BorderStroke(borderWidth, borderColor),
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            AndroidView(
+                factory = { context ->
+                    MihomoSoraEditor(context).also { editor ->
+                        editor.configure(language, colors, colorScheme)
+                        editor.bindState(state)
+                    }
+                },
+                update = { editor ->
+                    editor.bindState(state)
+                    editor.updateLanguage(language)
+                    if (editor.colorScheme !== colorScheme) {
+                        editor.colorScheme = colorScheme
+                    }
+                    val behavior = MihomoCodeEditorBehavior(readOnly)
+                    editor.isEnabled = behavior.enabled
+                    editor.isFocusable = behavior.selectionEnabled
+                    editor.isFocusableInTouchMode = behavior.selectionEnabled
+                    editor.isEditable = behavior.editable
+                },
+                onRelease = { editor ->
+                    editor.bindState(null)
+                    editor.release()
+                },
+                modifier = Modifier.fillMaxSize(),
+            )
+            if (state.isEmpty) {
+                Text(
+                    text = label,
+                    color = colors.placeholder,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(start = PlaceholderStartPadding, top = PlaceholderTopPadding),
+                )
+            }
+        }
+    }
+}
+
+private class MihomoSoraEditor(context: Context) : CodeEditor(context) {
+    private var boundState: MihomoCodeEditorState? = null
+    private var language: MihomoCodeLanguage? = null
+
+    init {
+        subscribeAlways(ContentChangeEvent::class.java) { event ->
+            boundState?.onContentChanged(this, event.action)
+        }
+        onFocusChangeListener = OnFocusChangeListener { _, focused ->
+            boundState?.onFocusChanged(this, focused)
+        }
+    }
+
+    fun bindState(state: MihomoCodeEditorState?) {
+        if (boundState === state) return
+        boundState?.detach(this)
+        boundState = state
+        state?.attach(this)
+    }
+
+    fun updateLanguage(language: MihomoCodeLanguage) {
+        if (this.language == language) return
+        this.language = language
+        setEditorLanguage(MihomoSoraLanguage(language))
+    }
+}
+
+private fun MihomoSoraEditor.configure(
+    language: MihomoCodeLanguage,
+    colors: CodeEditorColors,
+    colorScheme: EditorColorScheme,
+) {
+    setTextSize(EditorTextSize)
+    setTypefaceText(Typeface.MONOSPACE)
+    setTypefaceLineNumber(Typeface.MONOSPACE)
+    setLineSpacing(dp(EditorLineSpacing).toFloat(), 1f)
+    setTabWidth(EditorTabWidth)
+    setWordwrap(false)
+    setPinLineNumber(true)
+    setLineNumberEnabled(true)
+    setLineNumberMarginLeft(dp(LineNumberMargin).toFloat())
+    setDividerWidth(dp(DividerWidth).toFloat())
+    setHighlightCurrentBlock(false)
+    setBlockLineEnabled(false)
+    setRenderFunctionCharacters(false)
+    setLigatureEnabled(false)
+    setScalable(true)
+    setCursorAnimationEnabled(true)
+    setInputType(
+        InputType.TYPE_CLASS_TEXT or
+            InputType.TYPE_TEXT_FLAG_MULTI_LINE or
+            InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS,
+    )
+    setPadding(0, dp(EditorVerticalPadding), dp(EditorHorizontalPadding), dp(EditorVerticalPadding))
+    setEdgeEffectColor(colors.accent.toArgb())
+    this.colorScheme = colorScheme
+    updateLanguage(language)
+}
+
+private fun CodeEditor.dp(value: Float): Int = (value * resources.displayMetrics.density).toInt()
+
+private class MihomoSoraLanguage(
+    language: MihomoCodeLanguage,
+) : EmptyLanguage() {
+    private val analyzer = MihomoIncrementalAnalyzeManager(language)
+
+    override fun getAnalyzeManager(): AnalyzeManager = analyzer
+}
+
+private class MihomoIncrementalAnalyzeManager(
+    private val language: MihomoCodeLanguage,
+) : AsyncIncrementalAnalyzeManager<CodeLexState, CodeToken>(true) {
+    override fun getInitialState(): CodeLexState = CodeLexState.Normal
+
+    override fun stateEquals(state: CodeLexState, another: CodeLexState): Boolean = state == another
+
+    override fun tokenizeLine(
+        line: CharSequence,
+        state: CodeLexState,
+        lineIndex: Int,
+    ): LineTokenizeResult<CodeLexState, CodeToken> {
+        val result = tokenizeCodeLine(line, language, state)
+        return LineTokenizeResult(result.state, result.tokens)
+    }
+
+    override fun generateSpansForLine(
+        tokens: LineTokenizeResult<CodeLexState, CodeToken>,
+    ): List<Span> {
+        val lineTokens = tokens.tokens.orEmpty()
+        if (lineTokens.isEmpty()) {
+            return listOf(SpanFactory.obtainNoExt(0, TextStyle.makeStyle(EditorColorScheme.TEXT_NORMAL)))
+        }
+        return lineTokens.map { token ->
+            SpanFactory.obtainNoExt(token.start, TextStyle.makeStyle(token.kind.soraColorId()))
+        }
+    }
+
+    override fun computeBlocks(
+        text: Content,
+        delegate: CodeBlockAnalyzeDelegate,
+    ): List<CodeBlock> = emptyList()
+}
+
+private fun CodeTokenKind.soraColorId(): Int = when (this) {
+    CodeTokenKind.Normal -> EditorColorScheme.TEXT_NORMAL
+    CodeTokenKind.Keyword -> EditorColorScheme.KEYWORD
+    CodeTokenKind.Key -> EditorColorScheme.ATTRIBUTE_NAME
+    CodeTokenKind.String -> EditorColorScheme.LITERAL
+    CodeTokenKind.Number -> SyntaxNumberColorId
+    CodeTokenKind.Literal -> SyntaxLiteralColorId
+    CodeTokenKind.Function -> EditorColorScheme.FUNCTION_NAME
+    CodeTokenKind.Comment -> EditorColorScheme.COMMENT
+    CodeTokenKind.Operator -> EditorColorScheme.OPERATOR
+}
+
+@Composable
+private fun rememberCodeEditorColors(): CodeEditorColors {
+    val colorScheme = MaterialTheme.colorScheme
     val darkTheme = isInDarkTheme()
-    val onSurfaceVariantSummary = colorScheme.onSurfaceVariantSummary
-    val onSecondaryContainer = colorScheme.onSecondaryContainer
-    return remember(primary, background, foreground, darkTheme, onSurfaceVariantSummary, onSecondaryContainer) {
-        val primaryHue = primary.hue()
-        ScriptEditorColors(
-            accent = primary,
-            foreground = foreground,
-            background = background,
-            gutter = enhancedThemeColor(primaryHue, darkTheme),
-            separator = primary.copy(alpha = if (darkTheme) 0.24f else 0.18f),
-            border = primary.copy(alpha = if (darkTheme) 0.20f else 0.14f),
-            lineNumber = onSurfaceVariantSummary.copy(alpha = if (darkTheme) 0.78f else 0.68f),
-            placeholder = onSecondaryContainer.copy(alpha = if (darkTheme) 0.70f else 0.58f),
-            syntax = ScriptSyntaxColors(
-                keyword = vividThemeColor(primaryHue, hueOffset = 0f, darkTheme = darkTheme),
-                string = vividThemeColor(primaryHue, hueOffset = 88f, darkTheme = darkTheme),
-                number = vividThemeColor(primaryHue, hueOffset = -52f, darkTheme = darkTheme),
-                literal = vividThemeColor(primaryHue, hueOffset = 176f, darkTheme = darkTheme),
-                function = vividThemeColor(primaryHue, hueOffset = 36f, darkTheme = darkTheme),
-                comment = onSurfaceVariantSummary.copy(alpha = if (darkTheme) 0.72f else 0.62f),
-                punctuation = onSurfaceVariantSummary,
-            ),
+    return remember(colorScheme, darkTheme) {
+        CodeEditorColors(
+            darkTheme = darkTheme,
+            accent = colorScheme.primary,
+            foreground = colorScheme.onSurface,
+            background = colorScheme.surfaceContainerHigh,
+            gutter = colorScheme.surfaceContainerHighest,
+            separator = colorScheme.outlineVariant.copy(alpha = 0.72f),
+            border = colorScheme.outlineVariant.copy(alpha = 0.48f),
+            lineNumber = colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
+            placeholder = colorScheme.onSurfaceVariant.copy(alpha = 0.62f),
+            selection = colorScheme.primary.copy(alpha = if (darkTheme) 0.34f else 0.24f),
+            currentLine = colorScheme.primary.copy(alpha = if (darkTheme) 0.10f else 0.06f),
+            keyword = colorScheme.primary,
+            key = colorScheme.primary,
+            string = colorScheme.tertiary,
+            number = colorScheme.secondary,
+            literal = colorScheme.tertiary,
+            function = colorScheme.secondary,
+            comment = colorScheme.onSurfaceVariant.copy(alpha = 0.68f),
+            operator = colorScheme.onSurfaceVariant,
+            actionBackground = colorScheme.inverseSurface,
+            actionForeground = colorScheme.inverseOnSurface,
         )
     }
 }
 
-@Composable
-private fun rememberJavaScriptSyntaxHighlightTransformation(
-    colors: ScriptEditorColors,
-): VisualTransformation {
-    val syntaxColors = colors.syntax
-    return remember(syntaxColors) {
-        JavaScriptSyntaxHighlightTransformation(syntaxColors)
-    }
-}
-
-private data class ScriptEditorColors(
+private data class CodeEditorColors(
+    val darkTheme: Boolean,
     val accent: Color,
     val foreground: Color,
     val background: Color,
@@ -168,458 +357,55 @@ private data class ScriptEditorColors(
     val border: Color,
     val lineNumber: Color,
     val placeholder: Color,
-    val syntax: ScriptSyntaxColors,
-)
-
-private data class ScriptSyntaxColors(
+    val selection: Color,
+    val currentLine: Color,
     val keyword: Color,
+    val key: Color,
     val string: Color,
     val number: Color,
     val literal: Color,
     val function: Color,
     val comment: Color,
-    val punctuation: Color,
+    val operator: Color,
+    val actionBackground: Color,
+    val actionForeground: Color,
 )
 
-private class JavaScriptSyntaxHighlightTransformation(
-    private val colors: ScriptSyntaxColors,
-) : VisualTransformation {
-    override fun filter(text: AnnotatedString): TransformedText {
-        return TransformedText(highlightJavaScript(text.text, colors), OffsetMapping.Identity)
+private fun CodeEditorColors.toSoraColorScheme(): EditorColorScheme {
+    return object : EditorColorScheme(darkTheme) {}.apply {
+        setColor(EditorColorScheme.WHOLE_BACKGROUND, background.toArgb())
+        setColor(EditorColorScheme.LINE_NUMBER_BACKGROUND, gutter.toArgb())
+        setColor(EditorColorScheme.LINE_NUMBER, lineNumber.toArgb())
+        setColor(EditorColorScheme.LINE_NUMBER_CURRENT, accent.toArgb())
+        setColor(EditorColorScheme.LINE_DIVIDER, separator.toArgb())
+        setColor(EditorColorScheme.TEXT_NORMAL, foreground.toArgb())
+        setColor(EditorColorScheme.SELECTION_INSERT, accent.toArgb())
+        setColor(EditorColorScheme.SELECTION_HANDLE, accent.toArgb())
+        setColor(EditorColorScheme.SELECTED_TEXT_BACKGROUND, selection.toArgb())
+        setColor(EditorColorScheme.CURRENT_LINE, currentLine.toArgb())
+        setColor(EditorColorScheme.KEYWORD, keyword.toArgb())
+        setColor(EditorColorScheme.ATTRIBUTE_NAME, key.toArgb())
+        setColor(EditorColorScheme.LITERAL, string.toArgb())
+        setColor(SyntaxNumberColorId, number.toArgb())
+        setColor(SyntaxLiteralColorId, literal.toArgb())
+        setColor(EditorColorScheme.FUNCTION_NAME, function.toArgb())
+        setColor(EditorColorScheme.COMMENT, comment.toArgb())
+        setColor(EditorColorScheme.OPERATOR, operator.toArgb())
+        setColor(EditorColorScheme.IDENTIFIER_NAME, foreground.toArgb())
+        setColor(EditorColorScheme.TEXT_ACTION_WINDOW_BACKGROUND, actionBackground.toArgb())
+        setColor(EditorColorScheme.TEXT_ACTION_WINDOW_ICON_COLOR, actionForeground.toArgb())
     }
 }
 
-@Composable
-private fun ScriptCodeTextField(
-    label: String,
-    value: TextFieldValue,
-    onValueChange: (TextFieldValue) -> Unit,
-    visualTransformation: VisualTransformation,
-    textStyle: TextStyle,
-    keyboardOptions: KeyboardOptions,
-    cursorBrush: SolidColor,
-    editorColors: ScriptEditorColors,
-    readOnly: Boolean,
-    modifier: Modifier = Modifier,
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isFocused by interactionSource.collectIsFocusedAsState()
-    val scrollState = rememberScrollState()
-    val horizontalScrollState = rememberScrollState()
-    val density = LocalDensity.current
-    var textLayoutResult by remember {
-        mutableStateOf<TextLayoutResult?>(null)
-    }
-    var editorViewportHeight by remember {
-        mutableIntStateOf(0)
-    }
-    var textViewportWidth by remember {
-        mutableIntStateOf(0)
-    }
-    val lineCount = remember(value.text) {
-        value.text.count { char -> char == '\n' } + 1
-    }
-    val lineNumbers = remember(lineCount) {
-        (1..lineCount).joinToString(separator = "\n")
-    }
-    val gutterWidth = ((lineCount.toString().length.coerceAtLeast(ScriptEditorMinLineNumberDigits) * 8) + 10).dp
-    val shape = RoundedCornerShape(TextFieldDefaults.CornerRadius)
-    val borderWidth by animateDpAsState(if (isFocused) ScriptEditorBorderWidth else 0.dp)
-    val borderColor by animateColorAsState(
-        if (isFocused) editorColors.accent else editorColors.border,
-    )
-    val verticalScrollMaxValue = scrollState.maxValue
-    val horizontalScrollMaxValue = horizontalScrollState.maxValue
-
-    LaunchedEffect(
-        value.selection,
-        value.text,
-        textLayoutResult,
-        editorViewportHeight,
-        textViewportWidth,
-        verticalScrollMaxValue,
-        horizontalScrollMaxValue,
-    ) {
-        val layoutResult = textLayoutResult ?: return@LaunchedEffect
-        if (editorViewportHeight <= 0 || textViewportWidth <= 0) {
-            return@LaunchedEffect
-        }
-
-        val cursorOffset = value.selection.end.coerceIn(0, value.text.length)
-        val cursorRect = layoutResult.getCursorRect(cursorOffset)
-        val verticalPaddingPx = with(density) { ScriptEditorVerticalPadding.toPx() }
-        val cursorPaddingPx = with(density) { ScriptEditorCursorScrollPadding.toPx() }
-        val nextVerticalScroll = scrollToVisible(
-            current = scrollState.value,
-            viewportSize = editorViewportHeight,
-            targetStart = cursorRect.top + verticalPaddingPx - cursorPaddingPx,
-            targetEnd = cursorRect.bottom + verticalPaddingPx + cursorPaddingPx,
-            maxValue = verticalScrollMaxValue,
-        )
-        if (nextVerticalScroll != scrollState.value) {
-            scrollState.scrollTo(nextVerticalScroll)
-        }
-
-        val nextHorizontalScroll = scrollToVisible(
-            current = horizontalScrollState.value,
-            viewportSize = textViewportWidth,
-            targetStart = cursorRect.left - cursorPaddingPx,
-            targetEnd = cursorRect.right + cursorPaddingPx,
-            maxValue = horizontalScrollMaxValue,
-        )
-        if (nextHorizontalScroll != horizontalScrollState.value) {
-            horizontalScrollState.scrollTo(nextHorizontalScroll)
-        }
-    }
-
-    BasicTextField(
-        value = value,
-        onValueChange = onValueChange,
-        modifier = modifier,
-        textStyle = textStyle,
-        keyboardOptions = keyboardOptions,
-        readOnly = readOnly,
-        singleLine = false,
-        maxLines = Int.MAX_VALUE,
-        minLines = 1,
-        visualTransformation = visualTransformation,
-        onTextLayout = { result ->
-            textLayoutResult = result
-        },
-        interactionSource = interactionSource,
-        cursorBrush = cursorBrush,
-        decorationBox = { innerTextField ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(shape)
-                    .background(editorColors.background)
-                    .border(borderWidth, borderColor, shape),
-            ) {
-                BoxWithConstraints(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .onSizeChanged { size ->
-                            editorViewportHeight = size.height
-                        },
-                ) {
-                    val contentMinHeight = (maxHeight - ScriptEditorVerticalPadding * 2f)
-                        .coerceAtLeast(0.dp)
-
-                    Row(modifier = Modifier.fillMaxSize()) {
-                        Box(
-                            modifier = Modifier
-                                .width(gutterWidth)
-                                .fillMaxHeight()
-                                .background(editorColors.gutter),
-                        )
-                        Spacer(
-                            modifier = Modifier
-                                .width(1.dp)
-                                .fillMaxHeight()
-                                .background(editorColors.separator),
-                        )
-                    }
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .verticalScroll(scrollState)
-                            .heightIn(min = contentMinHeight)
-                            .padding(vertical = ScriptEditorVerticalPadding),
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .width(gutterWidth)
-                                .heightIn(min = contentMinHeight)
-                                .padding(
-                                    start = 2.dp,
-                                    end = 4.dp,
-                                ),
-                        ) {
-                            BasicText(
-                                text = lineNumbers,
-                                style = textStyle.copy(
-                                    color = editorColors.lineNumber,
-                                    textAlign = TextAlign.End,
-                                ),
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        }
-                        Spacer(
-                            modifier = Modifier
-                                .width(1.dp)
-                                .heightIn(min = contentMinHeight),
-                        )
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .heightIn(min = contentMinHeight)
-                                .padding(
-                                    start = 0.dp,
-                                    end = ScriptEditorHorizontalPadding,
-                                )
-                                .onSizeChanged { size ->
-                                    textViewportWidth = size.width
-                                }
-                                .horizontalScroll(horizontalScrollState),
-                            contentAlignment = Alignment.TopStart,
-                        ) {
-                            if (value.text.isEmpty()) {
-                                BasicText(
-                                    text = label,
-                                    style = textStyle.copy(color = editorColors.placeholder),
-                                )
-                            }
-                            innerTextField()
-                        }
-                    }
-                }
-            }
-        },
-    )
-}
-
-private fun highlightJavaScript(
-    text: String,
-    colors: ScriptSyntaxColors,
-): AnnotatedString {
-    val builder = AnnotatedString.Builder(text)
-    var index = 0
-    while (index < text.length) {
-        when (val char = text[index]) {
-            '/', '-' -> {
-                val commentEnd = text.commentTokenEnd(index)
-                if (commentEnd > index) {
-                    builder.addStyle(SpanStyle(color = colors.comment), index, commentEnd)
-                    index = commentEnd
-                } else if (char == '-') {
-                    val end = text.numberTokenEnd(index)
-                    builder.addStyle(SpanStyle(color = colors.number), index, end)
-                    index = end
-                } else {
-                    builder.addStyle(SpanStyle(color = colors.punctuation), index, index + 1)
-                    index += 1
-                }
-            }
-
-            '\'', '"', '`' -> {
-                val end = text.stringTokenEnd(index, char)
-                builder.addStyle(SpanStyle(color = colors.string), index, end)
-                index = end
-            }
-
-            in '0'..'9' -> {
-                val end = text.numberTokenEnd(index)
-                builder.addStyle(SpanStyle(color = colors.number), index, end)
-                index = end
-            }
-
-            in 'A'..'Z', in 'a'..'z', '_', '$' -> {
-                val end = text.identifierTokenEnd(index)
-                val token = text.substring(index, end)
-                val tokenColor = when {
-                    token in JavaScriptKeywords -> colors.keyword
-                    token in JavaScriptLiterals -> colors.literal
-                    text.isFunctionCall(end) -> colors.function
-                    else -> null
-                }
-                if (tokenColor != null) {
-                    builder.addStyle(SpanStyle(color = tokenColor), index, end)
-                }
-                index = end
-            }
-
-            '{', '}', '[', ']', '(', ')', ':', ',', '.', ';', '+', '*', '%', '=', '!', '<', '>', '?', '&', '|' -> {
-                builder.addStyle(SpanStyle(color = colors.punctuation), index, index + 1)
-                index += 1
-            }
-
-            else -> index += 1
-        }
-    }
-    return builder.toAnnotatedString()
-}
-
-private fun String.commentTokenEnd(start: Int): Int {
-    if (start + 1 >= length || this[start] != '/') return start
-    return when (this[start + 1]) {
-        '/' -> {
-            var index = start + 2
-            while (index < length && this[index] != '\n') {
-                index += 1
-            }
-            index
-        }
-
-        '*' -> {
-            var index = start + 2
-            while (index + 1 < length) {
-                if (this[index] == '*' && this[index + 1] == '/') {
-                    return index + 2
-                }
-                index += 1
-            }
-            length
-        }
-
-        else -> start
-    }
-}
-
-private fun String.stringTokenEnd(start: Int, quote: Char): Int {
-    var index = start + 1
-    var escaped = false
-    while (index < length) {
-        val char = this[index]
-        if (escaped) {
-            escaped = false
-        } else if (char == '\\') {
-            escaped = true
-        } else if (char == quote) {
-            return index + 1
-        } else if (quote != '`' && char == '\n') {
-            return index
-        }
-        index += 1
-    }
-    return length
-}
-
-private fun String.numberTokenEnd(start: Int): Int {
-    var index = start
-    while (index < length && this[index] in JavaScriptNumberTokenChars) {
-        index += 1
-    }
-    return index
-}
-
-private fun String.identifierTokenEnd(start: Int): Int {
-    var index = start
-    while (index < length && this[index].isJavaScriptIdentifierChar()) {
-        index += 1
-    }
-    return index
-}
-
-private fun String.isFunctionCall(identifierEnd: Int): Boolean {
-    var index = identifierEnd
-    while (index < length && this[index].isWhitespace()) {
-        index += 1
-    }
-    return index < length && this[index] == '('
-}
-
-private fun Char.isJavaScriptIdentifierChar(): Boolean {
-    return isLetterOrDigit() || this == '_' || this == '$'
-}
-
-private fun Color.hue(): Float {
-    val hsv = FloatArray(3)
-    android.graphics.Color.colorToHSV(toArgb(), hsv)
-    return hsv[0]
-}
-
-private fun vividThemeColor(
-    baseHue: Float,
-    hueOffset: Float,
-    darkTheme: Boolean,
-): Color {
-    val hue = (baseHue + hueOffset).floorMod(360f)
-    val saturation = if (darkTheme) 0.78f else 0.86f
-    val value = if (darkTheme) 0.96f else 0.70f
-    return Color.hsv(hue = hue, saturation = saturation, value = value)
-}
-
-private fun enhancedThemeColor(
-    baseHue: Float,
-    darkTheme: Boolean,
-): Color {
-    val saturation = if (darkTheme) 0.24f else 0.20f
-    val value = if (darkTheme) 0.26f else 0.96f
-    return Color.hsv(hue = (baseHue + 10f).floorMod(360f), saturation = saturation, value = value)
-}
-
-private fun Float.floorMod(modulus: Float): Float {
-    val result = this % modulus
-    return if (result < 0f) result + modulus else result
-}
-
-private fun scrollToVisible(
-    current: Int,
-    viewportSize: Int,
-    targetStart: Float,
-    targetEnd: Float,
-    maxValue: Int,
-): Int {
-    if (viewportSize <= 0 || maxValue <= 0) {
-        return current
-    }
-
-    val next = when {
-        targetStart < current -> targetStart.toInt()
-        targetEnd > current + viewportSize -> (targetEnd - viewportSize + 1f).toInt()
-        else -> current
-    }
-    return next.coerceIn(0, maxValue)
-}
-
-private val ScriptEditorBorderWidth = 2.dp
-private val ScriptEditorHorizontalPadding = 12.dp
-private val ScriptEditorCursorScrollPadding = 24.dp
-private val ScriptEditorVerticalPadding = 10.dp
-private const val ScriptEditorMinLineNumberDigits = 2
-
-private val JavaScriptNumberTokenChars = setOf('-', '+', '.', 'e', 'E', 'x', 'X', 'b', 'B', 'o', 'O') + ('0'..'9')
-
-private val JavaScriptLiterals = setOf(
-    "true",
-    "false",
-    "null",
-    "undefined",
-    "NaN",
-    "Infinity",
-)
-
-private val JavaScriptKeywords = setOf(
-    "async",
-    "await",
-    "break",
-    "case",
-    "catch",
-    "class",
-    "const",
-    "continue",
-    "default",
-    "delete",
-    "do",
-    "else",
-    "export",
-    "extends",
-    "finally",
-    "for",
-    "from",
-    "function",
-    "get",
-    "if",
-    "import",
-    "in",
-    "instanceof",
-    "let",
-    "new",
-    "of",
-    "return",
-    "set",
-    "static",
-    "super",
-    "switch",
-    "this",
-    "throw",
-    "try",
-    "typeof",
-    "var",
-    "void",
-    "while",
-    "with",
-    "yield",
-)
+private const val SyntaxNumberColorId = 256
+private const val SyntaxLiteralColorId = 257
+private const val EditorTextSize = 14f
+private const val EditorLineSpacing = 4f
+private const val EditorVerticalPadding = 8f
+private const val EditorHorizontalPadding = 10f
+private const val EditorTabWidth = 2
+private const val LineNumberMargin = 4f
+private const val DividerWidth = 1f
+private val FocusedBorderWidth = 2.dp
+private val PlaceholderStartPadding = 50.dp
+private val PlaceholderTopPadding = 9.dp

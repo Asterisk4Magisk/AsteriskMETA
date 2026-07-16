@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import app.AppState
 import app.CustomResourceFileState
+import app.modes.normalizeColorMode
 import androidx.core.content.edit
 import java.util.UUID
 
@@ -32,7 +33,7 @@ internal class AppSettingsPreferences(
             }
 
         return defaults.copy(
-            colorMode = preferences.getInt(KeyColorMode, defaults.colorMode),
+            colorMode = normalizeColorMode(preferences.getInt(KeyColorMode, defaults.colorMode)),
             languageMode = preferences.getInt(KeyLanguageMode, defaults.languageMode),
             seedIndex = preferences.getInt(KeySeedIndex, defaults.seedIndex),
             nextMihomoProfileId = preferences.getInt(KeyNextMihomoProfileId, defaults.nextMihomoProfileId),
@@ -43,6 +44,10 @@ internal class AppSettingsPreferences(
             selectedMihomoProfileId = preferences.getInt(
                 KeySelectedMihomoProfileId,
                 defaults.selectedMihomoProfileId,
+            ),
+            pendingMihomoRestartProfileId = preferences.getInt(
+                KeyPendingMihomoRestartProfileId,
+                defaults.pendingMihomoRestartProfileId,
             ),
             runMode = preferences.getInt(KeyRunMode, defaults.runMode),
             mihomoMode = preferences.getInt(KeyMihomoMode, defaults.mihomoMode),
@@ -253,6 +258,7 @@ internal class AppSettingsPreferences(
             .putInt(KeyNextMihomoProfileId, state.nextMihomoProfileId)
             .putInt(KeyNextMihomoOverrideScriptId, state.nextMihomoOverrideScriptId)
             .putInt(KeySelectedMihomoProfileId, state.selectedMihomoProfileId)
+            .putInt(KeyPendingMihomoRestartProfileId, state.pendingMihomoRestartProfileId)
             .putInt(KeyRunMode, state.runMode)
             .putInt(KeyMihomoMode, state.mihomoMode)
             .putBoolean(KeyMihomoProxyExcludeNotSelectable, state.mihomoProxyExcludeNotSelectable)
@@ -368,6 +374,7 @@ private const val KeySeedIndex = "seed_index"
 private const val KeyNextMihomoProfileId = "next_mihomo_profile_id"
 private const val KeyNextMihomoOverrideScriptId = "next_mihomo_override_script_id"
 private const val KeySelectedMihomoProfileId = "selected_mihomo_profile_id"
+private const val KeyPendingMihomoRestartProfileId = "pending_mihomo_restart_profile_id"
 private const val KeyRunMode = "run_mode"
 private const val KeyMihomoMode = "mihomo_mode"
 private const val KeyMihomoProxyExcludeNotSelectable = "mihomo_proxy_exclude_not_selectable"

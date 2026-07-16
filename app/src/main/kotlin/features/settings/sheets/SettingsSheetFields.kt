@@ -23,9 +23,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import ui.theme.AsteriskShapeTokens
 import engine.network.toPortOrNull
-import top.yukonga.miuix.kmp.basic.TextField
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
 import ui.components.StringListStatusText
+
+private val SettingsSheetHorizontalPadding = 16.dp
 
 @Composable
 internal fun SettingsSheetContent(
@@ -65,7 +69,9 @@ internal fun SettingsTextField(
         StringListStatusText(
             text = it,
             error = true,
-            modifier = Modifier.padding(bottom = 8.dp),
+            modifier = Modifier
+                .padding(horizontal = SettingsSheetHorizontalPadding)
+                .padding(bottom = 8.dp),
         )
     }
 }
@@ -90,14 +96,17 @@ internal fun SheetTextField(
             }
     }
 
-    TextField(
-        label = label,
+    OutlinedTextField(
+        label = { Text(label) },
         state = rememberTextFieldState(initialText = value),
         lineLimits = TextFieldLineLimits.SingleLine,
+        shape = AsteriskShapeTokens.InnerContainer,
         inputTransformation = inputTransformation,
         keyboardOptions = keyboardOptions,
         enabled = enabled,
-        modifier = modifier,
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = SettingsSheetHorizontalPadding),
     )
 }
 

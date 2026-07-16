@@ -1,15 +1,23 @@
 // Copyright 2026, AsteriskMETA contributors
 // SPDX-License-Identifier: GPL-3.0
 
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+
 package features.mihomo
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.InputTransformation
@@ -18,6 +26,18 @@ import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.byValue
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -29,11 +49,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import app.DefaultMihomoOverrideScriptId
 import app.DefaultMihomoProfileId
@@ -48,32 +67,40 @@ import app.MihomoProfileType
 import app.MihomoSubscriptionInfo
 import app.R
 import app.collectAppState
+import app.hasRuntimeRelevantChanges
+import app.modes.RunModeBpf2Socks
+import app.modes.RunModeTproxy
+import app.modes.RunModeTun
+import app.modes.RunModeTun2Socks
 import app.nextAvailableMihomoProfileId
+import app.withMihomoRestartApplied
+import app.withMihomoRestartRequired
 import com.github.kr328.clash.core.Clash
+import engine.mihomo.raw.MihomoRawConfigParseResult
+import engine.mihomo.raw.MihomoRawConfigParser
+import engine.mihomo.raw.MihomoRawConfigSnapshot
+import engine.mihomo.raw.RawConfigReadiness
+import engine.mihomo.raw.check
 import engine.mihomo.sha256Hex
+import engine.proxy.ProxyServiceResult
+import features.settings.SettingsDropdownRow
 import features.subscription.isPlainHttpSubscriptionUrl
 import features.subscription.isValidManualSubscriptionUrl
 import features.subscription.usecase.launchMihomoProfileSubscriptionUpdate
 import features.subscription.usecase.subscriptionUpdateMessage
-import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
-import top.yukonga.miuix.kmp.basic.Scaffold
-import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.basic.TextField
-import top.yukonga.miuix.kmp.icon.MiuixIcons
-import top.yukonga.miuix.kmp.icon.extended.Ok
-import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
-import top.yukonga.miuix.kmp.preference.SwitchPreference
-import top.yukonga.miuix.kmp.theme.MiuixTheme
-import ui.components.BackNavigationIcon
-import ui.components.NavigationIcon
-import ui.components.WarningConfirmDialog
-import ui.layout.AdaptiveTopAppBar
+import ui.components.AsteriskActionButton
+import ui.components.AsteriskListRow
+import ui.components.AsteriskModalBottomSheet
 import ui.layout.pageContentPaddingWithCutout
+import ui.theme.AsteriskMotion
+import kotlin.coroutines.cancellation.CancellationException
+import kotlin.time.Duration.Companion.milliseconds
+import ui.icons.AsteriskIcons as Icons
 
 @Composable
 fun MihomoProfileEditPage(
@@ -81,13 +108,13 @@ fun MihomoProfileEditPage(
     profileId: Int,
     type: Int,
 ) {
-    val appState by LocalAppStateStore.current.collectAppState()
+    val stateStore = LocalAppStateStore.current
+    val appState by stateStore.collectAppState()
     val isWideScreen = LocalIsWideScreen.current
     val navigator = LocalNavigator.current
     val updateAppState = LocalUpdateAppState.current
     val services = LocalAppServices.current
     val scope = rememberCoroutineScope()
-    val topAppBarScrollBehavior = MiuixScrollBehavior()
     val isNew = profileId <= 0
     val targetProfile = remember(appState.mihomoProfiles, profileId) {
         appState.mihomoProfiles.firstOrNull { profile -> profile.id == profileId }
@@ -101,8 +128,11 @@ fun MihomoProfileEditPage(
     val syncSuccessMessage = stringResource(R.string.subscription_update_result)
     val syncFailedMessage = stringResource(R.string.subscription_update_result_with_failed)
     val providerPrepareFailedMessage = stringResource(R.string.mihomo_configuration_provider_prepare_failed)
+    val restartFailedMessage = stringResource(R.string.mihomo_configuration_restart_failed)
 
     var saving by remember { mutableStateOf(false) }
+    var showRestartRequired by remember { mutableStateOf(false) }
+    var restartInProgress by remember { mutableStateOf(false) }
     val nameState = rememberTextFieldState(initialText = targetProfile?.name.orEmpty())
     val urlState = rememberTextFieldState(initialText = targetProfile?.url ?: "")
     val userAgentState = rememberTextFieldState(
@@ -115,17 +145,17 @@ fun MihomoProfileEditPage(
     var updateViaProxy by remember(targetProfile?.id, isNew) {
         mutableStateOf(targetProfile?.updateViaProxy ?: false)
     }
-    var contentValue by remember(targetProfile?.id, isNew) {
-        mutableStateOf(
-            TextFieldValue(
-                text = "",
-                selection = TextRange(0),
-            ),
-        )
+    val contentEditorState = remember(targetProfile?.id, isNew) {
+        MihomoCodeEditorState()
     }
     var overrideScriptId by remember(targetProfile?.id, isNew) {
         mutableIntStateOf(targetProfile?.overrideScriptId ?: DefaultMihomoOverrideScriptId)
     }
+    var disableOverrides by remember(targetProfile?.id, isNew) {
+        mutableStateOf(targetProfile?.disableOverrides ?: false)
+    }
+    var showRawModeConfirmation by remember { mutableStateOf(false) }
+    var rawContentForCheck by remember(targetProfile?.id, isNew) { mutableStateOf("") }
     val selectedOverrideScript = appState.mihomoOverrideScripts.firstOrNull { script ->
         script.id == overrideScriptId
     }
@@ -138,20 +168,54 @@ fun MihomoProfileEditPage(
     val invalidUrlMessage = stringResource(R.string.mihomo_configuration_invalid_subscription_url)
     val invalidAgeSecretKeyMessage = stringResource(R.string.mihomo_configuration_invalid_age_secret_key)
     var showHttpSubscriptionWarning by remember { mutableStateOf(false) }
+    var showAdvancedOptions by remember { mutableStateOf(false) }
+    var showFileProperties by remember { mutableStateOf(false) }
+    var rawParseResult by remember(targetProfile?.id, isNew) {
+        mutableStateOf<MihomoRawConfigParseResult?>(null)
+    }
 
     LaunchedEffect(targetProfile?.id, targetProfile?.contentPath, profileType) {
-        if (profileType != MihomoProfileType.File || targetProfile == null) {
-            if (targetProfile == null) {
-                contentValue = TextFieldValue("")
-            }
+        if (targetProfile == null) {
+            contentEditorState.replaceText("")
+            rawContentForCheck = ""
             return@LaunchedEffect
         }
         val initialContent = withContext(Dispatchers.IO) {
             services.mihomoProfileContentStore.readOrEmpty(targetProfile)
         }
-        contentValue = TextFieldValue(
-            text = initialContent,
-            selection = TextRange(initialContent.length),
+        rawContentForCheck = initialContent
+        if (profileType == MihomoProfileType.File) {
+            contentEditorState.replaceText(initialContent)
+        }
+    }
+
+    LaunchedEffect(
+        disableOverrides,
+        contentEditorState.documentVersion,
+        rawContentForCheck,
+        profileType,
+    ) {
+        if (!disableOverrides) {
+            rawParseResult = null
+            return@LaunchedEffect
+        }
+        if (profileType == MihomoProfileType.File) {
+            delay(RawConfigValidationDebounceMillis.milliseconds)
+        }
+        val content = if (profileType == MihomoProfileType.File) {
+            contentEditorState.snapshotText()
+        } else {
+            rawContentForCheck
+        }
+        rawParseResult = withContext(Dispatchers.Default) {
+            MihomoRawConfigParser.parse(content.toByteArray(Charsets.UTF_8))
+        }
+    }
+    val rawCheck = remember(rawParseResult, appState.runMode, appState.enableVpnHevTun, appState.enableLocalDns) {
+        rawParseResult?.check(
+            runMode = appState.runMode,
+            vpnUsesHev = appState.enableVpnHevTun,
+            dnsHijackRequested = appState.enableLocalDns,
         )
     }
 
@@ -172,10 +236,14 @@ fun MihomoProfileEditPage(
                     },
                 )
             } else {
+                val previousProfile = state.mihomoProfiles.firstOrNull { it.id == profile.id }
                 state.copy(
                     mihomoProfiles = state.mihomoProfiles.map { item ->
                         if (item.id == profile.id) profile else item
                     },
+                ).withMihomoRestartRequired(
+                    profileId = profile.id,
+                    contentChanged = previousProfile?.hasRuntimeRelevantChanges(profile) == true,
                 )
             }
         }
@@ -214,6 +282,38 @@ fun MihomoProfileEditPage(
                 services.tipNotifier.showError(error, syncFailedMessage)
             },
         )
+
+    fun restartWithSavedConfiguration() {
+        if (restartInProgress) return
+        restartInProgress = true
+        val completed = CompletableDeferred<ProxyServiceResult>()
+        services.appScope.launch {
+            completed.complete(services.proxyServiceUseCase.restart(stateStore.state.value))
+        }
+        scope.launch {
+            try {
+                when (val result = completed.await()) {
+                    is ProxyServiceResult.Success -> {
+                        updateAppState { state ->
+                            state.copy(
+                                proxyRunning = result.proxyRunning,
+                                localProxyPort = result.appState?.localProxyPort ?: state.localProxyPort,
+                                mihomoControlPort = result.appState?.mihomoControlPort ?: state.mihomoControlPort,
+                            ).withMihomoRestartApplied()
+                        }
+                        showRestartRequired = false
+                        navigator.pop()
+                    }
+
+                    is ProxyServiceResult.Failed -> {
+                        services.tipNotifier.showError(result.error, restartFailedMessage)
+                    }
+                }
+            } finally {
+                restartInProgress = false
+            }
+        }
+    }
 
     fun saveUrlProfile(allowPlainHttp: Boolean = false) {
         val cleanName = nameState.text.toString().trim()
@@ -266,6 +366,7 @@ fun MihomoProfileEditPage(
                 subscriptionInfo = if (urlChanged) MihomoSubscriptionInfo() else targetProfile.subscriptionInfo,
                 lastUpdatedAtMillis = if (urlChanged) 0L else targetProfile.lastUpdatedAtMillis,
                 overrideScriptId = cleanOverrideScriptId,
+                disableOverrides = disableOverrides,
             )
         } else {
             MihomoProfileState(
@@ -278,13 +379,18 @@ fun MihomoProfileEditPage(
                 updateViaProxy = updateViaProxy,
                 ageSecretKey = cleanAgeSecretKey,
                 overrideScriptId = cleanOverrideScriptId,
+                disableOverrides = disableOverrides,
             )
         }
         val saved = saveProfile(savedProfile, targetProfile == null)
         if (remoteOptionsChanged || !saved.hasContent) {
             launchProfileSubscriptionUpdate(saved)
         }
-        navigator.pop()
+        if (stateStore.state.value.pendingMihomoRestartProfileId == saved.id) {
+            showRestartRequired = true
+        } else {
+            navigator.pop()
+        }
     }
 
     fun onSave() {
@@ -301,9 +407,9 @@ fun MihomoProfileEditPage(
         }
         saving = true
         val profileSnapshot = targetProfile
-        val contentText = contentValue.text
+        val contentText = contentEditorState.snapshotText()
         val cleanOverrideScriptId = selectedOverrideScriptId()
-        val shouldPop = CompletableDeferred<Boolean>()
+        val saveOutcome = CompletableDeferred<ProfileSaveOutcome>()
         services.appScope.launch {
             try {
                 val saved = runCatching {
@@ -330,7 +436,8 @@ fun MihomoProfileEditPage(
                         profileSnapshot.type != MihomoProfileType.File ||
                         profileSnapshot.name != cleanName ||
                         contentChanged ||
-                        profileSnapshot.overrideScriptId != cleanOverrideScriptId
+                        profileSnapshot.overrideScriptId != cleanOverrideScriptId ||
+                        profileSnapshot.disableOverrides != disableOverrides
                     val savedProfile = profileSnapshot?.copy(
                         name = cleanName,
                         type = MihomoProfileType.File,
@@ -356,6 +463,7 @@ fun MihomoProfileEditPage(
                             profileSnapshot.lastUpdatedAtMillis
                         },
                         overrideScriptId = cleanOverrideScriptId,
+                        disableOverrides = disableOverrides,
                     )
                         ?: MihomoProfileState(
                             id = DefaultMihomoProfileId,
@@ -366,6 +474,7 @@ fun MihomoProfileEditPage(
                             contentSizeBytes = contentRef?.sizeBytes ?: 0L,
                             lastUpdatedAtMillis = System.currentTimeMillis(),
                             overrideScriptId = cleanOverrideScriptId,
+                            disableOverrides = disableOverrides,
                         )
                     saveProfile(savedProfile, profileSnapshot == null)
                 }.onFailure { error ->
@@ -373,11 +482,11 @@ fun MihomoProfileEditPage(
                     services.tipNotifier.showError(error, providerPrepareFailedMessage)
                 }.getOrNull()
                 if (saved == null) {
-                    shouldPop.complete(false)
+                    saveOutcome.complete(ProfileSaveOutcome.Stay)
                     return@launch
                 }
                 if (!saved.hasContent) {
-                    shouldPop.complete(true)
+                    saveOutcome.complete(saved.profileSaveOutcome(stateStore.state.value.pendingMihomoRestartProfileId))
                     return@launch
                 }
                 runCatching {
@@ -390,16 +499,18 @@ fun MihomoProfileEditPage(
                     if (error is CancellationException) throw error
                     services.tipNotifier.showError(error, providerPrepareFailedMessage)
                 }
-                shouldPop.complete(true)
+                saveOutcome.complete(saved.profileSaveOutcome(stateStore.state.value.pendingMihomoRestartProfileId))
             } catch (error: CancellationException) {
-                shouldPop.completeExceptionally(error)
+                saveOutcome.completeExceptionally(error)
                 throw error
             }
         }
         scope.launch {
             try {
-                if (shouldPop.await()) {
-                    navigator.pop()
+                when (saveOutcome.await()) {
+                    ProfileSaveOutcome.Pop -> navigator.pop()
+                    ProfileSaveOutcome.PromptRestart -> showRestartRequired = true
+                    ProfileSaveOutcome.Stay -> Unit
                 }
             } finally {
                 saving = false
@@ -409,19 +520,25 @@ fun MihomoProfileEditPage(
 
     Scaffold(
         topBar = {
-            AdaptiveTopAppBar(
-                title = title,
-                isWideScreen = isWideScreen,
-                scrollBehavior = topAppBarScrollBehavior,
+            TopAppBar(
+                title = { Text(title, maxLines = 1) },
                 navigationIcon = {
-                    BackNavigationIcon(onClick = { navigator.pop() })
+                    IconButton(onClick = { navigator.pop() }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = stringResource(R.string.common_back),
+                        )
+                    }
                 },
                 actions = {
-                    NavigationIcon(
-                        imageVector = MiuixIcons.Ok,
-                        contentDescription = stringResource(R.string.common_save),
+                    TextButton(
                         onClick = ::onSave,
-                    )
+                        enabled = !saving,
+                    ) {
+                        Icon(Icons.Rounded.Save, contentDescription = null)
+                        Spacer(Modifier.width(6.dp))
+                        Text(stringResource(R.string.common_save))
+                    }
                 },
             )
         },
@@ -442,7 +559,8 @@ fun MihomoProfileEditPage(
             ) {
                 Text(
                     text = stringResource(R.string.mihomo_configuration_missing),
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         } else {
@@ -450,7 +568,7 @@ fun MihomoProfileEditPage(
                 val baseModifier = Modifier
                     .fillMaxSize()
                     .padding(contentPadding)
-                    .padding(horizontal = 12.dp, vertical = 12.dp)
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
 
                 Column(
                     modifier = if (profileType == MihomoProfileType.Url) {
@@ -459,28 +577,13 @@ fun MihomoProfileEditPage(
                         baseModifier
                     },
                 ) {
-                    TextField(
-                        state = nameState,
-                        label = stringResource(R.string.mihomo_configuration_name),
-                        lineLimits = TextFieldLineLimits.SingleLine,
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                    )
-                    Box(modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
-                        OverlayDropdownPreference(
-                            title = stringResource(R.string.mihomo_configuration_override_script),
-                            items = overrideScriptOptions,
-                            selectedIndex = selectedOverrideScriptIndex.coerceIn(overrideScriptOptions.indices),
-                            onSelectedIndexChange = { index ->
-                                overrideScriptId = if (index == 0) {
-                                    DefaultMihomoOverrideScriptId
-                                } else {
-                                    appState.mihomoOverrideScripts.getOrNull(index - 1)?.id
-                                        ?: DefaultMihomoOverrideScriptId
-                                }
-                            },
-                        )
-                    }
                     if (profileType == MihomoProfileType.Url) {
+                        OutlinedTextField(
+                            state = nameState,
+                            label = { Text(stringResource(R.string.mihomo_configuration_name)) },
+                            lineLimits = TextFieldLineLimits.SingleLine,
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                        )
                         UrlProfileFields(
                             urlState = urlState,
                             userAgentState = userAgentState,
@@ -488,28 +591,161 @@ fun MihomoProfileEditPage(
                             updateIntervalState = updateIntervalState,
                             updateViaProxy = updateViaProxy,
                             onUpdateViaProxyChange = { updateViaProxy = it },
+                            overrideScriptOptions = overrideScriptOptions,
+                            selectedOverrideScriptIndex = selectedOverrideScriptIndex,
+                            onSelectedOverrideScriptIndexChange = { index ->
+                                overrideScriptId = if (index == 0) {
+                                    DefaultMihomoOverrideScriptId
+                                } else {
+                                    appState.mihomoOverrideScripts.getOrNull(index - 1)?.id
+                                        ?: DefaultMihomoOverrideScriptId
+                                }
+                            },
+                            advancedExpanded = showAdvancedOptions,
+                            onAdvancedExpandedChange = { showAdvancedOptions = it },
+                            disableOverrides = disableOverrides,
+                            rawReadiness = rawCheck?.readiness,
+                            rawSnapshot = rawParseResult?.snapshot,
+                            runMode = appState.runMode,
+                            onDisableOverridesChange = { enabled ->
+                                if (enabled) showRawModeConfirmation = true else disableOverrides = false
+                            },
                         )
                     } else {
+                        Surface(
+                            onClick = { showFileProperties = true },
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                            shape = MaterialTheme.shapes.large,
+                            color = MaterialTheme.colorScheme.surfaceContainer,
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Tune,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                                Spacer(Modifier.width(14.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = stringResource(R.string.mihomo_configuration_properties),
+                                        style = MaterialTheme.typography.titleMedium,
+                                    )
+                                    Text(
+                                        text = nameState.text.toString().ifBlank {
+                                            stringResource(R.string.mihomo_configuration_name)
+                                        },
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                    )
+                                }
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                                    contentDescription = null,
+                                )
+                            }
+                        }
                         YamlCodeEditor(
                             label = stringResource(R.string.mihomo_configuration_content),
-                            value = contentValue,
-                            onValueChange = { contentValue = it },
+                            state = contentEditorState,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .weight(1f)
                                 .imePadding(),
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default),
                         )
                     }
                 }
             }
         }
+        FileProfilePropertiesSheet(
+            show = showFileProperties && profileType == MihomoProfileType.File,
+            nameState = nameState,
+            overrideScriptOptions = overrideScriptOptions,
+            selectedOverrideScriptIndex = selectedOverrideScriptIndex,
+            disableOverrides = disableOverrides,
+            rawReadiness = rawCheck?.readiness,
+            rawSnapshot = rawParseResult?.snapshot,
+            runMode = appState.runMode,
+            onDisableOverridesChange = { enabled ->
+                if (enabled) showRawModeConfirmation = true else disableOverrides = false
+            },
+            onSelectedOverrideScriptIndexChange = { index ->
+                overrideScriptId = if (index == 0) {
+                    DefaultMihomoOverrideScriptId
+                } else {
+                    appState.mihomoOverrideScripts.getOrNull(index - 1)?.id
+                        ?: DefaultMihomoOverrideScriptId
+                }
+            },
+            onDismissRequest = { showFileProperties = false },
+        )
         HttpSubscriptionWarningDialog(
             show = showHttpSubscriptionWarning,
             onDismissRequest = { showHttpSubscriptionWarning = false },
             onConfirm = { saveUrlProfile(allowPlainHttp = true) },
         )
+        RawModeConfirmationDialog(
+            show = showRawModeConfirmation,
+            onDismissRequest = { showRawModeConfirmation = false },
+            onConfirm = {
+                disableOverrides = true
+                showRawModeConfirmation = false
+            },
+        )
+        RestartRequiredDialog(
+            show = showRestartRequired,
+            restarting = restartInProgress,
+            onRestartNow = ::restartWithSavedConfiguration,
+            onLater = {
+                showRestartRequired = false
+                navigator.pop()
+            },
+        )
     }
+}
+
+private enum class ProfileSaveOutcome {
+    Pop,
+    PromptRestart,
+    Stay,
+}
+
+private fun MihomoProfileState.profileSaveOutcome(pendingProfileId: Int): ProfileSaveOutcome =
+    if (pendingProfileId == id) ProfileSaveOutcome.PromptRestart else ProfileSaveOutcome.Pop
+
+@Composable
+internal fun RestartRequiredDialog(
+    show: Boolean,
+    restarting: Boolean,
+    onRestartNow: () -> Unit,
+    onLater: () -> Unit,
+) {
+    if (!show) return
+    AlertDialog(
+        onDismissRequest = { if (!restarting) onLater() },
+        icon = { Icon(Icons.Rounded.Tune, contentDescription = null) },
+        title = { Text(stringResource(R.string.mihomo_configuration_restart_required)) },
+        text = { Text(stringResource(R.string.mihomo_configuration_restart_required_message)) },
+        dismissButton = {
+            AsteriskActionButton(
+                text = stringResource(R.string.mihomo_configuration_restart_later),
+                icon = Icons.Rounded.History,
+                onClick = onLater,
+                enabled = !restarting,
+            )
+        },
+        confirmButton = {
+            AsteriskActionButton(
+                text = stringResource(R.string.mihomo_configuration_restart_now),
+                icon = Icons.Rounded.Refresh,
+                onClick = onRestartNow,
+                enabled = !restarting,
+            )
+        },
+    )
 }
 
 @Composable
@@ -518,47 +754,61 @@ private fun HttpSubscriptionWarningDialog(
     onDismissRequest: () -> Unit,
     onConfirm: () -> Unit,
 ) {
-    WarningConfirmDialog(
-        show = show,
-        title = stringResource(R.string.mihomo_configuration_http_subscription_warning_title),
-        summary = stringResource(R.string.mihomo_configuration_http_subscription_warning_message),
-        dismissText = stringResource(R.string.common_cancel),
-        confirmText = stringResource(R.string.mihomo_configuration_http_subscription_warning_confirm),
+    if (!show) return
+    AlertDialog(
         onDismissRequest = onDismissRequest,
-        onConfirm = onConfirm,
+        title = { Text(stringResource(R.string.mihomo_configuration_http_subscription_warning_title)) },
+        text = { Text(stringResource(R.string.mihomo_configuration_http_subscription_warning_message)) },
+        dismissButton = {
+            AsteriskActionButton(
+                text = stringResource(R.string.common_cancel),
+                icon = Icons.Rounded.Close,
+                onClick = onDismissRequest,
+            )
+        },
+        confirmButton = {
+            AsteriskActionButton(
+                text = stringResource(R.string.mihomo_configuration_http_subscription_warning_confirm),
+                icon = Icons.Rounded.Check,
+                onClick = onConfirm,
+            )
+        },
     )
 }
 
 @Composable
-private fun UrlProfileFields(
+private fun ColumnScope.UrlProfileFields(
     urlState: TextFieldState,
     userAgentState: TextFieldState,
     ageSecretKeyState: TextFieldState,
     updateIntervalState: TextFieldState,
     updateViaProxy: Boolean,
     onUpdateViaProxyChange: (Boolean) -> Unit,
+    overrideScriptOptions: List<String>,
+    selectedOverrideScriptIndex: Int,
+    onSelectedOverrideScriptIndexChange: (Int) -> Unit,
+    advancedExpanded: Boolean,
+    onAdvancedExpandedChange: (Boolean) -> Unit,
+    disableOverrides: Boolean,
+    rawReadiness: RawConfigReadiness?,
+    rawSnapshot: MihomoRawConfigSnapshot?,
+    runMode: Int,
+    onDisableOverridesChange: (Boolean) -> Unit,
 ) {
-    TextField(
+    val advancedIconRotation by animateFloatAsState(
+        targetValue = if (advancedExpanded) 180f else 0f,
+        animationSpec = AsteriskMotion.fastSpatial(),
+        label = "url-profile-advanced-icon",
+    )
+    OutlinedTextField(
         state = urlState,
-        label = stringResource(R.string.mihomo_configuration_url),
+        label = { Text(stringResource(R.string.mihomo_configuration_url)) },
         lineLimits = TextFieldLineLimits.SingleLine,
         modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
     )
-    TextField(
-        state = userAgentState,
-        label = stringResource(R.string.mihomo_configuration_user_agent),
-        lineLimits = TextFieldLineLimits.SingleLine,
-        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-    )
-    TextField(
-        state = ageSecretKeyState,
-        label = stringResource(R.string.mihomo_configuration_age_secret_key),
-        lineLimits = TextFieldLineLimits.SingleLine,
-        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-    )
-    TextField(
+    OutlinedTextField(
         state = updateIntervalState,
-        label = stringResource(R.string.mihomo_configuration_update_interval),
+        label = { Text(stringResource(R.string.mihomo_configuration_update_interval)) },
         lineLimits = TextFieldLineLimits.SingleLine,
         inputTransformation = InputTransformation.byValue { _, proposed ->
             proposed.toString().filter(Char::isDigit).take(5)
@@ -567,15 +817,327 @@ private fun UrlProfileFields(
             keyboardType = KeyboardType.Number,
             imeAction = ImeAction.Done,
         ),
-        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
     )
-    SwitchPreference(
-        title = stringResource(R.string.mihomo_configuration_update_via_proxy),
-        checked = updateViaProxy,
-        onCheckedChange = onUpdateViaProxyChange,
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.mihomo_configuration_update_via_proxy),
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.weight(1f),
+            )
+            Switch(
+                checked = updateViaProxy,
+                onCheckedChange = onUpdateViaProxyChange,
+            )
+        }
+    }
+    TextButton(
+        onClick = { onAdvancedExpandedChange(!advancedExpanded) },
+        modifier = Modifier.align(Alignment.End).padding(top = 8.dp),
+    ) {
+        Icon(
+            imageVector = Icons.Rounded.ExpandMore,
+            contentDescription = null,
+            modifier = Modifier.graphicsLayer { rotationZ = advancedIconRotation },
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(stringResource(R.string.settings_advanced))
+    }
+    AnimatedVisibility(
+        visible = advancedExpanded,
+        enter = AsteriskMotion.expandEnter(),
+        exit = AsteriskMotion.expandExit(),
+    ) {
+        Column {
+            OutlinedTextField(
+                state = userAgentState,
+                label = { Text(stringResource(R.string.mihomo_configuration_user_agent)) },
+                lineLimits = TextFieldLineLimits.SingleLine,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+            )
+            OutlinedTextField(
+                state = ageSecretKeyState,
+                label = { Text(stringResource(R.string.mihomo_configuration_age_secret_key)) },
+                lineLimits = TextFieldLineLimits.SingleLine,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+            )
+            ProfileOverrideScriptSelector(
+                options = overrideScriptOptions,
+                selectedIndex = selectedOverrideScriptIndex,
+                onSelectedIndexChange = onSelectedOverrideScriptIndexChange,
+                readOnly = disableOverrides,
+            )
+            RawConfigModeControl(
+                enabled = disableOverrides,
+                readiness = rawReadiness,
+                snapshot = rawSnapshot,
+                runMode = runMode,
+                onEnabledChange = onDisableOverridesChange,
+            )
+        }
+    }
+}
+
+@Composable
+private fun FileProfilePropertiesSheet(
+    show: Boolean,
+    nameState: TextFieldState,
+    overrideScriptOptions: List<String>,
+    selectedOverrideScriptIndex: Int,
+    disableOverrides: Boolean,
+    rawReadiness: RawConfigReadiness?,
+    rawSnapshot: MihomoRawConfigSnapshot?,
+    runMode: Int,
+    onDisableOverridesChange: (Boolean) -> Unit,
+    onSelectedOverrideScriptIndexChange: (Int) -> Unit,
+    onDismissRequest: () -> Unit,
+) {
+    var advancedExpanded by remember { mutableStateOf(false) }
+    val advancedIconRotation by animateFloatAsState(
+        targetValue = if (advancedExpanded) 180f else 0f,
+        animationSpec = AsteriskMotion.fastSpatial(),
+        label = "file-profile-advanced-icon",
+    )
+    AsteriskModalBottomSheet(
+        show = show,
+        onDismissRequest = onDismissRequest,
+        title = stringResource(R.string.mihomo_configuration_properties),
+        endAction = {
+            AsteriskActionButton(
+                text = stringResource(R.string.common_complete),
+                icon = Icons.Rounded.Check,
+                onClick = onDismissRequest,
+            )
+        },
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 24.dp),
+        ) {
+            OutlinedTextField(
+                state = nameState,
+                label = { Text(stringResource(R.string.mihomo_configuration_name)) },
+                lineLimits = TextFieldLineLimits.SingleLine,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+            )
+            TextButton(
+                onClick = { advancedExpanded = !advancedExpanded },
+                modifier = Modifier.align(Alignment.End),
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.ExpandMore,
+                    contentDescription = null,
+                    modifier = Modifier.graphicsLayer { rotationZ = advancedIconRotation },
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.settings_advanced))
+            }
+            AnimatedVisibility(
+                visible = advancedExpanded,
+                enter = AsteriskMotion.expandEnter(),
+                exit = AsteriskMotion.expandExit(),
+            ) {
+                Column {
+                    ProfileOverrideScriptSelector(
+                        options = overrideScriptOptions,
+                        selectedIndex = selectedOverrideScriptIndex,
+                        onSelectedIndexChange = onSelectedOverrideScriptIndexChange,
+                        readOnly = disableOverrides,
+                    )
+                    RawConfigModeControl(
+                        enabled = disableOverrides,
+                        readiness = rawReadiness,
+                        snapshot = rawSnapshot,
+                        runMode = runMode,
+                        onEnabledChange = onDisableOverridesChange,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProfileOverrideScriptSelector(
+    options: List<String>,
+    selectedIndex: Int,
+    onSelectedIndexChange: (Int) -> Unit,
+    readOnly: Boolean = false,
+) {
+    if (readOnly) {
+        AsteriskListRow(
+            title = stringResource(R.string.mihomo_configuration_override_script),
+            summary = stringResource(R.string.mihomo_configuration_override_script_stopped),
+            leadingIcon = Icons.Rounded.Lock,
+            enabled = false,
+        )
+        return
+    }
+    SettingsDropdownRow(
+        title = stringResource(R.string.mihomo_configuration_override_script),
+        icon = Icons.Rounded.Code,
+        items = options,
+        selectedIndex = selectedIndex,
+        onSelectedIndexChange = onSelectedIndexChange,
+    )
+}
+
+@Composable
+private fun RawConfigModeControl(
+    enabled: Boolean,
+    readiness: RawConfigReadiness?,
+    snapshot: MihomoRawConfigSnapshot?,
+    runMode: Int,
+    onEnabledChange: (Boolean) -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+        shape = MaterialTheme.shapes.large,
+        color = if (enabled) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.surfaceContainer,
+    ) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.mihomo_configuration_raw_mode),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Text(
+                        text = stringResource(R.string.mihomo_configuration_raw_mode_summary),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(checked = enabled, onCheckedChange = onEnabledChange)
+            }
+            if (enabled) {
+                Text(
+                    text = stringResource(
+                        when (readiness) {
+                            RawConfigReadiness.Ready -> R.string.mihomo_configuration_raw_mode_ready
+                            RawConfigReadiness.Degraded -> R.string.mihomo_configuration_raw_mode_degraded
+                            RawConfigReadiness.Blocked -> R.string.mihomo_configuration_raw_mode_blocked
+                            null -> R.string.mihomo_configuration_raw_mode_unchecked
+                        },
+                    ),
+                    modifier = Modifier.padding(top = 8.dp),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = when (readiness) {
+                        RawConfigReadiness.Blocked -> MaterialTheme.colorScheme.error
+                        else -> MaterialTheme.colorScheme.onTertiaryContainer
+                    },
+                )
+                HorizontalDivider(
+                    modifier = Modifier.padding(top = 10.dp, bottom = 4.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant,
+                )
+                RawCapabilityRow(
+                    title = stringResource(R.string.mihomo_configuration_raw_api),
+                    value = snapshot?.api?.value?.control?.let { control ->
+                        "${control.scheme.uppercase()} · ${control.host}:${control.port}"
+                    } ?: stringResource(R.string.mihomo_configuration_raw_unavailable),
+                    source = snapshot?.api?.path ?: "external-controller",
+                )
+                RawCapabilityRow(
+                    title = stringResource(R.string.mihomo_configuration_raw_dns_hijack),
+                    value = if (snapshot?.dnsHijack?.value?.proven == true) {
+                        stringResource(R.string.mihomo_configuration_raw_configured)
+                    } else {
+                        stringResource(R.string.mihomo_configuration_raw_unavailable)
+                    },
+                    source = snapshot?.dnsHijack?.path ?: "dns.enable + rules",
+                )
+                RawCapabilityRow(
+                    title = stringResource(R.string.mihomo_configuration_raw_run_mode),
+                    value = rawRunModeLabel(runMode),
+                    source = when (runMode) {
+                        RunModeTproxy -> snapshot?.tproxyPort?.path
+                        RunModeTun -> snapshot?.tunInbound?.path
+                        RunModeTun2Socks, RunModeBpf2Socks -> snapshot?.socksInbound?.path
+                        else -> "Android VpnService"
+                    }.orEmpty(),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RawCapabilityRow(
+    title: String,
+    value: String,
+    source: String,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.labelMedium)
+            if (source.isNotBlank()) {
+                Text(
+                    source,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        Text(value, style = MaterialTheme.typography.labelLarge)
+    }
+}
+
+@Composable
+private fun rawRunModeLabel(runMode: Int): String = stringResource(
+    when (runMode) {
+        RunModeTproxy -> R.string.settings_run_mode_tproxy
+        RunModeTun -> R.string.settings_run_mode_tun
+        RunModeTun2Socks -> R.string.settings_run_mode_tun2socks
+        RunModeBpf2Socks -> R.string.settings_run_mode_bpf2socks
+        else -> R.string.settings_run_mode_vpn_service
+    },
+)
+
+@Composable
+private fun RawModeConfirmationDialog(
+    show: Boolean,
+    onDismissRequest: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    if (!show) return
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        icon = { Icon(Icons.Rounded.Lock, contentDescription = null) },
+        title = { Text(stringResource(R.string.mihomo_configuration_raw_mode_confirm_title)) },
+        text = { Text(stringResource(R.string.mihomo_configuration_raw_mode_confirm_message)) },
+        dismissButton = {
+            AsteriskActionButton(
+                text = stringResource(R.string.common_cancel),
+                icon = Icons.Rounded.Close,
+                onClick = onDismissRequest,
+            )
+        },
+        confirmButton = {
+            AsteriskActionButton(
+                text = stringResource(R.string.mihomo_configuration_raw_mode_confirm),
+                icon = Icons.Rounded.Check,
+                onClick = onConfirm,
+            )
+        },
     )
 }
 
 private fun String.isValidAgeSecretKey(): Boolean {
     return isBlank() || Clash.veritySecretKeys(this)
 }
+
+private const val RawConfigValidationDebounceMillis = 350L

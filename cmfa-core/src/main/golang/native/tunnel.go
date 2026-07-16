@@ -42,6 +42,24 @@ func queryMemory() C.uint64_t {
 	return C.uint64_t(tunnel.Memory())
 }
 
+//export queryConnections
+func queryConnections() *C.char {
+	return marshalJson(tunnel.Snapshot())
+}
+
+//export closeConnection
+func closeConnection(id C.c_string) C.int {
+	if tunnel.CloseConnection(C.GoString(id)) {
+		return 1
+	}
+	return 0
+}
+
+//export closeAllConnections
+func closeAllConnections() {
+	tunnel.CloseAllConnections()
+}
+
 //export queryGroupNames
 func queryGroupNames(excludeNotSelectable C.int) *C.char {
 	return marshalJson(tunnel.QueryProxyGroupNames(excludeNotSelectable != 0))

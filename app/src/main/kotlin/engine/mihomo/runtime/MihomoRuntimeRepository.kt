@@ -10,6 +10,10 @@ import app.modes.isRootRunMode
 import engine.mihomo.hasUsableMihomoProfile
 import engine.mihomo.mihomoLogLevelName
 import engine.mihomo.mihomoControlConfig
+import engine.mihomo.selectedMihomoProfileOrNull
+import engine.mihomo.MihomoControlConfig
+import engine.mihomo.raw.loadSelectedRawConfig
+import engine.mihomo.raw.usesRawMihomoConfig
 import engine.proxy.ProxyEngineStartRequest
 import engine.vpn.AndroidMihomoRuntime
 import engine.vpn.VpnMihomoConfigFactory
@@ -28,28 +32,24 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.net.ConnectException
 import kotlin.time.Duration.Companion.milliseconds
+import app.effects.MihomoRuntimeLifecycleTarget
 
 internal class MihomoRuntimeRepository(
     private val appScope: CoroutineScope,
     context: Context,
     private val client: MihomoControlClient = MihomoControlClient(),
-) {
+) : MihomoRuntimeLifecycleTarget {
     private val appContext = context.applicationContext
     private val mutableState = MutableStateFlow(MihomoRuntimeState())
     private var monitorJob: Job? = null
     private var delayTestJob: Job? = null
     private var activeSignature: MihomoRuntimeSignature? = null
-    private val networkDetectionLock = Mutex()
     private val delayTestLock = Any()
     @Volatile
     private var lastLoggedRuntimeError = ""
-    @Volatile
-    private var lastLoggedNetworkDetectionError = ""
 
     val state: StateFlow<MihomoRuntimeState> = mutableState.asStateFlow()
 
@@ -76,7 +76,30 @@ internal class MihomoRuntimeRepository(
             }
             return
         }
-        val control = appState.mihomoControlConfig()
+        if (appState.usesRawMihomoConfig() && !appState.proxyRunning) {
+            stopMonitor(resetSnapshots = false)
+            appScope.launch(Dispatchers.IO) {
+                runCatching { AndroidMihomoRuntime.stop(resetCore = true) }
+                refreshConnectivityState()
+            }
+            return
+        }
+        val control = if (appState.usesRawMihomoConfig()) {
+            runCatching { resolveMihomoControlConfig(appState) }.getOrElse { error ->
+                stopMonitor(resetSnapshots = false)
+                mutableState.update { current ->
+                    current.copy(
+                        running = false,
+                        traffic = current.traffic.copy(connected = false),
+                        lastError = error.message.orEmpty(),
+                    )
+                }
+                refreshConnectivity()
+                return
+            }
+        } else {
+            resolveMihomoControlConfig(appState)
+        }
         val backend = appState.mihomoRuntimeBackend()
         val trafficEnabled = appState.proxyRunning
         val signature = MihomoRuntimeSignature(
@@ -143,7 +166,6 @@ internal class MihomoRuntimeRepository(
             if (resetSnapshots) {
                 MihomoRuntimeState(
                     device = current.device,
-                    networkDetection = current.networkDetection,
                 )
             } else {
                 current.copy(
@@ -158,10 +180,26 @@ internal class MihomoRuntimeRepository(
 
     suspend fun refresh(appState: AppState): Result<Unit> {
         return runCatching {
-            val control = appState.mihomoControlConfig()
+            val control = resolveMihomoControlConfig(appState)
             val backend = resolveInteractiveBackend(appState, control)
             ensureInteractiveRuntime(appState, backend)
             refreshRuntime(control, backend.useBridge())
+        }
+    }
+
+    override fun resumeForForeground(appState: AppState) {
+        start(appState)
+    }
+
+    override fun pauseForBackground(appState: AppState, releaseStandby: Boolean) {
+        stopMonitor(resetSnapshots = false)
+        if (releaseStandby) {
+            appScope.launch(Dispatchers.IO) {
+                AndroidMihomoRuntime.releaseStandby()
+                refreshConnectivityState()
+            }
+        } else {
+            refreshConnectivity()
         }
     }
 
@@ -173,11 +211,48 @@ internal class MihomoRuntimeRepository(
             if (!appState.hasUsableMihomoProfile()) {
                 error("Mihomo profile is not configured")
             }
-            val control = appState.mihomoControlConfig()
+            val control = resolveMihomoControlConfig(appState)
             val backend = resolveInteractiveBackend(appState, control)
             withContext(Dispatchers.IO) {
                 ensureInteractiveRuntime(appState, backend)
                 client.getProxyProvider(control, providerName, backend.useBridge())
+            }
+        }
+    }
+
+    suspend fun getConnections(appState: AppState): Result<MihomoConnectionsState> {
+        return runCatching {
+            require(appState.proxyRunning) { "Proxy service is not running" }
+            require(appState.hasUsableMihomoProfile()) { "Mihomo profile is not configured" }
+            val control = resolveMihomoControlConfig(appState)
+            val backend = resolveInteractiveBackend(appState, control)
+            withContext(Dispatchers.IO) {
+                ensureInteractiveRuntime(appState, backend)
+                client.getConnections(control, backend.useBridge())
+            }
+        }
+    }
+
+    suspend fun closeConnection(appState: AppState, connectionId: String): Result<Boolean> {
+        return runCatching {
+            require(appState.proxyRunning) { "Proxy service is not running" }
+            val control = resolveMihomoControlConfig(appState)
+            val backend = resolveInteractiveBackend(appState, control)
+            withContext(Dispatchers.IO) {
+                ensureInteractiveRuntime(appState, backend)
+                client.closeConnection(control, connectionId, backend.useBridge())
+            }
+        }
+    }
+
+    suspend fun closeAllConnections(appState: AppState): Result<Unit> {
+        return runCatching {
+            require(appState.proxyRunning) { "Proxy service is not running" }
+            val control = resolveMihomoControlConfig(appState)
+            val backend = resolveInteractiveBackend(appState, control)
+            withContext(Dispatchers.IO) {
+                ensureInteractiveRuntime(appState, backend)
+                client.closeAllConnections(control, backend.useBridge())
             }
         }
     }
@@ -190,7 +265,7 @@ internal class MihomoRuntimeRepository(
             if (!appState.hasUsableMihomoProfile()) {
                 return@runCatching
             }
-            val control = appState.mihomoControlConfig()
+            val control = resolveMihomoControlConfig(appState)
             val backend = resolveInteractiveBackend(appState, control)
             withContext(Dispatchers.IO) {
                 ensureInteractiveRuntime(appState, backend)
@@ -205,7 +280,7 @@ internal class MihomoRuntimeRepository(
         mode: String,
     ): Result<Unit> {
         return runCatching {
-            val control = appState.mihomoControlConfig()
+            val control = resolveMihomoControlConfig(appState)
             val backend = resolveInteractiveBackend(appState, control)
             withContext(Dispatchers.IO) {
                 ensureInteractiveRuntime(appState, backend)
@@ -221,7 +296,8 @@ internal class MihomoRuntimeRepository(
             if (!appState.hasUsableMihomoProfile()) {
                 return@runCatching
             }
-            val control = appState.mihomoControlConfig()
+            require(!appState.usesRawMihomoConfig()) { "Log level is read-only because it comes from YAML" }
+            val control = resolveMihomoControlConfig(appState)
             val backend = resolveInteractiveBackend(appState, control)
             withContext(Dispatchers.IO) {
                 ensureInteractiveRuntime(appState, backend)
@@ -237,7 +313,7 @@ internal class MihomoRuntimeRepository(
         proxyName: String,
     ): Result<Unit> {
         return runCatching {
-            val control = appState.mihomoControlConfig()
+            val control = resolveMihomoControlConfig(appState)
             val backend = resolveInteractiveBackend(appState, control)
             withContext(Dispatchers.IO) {
                 ensureInteractiveRuntime(appState, backend)
@@ -255,27 +331,14 @@ internal class MihomoRuntimeRepository(
         }
     }
 
-    fun refreshDeviceMetrics() {
-        appScope.launch(Dispatchers.IO) {
-            refreshDeviceState()
-        }
-    }
-
-    fun refreshMemory(appState: AppState) {
-        appScope.launch(Dispatchers.IO) {
-            runCatching { refreshMemoryState(appState) }
-                .onFailure { error ->
-                    if (error is CancellationException) throw error
-                    reportRuntimeError("Mihomo memory refresh", error)
-                    mutableState.update { current -> current.copy(lastError = error.message.orEmpty()) }
-                }
-        }
-    }
-
-    fun refreshNetworkDetection() {
-        appScope.launch(Dispatchers.IO) {
-            refreshNetworkDetectionState()
-        }
+    suspend fun refreshMemoryNow(appState: AppState): Long? {
+        return runCatching { refreshMemoryState(appState) }
+            .onFailure { error ->
+                if (error is CancellationException) throw error
+                reportRuntimeError("Mihomo memory refresh", error)
+                mutableState.update { current -> current.copy(lastError = error.message.orEmpty()) }
+            }
+            .getOrNull()
     }
 
     suspend fun testProxyDelay(
@@ -344,7 +407,7 @@ internal class MihomoRuntimeRepository(
         appState: AppState,
         proxyName: String,
     ): MihomoDelayResult {
-        val control = appState.mihomoControlConfig()
+        val control = resolveMihomoControlConfig(appState)
         val backend = resolveInteractiveBackend(appState, control)
         return withContext(Dispatchers.IO) {
             ensureInteractiveRuntime(appState, backend)
@@ -360,7 +423,7 @@ internal class MihomoRuntimeRepository(
         groupName: String,
         testUrl: String,
     ): MihomoDelayResult {
-        val control = appState.mihomoControlConfig()
+        val control = resolveMihomoControlConfig(appState)
         val backend = resolveInteractiveBackend(appState, control)
         return withContext(Dispatchers.IO) {
             ensureInteractiveRuntime(appState, backend)
@@ -400,15 +463,31 @@ internal class MihomoRuntimeRepository(
             }
 
             MihomoRuntimeBackend.Api -> {
-                AndroidMihomoRuntime.stop(resetCore = true)
+                if (!(appState.proxyRunning && appState.runMode == RunModeVpnService)) {
+                    AndroidMihomoRuntime.stop(resetCore = true)
+                }
             }
         }
     }
 
-    private suspend fun resolveInteractiveBackend(
+    private fun resolveMihomoControlConfig(appState: AppState): MihomoControlConfig {
+        if (!appState.usesRawMihomoConfig()) return appState.mihomoControlConfig()
+        require(appState.proxyRunning) { "Raw configuration API is available only while the proxy service is running" }
+        val parsed = appContext.loadSelectedRawConfig(appState)
+            ?: error("Raw configuration is not available")
+        val snapshot = parsed.snapshot ?: error(parsed.error ?: "Raw configuration is invalid")
+        return snapshot.api.value?.control
+            ?: error(snapshot.api.problem ?: "Mihomo API is not configured in YAML")
+    }
+
+    private fun resolveInteractiveBackend(
         appState: AppState,
-        control: engine.mihomo.MihomoControlConfig,
+        control: MihomoControlConfig,
     ): MihomoRuntimeBackend {
+        if (appState.usesRawMihomoConfig()) {
+            require(appState.proxyRunning) { "Raw configuration API is available only while the proxy service is running" }
+            return MihomoRuntimeBackend.Api
+        }
         val backend = appState.mihomoRuntimeBackend()
         if (backend == MihomoRuntimeBackend.Api) {
             return backend
@@ -434,52 +513,16 @@ internal class MihomoRuntimeRepository(
         mutableState.update { current -> current.copy(device = device) }
     }
 
-    private suspend fun refreshConnectivityState() {
+    private fun refreshConnectivityState() {
         refreshDeviceState()
-        refreshNetworkDetectionState()
     }
 
-    private suspend fun refreshNetworkDetectionState() {
-        networkDetectionLock.withLock {
-            mutableState.update { current ->
-                current.copy(networkDetection = current.networkDetection.copy(checking = true))
-            }
-            runCatching { detectMihomoNetworkAddress() }
-                .onSuccess { address ->
-                    lastLoggedNetworkDetectionError = ""
-                    mutableState.update { current ->
-                        current.copy(
-                            networkDetection = current.networkDetection.copy(
-                                address = address,
-                                checking = false,
-                                error = "",
-                                updatedAtMillis = System.currentTimeMillis(),
-                            ),
-                        )
-                    }
-                }
-                .onFailure { error ->
-                    if (error is CancellationException) throw error
-                    reportNetworkDetectionFailure(error)
-                    mutableState.update { current ->
-                        current.copy(
-                            networkDetection = current.networkDetection.copy(
-                                checking = false,
-                                error = error.message.orEmpty(),
-                                updatedAtMillis = System.currentTimeMillis(),
-                            ),
-                        )
-                    }
-                }
-        }
-    }
-
-    private suspend fun refreshMemoryState(appState: AppState) {
+    private suspend fun refreshMemoryState(appState: AppState): Long? {
         if (!appState.hasUsableMihomoProfile()) {
             mutableState.update { current -> current.copy(memory = MihomoMemoryState()) }
-            return
+            return null
         }
-        val control = appState.mihomoControlConfig()
+        val control = resolveMihomoControlConfig(appState)
         val backend = resolveInteractiveBackend(appState, control)
         ensureInteractiveRuntime(appState, backend)
         val memory = runRuntimeRequest { client.getMemory(control, backend.useBridge()) }
@@ -490,10 +533,11 @@ internal class MihomoRuntimeRepository(
                 lastError = memory.exceptionOrNull()?.message.orEmpty(),
             )
         }
+        return memory.getOrNull()?.inUseBytes?.takeIf { bytes -> bytes > 0L }
     }
 
     private suspend fun collectTraffic(
-        control: engine.mihomo.MihomoControlConfig,
+        control: MihomoControlConfig,
         useBridge: Boolean,
     ) {
         runCatching {
@@ -524,7 +568,7 @@ internal class MihomoRuntimeRepository(
     }
 
     private suspend fun pollRuntime(
-        control: engine.mihomo.MihomoControlConfig,
+        control: MihomoControlConfig,
         useBridge: Boolean,
     ) {
         while (currentCoroutineContext().isActive) {
@@ -539,7 +583,7 @@ internal class MihomoRuntimeRepository(
     }
 
     private suspend fun refreshRuntime(
-        control: engine.mihomo.MihomoControlConfig,
+        control: MihomoControlConfig,
         useBridge: Boolean,
     ) {
         val configs = runRuntimeRequest { client.getConfigs(control, useBridge) }
@@ -598,15 +642,6 @@ internal class MihomoRuntimeRepository(
         }
         lastLoggedRuntimeError = signature
         AndroidAppLogger.warn(LogTag, "$source failed: $message", error)
-    }
-
-    private fun reportNetworkDetectionFailure(error: Throwable) {
-        val message = error.message?.takeIf(String::isNotBlank) ?: error::class.java.simpleName
-        if (message == lastLoggedNetworkDetectionError) {
-            return
-        }
-        lastLoggedNetworkDetectionError = message
-        AndroidAppLogger.debug(LogTag, "Network address detection failed: $message")
     }
 
     private fun applyDelays(result: MihomoDelayResult) {
@@ -698,7 +733,7 @@ internal class MihomoRuntimeRepository(
     }
 
     private data class MihomoRuntimeSignature(
-        val control: engine.mihomo.MihomoControlConfig,
+        val control: MihomoControlConfig,
         val backend: MihomoRuntimeBackend,
         val trafficEnabled: Boolean,
         val runtimeConfigKey: Int,
@@ -732,7 +767,7 @@ private fun Throwable.isTransientControlConnectionFailure(): Boolean {
 }
 
 private fun AppState.mihomoRuntimeBackend(): MihomoRuntimeBackend {
-    return if (proxyRunning && runMode.isRootRunMode()) {
+    return if (usesRawMihomoConfig() || proxyRunning && runMode.isRootRunMode()) {
         MihomoRuntimeBackend.Api
     } else {
         MihomoRuntimeBackend.Bridge
@@ -740,6 +775,15 @@ private fun AppState.mihomoRuntimeBackend(): MihomoRuntimeBackend {
 }
 
 private fun AppState.mihomoRuntimeConfigKey(backend: MihomoRuntimeBackend): Int {
+    if (usesRawMihomoConfig()) {
+        return listOf(
+            selectedMihomoProfileId,
+            selectedMihomoProfileOrNull()?.contentSha256,
+            selectedMihomoProfileOrNull()?.disableOverrides,
+            proxyRunning,
+            runMode,
+        ).hashCode()
+    }
     return when (backend) {
         MihomoRuntimeBackend.Api -> listOf(
             runMode,

@@ -9,7 +9,6 @@ import kotlinx.serialization.encoding.CompositeDecoder
 import kotlinx.serialization.encoding.CompositeEncoder
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
-import kotlinx.serialization.modules.EmptySerializersModule
 import kotlinx.serialization.modules.SerializersModule
 
 object Parcelizer {
@@ -89,7 +88,7 @@ object Parcelizer {
         }
 
         @ExperimentalSerializationApi
-        override fun decodeInline(inlineDescriptor: SerialDescriptor): Decoder {
+        override fun decodeInline(descriptor: SerialDescriptor): Decoder {
             return this
         }
 
@@ -215,7 +214,7 @@ object Parcelizer {
         }
 
         @ExperimentalSerializationApi
-        override fun encodeInline(inlineDescriptor: SerialDescriptor): Encoder {
+        override fun encodeInline(descriptor: SerialDescriptor): Encoder {
             return this
         }
 

@@ -4,7 +4,6 @@
 package engine.vpn
 
 import android.annotation.SuppressLint
-import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -69,7 +68,7 @@ class AsteriskVpnService : VpnService() {
                 if (config == null) {
                     completeStart(Result.failure(IllegalStateException(getString(R.string.error_vpn_start_config_missing))))
                     stopSelf(startId)
-                    return Service.START_NOT_STICKY
+                    return START_NOT_STICKY
                 }
                 serviceScope.launch {
                     operationMutex.withLock {
@@ -87,7 +86,7 @@ class AsteriskVpnService : VpnService() {
                 }
             }
         }
-        return Service.START_NOT_STICKY
+        return START_NOT_STICKY
     }
 
     override fun onDestroy() {
@@ -139,7 +138,11 @@ class AsteriskVpnService : VpnService() {
             runtime.start(hevConfig, tunFd)
             AndroidAppLogger.info(LogTag, "Started Hev TUN with VPN file descriptor")
         }
-        LocalProxyRuntime.update(config.localProxyOptions)
+        if (config.localProxyOptions.port > 0) {
+            LocalProxyRuntime.update(config.localProxyOptions)
+        } else {
+            LocalProxyRuntime.clear()
+        }
         running = true
     }
 

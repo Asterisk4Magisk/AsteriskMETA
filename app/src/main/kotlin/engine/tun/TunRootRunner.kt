@@ -39,17 +39,16 @@ internal class TunRootRunner(
     }
 
     override suspend fun isRunning(runtimeLayout: RootRuntimeLayout): Boolean {
-        if (!super.isRunning(runtimeLayout)) {
-            return false
-        }
-        val result = rootAccess.exec(buildTunRuntimeReadyCommand(), ShellExecOptions(logFailure = false))
-        return result.errno == 0
+        // The configured device may be user-defined in raw mode and is not available
+        // when status is reconstructed after process death. Startup still validates the
+        // exact configured device through buildReadinessCheck().
+        return super.isRunning(runtimeLayout)
     }
 
     override fun buildReadinessCheck(config: TunStartConfig): RootReadinessCheck {
         return RootReadinessCheck(
             description = "TUN device ${config.tunConfig.device}",
-            command = buildTunRuntimeReadyCommand(),
+            command = buildTunRuntimeReadyCommand(config.tunConfig.device),
             failureMessage = "mihomo started but TUN device ${config.tunConfig.device} is not ready",
         )
     }
@@ -106,11 +105,10 @@ internal class TunRootRunner(
         )
     }
 
-    private fun buildTunRuntimeReadyCommand(): String {
-        return "ip link show dev ${MihomoTunDevice.shellQuote()} >/dev/null 2>&1"
-    }
-
     private companion object {
         private const val LogTag = "TunRootRunner"
     }
 }
+
+internal fun buildTunRuntimeReadyCommand(device: String): String =
+    "ip link show dev ${device.shellQuote()} >/dev/null 2>&1"

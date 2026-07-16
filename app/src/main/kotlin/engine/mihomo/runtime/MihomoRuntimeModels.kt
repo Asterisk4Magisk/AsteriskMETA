@@ -34,13 +34,6 @@ internal data class MihomoDeviceState(
     val updatedAtMillis: Long = 0L,
 )
 
-internal data class MihomoNetworkDetectionState(
-    val address: String = "",
-    val checking: Boolean = false,
-    val error: String = "",
-    val updatedAtMillis: Long = 0L,
-)
-
 internal data class MihomoVersionState(
     val version: String = "",
 )
@@ -110,7 +103,6 @@ internal data class MihomoRuntimeState(
     val traffic: MihomoTrafficState = MihomoTrafficState(),
     val memory: MihomoMemoryState = MihomoMemoryState(),
     val device: MihomoDeviceState = MihomoDeviceState(),
-    val networkDetection: MihomoNetworkDetectionState = MihomoNetworkDetectionState(),
     val version: MihomoVersionState = MihomoVersionState(),
     val configs: MihomoConfigsState = MihomoConfigsState(),
     val proxies: MihomoProxiesState = MihomoProxiesState(),

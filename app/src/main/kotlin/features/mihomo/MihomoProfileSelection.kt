@@ -5,6 +5,7 @@ package features.mihomo
 
 import app.AppServices
 import app.AppState
+import app.withMihomoRestartApplied
 import engine.proxy.ProxyServiceResult
 
 internal suspend fun stopProxyServiceAfterProfileChange(
@@ -22,13 +23,12 @@ internal suspend fun stopProxyServiceAfterProfileChange(
                     proxyRunning = result.proxyRunning,
                     localProxyPort = result.appState?.localProxyPort ?: state.localProxyPort,
                     mihomoControlPort = result.appState?.mihomoControlPort ?: state.mihomoControlPort,
-                )
+                ).withMihomoRestartApplied()
             }
             services.tipNotifier.show(stoppedMessage)
         }
 
         is ProxyServiceResult.Failed -> {
-            updateAppState { state -> state.copy(proxyRunning = false) }
             services.tipNotifier.showError(result.error, stopFailedMessage)
         }
     }

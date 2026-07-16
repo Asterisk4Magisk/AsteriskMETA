@@ -11,11 +11,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.R
+import ui.icons.AsteriskIcons as Icons
 import engine.mihomo.DefaultMihomoSnifferHttpPorts
 import engine.mihomo.DefaultMihomoSnifferQuicPorts
 import engine.mihomo.DefaultMihomoSnifferTlsPorts
@@ -29,12 +31,8 @@ import engine.mihomo.sanitizedSnifferDomainRules
 import engine.mihomo.sanitizedSnifferPorts
 import engine.network.isCidrAddress
 import features.settings.SnifferSettingsDraft
-import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.basic.TextButton
-import top.yukonga.miuix.kmp.preference.SwitchPreference
-import top.yukonga.miuix.kmp.preference.WindowDropdownPreference
-import top.yukonga.miuix.kmp.theme.MiuixTheme
-import top.yukonga.miuix.kmp.window.WindowBottomSheet
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import ui.components.StringListEditor
 import utils.toTrimmedNonEmptyDistinctList
 
@@ -83,18 +81,20 @@ internal fun SnifferSettingsBottomSheet(
     val overrideOptions = snifferProtocolOverrideOptions()
     val sanitizedDraft = draft.sanitized()
 
-    WindowBottomSheet(
+    SettingsModalBottomSheet(
         show = show,
         title = stringResource(R.string.settings_sniffer),
         startAction = {
             TextButton(
                 text = stringResource(R.string.common_cancel),
+                icon = Icons.Rounded.Close,
                 onClick = onDismissRequest,
             )
         },
         endAction = {
             TextButton(
                 text = stringResource(R.string.common_save),
+                icon = Icons.Rounded.Save,
                 onClick = { onSave(sanitizedDraft) },
             )
         },
@@ -105,12 +105,14 @@ internal fun SnifferSettingsBottomSheet(
                 SnifferSheetSection(title = stringResource(R.string.settings_sniffer_section_basic)) {
                     SwitchPreference(
                         title = stringResource(R.string.settings_sniffer_enable),
+                        icon = Icons.Rounded.TravelExplore,
                         summary = stringResource(R.string.settings_sniffer_summary),
                         checked = draft.enableSniffer,
                         onCheckedChange = { onDraftChange(draft.copy(enableSniffer = it)) },
                     )
                     SwitchPreference(
                         title = stringResource(R.string.settings_sniffer_override_destination),
+                        icon = Icons.AutoMirrored.Rounded.AltRoute,
                         summary = stringResource(R.string.settings_sniffer_override_destination_summary),
                         checked = draft.enableSnifferOverrideDestination,
                         onCheckedChange = {
@@ -119,12 +121,14 @@ internal fun SnifferSettingsBottomSheet(
                     )
                     SwitchPreference(
                         title = stringResource(R.string.settings_sniffer_force_dns_mapping),
+                        icon = Icons.Rounded.Dns,
                         summary = stringResource(R.string.settings_sniffer_force_dns_mapping_summary),
                         checked = draft.snifferForceDnsMapping,
                         onCheckedChange = { onDraftChange(draft.copy(snifferForceDnsMapping = it)) },
                     )
                     SwitchPreference(
                         title = stringResource(R.string.settings_sniffer_parse_pure_ip),
+                        icon = Icons.Rounded.Public,
                         summary = stringResource(R.string.settings_sniffer_parse_pure_ip_summary),
                         checked = draft.snifferParsePureIp,
                         onCheckedChange = { onDraftChange(draft.copy(snifferParsePureIp = it)) },
@@ -139,6 +143,7 @@ internal fun SnifferSettingsBottomSheet(
                         ports = draft.snifferHttpPorts,
                         onPortsChange = { onDraftChange(draft.copy(snifferHttpPorts = it)) },
                         overrideTitle = stringResource(R.string.settings_sniffer_http_override_destination),
+                        overrideIcon = Icons.Rounded.Http,
                         overrideMode = draft.snifferHttpOverrideDestinationMode,
                         overrideOptions = overrideOptions,
                         onOverrideModeChange = {
@@ -154,6 +159,7 @@ internal fun SnifferSettingsBottomSheet(
                         ports = draft.snifferTlsPorts,
                         onPortsChange = { onDraftChange(draft.copy(snifferTlsPorts = it)) },
                         overrideTitle = stringResource(R.string.settings_sniffer_tls_override_destination),
+                        overrideIcon = Icons.Rounded.Lock,
                         overrideMode = draft.snifferTlsOverrideDestinationMode,
                         overrideOptions = overrideOptions,
                         onOverrideModeChange = {
@@ -169,6 +175,7 @@ internal fun SnifferSettingsBottomSheet(
                         ports = draft.snifferQuicPorts,
                         onPortsChange = { onDraftChange(draft.copy(snifferQuicPorts = it)) },
                         overrideTitle = stringResource(R.string.settings_sniffer_quic_override_destination),
+                        overrideIcon = Icons.Rounded.Speed,
                         overrideMode = draft.snifferQuicOverrideDestinationMode,
                         overrideOptions = overrideOptions,
                         onOverrideModeChange = {
@@ -251,10 +258,10 @@ private fun SnifferSheetSection(
     ) {
         Text(
             text = title,
-            color = MiuixTheme.colorScheme.primary,
+            color = MaterialTheme.colorScheme.primary,
             fontSize = 15.sp,
             fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         )
         content()
     }
@@ -268,6 +275,7 @@ private fun SnifferProtocolFields(
     ports: List<String>,
     onPortsChange: (List<String>) -> Unit,
     overrideTitle: String,
+    overrideIcon: ImageVector,
     overrideMode: Int,
     overrideOptions: List<String>,
     onOverrideModeChange: (Int) -> Unit,
@@ -275,6 +283,7 @@ private fun SnifferProtocolFields(
 ) {
     WindowDropdownPreference(
         title = overrideTitle,
+        icon = overrideIcon,
         items = overrideOptions,
         selectedIndex = overrideMode.coerceSnifferOverrideMode(),
         onSelectedIndexChange = onOverrideModeChange,
@@ -289,7 +298,7 @@ private fun SnifferProtocolFields(
     )
 }
 
-private fun SnifferSettingsDraft.sanitized(): SnifferSettingsDraft {
+internal fun SnifferSettingsDraft.sanitized(): SnifferSettingsDraft {
     return copy(
         snifferHttpPorts = snifferHttpPorts.sanitizedSnifferPorts(DefaultMihomoSnifferHttpPorts),
         snifferTlsPorts = snifferTlsPorts.sanitizedSnifferPorts(DefaultMihomoSnifferTlsPorts),

@@ -16,6 +16,7 @@ import android.widget.Toast
 import app.AppState
 import app.MainActivity
 import app.R
+import app.withMihomoRestartApplied
 import app.modes.RunModeVpnService
 import data.AndroidAppStateStore
 import data.AppSettingsPreferences
@@ -138,7 +139,7 @@ class ProxyQuickSettingsTileService : TileService() {
                         proxyRunning = result.proxyRunning,
                         localProxyPort = result.appState?.localProxyPort ?: currentState.localProxyPort,
                         mihomoControlPort = result.appState?.mihomoControlPort ?: currentState.mihomoControlPort,
-                    )
+                    ).withMihomoRestartApplied()
                 }
                 showToast(
                     if (result.proxyRunning) {
@@ -151,9 +152,8 @@ class ProxyQuickSettingsTileService : TileService() {
             }
 
             is ProxyServiceResult.Failed -> {
-                stateStore.update { currentState -> currentState.copy(proxyRunning = false) }
                 showToast(result.error.message ?: getString(R.string.quick_settings_tile_toggle_failed))
-                return false
+                return stateStore.state.value.proxyRunning
             }
         }
     }

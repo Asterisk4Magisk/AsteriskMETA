@@ -1,18 +1,24 @@
 // Copyright 2026, AsteriskMETA contributors
 // SPDX-License-Identifier: GPL-3.0
 
-@file:OptIn(ExperimentalScrollBarApi::class)
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 
 package features.resources
 
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.input.clearText
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -20,9 +26,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import app.AppState
 import app.CustomResourceFileState
 import app.CustomResourceFileStatus
@@ -40,24 +47,15 @@ import app.nextAvailableCustomResourceFileId
 import app.resourceFileUpdateSource
 import app.statusOf
 import engine.network.toPortOrNull
+import features.resources.runtime.AndroidResourceFileDownloadCancellation
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.launch
-import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
-import top.yukonga.miuix.kmp.basic.Scaffold
-import top.yukonga.miuix.kmp.basic.SmallTitle
-import top.yukonga.miuix.kmp.basic.VerticalScrollBar
-import top.yukonga.miuix.kmp.basic.rememberScrollBarAdapter
-import top.yukonga.miuix.kmp.icon.MiuixIcons
-import top.yukonga.miuix.kmp.icon.extended.Add
-import top.yukonga.miuix.kmp.interfaces.ExperimentalScrollBarApi
-import ui.components.BackNavigationIcon
-import ui.components.NavigationIcon
-import ui.layout.AdaptiveTopAppBar
+import ui.components.AsteriskExtendedFab
 import ui.layout.pageContentPaddingWithCutout
 import ui.layout.pageListPadding
-import ui.layout.pageScrollModifiers
 import ui.text.formatTemplate
 import kotlin.coroutines.cancellation.CancellationException
+import ui.icons.AsteriskIcons as Icons
 
 @Composable
 fun ResourceManagementPage(
@@ -71,7 +69,6 @@ fun ResourceManagementPage(
     val resourceFileUseCase = services.resourceFileUseCase
     val sourceOptions = settingsResourceFileSourceOptions()
     val tipNotifier = services.tipNotifier
-    val topAppBarScrollBehavior = MiuixScrollBehavior()
     val scope = rememberCoroutineScope()
     var status by remember { mutableStateOf(ResourceFilesStatus()) }
     var updating by remember { mutableStateOf(false) }
@@ -81,6 +78,13 @@ fun ResourceManagementPage(
     val customResourceFileUrlState = rememberTextFieldState()
     val editCustomResourceFileNameState = rememberTextFieldState()
     val editCustomResourceFileUrlState = rememberTextFieldState()
+    var showCustomSourceEditor by remember { mutableStateOf(false) }
+    val sourceGeoIpUrlState = rememberTextFieldState()
+    val sourceGeoSiteUrlState = rememberTextFieldState()
+    val sourceMmdbUrlState = rememberTextFieldState()
+    val sourceAsnUrlState = rememberTextFieldState()
+    val sourceDirectCidrIpv4UrlState = rememberTextFieldState()
+    val sourceDirectCidrIpv6UrlState = rememberTextFieldState()
     val updatingMessage = stringResource(R.string.settings_resource_files_updating)
     val updatedMessage = stringResource(R.string.settings_resource_files_updated)
     val updatedOneMessage = stringResource(R.string.settings_resource_file_updated)
@@ -260,57 +264,135 @@ fun ResourceManagementPage(
         return true
     }
 
+    fun openCustomSourceEditor() {
+        val source = appState.resourceFileUpdateSource()
+        sourceGeoIpUrlState.setTextAndPlaceCursorAtEnd(appState.customResourceFileGeoIpUrl.ifBlank { source.geoIpUrl })
+        sourceGeoSiteUrlState.setTextAndPlaceCursorAtEnd(
+            appState.customResourceFileGeoSiteUrl.ifBlank { source.geoSiteUrl },
+        )
+        sourceMmdbUrlState.setTextAndPlaceCursorAtEnd(appState.customResourceFileMmdbUrl.ifBlank { source.mmdbUrl })
+        sourceAsnUrlState.setTextAndPlaceCursorAtEnd(appState.customResourceFileAsnUrl.ifBlank { source.asnUrl })
+        sourceDirectCidrIpv4UrlState.setTextAndPlaceCursorAtEnd(
+            appState.customResourceFileDirectCidrIpv4Url.ifBlank { source.directCidrIpv4Url },
+        )
+        sourceDirectCidrIpv6UrlState.setTextAndPlaceCursorAtEnd(
+            appState.customResourceFileDirectCidrIpv6Url.ifBlank { source.directCidrIpv6Url },
+        )
+        showCustomSourceEditor = true
+    }
+
     LaunchedEffect(appState.customResourceFiles) {
         status = resourceFileUseCase.status(appState.customResourceFiles)
     }
 
+    val overview = reduceResourceOverview(status, appState.customResourceFiles)
+    val lastUpdatedAtMillis = (
+        ResourceFileKind.entries.map { kind -> status.statusOf(kind).updatedAtMillis } +
+            status.customResourceFiles.map { file -> file.status.updatedAtMillis }
+        ).maxOrNull() ?: 0L
+
     Scaffold(
         topBar = {
-            AdaptiveTopAppBar(
-                title = stringResource(R.string.settings_resource_management),
-                isWideScreen = isWideScreen,
-                scrollBehavior = topAppBarScrollBehavior,
+            TopAppBar(
+                title = { Text(stringResource(R.string.settings_resource_management)) },
                 navigationIcon = {
-                    BackNavigationIcon(onClick = { navigator.pop() })
-                },
-                actions = {
-                    NavigationIcon(
-                        onClick = {
-                            customResourceFileNameState.clearText()
-                            customResourceFileUrlState.clearText()
-                            showCustomResourceFileDialog.value = true
-                        },
-                        imageVector = MiuixIcons.Add,
-                        contentDescription = stringResource(R.string.settings_resource_files_add_custom),
-                    )
+                    IconButton(onClick = { navigator.pop() }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = stringResource(R.string.common_back),
+                        )
+                    }
                 },
             )
         },
+        floatingActionButton = {
+            AsteriskExtendedFab(
+                onClick = {
+                    customResourceFileNameState.clearText()
+                    customResourceFileUrlState.clearText()
+                    showCustomResourceFileDialog.value = true
+                },
+                icon = Icons.Rounded.Add,
+                text = stringResource(R.string.settings_resource_files_add_custom),
+            )
+        },
     ) { innerPadding ->
-        val lazyListState = rememberLazyListState()
         val contentPadding = pageContentPaddingWithCutout(
             innerPadding = innerPadding,
             outerPadding = padding,
             isWideScreen = isWideScreen,
         )
-        val listPadding = pageListPadding(contentPadding)
+        val listPadding = pageListPadding(contentPadding, bottomExtra = 88.dp)
 
-        Box {
-            LazyColumn(
-                state = lazyListState,
-                modifier = Modifier.pageScrollModifiers(topAppBarScrollBehavior),
-                contentPadding = listPadding,
-            ) {
-                item(key = "resource_files_core_title") {
-                    SmallTitle(text = stringResource(R.string.settings_resource_files_core_files))
-                }
-                item(key = ResourceFileKind.MihomoCore.fileName) {
-                    val kind = ResourceFileKind.MihomoCore
+        LazyColumn(
+            contentPadding = listPadding,
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            item(key = "resource_overview") {
+                ResourceOverviewCard(
+                    overview = overview,
+                    sourceOptions = sourceOptions,
+                    selectedSource = appState.resourceFileSource,
+                    lastUpdatedAtMillis = lastUpdatedAtMillis,
+                    updating = updating,
+                    onSourceChange = { index ->
+                        if (index == ResourceFileSourceCustom) {
+                            openCustomSourceEditor()
+                        } else {
+                            updateAppState { state -> state.copy(resourceFileSource = index) }
+                        }
+                    },
+                    onUpdate = {
+                        runResourceFileAction(
+                            action = {
+                                tipNotifier.show(updatingMessage)
+                                resourceFileUseCase.update(
+                                    source = appState.resourceFileUpdateSource(),
+                                    options = appState.resourceFileUpdateOptions(),
+                                    customResourceFiles = appState.customResourceFiles,
+                                )
+                            },
+                            successMessage = updatedMessage,
+                            failureStatusCustomResourceFiles = { appState.customResourceFiles },
+                        )
+                    },
+                    onCancel = { AndroidResourceFileDownloadCancellation.cancel() },
+                )
+            }
+            item(key = "resource_core_section") {
+                ResourceSectionTitle(stringResource(R.string.settings_resource_files_core_files))
+            }
+            item(key = ResourceFileKind.MihomoCore.fileName) {
+                val kind = ResourceFileKind.MihomoCore
+                ResourceFileCard(
+                    fileName = kind.displayName,
+                    status = status.statusOf(kind),
+                    updating = updating,
+                    description = stringResource(R.string.settings_resource_files_root_only),
+                    onReplace = {
+                        runResourceFileAction(
+                            action = { resourceFileUseCase.replace(kind, appState.customResourceFiles) },
+                            successMessage = replacedMessage.formatTemplate("name" to kind.displayName),
+                        )
+                    },
+                    onRestore = {
+                        runResourceFileAction(
+                            action = { resourceFileUseCase.restoreBundled(kind, appState.customResourceFiles) },
+                            successMessage = restoredMessage.formatTemplate("name" to kind.displayName),
+                        )
+                    },
+                )
+            }
+            item(key = "resource_rules_section") {
+                ResourceSectionTitle(stringResource(R.string.settings_resource_files_files))
+            }
+            ResourceFileKind.entries.filterNot { it == ResourceFileKind.MihomoCore }.forEach { kind ->
+                item(key = kind.fileName) {
                     ResourceFileCard(
                         fileName = kind.displayName,
                         status = status.statusOf(kind),
                         updating = updating,
-                        description = stringResource(R.string.settings_resource_files_root_only),
+                        onUpdate = { updateResourceFile(kind) },
                         onReplace = {
                             runResourceFileAction(
                                 action = { resourceFileUseCase.replace(kind, appState.customResourceFiles) },
@@ -325,140 +407,102 @@ fun ResourceManagementPage(
                         },
                     )
                 }
-                item(key = "resource_files_title") {
-                    SmallTitle(text = stringResource(R.string.settings_resource_files_files))
+            }
+            if (appState.customResourceFiles.isNotEmpty()) {
+                item(key = "resource_custom_section") {
+                    ResourceSectionTitle(stringResource(R.string.settings_resource_files_custom_section))
                 }
-                item(key = "resource_files_source") {
-                    ResourceFileSourceCard(
-                        sourceOptions = sourceOptions,
-                        selectedSource = appState.resourceFileSource,
-                        selectedUpdateSource = appState.resourceFileUpdateSource(),
-                        customGeoIpUrl = appState.customResourceFileGeoIpUrl,
-                        customGeoSiteUrl = appState.customResourceFileGeoSiteUrl,
-                        customMmdbUrl = appState.customResourceFileMmdbUrl,
-                        customAsnUrl = appState.customResourceFileAsnUrl,
-                        customDirectCidrIpv4Url = appState.customResourceFileDirectCidrIpv4Url,
-                        customDirectCidrIpv6Url = appState.customResourceFileDirectCidrIpv6Url,
+            }
+            appState.customResourceFiles.forEach { customFile ->
+                item(key = "custom_resource_file_${customFile.id}") {
+                    CustomResourceFileCard(
+                        fileStatus = status.statusOf(customFile),
                         updating = updating,
-                        onSourceChange = { index ->
-                            updateAppState { state -> state.copy(resourceFileSource = index.coerceIn(sourceOptions.indices)) }
-                        },
-                        onCustomSourceChange = { geoIpUrl, geoSiteUrl, mmdbUrl, asnUrl, directCidrIpv4Url, directCidrIpv6Url ->
-                            updateAppState { state ->
-                                state.copy(
-                                    customResourceFileGeoIpUrl = geoIpUrl,
-                                    customResourceFileGeoSiteUrl = geoSiteUrl,
-                                    customResourceFileMmdbUrl = mmdbUrl,
-                                    customResourceFileAsnUrl = asnUrl,
-                                    customResourceFileDirectCidrIpv4Url = directCidrIpv4Url,
-                                    customResourceFileDirectCidrIpv6Url = directCidrIpv6Url,
-                                )
-                            }
-                        },
-                        onUpdate = {
+                        onUpdate = ::updateCustomResourceFile,
+                        onReplace = { file ->
                             runResourceFileAction(
                                 action = {
-                                    tipNotifier.show(updatingMessage)
-                                    resourceFileUseCase.update(
-                                        source = appState.resourceFileUpdateSource(),
-                                        options = appState.resourceFileUpdateOptions(),
-                                        customResourceFiles = appState.customResourceFiles,
-                                    )
+                                    resourceFileUseCase.replaceCustom(file, appState.customResourceFiles)
                                 },
-                                successMessage = updatedMessage,
-                                failureStatusCustomResourceFiles = { appState.customResourceFiles },
+                                successMessage = replacedMessage.formatTemplate("name" to file.name),
+                            )
+                        },
+                        onEdit = { file ->
+                            editCustomResourceFileNameState.setTextAndPlaceCursorAtEnd(file.name)
+                            editCustomResourceFileUrlState.setTextAndPlaceCursorAtEnd(file.url)
+                            editingCustomResourceFile = file
+                        },
+                        onDelete = { file ->
+                            runResourceFileAction(
+                                action = {
+                                    var remaining = emptyList<CustomResourceFileState>()
+                                    updateAppState { state ->
+                                        remaining = state.customResourceFiles.filterNot { it.id == file.id }
+                                        state.copy(customResourceFiles = remaining)
+                                    }
+                                    resourceFileUseCase.deleteCustom(file, remaining)
+                                },
+                                successMessage = deletedMessage.formatTemplate("name" to file.name),
                             )
                         },
                     )
                 }
-                ResourceFileKind.entries
-                    .filterNot { kind -> kind == ResourceFileKind.MihomoCore }
-                    .forEach { kind ->
-                        item(key = kind.fileName) {
-                            ResourceFileCard(
-                                fileName = kind.displayName,
-                                status = status.statusOf(kind),
-                                updating = updating,
-                                onUpdate = { updateResourceFile(kind) },
-                                onReplace = {
-                                    runResourceFileAction(
-                                        action = { resourceFileUseCase.replace(kind, appState.customResourceFiles) },
-                                        successMessage = replacedMessage.formatTemplate("name" to kind.displayName),
-                                    )
-                                },
-                                onRestore = {
-                                    runResourceFileAction(
-                                        action = { resourceFileUseCase.restoreBundled(kind, appState.customResourceFiles) },
-                                        successMessage = restoredMessage.formatTemplate("name" to kind.displayName),
-                                    )
-                                },
-                            )
-                        }
-                    }
-                appState.customResourceFiles.forEach { customFile ->
-                    item(key = "custom_resource_file_${customFile.id}") {
-                        CustomResourceFileCard(
-                            fileStatus = status.statusOf(customFile),
-                            updating = updating,
-                            onUpdate = { file -> updateCustomResourceFile(file) },
-                            onReplace = { file ->
-                                runResourceFileAction(
-                                    action = {
-                                        resourceFileUseCase.replaceCustom(
-                                            customFile = file,
-                                            customResourceFiles = appState.customResourceFiles,
-                                        )
-                                    },
-                                    successMessage = replacedMessage.formatTemplate("name" to file.name),
-                                )
-                            },
-                            onEdit = { file ->
-                                editCustomResourceFileNameState.setTextAndPlaceCursorAtEnd(file.name)
-                                editCustomResourceFileUrlState.setTextAndPlaceCursorAtEnd(file.url)
-                                editingCustomResourceFile = file
-                            },
-                            onDelete = { file ->
-                                runResourceFileAction(
-                                    action = {
-                                        var remainingCustomFiles = emptyList<CustomResourceFileState>()
-                                        updateAppState { state ->
-                                            remainingCustomFiles = state.customResourceFiles.filterNot { it.id == file.id }
-                                            state.copy(
-                                                customResourceFiles = remainingCustomFiles,
-                                            )
-                                        }
-                                        resourceFileUseCase.deleteCustom(file, remainingCustomFiles)
-                                    },
-                                    successMessage = deletedMessage.formatTemplate("name" to file.name),
-                                )
-                            },
-                        )
-                    }
-                }
             }
-            VerticalScrollBar(
-                adapter = rememberScrollBarAdapter(lazyListState),
-                modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
-                trackPadding = contentPadding,
-            )
         }
-        CustomResourceFileEditorDialog(
+        CustomResourceFileEditorSheet(
             show = showCustomResourceFileDialog.value,
             nameState = customResourceFileNameState,
             urlState = customResourceFileUrlState,
+            reservedNames = customResourceFileReservedNames(),
             onDismissRequest = { showCustomResourceFileDialog.value = false },
             onSave = ::addCustomResourceFile,
         )
-        CustomResourceFileEditorDialog(
+        CustomResourceFileEditorSheet(
             show = editingCustomResourceFile != null,
             nameState = editCustomResourceFileNameState,
             urlState = editCustomResourceFileUrlState,
+            reservedNames = customResourceFileReservedNames(editingCustomResourceFile?.id),
             onDismissRequest = { editingCustomResourceFile = null },
             onSave = { name, url ->
                 editingCustomResourceFile?.let { file -> editCustomResourceFile(file, name, url) } ?: false
             },
         )
+        CustomResourceSourceEditorSheet(
+            show = showCustomSourceEditor,
+            geoIpUrlState = sourceGeoIpUrlState,
+            geoSiteUrlState = sourceGeoSiteUrlState,
+            mmdbUrlState = sourceMmdbUrlState,
+            asnUrlState = sourceAsnUrlState,
+            directCidrIpv4UrlState = sourceDirectCidrIpv4UrlState,
+            directCidrIpv6UrlState = sourceDirectCidrIpv6UrlState,
+            onDismissRequest = { showCustomSourceEditor = false },
+            onSave = {
+                updateAppState { state ->
+                    state.copy(
+                        resourceFileSource = ResourceFileSourceCustom,
+                        customResourceFileGeoIpUrl = sourceGeoIpUrlState.text.toString().trim(),
+                        customResourceFileGeoSiteUrl = sourceGeoSiteUrlState.text.toString().trim(),
+                        customResourceFileMmdbUrl = sourceMmdbUrlState.text.toString().trim(),
+                        customResourceFileAsnUrl = sourceAsnUrlState.text.toString().trim(),
+                        customResourceFileDirectCidrIpv4Url = sourceDirectCidrIpv4UrlState.text.toString().trim(),
+                        customResourceFileDirectCidrIpv6Url = sourceDirectCidrIpv6UrlState.text.toString().trim(),
+                    )
+                }
+                showCustomSourceEditor = false
+            },
+        )
     }
+}
+
+@Composable
+private fun ResourceSectionTitle(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.fillMaxWidth().padding(start = 4.dp, top = 10.dp, bottom = 2.dp),
+    )
 }
 
 private fun AppState.resourceFileUpdateOptions(): ResourceFileUpdateOptions {

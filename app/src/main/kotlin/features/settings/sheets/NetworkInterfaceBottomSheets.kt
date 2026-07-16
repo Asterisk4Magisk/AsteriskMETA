@@ -3,7 +3,6 @@
 
 package features.settings.sheets
 
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,19 +11,16 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.state.ToggleableState
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import app.R
+import ui.icons.AsteriskIcons as Icons
 import androidx.compose.ui.res.stringResource
-import top.yukonga.miuix.kmp.basic.Card
-import top.yukonga.miuix.kmp.basic.Checkbox
-import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.basic.TextButton
-import top.yukonga.miuix.kmp.window.WindowBottomSheet
-import top.yukonga.miuix.kmp.preference.SwitchPreference
-import top.yukonga.miuix.kmp.theme.MiuixTheme
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import ui.components.AsteriskCheckbox
 import ui.text.formatTemplate
 import utils.toTrimmedNonEmptyDistinctList
 
@@ -140,18 +136,20 @@ internal fun ExternalInterfacesBottomSheet(
     onDismissRequest: () -> Unit,
     onSave: (List<String>) -> Unit,
 ) {
-    WindowBottomSheet(
+    SettingsModalBottomSheet(
         show = show,
         title = stringResource(R.string.settings_external_interfaces),
         startAction = {
             TextButton(
                 text = stringResource(R.string.common_cancel),
+                icon = Icons.Rounded.Close,
                 onClick = onDismissRequest,
             )
         },
         endAction = {
             TextButton(
                 text = stringResource(R.string.common_save),
+                icon = Icons.Rounded.Save,
                 onClick = { onSave(selectedInterfaces.sanitizeExternalInterfaces()) },
             )
         },
@@ -163,6 +161,7 @@ internal fun ExternalInterfacesBottomSheet(
                 val sanitizedSelection = selectedInterfaces.sanitizeExternalInterfaces()
                 SwitchPreference(
                     title = externalInterfaceGroupTitle(group),
+                    icon = externalInterfaceGroupIcon(group),
                     summary = group.prefixes.joinToString(),
                     checked = group.prefixes.all { it in sanitizedSelection },
                     onCheckedChange = { enabled ->
@@ -190,6 +189,16 @@ private fun externalInterfaceGroupTitle(group: ExternalInterfaceGroup): String {
     }
 }
 
+private fun externalInterfaceGroupIcon(group: ExternalInterfaceGroup): ImageVector {
+    return when (group.key) {
+        "wifi" -> Icons.Rounded.Wifi
+        "usb" -> Icons.Rounded.Usb
+        "bluetooth" -> Icons.Rounded.Bluetooth
+        "ethernet" -> Icons.Rounded.SettingsEthernet
+        else -> Icons.Rounded.SettingsInputComponent
+    }
+}
+
 @Composable
 internal fun IgnoredInterfacesBottomSheet(
     show: Boolean,
@@ -205,18 +214,20 @@ internal fun IgnoredInterfacesBottomSheet(
         stringResource(R.string.settings_ignored_interfaces_error).formatTemplate("message" to message)
     }
 
-    WindowBottomSheet(
+    SettingsModalBottomSheet(
         show = show,
         title = stringResource(R.string.settings_ignored_interfaces),
         startAction = {
             TextButton(
                 text = stringResource(R.string.common_cancel),
+                icon = Icons.Rounded.Close,
                 onClick = onDismissRequest,
             )
         },
         endAction = {
             TextButton(
                 text = stringResource(R.string.common_save),
+                icon = Icons.Rounded.Save,
                 onClick = { onSave(selectedInterfaces) },
             )
         },
@@ -244,8 +255,9 @@ internal fun IgnoredInterfacesBottomSheet(
 private fun SheetStatusText(text: String) {
     Text(
         text = text,
-        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        style = MaterialTheme.typography.bodyMedium,
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
     )
 }
 
@@ -259,6 +271,7 @@ private fun InterfaceOptionGrid(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .padding(horizontal = 16.dp)
                 .padding(bottom = 8.dp),
         ) {
             rowItems.forEachIndexed { index, interfaceName ->
@@ -297,23 +310,28 @@ private fun InterfaceOptionCard(
     val toggle = { onSelectedChange(!selected) }
     Card(
         modifier = modifier,
-        insideMargin = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
         onClick = toggle,
+        colors = CardDefaults.cardColors(
+            containerColor = if (selected) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerHigh
+            },
+        ),
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = interfaceName,
-                color = MiuixTheme.colorScheme.onSurface,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.weight(1f),
             )
-            Checkbox(
-                state = ToggleableState(selected),
-                onClick = toggle,
+            AsteriskCheckbox(
+                checked = selected,
+                onCheckedChange = onSelectedChange,
             )
         }
     }

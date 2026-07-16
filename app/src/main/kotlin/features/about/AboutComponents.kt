@@ -4,7 +4,6 @@
 package features.about
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -13,39 +12,43 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
+import ui.icons.AsteriskIcons as Icons
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.unit.dp
-import app.LocalAppChromeState
-import app.R
-import app.ProjectInfo
-import app.modes.ColorModeThemeDark
-import app.modes.ColorModeThemeSystem
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import top.yukonga.miuix.kmp.basic.BasicComponent
-import top.yukonga.miuix.kmp.basic.Card
-import top.yukonga.miuix.kmp.basic.SmallTitle
-import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.preference.ArrowPreference
-import top.yukonga.miuix.kmp.theme.MiuixTheme
+import androidx.compose.ui.unit.dp
+import app.ProjectInfo
+import app.R
+import ui.components.AsteriskListRow
+import ui.components.AsteriskSection
+import ui.theme.AsteriskShapeTokens
 
 private const val ProjectSourceUri = "https://github.com/Asterisk4Magisk/AsteriskMETA"
 private const val TelegramChannelUri = "https://t.me/Asterisk4Magisk"
 private const val AboutIconForegroundScale = 1.25f
 
 @Composable
-internal fun AboutHeader(
+internal fun AboutIdentityHeader(
     modifier: Modifier = Modifier,
 ) {
+    val identity = buildAboutIdentityState(
+        projectName = ProjectInfo.PROJECT_NAME,
+        versionName = ProjectInfo.VERSION_NAME,
+        versionCode = ProjectInfo.VERSION_CODE,
+        mihomoVersion = ProjectInfo.MIHOMO_CORE_VERSION,
+        wrapperVersion = ProjectInfo.CMFA_WRAPPER_VERSION,
+    )
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -53,16 +56,16 @@ internal fun AboutHeader(
             .padding(top = 20.dp, bottom = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        AboutAppIcon()
+        AboutAppIcon(Modifier.size(88.dp))
         Spacer(Modifier.height(12.dp))
         Text(
-            text = ProjectInfo.PROJECT_NAME,
-            fontSize = MiuixTheme.textStyles.title2.fontSize,
-            color = MiuixTheme.colorScheme.onBackground,
+            text = identity.projectName,
+            style = MaterialTheme.typography.headlineSmall,
         )
         Text(
-            text = "v${ProjectInfo.VERSION_NAME} (${ProjectInfo.VERSION_CODE})",
-            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            text = identity.versionLabel,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
@@ -72,94 +75,103 @@ private fun AboutAppIcon(
     modifier: Modifier = Modifier,
 ) {
     val iconStyle = aboutIconStyle()
-
     Box(
-        modifier = modifier
-            .size(88.dp)
-            .clip(RoundedCornerShape(22.dp))
-            .background(MiuixTheme.colorScheme.surface),
+        modifier = modifier,
         contentAlignment = Alignment.Center,
     ) {
-        Image(
-            painter = painterResource(iconStyle.foregroundResId),
-            contentDescription = ProjectInfo.PROJECT_NAME,
-            contentScale = ContentScale.Fit,
-            colorFilter = iconStyle.foregroundTint?.let { tint -> ColorFilter.tint(tint) },
-            modifier = Modifier
-                .fillMaxSize()
-                .scale(AboutIconForegroundScale),
-        )
+        androidx.compose.material3.Surface(
+            modifier = Modifier.fillMaxSize(),
+            shape = AsteriskShapeTokens.PageCard,
+            color = iconStyle.containerColor,
+        ) {
+            Image(
+                painter = painterResource(iconStyle.foregroundResId),
+                contentDescription = ProjectInfo.PROJECT_NAME,
+                contentScale = ContentScale.Fit,
+                colorFilter = iconStyle.foregroundTint?.let(ColorFilter::tint),
+                modifier = Modifier.fillMaxSize().scale(AboutIconForegroundScale),
+            )
+        }
     }
 }
 
 @Composable
 private fun aboutIconStyle(): AboutIconStyle {
-    val chromeState = LocalAppChromeState.current
-    val isMonetMode = chromeState.colorMode in ColorModeThemeSystem..ColorModeThemeDark
-    if (!isMonetMode) {
-        return AboutIconStyle(
-            foregroundResId = R.mipmap.ic_launcher_foreground,
-            foregroundTint = null,
-        )
-    }
-
     return AboutIconStyle(
-        foregroundResId = R.mipmap.ic_launcher_monet_monochrome,
-        foregroundTint = MiuixTheme.colorScheme.primary,
+        foregroundResId = R.drawable.ic_launcher_monochrome,
+        foregroundTint = MaterialTheme.colorScheme.primary,
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
     )
 }
 
 private data class AboutIconStyle(
     val foregroundResId: Int,
     val foregroundTint: Color?,
+    val containerColor: Color,
 )
 
 @Composable
-internal fun AboutRuntimeCard(
+internal fun AboutRuntimeSection(
     modifier: Modifier = Modifier,
 ) {
-    SmallTitle(text = stringResource(R.string.about_runtime))
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp)
-            .padding(bottom = 12.dp),
+    AsteriskSection(
+        modifier = modifier.fillMaxWidth(),
+        title = stringResource(R.string.about_runtime),
     ) {
-        BasicComponent(
-            title = "CMFA Mihomo wrapper",
-            summary = ProjectInfo.CMFA_WRAPPER_VERSION,
+        AboutRuntimeRow("CMFA Mihomo wrapper", ProjectInfo.CMFA_WRAPPER_VERSION, Icons.Rounded.Extension)
+        AboutRuntimeRow("Mihomo", ProjectInfo.MIHOMO_CORE_VERSION, Icons.Rounded.Router)
+        AboutRuntimeRow("hev-socks5-tunnel", ProjectInfo.HEV_SOCKS5_TUNNEL_VERSION, Icons.Rounded.VpnLock)
+    }
+}
+
+@Composable
+private fun AboutRuntimeRow(name: String, version: String, icon: ImageVector) {
+    AsteriskListRow(
+        title = name,
+        summary = version,
+        leadingIcon = icon,
+    )
+}
+
+@Composable
+internal fun AboutLinksSection(
+    title: String,
+    modifier: Modifier = Modifier,
+) {
+    val uriHandler = LocalUriHandler.current
+    AsteriskSection(
+        modifier = modifier.fillMaxWidth(),
+        title = title,
+    ) {
+        AboutLinkRow(
+            title = stringResource(R.string.about_view_source),
+            icon = Icons.Rounded.Code,
+            onClick = { uriHandler.openUri(ProjectSourceUri) },
         )
-        BasicComponent(
-            title = "Mihomo",
-            summary = ProjectInfo.MIHOMO_CORE_VERSION,
-        )
-        BasicComponent(
-            title = "hev-socks5-tunnel",
-            summary = ProjectInfo.HEV_SOCKS5_TUNNEL_VERSION,
+        AboutLinkRow(
+            title = stringResource(R.string.about_join_telegram),
+            icon = Icons.AutoMirrored.Rounded.Send,
+            onClick = { uriHandler.openUri(TelegramChannelUri) },
         )
     }
 }
 
 @Composable
-internal fun AboutLinksCard(
+private fun AboutLinkRow(
     title: String,
-    modifier: Modifier = Modifier,
+    icon: ImageVector,
+    onClick: () -> Unit,
 ) {
-    val uriHandler = LocalUriHandler.current
-
-    SmallTitle(text = title)
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp),
-    ) {
-        ArrowPreference(
-            title = stringResource(R.string.about_view_source),
-            onClick = { uriHandler.openUri(ProjectSourceUri) },
-        )
-        ArrowPreference(
-            title = stringResource(R.string.about_join_telegram),
-            onClick = { uriHandler.openUri(TelegramChannelUri) },
-        )
-    }
+    AsteriskListRow(
+        title = title,
+        leadingIcon = icon,
+        onClick = onClick,
+        trailingContent = {
+            Icon(
+                imageVector = Icons.AutoMirrored.Rounded.OpenInNew,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        },
+    )
 }

@@ -6,7 +6,6 @@ package engine.mihomo
 import org.snakeyaml.engine.v2.api.Dump
 import org.snakeyaml.engine.v2.api.DumpSettings
 import org.snakeyaml.engine.v2.api.Load
-import org.snakeyaml.engine.v2.api.LoadSettings
 import org.snakeyaml.engine.v2.common.FlowStyle
 import java.io.File
 import java.security.MessageDigest
@@ -78,10 +77,6 @@ internal fun String.mihomoRemoteProviderFiles(
             File(dataDir, "$CmfaProvidersDirectory/$path")
         }
         .distinctBy { file -> file.absolutePath }
-}
-
-internal fun mihomoProxyProviderFileCandidates(dataDir: File, provider: Map<*, *>): List<File> {
-    return provider.providerFileCandidates(dataDir, MihomoProviderType.Proxy)
 }
 
 internal fun Map<*, *>.normalizedProviderMap(): LinkedHashMap<String, Any?> {
@@ -207,7 +202,7 @@ private fun mihomoProviderDeclarationYaml(
 private fun String.parseMihomoYamlRoot(): Map<*, *>? {
     val escaped = escapeSupplementaryYamlCodePoints()
     return runCatching {
-        val parsed = Load(LoadSettings.builder().build()).loadFromString(escaped.value)
+        val parsed = Load(MihomoYamlLoadSettings).loadFromString(escaped.value)
         escaped.restoreParsedValue(parsed) as? Map<*, *>
     }.getOrNull()
 }

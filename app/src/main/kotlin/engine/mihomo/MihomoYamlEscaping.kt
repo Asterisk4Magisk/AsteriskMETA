@@ -3,6 +3,14 @@
 
 package engine.mihomo
 
+import org.snakeyaml.engine.v2.api.LoadSettings
+
+internal val MihomoYamlLoadSettings: LoadSettings = LoadSettings.builder()
+    .setMaxAliasesForCollections(MihomoYamlMaxCollectionAliases)
+    .build()
+
+private const val MihomoYamlMaxCollectionAliases = 256
+
 internal data class EscapedYamlContent(
     val value: String,
     val replacements: Map<String, String>,

@@ -6,6 +6,7 @@ package engine.bpf2socks
 import app.modes.ProxyAppListModeWhitelist
 import engine.proxy.LocalProxyOptions
 import engine.proxy.toLocalProxyOptions
+import engine.proxy.toLocalProxyOptionsOrNull
 import engine.root.RootBpf2SocksCgroupPath
 import engine.root.RootBpf2SocksDefaultBridgePort
 import engine.root.RootBpf2SocksListenAddress
@@ -30,6 +31,7 @@ import engine.root.rootEbpfDirectCidrPathV6
 import engine.root.tun2SocksInternalProxyPortValue
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import engine.mihomo.raw.runtimeIpv6Enabled
 
 @Serializable
 internal data class Bpf2SocksConfig(
@@ -83,7 +85,7 @@ internal data class Bpf2SocksControlPaths(
 
 internal data class Bpf2SocksStartConfig(
     override val root: RootStartConfig,
-    override val localProxyOptions: LocalProxyOptions,
+    override val localProxyOptions: LocalProxyOptions?,
     val controlPaths: Bpf2SocksControlPaths,
     val bpf2socksConfig: Bpf2SocksConfig,
     val directCidrSourcePathsV4: List<String>,
@@ -97,8 +99,16 @@ internal fun Bpf2SocksConfig.toJsonString(): String {
 
 internal fun RootConfigBuildContext.buildBpf2SocksStartConfig(): Bpf2SocksStartConfig {
     val appState = this.appState
-    val localProxyOptions = appState.toLocalProxyOptions()
-    val socksPort = appState.tun2SocksInternalProxyPortValue()
+    val localProxyOptions = rawConfig?.let { config ->
+        requireNotNull(config.toLocalProxyOptionsOrNull()) {
+            "Raw Mihomo configuration requires a SOCKS or Mixed inbound for BPF mode"
+        }
+    } ?: appState.toLocalProxyOptions()
+    val socksPort = rawConfig?.let { config ->
+        requireNotNull(config.socksInbound.value?.port) {
+            "Raw Mihomo configuration requires a SOCKS or Mixed inbound for BPF mode"
+        }
+    } ?: appState.tun2SocksInternalProxyPortValue()
     val rootStartConfig = buildRootStartConfig()
     val iptablesConfig = buildRootIptablesConfig(Bpf2SocksBasePolicyConfig)
         .copy(enableEbpfRules = true)
@@ -110,10 +120,10 @@ internal fun RootConfigBuildContext.buildBpf2SocksStartConfig(): Bpf2SocksStartC
         root = rootStartConfig,
         localProxyOptions = localProxyOptions,
         controlPaths = rootStartConfig.runtimeLayout.buildBpf2SocksControlPaths(),
-        bpf2socksConfig = rootStartConfig.runtimeLayout.buildBpf2SocksConfig(
+        bpf2socksConfig = buildBpf2SocksConfig(
             bridgePort = appState.bpf2SocksBridgePortValue(),
             socksPort = socksPort,
-            enableIpv6 = appState.enableIpv6,
+            enableIpv6 = rawConfig.runtimeIpv6Enabled(appState.enableIpv6),
             enableDnsHijack = rootStartConfig.enableLocalDns,
             iptablesConfig = iptablesConfig,
             policy = bpf2SocksPolicy,
@@ -136,7 +146,7 @@ private fun RootRuntimeLayout.buildBpf2SocksControlPaths(): Bpf2SocksControlPath
     )
 }
 
-private fun RootRuntimeLayout.buildBpf2SocksConfig(
+private fun buildBpf2SocksConfig(
     bridgePort: Int,
     socksPort: Int,
     enableIpv6: Boolean,

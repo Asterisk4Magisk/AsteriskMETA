@@ -1,7 +1,7 @@
 // Copyright 2026, AsteriskMETA contributors
 // SPDX-License-Identifier: GPL-3.0
 
-@file:OptIn(ExperimentalScrollBarApi::class)
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 
 package features.proxy.app
 
@@ -12,17 +12,26 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -36,6 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.LocalAppServices
@@ -54,34 +64,25 @@ import features.proxy.app.usecase.encodeProxyAppListForClipboard
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import system.ANDROID_APP_ICON_SIZE_DP
-import top.yukonga.miuix.kmp.basic.InfiniteProgressIndicator
-import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
-import top.yukonga.miuix.kmp.basic.PullToRefresh
-import top.yukonga.miuix.kmp.basic.Scaffold
-import top.yukonga.miuix.kmp.basic.ScrollBehavior
-import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.basic.VerticalScrollBar
-import top.yukonga.miuix.kmp.basic.rememberScrollBarAdapter
-import top.yukonga.miuix.kmp.interfaces.ExperimentalScrollBarApi
-import top.yukonga.miuix.kmp.theme.MiuixTheme
 import ui.clipboard.ClipboardImportException
 import ui.clipboard.ClipboardImportFailure
 import ui.clipboard.ClipboardImportMode
 import ui.clipboard.getPlainText
 import ui.clipboard.setPlainText
+import ui.components.AsteriskPinnedSearchArea
 import ui.components.ImportModeDialog
-import ui.layout.AdaptiveTopAppBar
 import ui.layout.pageContentPaddingWithCutout
 import ui.layout.pageListPadding
-import ui.layout.pageScrollModifiers
 import ui.text.formatTemplate
 import kotlin.time.Duration.Companion.milliseconds
+import ui.icons.AsteriskIcons as Icons
 
 private const val ProxyAppListAutomaticLoadingMinVisibleMillis = 500L
 
 @Composable
 fun ProxyAppListPage(
     padding: PaddingValues,
+    onBack: (() -> Unit)? = null,
 ) {
     val pageState = rememberProxyAppListPageState()
     val appState by LocalAppStateStore.current.collectAppState()
@@ -92,7 +93,6 @@ fun ProxyAppListPage(
     val packageCatalog = services.packageCatalog
     val userSpaces = services.userSpaces
     val tipNotifier = services.tipNotifier
-    val topAppBarScrollBehavior = MiuixScrollBehavior()
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
     val copiedMessage = stringResource(R.string.common_copied)
@@ -165,10 +165,9 @@ fun ProxyAppListPage(
     Scaffold(
         topBar = {
             ProxyAppListTopBar(
+                onBack = onBack,
                 modes = proxyAppListModes,
                 modeIndex = modeIndex,
-                isWideScreen = isWideScreen,
-                scrollBehavior = topAppBarScrollBehavior,
                 searchValue = pageState.searchValue,
                 showSystemApps = pageState.showSystemApps,
                 userTabs = pageState.userTabs,
@@ -237,9 +236,7 @@ fun ProxyAppListPage(
             selectedAppKeys = selectedAppKeys,
             modeIndex = modeIndex,
             iconSizePx = iconSizePx,
-            contentPadding = contentPadding,
             listPadding = listPadding,
-            scrollBehavior = topAppBarScrollBehavior,
             userPagerState = userPagerState,
             onAppCheckedChange = { item, isChecked ->
                 updateAppState { state ->
@@ -291,10 +288,9 @@ fun ProxyAppListPage(
 
 @Composable
 private fun ProxyAppListTopBar(
+    onBack: (() -> Unit)?,
     modes: List<String>,
     modeIndex: Int,
-    isWideScreen: Boolean,
-    scrollBehavior: ScrollBehavior,
     searchValue: String,
     showSystemApps: Boolean,
     userTabs: List<ProxyAppListUserSpaceTabUi>,
@@ -304,42 +300,56 @@ private fun ProxyAppListTopBar(
     onMoreAction: (ProxyAppListMoreAction) -> Unit,
     onSelectedUserIdChange: (Int) -> Unit,
 ) {
-    AdaptiveTopAppBar(
-        title = stringResource(R.string.proxy_app_list_title),
-        subtitle = modes[modeIndex],
-        isWideScreen = isWideScreen,
-        scrollBehavior = scrollBehavior,
-        actions = {
-            ProxyAppListModeMenu(
-                modes = modes,
-                selectedIndex = modeIndex,
-                onSelectedIndexChange = onModeChanged,
-            )
-            ProxyAppListMoreActionsMenu(
-                showSystemApps = showSystemApps,
-                onAction = onMoreAction,
-            )
-        },
-        bottomContent = {
-            Column {
-                ProxyAppListSearchBar(
-                    searchValue = searchValue,
-                    onSearchValueChange = onSearchValueChange,
-                    modifier = Modifier
-                        .padding(horizontal = 12.dp)
-                        .padding(bottom = 12.dp),
-                )
-                if (userTabs.size > 1) {
-                    ProxyAppListUserSpaceTabs(
-                        tabs = userTabs,
-                        selectedUserId = selectedUserId,
-                        onSelectedUserIdChange = onSelectedUserIdChange,
-                        modifier = Modifier.padding(bottom = 12.dp),
+    Column(modifier = Modifier.background(MaterialTheme.colorScheme.surface)) {
+        TopAppBar(
+            navigationIcon = {
+                onBack?.let { navigateBack ->
+                    IconButton(onClick = navigateBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = stringResource(R.string.common_back),
+                        )
+                    }
+                }
+            },
+            title = {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(stringResource(R.string.proxy_app_list_title))
+                    Text(
+                        text = modes[modeIndex],
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
                     )
                 }
+            },
+            actions = {
+                ProxyAppListModeMenu(
+                    modes = modes,
+                    selectedIndex = modeIndex,
+                    onSelectedIndexChange = onModeChanged,
+                )
+                ProxyAppListMoreActionsMenu(
+                    showSystemApps = showSystemApps,
+                    onAction = onMoreAction,
+                )
+            },
+        )
+        AsteriskPinnedSearchArea(
+            query = searchValue,
+            onQueryChange = onSearchValueChange,
+            placeholder = stringResource(R.string.proxy_app_list_search_label),
+            clearContentDescription = stringResource(R.string.common_clear),
+        ) {
+            if (userTabs.size > 1) {
+                ProxyAppListUserSpaceTabs(
+                    tabs = userTabs,
+                    selectedUserId = selectedUserId,
+                    onSelectedUserIdChange = onSelectedUserIdChange,
+                )
             }
-        },
-    )
+        }
+    }
 }
 
 @Composable
@@ -348,15 +358,19 @@ private fun ProxyAppListContent(
     selectedAppKeys: Set<String>,
     modeIndex: Int,
     iconSizePx: Int,
-    contentPadding: PaddingValues,
     listPadding: PaddingValues,
-    scrollBehavior: ScrollBehavior,
     userPagerState: PagerState,
     onAppCheckedChange: (ProxyAppListItem, Boolean) -> Unit,
 ) {
     var showAutomaticLoading by remember { mutableStateOf(false) }
     var automaticLoadingStartedAtMillis by remember { mutableStateOf<Long?>(null) }
     val automaticLoading = pageState.loadingApps && !pageState.refreshingApps
+    val layoutDirection = LocalLayoutDirection.current
+    val pagerListPadding = PaddingValues(
+        start = listPadding.calculateStartPadding(layoutDirection),
+        end = listPadding.calculateEndPadding(layoutDirection),
+        bottom = listPadding.calculateBottomPadding(),
+    )
 
     LaunchedEffect(pageState.loadingApps, pageState.refreshingApps) {
         when {
@@ -387,20 +401,15 @@ private fun ProxyAppListContent(
         }
     }
 
-    Box {
-        PullToRefresh(
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(top = listPadding.calculateTopPadding()),
+    ) {
+        PullToRefreshBox(
             isRefreshing = pageState.refreshingApps,
             onRefresh = pageState::requestRefresh,
-            modifier = Modifier.fillMaxWidth().fillMaxHeight(),
-            contentPadding = listPadding,
-            topAppBarScrollBehavior = scrollBehavior,
-            color = MiuixTheme.colorScheme.onSurfaceVariantActions,
-            refreshTexts = listOf(
-                stringResource(R.string.proxy_app_list_pull_to_refresh),
-                stringResource(R.string.proxy_app_list_release_to_refresh),
-                stringResource(R.string.proxy_app_list_refreshing),
-                stringResource(R.string.proxy_app_list_refreshed),
-            ),
+            modifier = Modifier.fillMaxSize(),
         ) {
             HorizontalPager(
                 state = userPagerState,
@@ -409,14 +418,12 @@ private fun ProxyAppListContent(
                 verticalAlignment = Alignment.Top,
             ) { page ->
                 ProxyAppListUserPage(
-                    userId = pageState.userTabs.getOrNull(page)?.id,
+                    tab = pageState.userTabs.getOrNull(page),
                     pageState = pageState,
                     selectedAppKeys = selectedAppKeys,
                     modeIndex = modeIndex,
                     iconSizePx = iconSizePx,
-                    contentPadding = contentPadding,
-                    listPadding = listPadding,
-                    scrollBehavior = scrollBehavior,
+                    listPadding = pagerListPadding,
                     onAppCheckedChange = onAppCheckedChange,
                 )
             }
@@ -432,79 +439,70 @@ private fun ProxyAppListLoadingState(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier.background(MiuixTheme.colorScheme.surface),
+        modifier = modifier.background(MaterialTheme.colorScheme.surface),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        InfiniteProgressIndicator(
-            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-            size = 28.dp,
-            strokeWidth = 2.dp,
-            orbitingDotSize = 2.dp,
+        CircularProgressIndicator(
+            modifier = Modifier.size(28.dp),
+            color = MaterialTheme.colorScheme.primary,
+            strokeWidth = 2.5.dp,
         )
         Spacer(Modifier.height(14.dp))
         Text(
             text = stringResource(R.string.proxy_app_list_loading),
-            style = MiuixTheme.textStyles.body2,
-            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
 
 @Composable
 private fun ProxyAppListUserPage(
-    userId: Int?,
+    tab: ProxyAppListUserSpaceTabUi?,
     pageState: ProxyAppListPageState,
     selectedAppKeys: Set<String>,
     modeIndex: Int,
     iconSizePx: Int,
-    contentPadding: PaddingValues,
     listPadding: PaddingValues,
-    scrollBehavior: ScrollBehavior,
     onAppCheckedChange: (ProxyAppListItem, Boolean) -> Unit,
 ) {
+    val userId = tab?.id
     val visibleApps = userId?.let { id ->
         pageState.preparedAppListData.visibleItemsByUser[id]
     }.orEmpty()
     val lazyListState = rememberLazyListState()
 
-    Box(Modifier.fillMaxSize()) {
-        LazyColumn(
-            state = lazyListState,
-            modifier = Modifier.pageScrollModifiers(scrollBehavior),
-            contentPadding = listPadding,
-        ) {
-            when {
-                visibleApps.isEmpty() -> item(key = "app_empty", contentType = "empty") {
-                    ProxyAppListEmptyState()
-                }
+    LazyColumn(
+        state = lazyListState,
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = listPadding,
+    ) {
+        when {
+            visibleApps.isEmpty() -> item(key = "app_empty", contentType = "empty") {
+                ProxyAppListEmptyState()
+            }
 
-                else -> items(
-                    items = visibleApps,
-                    key = { item -> item.key },
-                    contentType = { "app" },
-                ) { item ->
-                    val checked = remember(item.selectionKeys, selectedAppKeys) {
-                        item.selectionKeys.any { key -> key in selectedAppKeys }
-                    }
-                    ProxyAppListItemCard(
-                        app = item.app,
-                        checked = checked,
-                        enabled = modeIndex != ProxyAppListGlobalModeIndex,
-                        sharedUid = item.sharedUid,
-                        iconSizePx = iconSizePx,
-                        onCheckedChange = { isChecked ->
-                            onAppCheckedChange(item, isChecked)
-                        },
-                    )
+            else -> items(
+                items = visibleApps,
+                key = { item -> item.key },
+                contentType = { "app" },
+            ) { item ->
+                val checked = remember(item.selectionKeys, selectedAppKeys) {
+                    item.selectionKeys.any { key -> key in selectedAppKeys }
                 }
+                ProxyAppListItemCard(
+                    app = item.app,
+                    checked = checked,
+                    enabled = modeIndex != ProxyAppListGlobalModeIndex,
+                    sharedUid = item.sharedUid,
+                    iconSizePx = iconSizePx,
+                    onCheckedChange = { isChecked ->
+                        onAppCheckedChange(item, isChecked)
+                    },
+                )
             }
         }
-        VerticalScrollBar(
-            adapter = rememberScrollBarAdapter(lazyListState),
-            modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
-            trackPadding = contentPadding,
-        )
     }
 }
 

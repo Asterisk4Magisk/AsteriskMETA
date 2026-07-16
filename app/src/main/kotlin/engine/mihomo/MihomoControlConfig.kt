@@ -21,12 +21,17 @@ internal data class MihomoControlConfig(
     val host: String = MihomoControlHost,
     val port: Int = DefaultMihomoControlPort,
     val secret: String = "",
+    val scheme: String = "http",
 ) {
     val address: String
-        get() = "$host:$port"
+        get() = if (":" in host) "[$host]:$port" else "$host:$port"
 
     val baseUrl: String
-        get() = "http://$address"
+        get() = "$scheme://$address"
+
+    override fun toString(): String {
+        return "MihomoControlConfig(host=$host, port=$port, scheme=$scheme, secret=<redacted>)"
+    }
 }
 
 internal fun AppState.mihomoControlConfig(): MihomoControlConfig {

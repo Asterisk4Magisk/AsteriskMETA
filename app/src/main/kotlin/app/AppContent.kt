@@ -3,14 +3,12 @@
 
 package app
 
-import androidx.compose.animation.core.EaseInOut
-import androidx.compose.animation.core.animate
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.MutatePriority
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Box
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -24,45 +22,49 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.union
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.PagerState
-import androidx.compose.foundation.pager.rememberPagerState
+import ui.icons.AsteriskIcons as Icons
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberDecoratedNavEntries
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
-import androidx.navigation3.ui.NavDisplayTransitionEffects
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.job
-import kotlinx.coroutines.launch
+import app.navigation.MainDestination
+import app.navigation.MainDestinationState
 import app.navigation.Navigator
 import app.navigation.Route
-import androidx.compose.ui.res.stringResource
+import app.navigation.rememberMainDestinationState
 import features.about.AboutPage
 import features.about.LicensePage
 import features.logs.CoreLogsPage
 import features.logs.LogcatLogsPage
+import features.monitoring.connections.ConnectionsMonitorPage
+import features.monitoring.network.NetworkMonitorPage
+import features.monitoring.resource.ResourceMonitorPage
+import features.monitoring.traffic.TrafficMonitorPage
 import features.mihomo.MihomoDashboardPage
 import features.mihomo.MihomoOverrideScriptEditPage
 import features.mihomo.MihomoOverrideScriptListPage
@@ -74,124 +76,113 @@ import features.mihomo.provider.MihomoProviderListPage
 import features.proxy.app.ProxyAppListPage
 import features.resources.ResourceManagementPage
 import features.settings.SettingsPage
-import top.yukonga.miuix.kmp.basic.NavigationBar
-import top.yukonga.miuix.kmp.basic.NavigationBarDisplayMode
-import top.yukonga.miuix.kmp.basic.NavigationBarItem
-import top.yukonga.miuix.kmp.basic.NavigationItem
-import top.yukonga.miuix.kmp.basic.NavigationRail
-import top.yukonga.miuix.kmp.basic.NavigationRailItem
-import top.yukonga.miuix.kmp.basic.Scaffold
-import top.yukonga.miuix.kmp.icon.MiuixIcons
-import top.yukonga.miuix.kmp.icon.extended.AppRecording
-import top.yukonga.miuix.kmp.icon.extended.HorizontalSplit
-import top.yukonga.miuix.kmp.icon.extended.MindMap
-import top.yukonga.miuix.kmp.icon.extended.Settings
-import top.yukonga.miuix.kmp.theme.MiuixTheme
 import ui.layout.pageWindowPadding
+import ui.layout.shouldShowNavigationRail
 import ui.layout.shouldShowSplitPane
-import kotlin.math.abs
+import ui.theme.AsteriskMotion
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 
-private object MainNavigation {
-    const val DASHBOARD_PAGE_INDEX = 0
-    const val MIHOMO_PROXIES_PAGE_INDEX = 1
-    const val PROXY_APP_LIST_PAGE_INDEX = 2
-    const val SETTINGS_PAGE_INDEX = 3
+private data class MainNavigationItem(
+    val destination: MainDestination,
+    val label: String,
+    val icon: ImageVector,
+)
 
-    const val NAVIGATION_ITEMS_COUNT = 4
+@Composable
+private fun mainNavigationItems(): List<MainNavigationItem> {
+    val home = stringResource(R.string.nav_dashboard)
+    val proxies = stringResource(R.string.nav_proxies)
+    val configurations = stringResource(R.string.nav_configurations)
+    val settings = stringResource(R.string.nav_settings)
 
-    @Composable
-    fun navigationItems(): List<NavigationItem> {
-        val languageMode = LocalAppChromeState.current.languageMode
-        val dashboard = stringResource(R.string.nav_dashboard)
-        val proxies = stringResource(R.string.nav_proxies)
-        val apps = stringResource(R.string.nav_apps)
-        val settings = stringResource(R.string.nav_settings)
-
-        return remember(languageMode, dashboard, proxies, apps, settings) {
-            listOf(
-                NavigationItem(dashboard, MiuixIcons.HorizontalSplit),
-                NavigationItem(proxies, MiuixIcons.MindMap),
-                NavigationItem(apps, MiuixIcons.AppRecording),
-                NavigationItem(settings, MiuixIcons.Settings),
-            )
-        }
+    return remember(home, proxies, configurations, settings) {
+        listOf(
+            MainNavigationItem(MainDestination.Home, home, Icons.Rounded.Home),
+            MainNavigationItem(MainDestination.Proxies, proxies, Icons.AutoMirrored.Rounded.AltRoute),
+            MainNavigationItem(MainDestination.Configurations, configurations, Icons.Rounded.Description),
+            MainNavigationItem(MainDestination.Settings, settings, Icons.Rounded.Settings),
+        )
     }
 }
 
 val LocalNavigator = staticCompositionLocalOf<Navigator> { error("No navigator found!") }
 val LocalIsWideScreen = staticCompositionLocalOf { false }
 
+val LocalSupportsSplitPane = staticCompositionLocalOf { false }
+internal val LocalMainDestinationState = staticCompositionLocalOf<MainDestinationState?> { null }
+
 @Composable
 fun AppContent(
     padding: PaddingValues,
 ) {
-    val languageMode = LocalAppChromeState.current.languageMode
-    val pagerState = rememberPagerState(pageCount = { MainNavigation.NAVIGATION_ITEMS_COUNT })
-    val mainPagerState = rememberMainPagerState(pagerState)
-    LaunchedEffect(mainPagerState.pagerState.currentPage) {
-        mainPagerState.syncPage()
-    }
+    val mainDestinationState = rememberMainDestinationState()
 
     val backStack = remember { mutableStateListOf<NavKey>().apply { add(Route.Main) } }
     val navigator = remember { Navigator(backStack) }
 
-    MainScreenBackHandler(mainPagerState, navigator)
+    MainScreenBackHandler(mainDestinationState, navigator)
 
-    val isWideScreen = shouldShowSplitPane()
+    val isWideScreen = shouldShowNavigationRail()
+    val supportsSplitPane = shouldShowSplitPane()
 
     CompositionLocalProvider(
         LocalNavigator provides navigator,
         LocalIsWideScreen provides isWideScreen,
+        LocalSupportsSplitPane provides supportsSplitPane,
+        LocalMainDestinationState provides mainDestinationState,
     ) {
-        val entryProvider = remember(backStack, languageMode) {
+        val entryProvider = remember(backStack) {
             entryProvider<NavKey> {
                 entry<Route.Main> {
-                    key(languageMode) {
-                        Home(
-                            padding = padding,
-                            mainPagerState = mainPagerState,
-                        )
-                    }
+                    Home(
+                        padding = padding,
+                        mainDestinationState = mainDestinationState,
+                    )
                 }
                 entry<Route.About> {
-                    key(languageMode) {
-                        AboutPage(padding = padding)
-                    }
+                    AboutPage(padding = padding)
                 }
                 entry<Route.License> {
-                    key(languageMode) {
-                        LicensePage(padding = padding)
-                    }
+                    LicensePage(padding = padding)
                 }
                 entry<Route.CoreLogs> {
-                    key(languageMode) {
-                        CoreLogsPage(padding = padding)
-                    }
+                    CoreLogsPage(padding = padding)
                 }
                 entry<Route.LogcatLogs> {
-                    key(languageMode) {
-                        LogcatLogsPage(padding = padding)
-                    }
+                    LogcatLogsPage(padding = padding)
                 }
                 entry<Route.ResourceManagement> {
-                    key(languageMode) {
-                        ResourceManagementPage(padding = padding)
-                    }
+                    ResourceManagementPage(padding = padding)
+                }
+                entry<Route.ResourceMonitor> {
+                    ResourceMonitorPage(padding = padding)
+                }
+                entry<Route.ConnectionsMonitor> {
+                    ConnectionsMonitorPage(padding = padding)
+                }
+                entry<Route.TrafficMonitor> {
+                    TrafficMonitorPage(padding = padding)
+                }
+                entry<Route.NetworkMonitor> {
+                    NetworkMonitorPage(padding = padding)
+                }
+                entry<Route.ProxyAppList> {
+                    ProxyAppListPage(
+                        padding = padding,
+                        onBack = { navigator.pop() },
+                    )
                 }
                 entry<Route.MihomoProfileList> {
-                    key(languageMode) {
-                        MihomoProfileListPage(padding = padding)
-                    }
+                    MihomoProfileListPage(
+                        padding = padding,
+                        onBack = { navigator.pop() },
+                    )
                 }
                 entry<Route.MihomoProviders> {
-                    key(languageMode) {
-                        MihomoProviderListPage(padding = padding)
-                    }
+                    MihomoProviderListPage(padding = padding)
                 }
                 entry<Route.MihomoProviderDetail> { route ->
-                    key(languageMode, route.providerName) {
+                    key(route.providerName) {
                         MihomoProviderDetailPage(
                             padding = padding,
                             providerName = route.providerName,
@@ -199,14 +190,12 @@ fun AppContent(
                     }
                 }
                 entry<Route.MihomoOverrideScripts> {
-                    key(languageMode) {
-                        MihomoOverrideScriptListPage(
-                            padding = padding,
-                        )
-                    }
+                    MihomoOverrideScriptListPage(
+                        padding = padding,
+                    )
                 }
                 entry<Route.MihomoOverrideScriptEdit> { route ->
-                    key(languageMode, route.scriptId, route.draftId) {
+                    key(route.scriptId, route.draftId) {
                         MihomoOverrideScriptEditPage(
                             padding = padding,
                             scriptId = route.scriptId,
@@ -214,7 +203,7 @@ fun AppContent(
                     }
                 }
                 entry<Route.MihomoProfileEdit> { route ->
-                    key(languageMode, route.profileId, route.type, route.draftId) {
+                    key(route.profileId, route.type, route.draftId) {
                         MihomoProfileEditPage(
                             padding = padding,
                             profileId = route.profileId,
@@ -230,20 +219,33 @@ fun AppContent(
             entryDecorators = listOf(rememberSaveableStateHolderNavEntryDecorator()),
             entryProvider = entryProvider,
         )
-
-        val transitionEffects = remember {
-            NavDisplayTransitionEffects(
-                enableCornerClip = true,
-                dimAmount = 0.5f,
-                blockInputDuringTransition = true,
-                popDirectionFollowsSwipeEdge = false,
-            )
-        }
+        val detailSpatialMotion = AsteriskMotion.spatial<IntOffset>()
 
         NavDisplay(
             entries = entries,
             onBack = { navigator.pop() },
-            transitionEffects = transitionEffects,
+            transitionSpec = {
+                slideInHorizontally(
+                    animationSpec = detailSpatialMotion,
+                    initialOffsetX = { width -> width },
+                ).togetherWith(
+                    slideOutHorizontally(
+                        animationSpec = detailSpatialMotion,
+                        targetOffsetX = { width -> -width / 3 },
+                    ),
+                )
+            },
+            popTransitionSpec = {
+                slideInHorizontally(
+                    animationSpec = detailSpatialMotion,
+                    initialOffsetX = { width -> -width / 3 },
+                ).togetherWith(
+                    slideOutHorizontally(
+                        animationSpec = detailSpatialMotion,
+                        targetOffsetX = { width -> width },
+                    ),
+                )
+            },
         )
     }
 }
@@ -251,45 +253,41 @@ fun AppContent(
 @Composable
 private fun Home(
     padding: PaddingValues,
-    mainPagerState: MainPagerState,
+    mainDestinationState: MainDestinationState,
 ) {
     val isWideScreen = LocalIsWideScreen.current
     val layoutDirection = LocalLayoutDirection.current
-    val navigationItems = MainNavigation.navigationItems()
-    Scaffold {
-        if (isWideScreen) {
-            WideScreenContent(
-                navigationItems = navigationItems,
-                layoutDirection = layoutDirection,
-                mainPagerState = mainPagerState,
-            )
-        } else {
-            CompactScreenLayout(
-                navigationItems = navigationItems,
-                padding = padding,
-                mainPagerState = mainPagerState,
-            )
-        }
+    val navigationItems = mainNavigationItems()
+    if (isWideScreen) {
+        WideScreenContent(
+            navigationItems = navigationItems,
+            layoutDirection = layoutDirection,
+            mainDestinationState = mainDestinationState,
+        )
+    } else {
+        CompactScreenLayout(
+            navigationItems = navigationItems,
+            padding = padding,
+            mainDestinationState = mainDestinationState,
+        )
     }
 }
 
 @Composable
 private fun WideScreenContent(
-    navigationItems: List<NavigationItem>,
+    navigationItems: List<MainNavigationItem>,
     layoutDirection: LayoutDirection,
-    mainPagerState: MainPagerState,
+    mainDestinationState: MainDestinationState,
 ) {
-    val page = mainPagerState.selectedPage
+    val selectedDestination = mainDestinationState.current
     Row {
-        NavigationRail(
-            modifier = Modifier.background(MiuixTheme.colorScheme.surface),
-        ) {
-            navigationItems.forEachIndexed { index, item ->
+        NavigationRail {
+            navigationItems.forEach { item ->
                 NavigationRailItem(
-                    selected = page == index,
-                    onClick = { mainPagerState.animateToPage(index) },
-                    icon = item.icon,
-                    label = item.label,
+                    selected = selectedDestination == item.destination,
+                    onClick = { mainDestinationState.select(item.destination) },
+                    icon = { Icon(imageVector = item.icon, contentDescription = null) },
+                    label = { Text(item.label) },
                 )
             }
         }
@@ -303,9 +301,9 @@ private fun WideScreenContent(
                     ),
                 ),
         ) { padding ->
-            AppPager(
+            MainDestinationContent(
                 padding = PaddingValues(top = padding.calculateTopPadding()),
-                pagerState = mainPagerState.pagerState,
+                mainDestinationState = mainDestinationState,
                 modifier = Modifier
                     .imePadding()
                     .padding(end = padding.calculateEndPadding(layoutDirection)),
@@ -316,100 +314,102 @@ private fun WideScreenContent(
 
 @Composable
 private fun CompactScreenLayout(
-    navigationItems: List<NavigationItem>,
+    navigationItems: List<MainNavigationItem>,
     padding: PaddingValues,
-    mainPagerState: MainPagerState,
+    mainDestinationState: MainDestinationState,
 ) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
-            NavigationBar(
+            MainNavigationBar(
                 navigationItems = navigationItems,
-                mainPagerState = mainPagerState,
+                mainDestinationState = mainDestinationState,
             )
         },
     ) { innerPadding ->
-        AppPager(
+        MainDestinationContent(
             padding = innerPadding,
-            pagerState = mainPagerState.pagerState,
+            mainDestinationState = mainDestinationState,
             modifier = Modifier.pageWindowPadding(padding),
         )
     }
 }
 
 @Composable
-private fun NavigationBar(
-    navigationItems: List<NavigationItem>,
-    mainPagerState: MainPagerState,
+private fun MainNavigationBar(
+    navigationItems: List<MainNavigationItem>,
+    mainDestinationState: MainDestinationState,
     modifier: Modifier = Modifier,
 ) {
-    val page = mainPagerState.selectedPage
-    Box(
-        modifier = Modifier
-            .background(MiuixTheme.colorScheme.surface)
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = {},
+    val selectedDestination = mainDestinationState.current
+    NavigationBar(modifier = modifier) {
+        navigationItems.forEach { item ->
+            NavigationBarItem(
+                selected = selectedDestination == item.destination,
+                onClick = { mainDestinationState.select(item.destination) },
+                icon = { Icon(imageVector = item.icon, contentDescription = null) },
+                label = { Text(item.label) },
+                alwaysShowLabel = true,
             )
-            .then(modifier),
-    ) {
-        NavigationBar(
-            modifier = Modifier,
-            mode = NavigationBarDisplayMode.IconAndText,
-        ) {
-            navigationItems.forEachIndexed { index, item ->
-                NavigationBarItem(
-                    selected = page == index,
-                    onClick = { mainPagerState.animateToPage(index) },
-                    icon = item.icon,
-                    label = item.label,
-                )
+        }
+    }
+}
+
+@Composable
+private fun MainDestinationContent(
+    padding: PaddingValues,
+    mainDestinationState: MainDestinationState,
+    modifier: Modifier = Modifier,
+) {
+    val stateHolder = rememberSaveableStateHolder()
+    val spatialMotion = AsteriskMotion.spatial<IntOffset>()
+    val effectsMotion = AsteriskMotion.fastEffects<Float>()
+    AnimatedContent(
+        targetState = mainDestinationState.current,
+        modifier = modifier,
+        transitionSpec = {
+            val direction = when {
+                targetState.index > initialState.index -> 1
+                targetState.index < initialState.index -> -1
+                else -> 0
+            }
+            (
+                slideInHorizontally(
+                    animationSpec = spatialMotion,
+                    initialOffsetX = { width -> direction * width / 8 },
+                ) + fadeIn(animationSpec = effectsMotion)
+                ).togetherWith(
+                slideOutHorizontally(
+                    animationSpec = spatialMotion,
+                    targetOffsetX = { width -> -direction * width / 8 },
+                ) + fadeOut(animationSpec = effectsMotion),
+            )
+        },
+        label = "main-destination",
+    ) { destination ->
+        stateHolder.SaveableStateProvider(destination.id) {
+            key(destination) {
+                when (destination) {
+                    MainDestination.Home -> MihomoDashboardPage(padding = padding)
+                    MainDestination.Proxies -> MihomoProxyPage(padding = padding)
+                    MainDestination.Configurations -> MihomoProfileListPage(padding = padding)
+                    MainDestination.Settings -> SettingsPage(padding = padding)
+                }
             }
         }
     }
 }
 
 @Composable
-fun AppPager(
-    padding: PaddingValues,
-    pagerState: PagerState,
-    modifier: Modifier = Modifier,
-) {
-    val languageMode = LocalAppChromeState.current.languageMode
-    HorizontalPager(
-        state = pagerState,
-        modifier = modifier,
-        userScrollEnabled = false,
-        verticalAlignment = Alignment.Top,
-        pageContent = { page ->
-            key(languageMode, page) {
-                when (page) {
-                    MainNavigation.DASHBOARD_PAGE_INDEX -> MihomoDashboardPage(
-                        padding = padding,
-                    )
-
-                    MainNavigation.MIHOMO_PROXIES_PAGE_INDEX -> MihomoProxyPage(
-                        padding = padding,
-                    )
-
-                    MainNavigation.PROXY_APP_LIST_PAGE_INDEX -> ProxyAppListPage(padding = padding)
-
-                    MainNavigation.SETTINGS_PAGE_INDEX -> SettingsPage(padding = padding)
-                }
-            }
-        },
-    )
-}
-
-@Composable
 private fun MainScreenBackHandler(
-    mainState: MainPagerState,
+    mainState: MainDestinationState,
     navigator: Navigator,
 ) {
-    val isPagerBackHandlerEnabled by remember {
+    val isMainDestinationBackHandlerEnabled by remember {
         derivedStateOf {
-            navigator.current() is Route.Main && navigator.backStackSize() == 1 && mainState.selectedPage != 0
+            navigator.current() is Route.Main &&
+                navigator.backStackSize() == 1 &&
+                mainState.current != MainDestination.Home
         }
     }
 
@@ -417,81 +417,9 @@ private fun MainScreenBackHandler(
 
     NavigationBackHandler(
         state = navEventState,
-        isBackEnabled = isPagerBackHandlerEnabled,
+        isBackEnabled = isMainDestinationBackHandlerEnabled,
         onBackCompleted = {
-            mainState.animateToPage(0)
+            mainState.select(MainDestination.Home)
         },
     )
-}
-
-@Stable
-class MainPagerState(
-    val pagerState: PagerState,
-    private val coroutineScope: CoroutineScope,
-) {
-    var selectedPage by mutableIntStateOf(pagerState.currentPage)
-        private set
-
-    var isNavigating by mutableStateOf(false)
-        private set
-
-    private var navJob: Job? = null
-
-    fun animateToPage(targetIndex: Int) {
-        if (targetIndex == selectedPage) return
-
-        navJob?.cancel()
-
-        selectedPage = targetIndex
-        isNavigating = true
-
-        navJob = coroutineScope.launch {
-            val myJob = coroutineContext.job
-            try {
-                pagerState.scroll(MutatePriority.UserInput) {
-                    val distance = abs(targetIndex - pagerState.currentPage).coerceAtLeast(2)
-                    val duration = 100 * distance + 100
-                    val layoutInfo = pagerState.layoutInfo
-                    val pageSize = layoutInfo.pageSize + layoutInfo.pageSpacing
-                    val currentDistanceInPages =
-                        targetIndex - pagerState.currentPage - pagerState.currentPageOffsetFraction
-                    val scrollPixels = currentDistanceInPages * pageSize
-
-                    var previousValue = 0f
-                    animate(
-                        initialValue = 0f,
-                        targetValue = scrollPixels,
-                        animationSpec = tween(easing = EaseInOut, durationMillis = duration),
-                    ) { currentValue, _ ->
-                        previousValue += scrollBy(currentValue - previousValue)
-                    }
-                }
-
-                if (pagerState.currentPage != targetIndex) {
-                    pagerState.scrollToPage(targetIndex)
-                }
-            } finally {
-                if (navJob == myJob) {
-                    isNavigating = false
-                    if (pagerState.currentPage != targetIndex) {
-                        selectedPage = pagerState.currentPage
-                    }
-                }
-            }
-        }
-    }
-
-    fun syncPage() {
-        if (!isNavigating && selectedPage != pagerState.currentPage) {
-            selectedPage = pagerState.currentPage
-        }
-    }
-}
-
-@Composable
-fun rememberMainPagerState(
-    pagerState: PagerState,
-    coroutineScope: CoroutineScope = rememberCoroutineScope(),
-): MainPagerState = remember(pagerState, coroutineScope) {
-    MainPagerState(pagerState, coroutineScope)
 }

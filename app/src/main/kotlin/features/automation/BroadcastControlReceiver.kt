@@ -6,6 +6,7 @@ package features.automation
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import app.withMihomoRestartApplied
 import data.AndroidAppStateStore
 import engine.proxy.AndroidProxyEngine
 import engine.proxy.ProxyServiceResult
@@ -127,7 +128,7 @@ private class BroadcastControlHandler(
                         proxyRunning = result.proxyRunning,
                         localProxyPort = result.appState?.localProxyPort ?: state.localProxyPort,
                         mihomoControlPort = result.appState?.mihomoControlPort ?: state.mihomoControlPort,
-                    )
+                    ).withMihomoRestartApplied()
                 }
                 AndroidAppLogger.info(LogTag, "Broadcast control ${command.actionName} completed: running=${result.proxyRunning}")
             }
@@ -136,7 +137,6 @@ private class BroadcastControlHandler(
                 if (result.error is CancellationException) {
                     throw result.error
                 }
-                stateStore.update { state -> state.copy(proxyRunning = false) }
                 AndroidAppLogger.error(LogTag, "Broadcast control ${command.actionName} failed", result.error)
             }
         }

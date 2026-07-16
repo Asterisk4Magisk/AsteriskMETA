@@ -46,7 +46,7 @@ internal class RootModeEngine<Config : RootModeStartConfig>(
         logFileTailers = config.root.coreLogPaths.startCoreLogTailers()
         runCatching {
             runner.start(config)
-            LocalProxyRuntime.update(config.localProxyOptions)
+            config.localProxyOptions?.let(LocalProxyRuntime::update) ?: LocalProxyRuntime.clear()
             if (rootContext.appState.enableRootBootScript) {
                 runner.installBootScript(config)
             } else {

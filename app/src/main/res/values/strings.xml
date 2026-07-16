@@ -40,6 +40,10 @@
     <string name="qr_scan_choose_image">Choose from album</string>
 <!-- Common -->
     <string name="common_cancel">Cancel</string>
+    <string name="common_clear">Clear</string>
+    <string name="common_search">Search</string>
+    <string name="common_retry">Retry</string>
+    <string name="common_all">All</string>
     <string name="common_save">Save</string>
     <string name="common_add">Add</string>
     <string name="common_edit">Edit</string>
@@ -57,28 +61,142 @@
     <string name="common_update">Update</string>
     <string name="common_restore">Restore</string>
     <string name="common_complete">Complete</string>
+    <string name="common_copy">Copy</string>
     <string name="string_list_item_empty">Entry cannot be empty</string>
     <string name="string_list_line_error">Line %1$d: %2$s</string>
 
     <!-- Navigation -->
-    <string name="nav_dashboard">Dashboard</string>
+    <string name="nav_dashboard">Home</string>
     <string name="nav_proxies">Proxies</string>
-    <string name="nav_apps">Apps</string>
+    <string name="nav_configurations">Configurations</string>
     <string name="nav_settings">Settings</string>
+    <string name="common_back">Back</string>
+    <string name="home_more_actions">More actions</string>
+    <string name="home_service_enabled">Service enabled</string>
+    <string name="home_service_disabled">Service disabled</string>
+    <string name="home_accumulated_upload">Uploaded</string>
+    <string name="home_accumulated_download">Downloaded</string>
+    <string name="home_mode_change_failed">Failed to change proxy mode</string>
+    <string name="home_current_configuration">Current configuration</string>
+    <string name="home_current_node">Current node</string>
+    <string name="home_no_node">No node selected</string>
+    <string name="home_network_activity">Network activity</string>
+    <string name="home_no_network_activity">No activity yet</string>
+    <string name="home_subscription_summary">Subscription</string>
+    <string name="home_no_subscription">No subscription usage is available for this configuration</string>
+    <string name="home_subscription_used">Used</string>
+    <string name="home_subscription_total">Total</string>
+    <string name="home_subscription_remaining">Remaining</string>
+    <string name="home_subscription_expiry">Expires %1$s</string>
+    <string name="home_monitor_resource">Resource</string>
+    <string name="home_monitor_connections">Connections</string>
+    <string name="home_monitor_traffic">Traffic</string>
+    <string name="home_monitor_network">Network</string>
+    <string name="home_value_unavailable">—</string>
+    <string name="home_resource_summary">CPU %1$s · %2$s</string>
+    <plurals name="home_connections_summary">
+        <item quantity="one">%1$d active connection</item>
+        <item quantity="other">%1$d active connections</item>
+    </plurals>
+    <string name="home_traffic_summary">Today %1$s</string>
+
+    <!-- Monitoring -->
+    <string name="monitor_service_not_enabled">Service not enabled</string>
+    <string name="monitor_loading">Loading live data…</string>
+    <string name="monitor_data_unavailable">Data unavailable</string>
+    <string name="monitor_data_stale">Data may be out of date</string>
+    <string name="monitor_value_unknown">Unknown</string>
+    <string name="monitor_no_samples">No samples yet. Paused intervals remain as gaps.</string>
+    <string name="monitor_milliseconds">%1$d ms</string>
+    <string name="monitor_refresh">Refresh</string>
+    <string name="monitor_retry">Retry</string>
+    <string name="monitor_copy_value">Copy value</string>
+    <string name="monitor_copied">Copied</string>
+    <string name="monitor_filter_all">All</string>
+    <string name="monitor_filter_proxy">Proxy</string>
+    <string name="monitor_filter_direct">Direct</string>
+    <string name="monitor_sort_rate">Real-time rate</string>
+    <string name="monitor_sort_started">Start time</string>
+    <string name="monitor_sort_target">Target</string>
+
+    <string name="monitor_connections_title">Connections</string>
+    <string name="monitor_connections_active">Active connections</string>
+    <string name="monitor_connections_focus_routes">Proxy %1$d · Direct %2$d</string>
+    <string name="monitor_connections_status_summary">%1$s · %2$s</string>
+    <string name="monitor_connections_live">Live</string>
+    <string name="monitor_connections_paused">Paused</string>
+    <string name="monitor_connections_pause">Pause connection monitoring</string>
+    <string name="monitor_connections_resume">Resume connection monitoring</string>
+    <string name="monitor_connections_search">Search target, process, rule, or chain</string>
+    <string name="monitor_connections_empty">No active connections</string>
+    <string name="monitor_connections_no_match">No matching connections</string>
+    <string name="monitor_connections_unknown_source">Unknown source</string>
+    <string name="monitor_connections_close_one">Close this connection</string>
+    <string name="monitor_connections_close_failed">Could not close the connection</string>
+    <string name="monitor_connections_close_all">Close all connections</string>
+    <plurals name="monitor_connections_close_all_message">
+        <item quantity="one">Close the active connection? The ongoing request may be interrupted.</item>
+        <item quantity="other">Close all %1$d active connections? Ongoing requests may be interrupted.</item>
+    </plurals>
+    <string name="monitor_connections_close_all_confirm">Close all</string>
+    <string name="monitor_connections_close_all_failed">Could not close all connections</string>
+    <string name="monitor_connections_details">Connection details</string>
+    <string name="monitor_connections_source">Source</string>
+    <string name="monitor_connections_target">Target</string>
+    <string name="monitor_connections_process">Process</string>
+    <string name="monitor_connections_network">Network</string>
+    <string name="monitor_connections_rule">Rule</string>
+    <string name="monitor_connections_chain">Policy chain</string>
+    <string name="monitor_connections_download">Download</string>
+    <string name="monitor_connections_upload">Upload</string>
+
+    <string name="monitor_resource_title">Resource monitor</string>
+    <string name="monitor_resource_source_root">Mihomo process · Root</string>
+    <string name="monitor_resource_source_embedded">AsteriskMETA process · Embedded</string>
+    <string name="monitor_resource_root_explanation">CPU is sampled from the independent Mihomo process.</string>
+    <string name="monitor_resource_embedded_explanation">CPU includes Mihomo and other AsteriskMETA work in the same process, so it is not directly comparable with Root mode.</string>
+    <string name="monitor_resource_cpu">Process CPU</string>
+    <string name="monitor_resource_memory">Mihomo memory</string>
+    <string name="monitor_resource_focus_memory">Memory %1$s</string>
+    <string name="monitor_resource_15_minutes">15 minutes</string>
+    <string name="monitor_resource_1_hour">1 hour</string>
+    <string name="monitor_resource_trend">Shared trend</string>
+    <string name="monitor_resource_details">Sampling details</string>
+    <string name="monitor_resource_cpu_peak">CPU peak</string>
+    <string name="monitor_resource_memory_peak">Memory peak</string>
+    <string name="monitor_resource_pid">Process PID</string>
+    <string name="monitor_resource_interval">Sampling interval</string>
+
+    <string name="monitor_traffic_title">Traffic statistics</string>
+    <string name="monitor_traffic_today">Today</string>
+    <string name="monitor_traffic_session">This service session</string>
+    <string name="monitor_traffic_session_total">Session total</string>
+    <string name="monitor_traffic_runtime">Runtime</string>
+    <string name="monitor_traffic_trend">5-minute trend</string>
+    <string name="monitor_traffic_last_5_minutes">Last 5 minutes; paused periods are not interpolated.</string>
+    <string name="monitor_traffic_7_days">Last 7 days</string>
+    <string name="monitor_traffic_30_days">Last 30 days</string>
+    <string name="monitor_traffic_total">Total</string>
+    <string name="monitor_traffic_local_notice">Traffic history is recorded only in this app’s private local storage and is never sent to probe or subscription services.</string>
+
+    <string name="monitor_network_title">Network status</string>
+    <string name="monitor_network_request_duration_value">Request duration %1$d ms</string>
+    <string name="monitor_network_public">Public addresses</string>
+    <string name="monitor_network_probe_source">Returned by the probe service</string>
+    <string name="monitor_network_local">Local network</string>
+    <string name="monitor_network_local_ipv4">Local IPv4</string>
+    <string name="monitor_network_local_ipv6">Local IPv6</string>
+    <string name="monitor_network_gateway">Default gateway</string>
+    <string name="monitor_network_dns">DNS server</string>
+    <string name="monitor_network_interface">Interface</string>
+    <string name="monitor_network_privacy">Probe privacy</string>
+    <string name="monitor_network_privacy_body">Entering this page or refreshing sends one address request to %1$s. The request contains no subscription, configuration, device identifier, account, or Mihomo credential. Results remain in memory and are not logged or saved.</string>
+    <string name="monitor_network_error_timeout">The request timed out</string>
+    <string name="monitor_network_error_request">The request failed</string>
+    <string name="monitor_network_error_response">The service returned an invalid address</string>
 
     <!-- Mihomo -->
-    <string name="mihomo_dashboard_title">Dashboard</string>
-    <string name="mihomo_dashboard_profile">Configuration</string>
-    <string name="mihomo_dashboard_mode">Mode</string>
-    <string name="mihomo_dashboard_network_speed">Network speed</string>
-    <string name="mihomo_dashboard_traffic_usage">Traffic usage</string>
-    <string name="mihomo_dashboard_network_detection">Network detection</string>
     <string name="mihomo_dashboard_network_detection_checking">Checking…</string>
-    <string name="mihomo_dashboard_local_ip">Local IP</string>
-    <string name="mihomo_dashboard_upload">Upload</string>
-    <string name="mihomo_dashboard_download">Download</string>
-    <string name="mihomo_dashboard_memory">Memory</string>
-    <string name="mihomo_dashboard_unavailable">Unavailable</string>
     <string name="mihomo_dashboard_no_configuration">No configuration</string>
     <string name="mihomo_dashboard_start_failed">Failed to start proxy</string>
     <string name="mihomo_dashboard_start_no_configuration">Add a configuration before starting the proxy</string>
@@ -92,15 +210,16 @@
     <string name="mihomo_proxies_no_configuration_summary">Add or import a Mihomo YAML configuration before viewing and switching proxy nodes.</string>
     <string name="mihomo_proxies_runtime_unavailable">Mihomo runtime is not ready</string>
     <string name="mihomo_proxies_search">Search proxies</string>
-    <string name="mihomo_proxies_delay_test">Delay test</string>
+    <string name="mihomo_proxies_group_test">Test group</string>
     <string name="mihomo_proxies_delay_timeout">Timeout</string>
+    <string name="mihomo_proxies_delay_not_tested">Not tested</string>
     <string name="mihomo_proxies_delay_failed">Delay test failed</string>
     <string name="mihomo_proxies_delay_done">Delay test complete</string>
     <string name="mihomo_proxies_select_failed">Failed to switch proxy</string>
     <string name="mihomo_proxies_options">Proxy display options</string>
-    <string name="mihomo_proxies_option_filter">Filter</string>
     <string name="mihomo_proxies_option_filter_not_selectable">Not selectable</string>
     <string name="mihomo_proxies_option_layout">Layout</string>
+    <string name="mihomo_proxies_option_layout_auto">Automatic</string>
     <string name="mihomo_proxies_option_layout_single">Single</string>
     <string name="mihomo_proxies_option_layout_double">Double</string>
     <string name="mihomo_proxies_option_layout_multiple">Multiple</string>
@@ -109,26 +228,39 @@
     <string name="mihomo_proxies_option_sort_name">Name</string>
     <string name="mihomo_proxies_option_sort_delay">Delay</string>
     <string name="mihomo_providers_title">Proxy providers</string>
-    <string name="mihomo_providers_count">{count} providers</string>
     <string name="mihomo_providers_empty">The current configuration does not contain proxy-providers</string>
     <string name="mihomo_providers_refresh_all">Refresh all</string>
     <string name="mihomo_providers_refresh_done">Provider refreshed</string>
     <string name="mihomo_providers_refresh_failed">Failed to refresh provider</string>
     <string name="mihomo_providers_refresh_all_done">Providers refresh complete: success %1$d; failed %2$d</string>
     <string name="mihomo_provider_file_content">File content</string>
-    <string name="mihomo_provider_nodes">Nodes</string>
     <string name="mihomo_provider_traffic_unlimited">Unlimited</string>
     <string name="mihomo_provider_file_missing">Provider file is unavailable</string>
     <string name="mihomo_provider_raw_declaration">Declaration snippet</string>
+    <string name="mihomo_provider_raw_read_only">Read-only</string>
+    <string name="mihomo_provider_raw_metadata">%1$s · %2$s</string>
+    <plurals name="mihomo_provider_raw_matches">
+        <item quantity="one">%1$d match</item>
+        <item quantity="other">%1$d matches</item>
+    </plurals>
     <string name="mihomo_provider_runtime_unavailable">Runtime provider data is unavailable</string>
+    <string name="mihomo_provider_focus_loading">Loading providers</string>
+    <string name="mihomo_provider_focus_ready">Providers ready</string>
+    <string name="mihomo_provider_focus_empty">No providers configured</string>
+    <string name="mihomo_provider_focus_error">Provider unavailable</string>
+    <plurals name="mihomo_provider_focus_progress">
+        <item quantity="one">%1$d of %2$d ready</item>
+        <item quantity="other">%1$d of %2$d ready</item>
+    </plurals>
+    <string name="mihomo_provider_focus_updated">Updated %1$s</string>
     <string name="mihomo_provider_nodes_empty">No nodes</string>
     <string name="mihomo_provider_nodes_count">{count} nodes</string>
     <string name="mihomo_provider_nodes_search">Search nodes</string>
+    <string name="mihomo_provider_filter_available">Available</string>
+    <string name="mihomo_provider_filter_timeout">Timeout</string>
     <string name="mihomo_provider_delay_timeout">Timeout</string>
     <string name="mihomo_provider_missing">Provider does not exist in the current configuration</string>
     <string name="mihomo_configurations_title">Configuration management</string>
-    <string name="mihomo_configurations_count">{count} configurations</string>
-    <string name="mihomo_configurations_list">Configurations</string>
     <string name="mihomo_configuration_add">Add configuration</string>
     <string name="mihomo_configuration_add_method_title">Add configuration</string>
     <string name="mihomo_configuration_add_qr">QR code</string>
@@ -140,6 +272,21 @@
     <string name="mihomo_configuration_edit_file">Edit file configuration</string>
     <string name="mihomo_configuration_edit_url">Edit URL configuration</string>
     <string name="mihomo_configuration_name">Name</string>
+    <string name="mihomo_configuration_properties">Configuration properties</string>
+    <string name="mihomo_configuration_raw_mode">Disable all overrides</string>
+    <string name="mihomo_configuration_raw_mode_summary">Load YAML unchanged; app settings and override scripts do not take effect</string>
+    <string name="mihomo_configuration_raw_mode_confirm_title">Use raw configuration?</string>
+    <string name="mihomo_configuration_raw_mode_confirm_message">Override scripts will stop running. Missing ports or other required YAML fields may prevent the proxy service from starting. Turning this off restores your saved app settings.</string>
+    <string name="mihomo_configuration_raw_mode_confirm">Use raw YAML</string>
+    <string name="mihomo_configuration_raw_mode_ready">Configuration check: ready</string>
+    <string name="mihomo_configuration_raw_mode_degraded">Configuration check: some API or DNS features are unavailable</string>
+    <string name="mihomo_configuration_raw_mode_blocked">Configuration check: startup is blocked until required YAML fields are fixed</string>
+    <string name="mihomo_configuration_raw_mode_unchecked">Configuration will be checked when content is available</string>
+    <string name="mihomo_configuration_raw_chip">Raw configuration</string>
+    <string name="mihomo_configuration_raw_summary">Load YAML unchanged</string>
+    <string name="mihomo_configuration_override_script_stopped">Stopped by raw configuration mode</string>
+    <string name="settings_value_from_yaml">From YAML</string>
+    <string name="settings_value_not_configured">Not configured</string>
     <string name="mihomo_configuration_name_required">Enter a configuration name</string>
     <string name="mihomo_configuration_url">URL</string>
     <string name="mihomo_configuration_user_agent">User-Agent</string>
@@ -150,6 +297,8 @@
     <string name="mihomo_configuration_content">YAML content</string>
     <string name="mihomo_configuration_type_file">Local file</string>
     <string name="mihomo_configuration_type_url">Remote URL</string>
+    <string name="mihomo_configuration_chip_local_file">Local</string>
+    <string name="mihomo_configuration_chip_remote_subscription">Subscription</string>
     <string name="mihomo_configuration_actions">Configuration actions</string>
     <string name="mihomo_configuration_preview">Preview</string>
     <string name="mihomo_configuration_preview_title">Preview {name}</string>
@@ -174,15 +323,35 @@
     <string name="mihomo_override_script_name">Script name</string>
     <string name="mihomo_override_script_name_required">Enter a script name</string>
     <string name="mihomo_override_script_deleted">Script deleted</string>
-    <string name="mihomo_override_script_debug_run">Test run</string>
+    <string name="mihomo_override_script_empty_summary">Create a script to transform a configuration before startup.</string>
+    <plurals name="mihomo_override_script_configuration_count">
+        <item quantity="one">%1$d configuration</item>
+        <item quantity="other">%1$d configurations</item>
+    </plurals>
+    <plurals name="mihomo_override_script_line_count">
+        <item quantity="one">%1$d line</item>
+        <item quantity="other">%1$d lines</item>
+    </plurals>
+    <string name="mihomo_override_script_duplicate_name">{name} copy</string>
+    <string name="mihomo_override_script_delete_title">Delete override script?</string>
+    <plurals name="mihomo_override_script_delete_message">
+        <item quantity="one">Deleting “%1$s” also removes it from %2$d configuration. Both changes are applied together.</item>
+        <item quantity="other">Deleting “%1$s” also removes it from %2$d configurations. Both changes are applied together.</item>
+    </plurals>
+    <string name="mihomo_override_script_debug_run">Debug</string>
     <string name="mihomo_override_script_debug_title">Debug</string>
-    <string name="mihomo_override_script_debug_running">Running…</string>
+    <string name="mihomo_override_script_debug_running">Debugging…</string>
+    <string name="mihomo_override_script_debug_profile">Temporary test configuration</string>
+    <string name="mihomo_override_script_debug_profile_none">No configuration available</string>
+    <string name="mihomo_override_script_debug_success">Succeeded</string>
+    <string name="mihomo_override_script_debug_failed">Failed</string>
     <string name="mihomo_override_script_debug_copy">Copy report</string>
     <string name="mihomo_override_script_debug_error">Error</string>
     <string name="mihomo_override_script_debug_summary_title">Summary</string>
     <string name="mihomo_override_script_debug_summary">Proxies %1$d → %2$d · Groups %3$d → %4$d · Rules %5$d → %6$d</string>
     <string name="mihomo_override_script_debug_logs">Console</string>
     <string name="mihomo_override_script_debug_no_logs">No console output</string>
+    <string name="mihomo_override_script_debug_no_output">No output YAML</string>
     <string name="mihomo_override_script_debug_output">Output YAML</string>
     <string name="mihomo_configuration_missing">Configuration does not exist</string>
     <string name="mihomo_configuration_imported">Configuration imported</string>
@@ -195,8 +364,7 @@
     <string name="mihomo_configuration_http_subscription_warning_confirm">Save anyway</string>
     <string name="mihomo_configuration_invalid_qr_content">QR code does not contain a supported subscription link</string>
     <string name="settings_configurations">Configurations</string>
-    <string name="settings_configuration_management">Configuration management</string>
-    <string name="settings_configuration_management_summary">Manage Mihomo YAML profiles</string>
+    <string name="proxy_app_list_settings_summary">Choose which apps use the proxy</string>
     <string name="settings_tun_stack">TUN stack</string>
     <string name="settings_tun_stack_system">System</string>
     <string name="settings_tun_stack_gvisor">gVisor</string>
@@ -204,6 +372,12 @@
 
     <!-- Settings -->
     <string name="settings_title">Settings</string>
+    <string name="settings_search_results">Search results</string>
+    <string name="settings_search_no_results">No matching settings</string>
+    <plurals name="settings_search_match_count">
+        <item quantity="one">%1$d matching setting</item>
+        <item quantity="other">%1$d matching settings</item>
+    </plurals>
     <string name="settings_theme">Theme</string>
     <string name="settings_color_mode">Theme</string>
     <string name="settings_language">Language</string>
@@ -305,11 +479,21 @@
     <string name="settings_resource_files_source_metacubex_github">MetaCubeX (GitHub)</string>
     <string name="settings_resource_files_source_custom">Custom</string>
     <string name="settings_resource_files_source_custom_title">Custom resource URLs</string>
+    <string name="settings_resource_files_overview">Resource readiness</string>
+    <plurals name="settings_resource_files_overview_ready">
+        <item quantity="one">%1$d of %2$d ready · %3$s</item>
+        <item quantity="other">%1$d of %2$d ready · %3$s</item>
+    </plurals>
+    <string name="settings_resource_files_source_value">Source: %1$s</string>
+    <string name="settings_resource_files_last_check">Last check {time}</string>
     <string name="settings_resource_files_update">Update resource files</string>
     <string name="settings_resource_files_add_custom">Add custom resource file</string>
     <string name="settings_resource_files_custom_file">Custom resource file</string>
     <string name="settings_resource_files_custom_name">File name</string>
-    <string name="settings_resource_files_custom_url">URL</string>
+    <string name="settings_resource_files_custom_url_optional">URL (optional)</string>
+    <string name="settings_resource_files_custom_url_invalid">Use a valid HTTP or HTTPS URL, or leave it empty</string>
+    <string name="settings_resource_files_custom_section">Custom resources</string>
+    <string name="settings_resource_files_local_only">Local replacement only</string>
     <string name="settings_resource_files_custom_name_invalid">Invalid file name</string>
     <string name="settings_resource_files_custom_name_duplicate">File name is already used</string>
     <string name="settings_resource_files_ready">Ready</string>
@@ -416,9 +600,6 @@
     <string name="option_follow_system">Follow system</string>
     <string name="option_light">Light</string>
     <string name="option_dark">Dark</string>
-    <string name="option_theme_system">Follow system (Monet)</string>
-    <string name="option_theme_light">Light (Monet)</string>
-    <string name="option_theme_dark">Dark (Monet)</string>
     <string name="option_english">English</string>
     <string name="option_simplified_chinese">中文（简体）</string>
     <string name="theme_color_default">System default</string>
@@ -437,20 +618,30 @@
     <string name="about_view_source">View source on GitHub</string>
     <string name="about_join_telegram">Join our Telegram channel</string>
     <string name="license_title">Third Party Licenses</string>
+    <string name="license_load_failed">Could not load license metadata</string>
 
     <!-- Logs -->
     <string name="core_logs_title">Core logs</string>
     <string name="logcat_logs_title">Logcat</string>
-    <string name="logs_count">{count} entries</string>
     <string name="logs_copied_to_clipboard">Copied to clipboard</string>
     <string name="logs_export">Export logs</string>
     <string name="logs_exported">Logs exported</string>
     <string name="logs_export_failed">Failed to export logs</string>
-    <string name="logs_output">Log output</string>
-    <string name="logs_pull_to_refresh">Pull down to refresh</string>
-    <string name="logs_release_to_refresh">Release to refresh</string>
-    <string name="logs_refreshing">Refreshing…</string>
-    <string name="logs_refreshed">Refresh complete</string>
+    <string name="logs_page_subtitle">%1$s · %2$s</string>
+    <plurals name="logs_total_count">
+        <item quantity="one">%1$d entry</item>
+        <item quantity="other">%1$d entries</item>
+    </plurals>
+    <string name="logs_live">Live</string>
+    <string name="logs_paused">Paused</string>
+    <string name="logs_pause">Pause log stream</string>
+    <string name="logs_resume">Resume log stream</string>
+    <string name="logs_level_debug">Debug</string>
+    <string name="logs_level_info">Info</string>
+    <string name="logs_level_warning">Warning</string>
+    <string name="logs_level_error">Error</string>
+    <string name="logs_clear_title">Clear logs?</string>
+    <string name="logs_clear_message">This permanently removes all entries in this log.</string>
 
     <!-- Proxy app list -->
     <string name="proxy_app_list_title">Proxy app list</string>
@@ -462,10 +653,6 @@
     <string name="proxy_app_list_show_system_apps">Show system apps</string>
     <string name="proxy_app_list_search_label">Search apps</string>
     <string name="proxy_app_list_entry_summary">{package}</string>
-    <string name="proxy_app_list_pull_to_refresh">Pull down to refresh</string>
-    <string name="proxy_app_list_release_to_refresh">Release to refresh</string>
-    <string name="proxy_app_list_refreshing">Refreshing…</string>
-    <string name="proxy_app_list_refreshed">Refresh complete</string>
     <string name="proxy_app_list_loading">Loading apps…</string>
     <string name="proxy_app_list_load_failed">Unable to load app list</string>
     <string name="proxy_app_list_import_clipboard_title">Import app list</string>
@@ -477,8 +664,6 @@
     <string name="proxy_app_list_import_unsupported_mode">Unsupported app list mode</string>
 
     <!-- Proxy service -->
-    <string name="proxy_service_start">Start proxy</string>
-    <string name="proxy_service_stop">Stop proxy</string>
     <string name="proxy_service_started">Proxy service started</string>
     <string name="proxy_service_stopped">Proxy service stopped</string>
 
@@ -487,4 +672,14 @@
     <string name="subscription_update_result_with_failed">Updated {profileCount} profiles, {failedCount} failed</string>
     <string name="subscription_install_config_invalid">Invalid subscription link</string>
     <string name="subscription_install_config_failed">Failed to import subscription</string>
+    <string name="mihomo_configuration_restart_required">Changes require a service restart</string>
+    <string name="mihomo_configuration_restart_required_message">The running service is still using the previous configuration. Restart now only after the saved configuration passes validation.</string>
+    <string name="mihomo_configuration_restart_now">Restart now</string>
+    <string name="mihomo_configuration_restart_later">Later</string>
+    <string name="mihomo_configuration_restart_failed">Unable to restart with the saved configuration. The existing service remains active.</string>
+    <string name="mihomo_configuration_raw_api">Mihomo API</string>
+    <string name="mihomo_configuration_raw_dns_hijack">DNS hijack</string>
+    <string name="mihomo_configuration_raw_run_mode">Current run mode</string>
+    <string name="mihomo_configuration_raw_configured">Configured</string>
+    <string name="mihomo_configuration_raw_unavailable">Unavailable</string>
 </resources>

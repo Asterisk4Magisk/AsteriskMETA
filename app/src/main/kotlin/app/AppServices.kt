@@ -10,6 +10,7 @@ import engine.proxy.AndroidProxyEngine
 import engine.proxy.ProxyServiceUseCase
 import engine.mihomo.runtime.MihomoRuntimeRepository
 import features.logs.CoreLogRepository
+import features.monitoring.MonitoringRepository
 import features.resources.ResourceFileUseCase
 import features.settings.usecase.SwitchRunModeUseCase
 import features.settings.usecase.RootBootScriptUseCase
@@ -37,6 +38,7 @@ internal data class AppServices(
     val qrCodeScanner: suspend () -> String?,
     val mihomoProfileFilePicker: suspend () -> Uri?,
     val mihomoRuntime: MihomoRuntimeRepository,
+    val monitoring: MonitoringRepository,
     val proxyServiceUseCase: ProxyServiceUseCase,
     val switchRunModeUseCase: SwitchRunModeUseCase,
     val rootBootScriptUseCase: RootBootScriptUseCase,

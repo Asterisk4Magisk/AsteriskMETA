@@ -9,7 +9,7 @@ import engine.mihomo.logDirectoryPath
 import java.io.File
 
 internal data class RootStartConfig(
-    val mihomoProfileYaml: String,
+    val mihomoProfileBytes: ByteArray,
     val ageSecretKey: String = "",
     val setuidgidPath: String,
     val runtimeLayout: RootRuntimeLayout,
@@ -22,11 +22,47 @@ internal data class RootStartConfig(
 ) {
     val configPath: String
         get() = runtimeLayout.configPath
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as RootStartConfig
+
+        if (enableIpv6 != other.enableIpv6) return false
+        if (enableRootIpv6Disabler != other.enableRootIpv6Disabler) return false
+        if (enableLocalDns != other.enableLocalDns) return false
+        if (enableFakeIp != other.enableFakeIp) return false
+        if (!mihomoProfileBytes.contentEquals(other.mihomoProfileBytes)) return false
+        if (ageSecretKey != other.ageSecretKey) return false
+        if (setuidgidPath != other.setuidgidPath) return false
+        if (runtimeLayout != other.runtimeLayout) return false
+        if (fakeIpIpv4Pool != other.fakeIpIpv4Pool) return false
+        if (coreLogPaths != other.coreLogPaths) return false
+        if (configPath != other.configPath) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = enableIpv6.hashCode()
+        result = 31 * result + enableRootIpv6Disabler.hashCode()
+        result = 31 * result + enableLocalDns.hashCode()
+        result = 31 * result + enableFakeIp.hashCode()
+        result = 31 * result + mihomoProfileBytes.contentHashCode()
+        result = 31 * result + ageSecretKey.hashCode()
+        result = 31 * result + setuidgidPath.hashCode()
+        result = 31 * result + runtimeLayout.hashCode()
+        result = 31 * result + fakeIpIpv4Pool.hashCode()
+        result = 31 * result + coreLogPaths.hashCode()
+        result = 31 * result + configPath.hashCode()
+        return result
+    }
 }
 
 internal interface RootModeStartConfig {
     val root: RootStartConfig
-    val localProxyOptions: LocalProxyOptions
+    val localProxyOptions: LocalProxyOptions?
     val asteriskdConfig: AsteriskdConfig?
         get() = null
     val rootEbpfConfig: RootEbpfRuntimeConfig?

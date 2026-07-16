@@ -14,7 +14,7 @@ An Android Mihomo GUI client powered by [Mihomo](https://github.com/MetaCubeX/mi
 - Add configurations from QR code, local file, or URL subscription
 - JavaScript override scripts for advanced configuration mutation
 - ROOT start-on-boot script generation through Magisk `service.d`
-- MIUIX Compose UI
+- Material 3 Compose UI
 
 ## Screenshots
 
@@ -129,4 +129,4 @@ appops set org.asterisk.zcc.ameta ACTIVATE_VPN allow
 - [ClashMetaForAndroid](https://github.com/MetaCubeX/ClashMetaForAndroid)
 - [hev-socks5-tunnel](https://github.com/heiher/hev-socks5-tunnel)
 - [libsu](https://github.com/topjohnwu/libsu)
-- [MIUIX](https://github.com/compose-miuix-ui/miuix)
+- [Jetpack Compose Material 3](https://developer.android.com/develop/ui/compose/designsystems/material3)

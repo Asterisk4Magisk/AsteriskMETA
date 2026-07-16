@@ -43,7 +43,7 @@ import java.net.URLEncoder
 import kotlin.time.Duration.Companion.milliseconds
 
 internal class MihomoControlClient {
-    suspend fun isApiAvailable(config: MihomoControlConfig): Boolean {
+    fun isApiAvailable(config: MihomoControlConfig): Boolean {
         return runCatching {
             request(
                 config = config,
@@ -54,7 +54,7 @@ internal class MihomoControlClient {
         }.isSuccess
     }
 
-    suspend fun getConfigs(config: MihomoControlConfig, useBridge: Boolean): MihomoConfigsState {
+    fun getConfigs(config: MihomoControlConfig, useBridge: Boolean): MihomoConfigsState {
         if (useBridge) {
             val state = Clash.queryTunnelState()
             return MihomoConfigsState(mode = state.mode.mihomoModeName())
@@ -66,7 +66,7 @@ internal class MihomoControlClient {
         )
     }
 
-    suspend fun getVersion(config: MihomoControlConfig, useBridge: Boolean): MihomoVersionState {
+    fun getVersion(config: MihomoControlConfig, useBridge: Boolean): MihomoVersionState {
         if (useBridge) {
             return MihomoVersionState(version = Bridge.nativeCoreVersion())
         }
@@ -90,7 +90,46 @@ internal class MihomoControlClient {
         )
     }
 
-    suspend fun getProxies(
+    fun getConnections(
+        config: MihomoControlConfig,
+        useBridge: Boolean,
+    ): MihomoConnectionsState {
+        val response = if (useBridge) {
+            Clash.queryConnections()
+        } else {
+            request(config, "/connections")
+        }
+        return parseMihomoConnectionsJson(response)
+    }
+
+    fun closeConnection(
+        config: MihomoControlConfig,
+        connectionId: String,
+        useBridge: Boolean,
+    ): Boolean {
+        if (useBridge) {
+            return Clash.closeConnection(connectionId)
+        }
+        return try {
+            request(config, "/connections/${connectionId.urlEncode()}", method = "DELETE")
+            true
+        } catch (error: MihomoApiException) {
+            if (error.status == HttpURLConnection.HTTP_NOT_FOUND) false else throw error
+        }
+    }
+
+    fun closeAllConnections(
+        config: MihomoControlConfig,
+        useBridge: Boolean,
+    ) {
+        if (useBridge) {
+            Clash.closeAllConnections()
+            return
+        }
+        request(config, "/connections", method = "DELETE")
+    }
+
+    fun getProxies(
         config: MihomoControlConfig,
         useBridge: Boolean,
         mode: String,
@@ -140,7 +179,7 @@ internal class MihomoControlClient {
         )
     }
 
-    suspend fun getProxyProvider(
+    fun getProxyProvider(
         config: MihomoControlConfig,
         providerName: String,
         useBridge: Boolean,
@@ -209,7 +248,7 @@ internal class MihomoControlClient {
         request(config, "/configs", method = "PATCH", body = body.toString())
     }
 
-    suspend fun selectProxy(
+    fun selectProxy(
         config: MihomoControlConfig,
         groupName: String,
         proxyName: String,
@@ -382,7 +421,7 @@ internal class MihomoControlClient {
         )
     }
 
-    private suspend fun requestJsonObject(
+    private fun requestJsonObject(
         config: MihomoControlConfig,
         path: String,
     ): JsonObject {
@@ -432,7 +471,7 @@ internal class MihomoControlClient {
         }
     }
 
-    private suspend fun request(
+    private fun request(
         config: MihomoControlConfig,
         path: String,
         method: String = "GET",
@@ -459,7 +498,7 @@ internal class MihomoControlClient {
             val stream = if (status in 200..299) connection.inputStream else connection.errorStream
             val response = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
             if (status !in 200..299) {
-                error("Mihomo API $method $path failed with HTTP $status: $response")
+                throw MihomoApiException(method, path, status, response)
             }
             return response
         } finally {
@@ -782,6 +821,13 @@ private fun JsonElement?.longValue(): Long? {
 private fun JsonElement?.intValue(): Int? {
     return jsonPrimitiveOrNull()?.intOrNull ?: jsonPrimitiveOrNull()?.contentOrNull?.toIntOrNull()
 }
+
+private class MihomoApiException(
+    method: String,
+    path: String,
+    val status: Int,
+    response: String,
+) : IllegalStateException("Mihomo API $method $path failed with HTTP $status: $response")
 
 private const val MihomoUntestedDelay = 65_535
 private const val MihomoTimeoutDelay = -1

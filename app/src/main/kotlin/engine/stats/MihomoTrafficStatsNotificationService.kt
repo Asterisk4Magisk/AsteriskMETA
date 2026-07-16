@@ -14,7 +14,6 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import app.R
-import data.AppSettingsPreferences
 import engine.mihomo.MihomoControlConfig
 import engine.mihomo.runtime.MihomoControlClient
 import engine.mihomo.runtime.MihomoProxiesState
@@ -51,6 +50,7 @@ class MihomoTrafficStatsNotificationService : Service() {
     private val serviceScope = CoroutineScope(serviceJob + Dispatchers.IO)
     private val client = MihomoControlClient()
     private var monitorJob: Job? = null
+    private var activeRuntime: MihomoTrafficStatsRuntime? = null
     private val notificationManager by lazy { getSystemService(NotificationManager::class.java) }
     private val contentIntent by lazy {
         packageManager
@@ -79,15 +79,23 @@ class MihomoTrafficStatsNotificationService : Service() {
             return START_NOT_STICKY
         }
 
-        val runtime = intent?.readRuntime() ?: AppSettingsPreferences(this).load().toMihomoTrafficStatsRuntime()
+        // Runtime values are supplied by the owning proxy engine. Reconstructing them
+        // from application settings would violate raw-config isolation after a sticky
+        // service restart because the YAML controller and secret are intentionally not
+        // persisted outside the profile content.
+        val runtime = intent?.readRuntime()
         if (runtime == null) {
             stopSelf(startId)
             return START_NOT_STICKY
         }
+        if (activeRuntime == runtime && monitorJob?.isActive == true) {
+            return START_NOT_STICKY
+        }
 
+        activeRuntime = runtime
         startForegroundCompat(buildNotification(runtime.nodeName, TrafficStatsSnapshot()))
         startMonitor(runtime)
-        return START_STICKY
+        return START_NOT_STICKY
     }
 
     override fun onDestroy() {
@@ -187,6 +195,7 @@ class MihomoTrafficStatsNotificationService : Service() {
     private fun stopStats() {
         monitorJob?.cancel()
         monitorJob = null
+        activeRuntime = null
         stopForegroundCompat()
         notificationManager.cancel(NotificationId)
     }
@@ -287,6 +296,7 @@ private fun Intent.putRuntime(runtime: MihomoTrafficStatsRuntime) {
     putExtra(ExtraHost, runtime.control.host)
     putExtra(ExtraPort, runtime.control.port)
     putExtra(ExtraSecret, runtime.control.secret)
+    putExtra(ExtraScheme, runtime.control.scheme)
     putExtra(ExtraUseBridge, runtime.useBridge)
     putExtra(ExtraNodeName, runtime.nodeName)
 }
@@ -299,8 +309,11 @@ private fun Intent.readRuntime(): MihomoTrafficStatsRuntime? {
             host = host,
             port = port,
             secret = getStringExtra(ExtraSecret).orEmpty(),
+            scheme = getStringExtra(ExtraScheme).orEmpty().takeIf { it in setOf("http", "https") } ?: "http",
         ),
         useBridge = getBooleanExtra(ExtraUseBridge, true),
         nodeName = getStringExtra(ExtraNodeName).orEmpty(),
     )
 }
+
+private const val ExtraScheme = "mihomo_control_scheme"

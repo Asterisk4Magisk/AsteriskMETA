@@ -131,7 +131,10 @@ class AndroidAppStateStore private constructor(
         )
             // Keep committed state in the main DB file for file-based backup tools.
             .setJournalMode(RoomDatabase.JournalMode.TRUNCATE)
-            .addMigrations(AsteriskAppDatabase.Migration1To2)
+            .addMigrations(
+                AsteriskAppDatabase.Migration1To2,
+                AsteriskAppDatabase.Migration2To3,
+            )
             .fallbackToDestructiveMigration(dropAllTables = true)
             .build()
     }

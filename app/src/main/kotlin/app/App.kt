@@ -13,7 +13,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import app.effects.ProxyStatusSynchronizer
-import app.effects.LauncherIconSynchronizer
 import app.effects.MihomoRuntimeSynchronizer
 import app.effects.ResourceFileSynchronizer
 import app.effects.SubscriptionAutoUpdater
@@ -22,14 +21,13 @@ import app.effects.Tun2SocksRuntimeFileSynchronizer
 import app.effects.TrafficStatsNotificationSynchronizer
 import features.logs.AndroidCoreLogRepository
 import features.logs.AndroidLogcatRepository
+import features.monitoring.MonitoringRepository
 import data.AndroidAppStateStore
 import engine.mihomo.MihomoProfileContentStore
-import engine.mihomo.runtime.MihomoRuntimeRepository
 import engine.proxy.AndroidProxyEngine
 import engine.proxy.ProxyServiceUseCase
 import features.resources.ResourceFileUseCase
 import features.settings.locale.ProvideAppLanguage
-import features.settings.locale.RecreateActivityOnAppLanguageChange
 import features.settings.usecase.SwitchRunModeUseCase
 import features.settings.usecase.RootBootScriptUseCase
 import features.settings.usecase.RootEbpfProbeUseCase
@@ -53,8 +51,10 @@ fun App(
     requestVpnPermission: suspend (Intent) -> Boolean,
 ) {
     val appContext = LocalContext.current.applicationContext
-    val appScope = (appContext as AsteriskApplication).appScope
+    val application = appContext as AsteriskApplication
+    val appScope = application.appScope
     val rootAccess = remember { AndroidRootShellGateway() }
+    val stateStore = remember(appContext) { AndroidAppStateStore.get(appContext) }
     val userSpaces = remember(appContext, rootAccess) {
         AndroidUserSpaceProvider(
             context = appContext,
@@ -86,8 +86,9 @@ fun App(
             context = appContext,
         )
     }
-    val mihomoRuntime = remember(appScope, appContext) {
-        MihomoRuntimeRepository(appScope, appContext)
+    val mihomoRuntime = application.mihomoRuntime
+    val monitoring = remember(appScope, appContext, rootAccess, stateStore, mihomoRuntime) {
+        MonitoringRepository(appScope, appContext, rootAccess, stateStore, mihomoRuntime)
     }
     val proxyEngine = remember(appContext, rootAccess) {
         AndroidProxyEngine(
@@ -119,7 +120,6 @@ fun App(
     val proxyServiceUseCase = remember(proxyEngine) {
         ProxyServiceUseCase(proxyEngine)
     }
-    val stateStore = remember(appContext) { AndroidAppStateStore.get(appContext) }
     val tipNotifier = remember(appContext) { AndroidToastTipNotifier(appContext) }
     val services = remember(
         appScope,
@@ -135,6 +135,7 @@ fun App(
         qrCodeScanner,
         mihomoProfileFilePicker,
         mihomoRuntime,
+        monitoring,
         proxyServiceUseCase,
         switchRunModeUseCase,
         rootBootScriptUseCase,
@@ -156,6 +157,7 @@ fun App(
             qrCodeScanner = qrCodeScanner,
             mihomoProfileFilePicker = mihomoProfileFilePicker,
             mihomoRuntime = mihomoRuntime,
+            monitoring = monitoring,
             proxyServiceUseCase = proxyServiceUseCase,
             switchRunModeUseCase = switchRunModeUseCase,
             rootBootScriptUseCase = rootBootScriptUseCase,
@@ -171,7 +173,6 @@ fun App(
         { transform -> stateStore.update(transform) }
     }
     val keyColor = keyColorFor(chromeState.seedIndex)
-    RecreateActivityOnAppLanguageChange(languageMode = chromeState.languageMode)
     ProxyStatusSynchronizer(
         stateStore = stateStore,
         proxyEngine = proxyEngine,
@@ -180,15 +181,11 @@ fun App(
     MihomoRuntimeSynchronizer(
         stateStore = stateStore,
         proxyEngine = proxyEngine,
-        mihomoRuntime = mihomoRuntime,
+        mihomoRuntimeLifecycle = application.mihomoRuntimeLifecycle,
         updateAppState = updateAppState,
     )
     ResourceFileSynchronizer(
         resourceFileUseCase = resourceFileUseCase,
-        stateStore = stateStore,
-    )
-    LauncherIconSynchronizer(
-        context = appContext,
         stateStore = stateStore,
     )
     SubscriptionAutoUpdater(

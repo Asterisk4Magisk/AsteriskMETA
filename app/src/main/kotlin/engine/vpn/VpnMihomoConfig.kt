@@ -16,12 +16,15 @@ import engine.mihomo.sha256Hex
 import engine.mihomo.selectedMihomoProfileOrNull
 import engine.proxy.LocalProxyOptions
 import engine.proxy.toLocalProxyOptions
+import engine.proxy.toLocalProxyOptionsOrNull
+import engine.proxy.LocalProxyLoopbackAddress
 import engine.mihomo.MihomoCoreLogPaths
 import engine.mihomo.prepareMihomoCoreLogPaths
 import features.resources.runtime.prepareMihomoResourceFilePaths
 import system.toAndroidUserId
 import engine.proxy.ProxyEngineStartRequest
 import utils.writeAtomically
+import engine.mihomo.raw.runtimeIpv6Enabled
 import java.io.File
 
 internal data class VpnServiceStartConfig(
@@ -53,21 +56,25 @@ internal object VpnMihomoConfigFactory {
         exposePorts: Boolean = true,
     ): VpnServiceStartConfig {
         val appState = request.appState
+        val rawConfig = request.rawConfig
         val coreLogPaths = context.prepareMihomoCoreLogPaths()
         val resourceFilePaths = context.prepareMihomoResourceFilePaths()
         val tunOptions = appState.toTunOptions()
-        val localProxyOptions = appState.toLocalProxyOptions()
-        val appendHttpProxyOptions = if (exposePorts) {
+        val localProxyOptions = rawConfig?.toLocalProxyOptionsOrNull()
+            ?: appState.toLocalProxyOptions().takeIf { rawConfig == null }
+            ?: LocalProxyOptions(LocalProxyLoopbackAddress, 0, "", "")
+        val appendHttpProxyOptions = if (exposePorts && localProxyOptions.port > 0) {
             appState.toVpnAppendHttpProxyOptions(localProxyOptions)
         } else {
             VpnAppendHttpProxyOptions.Disabled
         }
         val profilePath = File(resourceFilePaths.dataDir, "config.yaml").absolutePath
-        val profileYaml = MihomoProfileFactory.buildProfile(context, appState, exposePorts = exposePorts)
-        val profileSignature = profileYaml.sha256Hex()
+        val profileBytes = MihomoProfileFactory.buildProfileBytes(context, appState, exposePorts = exposePorts)
+        val profileSignature = profileBytes.sha256Hex()
         val ageSecretKey = appState.selectedMihomoProfileOrNull()?.ageSecretKey.orEmpty()
+        val runtimeIpv6 = rawConfig.runtimeIpv6Enabled(appState.enableIpv6)
         writeAtomically(File(profilePath)) { output ->
-            output.write(profileYaml.toByteArray(Charsets.UTF_8))
+            output.write(profileBytes)
         }
 
         return VpnServiceStartConfig(
@@ -75,15 +82,19 @@ internal object VpnMihomoConfigFactory {
             mtu = tunOptions.mtu,
             ipv4Address = tunOptions.ipv4Address.address,
             ipv4PrefixLength = tunOptions.ipv4Address.prefixLength,
-            enableIpv6 = appState.enableIpv6,
-            ipv6Address = if (appState.enableIpv6) tunOptions.ipv6Address.address else null,
+            enableIpv6 = runtimeIpv6,
+            ipv6Address = if (runtimeIpv6) tunOptions.ipv6Address.address else null,
             ipv6PrefixLength = tunOptions.ipv6Address.prefixLength,
-            enableLocalDns = appState.effectiveLocalDnsEnabled,
+            enableLocalDns = if (rawConfig == null) {
+                appState.effectiveLocalDnsEnabled
+            } else {
+                appState.enableLocalDns && rawConfig.dnsHijack.value?.proven == true
+            },
             dnsServers = tunOptions.dnsServers,
             mihomoProfilePath = profilePath,
             mihomoProfileSignature = profileSignature,
             ageSecretKey = ageSecretKey,
-            mihomoTunStack = MihomoProfileFactory.tunStack(appState),
+            mihomoTunStack = rawConfig?.tunInbound?.value?.stack ?: MihomoProfileFactory.tunStack(appState),
             applicationPolicy = appState.toVpnApplicationPolicy(Process.myUid().toAndroidUserId()),
             localProxyOptions = localProxyOptions,
             appendHttpProxyOptions = appendHttpProxyOptions,
@@ -94,7 +105,7 @@ internal object VpnMihomoConfigFactory {
                 coreLogPaths = coreLogPaths,
                 localProxyOptions = localProxyOptions,
                 tunOptions = tunOptions,
-                enableIpv6 = appState.enableIpv6,
+                enableIpv6 = runtimeIpv6,
                 useHevTun = appState.enableVpnHevTun,
             ),
         )

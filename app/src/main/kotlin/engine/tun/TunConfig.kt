@@ -7,6 +7,7 @@ import app.AppState
 import engine.mihomo.MihomoProfileFactory
 import engine.proxy.LocalProxyOptions
 import engine.proxy.toLocalProxyOptions
+import engine.proxy.toLocalProxyOptionsOrNull
 import engine.root.RootConfigBuildContext
 import engine.root.AsteriskdConfig
 import engine.root.AsteriskdMode
@@ -21,7 +22,7 @@ import engine.vpn.toTunOptions
 
 internal data class TunStartConfig(
     override val root: RootStartConfig,
-    override val localProxyOptions: LocalProxyOptions,
+    override val localProxyOptions: LocalProxyOptions?,
     val tunConfig: MihomoTunConfig,
     val iptablesConfig: RootIptablesConfig,
     override val asteriskdConfig: AsteriskdConfig,
@@ -40,18 +41,29 @@ internal val TunBaseIptablesConfig = Tun2SocksBaseIptablesConfig
 
 internal fun RootConfigBuildContext.buildTunStartConfig(): TunStartConfig {
     val appState = this.appState
-    val tunOptions = appState.toTunOptions()
     val rootStartConfig = buildRootStartConfig()
     val iptablesConfig = buildRootIptablesConfig(TunBaseIptablesConfig)
+    val tunConfig = rawConfig?.let { config ->
+        val inbound = requireNotNull(config.tunInbound.value) {
+            "Raw Mihomo configuration requires one compatible TUN inbound for Root TUN mode"
+        }
+        MihomoTunConfig(
+            device = inbound.device,
+            stack = inbound.stack,
+            mtu = inbound.mtu,
+            ipv4Address = inbound.ipv4Address,
+            ipv6Address = inbound.ipv6Address,
+        )
+    } ?: appState.buildMihomoTunConfig(appState.toTunOptions())
     return TunStartConfig(
         root = rootStartConfig,
-        localProxyOptions = appState.toLocalProxyOptions(),
-        tunConfig = appState.buildMihomoTunConfig(tunOptions),
+        localProxyOptions = rawConfig?.toLocalProxyOptionsOrNull() ?: appState.toLocalProxyOptions().takeIf { rawConfig == null },
+        tunConfig = tunConfig,
         iptablesConfig = iptablesConfig,
         asteriskdConfig = rootStartConfig.buildAsteriskdConfig(
             mode = AsteriskdMode.Tun,
             iptablesConfig = iptablesConfig,
-            virtualInterfaces = listOf(MihomoTunDevice),
+            virtualInterfaces = listOf(tunConfig.device),
         ),
         rootEbpfConfig = buildRootEbpfRuntimeConfig(iptablesConfig),
     )

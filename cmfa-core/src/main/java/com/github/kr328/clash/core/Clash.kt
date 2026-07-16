@@ -57,6 +57,18 @@ object Clash {
         return Bridge.nativeQueryMemory()
     }
 
+    fun queryConnections(): String {
+        return Bridge.nativeQueryConnections()
+    }
+
+    fun closeConnection(id: String): Boolean {
+        return Bridge.nativeCloseConnection(id)
+    }
+
+    fun closeAllConnections() {
+        Bridge.nativeCloseAllConnections()
+    }
+
     fun notifyDnsChanged(dns: List<String>) {
         Bridge.nativeNotifyDnsChanged(dns.toSet().joinToString(separator = ","))
     }

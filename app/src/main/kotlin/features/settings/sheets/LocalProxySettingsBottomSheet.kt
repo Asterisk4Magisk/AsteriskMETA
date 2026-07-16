@@ -11,9 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.R
-import top.yukonga.miuix.kmp.basic.TextButton
-import top.yukonga.miuix.kmp.window.WindowBottomSheet
-import top.yukonga.miuix.kmp.preference.SwitchPreference
+import ui.icons.AsteriskIcons as Icons
 
 
 @Composable
@@ -52,18 +50,20 @@ internal fun LocalProxySettingsBottomSheet(
     }
     val portError = if (isPort(port)) null else stringResource(R.string.settings_local_proxy_port_invalid)
 
-    WindowBottomSheet(
+    SettingsModalBottomSheet(
         show = show,
         title = stringResource(R.string.settings_local_proxy),
         startAction = {
             TextButton(
                 text = stringResource(R.string.common_cancel),
+                icon = Icons.Rounded.Close,
                 onClick = onDismissRequest,
             )
         },
         endAction = {
             TextButton(
                 text = stringResource(R.string.common_save),
+                icon = Icons.Rounded.Save,
                 onClick = {
                     if (portError == null && inboundProxyPortError == null && bridgePortError == null) {
                         onSave(
@@ -117,12 +117,14 @@ internal fun LocalProxySettingsBottomSheet(
                 )
                 SwitchPreference(
                     title = stringResource(R.string.settings_local_proxy_dynamic_port),
+                    icon = Icons.Rounded.Refresh,
                     summary = stringResource(R.string.settings_local_proxy_dynamic_port_summary),
                     checked = enableDynamicPort,
                     onCheckedChange = onEnableDynamicPortChange,
                 )
                 SwitchPreference(
                     title = stringResource(R.string.settings_local_proxy_listen_all_interfaces),
+                    icon = Icons.Rounded.Lan,
                     summary = stringResource(R.string.settings_local_proxy_listen_all_interfaces_summary),
                     checked = listenAllInterfaces,
                     onCheckedChange = onListenAllInterfacesChange,

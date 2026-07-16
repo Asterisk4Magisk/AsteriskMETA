@@ -37,6 +37,8 @@ internal data class MihomoProfileEntity(
     val subscriptionTotalBytes: Long,
     val subscriptionExpireAtSeconds: Long,
     val overrideScriptId: Int,
+    @ColumnInfo(defaultValue = "0")
+    val disableOverrides: Boolean,
 ) {
     fun toState(): MihomoProfileState {
         return MihomoProfileState(
@@ -61,6 +63,7 @@ internal data class MihomoProfileEntity(
                 expireAtSeconds = subscriptionExpireAtSeconds,
             ),
             overrideScriptId = overrideScriptId,
+            disableOverrides = disableOverrides,
         )
     }
 
@@ -87,6 +90,7 @@ internal data class MihomoProfileEntity(
                 subscriptionTotalBytes = profile.subscriptionInfo.totalBytes,
                 subscriptionExpireAtSeconds = profile.subscriptionInfo.expireAtSeconds,
                 overrideScriptId = profile.overrideScriptId,
+                disableOverrides = profile.disableOverrides,
             )
         }
     }

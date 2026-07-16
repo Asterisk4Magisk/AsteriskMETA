@@ -33,7 +33,6 @@ import engine.vpn.toTunOptions
 import org.snakeyaml.engine.v2.api.Dump
 import org.snakeyaml.engine.v2.api.DumpSettings
 import org.snakeyaml.engine.v2.api.Load
-import org.snakeyaml.engine.v2.api.LoadSettings
 import org.snakeyaml.engine.v2.api.RepresentToNode
 import org.snakeyaml.engine.v2.common.FlowStyle
 import org.snakeyaml.engine.v2.common.ScalarStyle
@@ -44,19 +43,30 @@ import org.snakeyaml.engine.v2.representer.StandardRepresenter
 import utils.toTrimmedNonEmptyDistinctList
 
 internal object MihomoProfileFactory {
+    fun buildProfileBytes(
+        context: Context,
+        appState: AppState,
+        runMode: Int = appState.runMode,
+        exposePorts: Boolean = true,
+    ): ByteArray {
+        val selectedProfile = appState.selectedMihomoProfileOrNull()
+            ?: error(MihomoProfileMissingErrorMessage)
+        val sourceBytes = context.mihomoProfileContentStore().readBytes(selectedProfile)
+        return resolveMihomoRuntimeProfileBytes(
+            sourceBytes = sourceBytes,
+            disableOverrides = selectedProfile.disableOverrides,
+        ) { rawContent ->
+            rawContent.trim().withAsteriskRuntimeOverrides(appState, selectedProfile, runMode, exposePorts)
+        }
+    }
+
     fun buildProfile(
         context: Context,
         appState: AppState,
         runMode: Int = appState.runMode,
         exposePorts: Boolean = true,
     ): String {
-        val selectedProfile = appState.selectedMihomoProfileOrNull()
-            ?: error(MihomoProfileMissingErrorMessage)
-        val rawContent = context.mihomoProfileContentStore().read(selectedProfile).trim()
-        if (rawContent.isBlank()) {
-            error(MihomoProfileEmptyErrorMessage)
-        }
-        return rawContent.withAsteriskRuntimeOverrides(appState, selectedProfile, runMode, exposePorts)
+        return buildProfileBytes(context, appState, runMode, exposePorts).toString(Charsets.UTF_8)
     }
 
     fun tunStack(appState: AppState): String {
@@ -77,7 +87,7 @@ private fun String.withAsteriskRuntimeOverrides(
 ): String {
     val escaped = escapeSupplementaryYamlCodePoints()
     val root = runCatching {
-        Load(LoadSettings.builder().build()).loadFromString(escaped.value) as? Map<*, *>
+        Load(MihomoYamlLoadSettings).loadFromString(escaped.value) as? Map<*, *>
     }.getOrNull()
 
     if (root == null) {
@@ -187,6 +197,18 @@ private fun MutableMap<String, Any?>.putAsteriskRuntimeOverrides(
     putDnsOverrides(appState, forceDns)
     putUdpDnsHijackOverrides(appState, runMode)
     putNtpWriteToSystemOverride()
+}
+
+internal fun resolveMihomoRuntimeProfileBytes(
+    sourceBytes: ByteArray,
+    disableOverrides: Boolean,
+    normalTransform: (String) -> String,
+): ByteArray {
+    if (sourceBytes.isEmpty() || sourceBytes.toString(Charsets.UTF_8).isBlank()) {
+        error(MihomoProfileEmptyErrorMessage)
+    }
+    if (disableOverrides) return sourceBytes.copyOf()
+    return normalTransform(sourceBytes.toString(Charsets.UTF_8)).toByteArray(Charsets.UTF_8)
 }
 
 private fun AppState.requiresMihomoLanAccess(runMode: Int): Boolean {

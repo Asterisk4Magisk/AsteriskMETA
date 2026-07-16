@@ -3,20 +3,16 @@
 
 package ui.components
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.R
-import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.basic.TextButton
-import top.yukonga.miuix.kmp.theme.MiuixTheme
-import top.yukonga.miuix.kmp.window.WindowDialog
 import ui.clipboard.ClipboardImportMode
+import ui.icons.AsteriskIcons as Icons
 
 @Composable
 internal fun ImportModeDialog(
@@ -26,35 +22,33 @@ internal fun ImportModeDialog(
     onDismissRequest: () -> Unit,
     onModeSelected: (ClipboardImportMode) -> Unit,
 ) {
-    WindowDialog(
-        show = show,
-        title = title,
+    if (!show) return
+    AlertDialog(
         onDismissRequest = onDismissRequest,
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(
-                text = message,
-                style = MiuixTheme.textStyles.body2,
-                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-            )
+        title = { Text(title) },
+        text = { Text(message) },
+        confirmButton = {
             Row(
-                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                TextButton(
+                AsteriskActionButton(
                     text = stringResource(R.string.common_merge_import),
+                    icon = Icons.Rounded.Add,
                     onClick = { onModeSelected(ClipboardImportMode.Merge) },
-                    modifier = Modifier.weight(1f),
                 )
-                TextButton(
+                AsteriskActionButton(
                     text = stringResource(R.string.common_replace_existing),
+                    icon = Icons.Rounded.Sync,
                     onClick = { onModeSelected(ClipboardImportMode.Replace) },
-                    modifier = Modifier.weight(1f),
                 )
             }
-        }
-    }
+        },
+        dismissButton = {
+            AsteriskActionButton(
+                text = stringResource(R.string.common_cancel),
+                icon = Icons.Rounded.Close,
+                onClick = onDismissRequest,
+            )
+        },
+    )
 }

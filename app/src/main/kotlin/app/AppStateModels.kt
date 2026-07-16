@@ -39,6 +39,7 @@ data class MihomoProfileState(
     val contentSizeBytes: Long = 0L,
     val subscriptionInfo: MihomoSubscriptionInfo = MihomoSubscriptionInfo(),
     val overrideScriptId: Int = DefaultMihomoOverrideScriptId,
+    val disableOverrides: Boolean = false,
 ) {
     val hasContent: Boolean
         get() = contentPath.isNotBlank() && contentSizeBytes > 0L
@@ -202,6 +203,16 @@ fun AppState.resourceFileUpdateSource(): ResourceFileUpdateSource {
         directCidrIpv6Url = customResourceFileDirectCidrIpv6Url.trim().ifBlank { fallback.directCidrIpv6Url },
     )
 }
+
+fun MihomoProfileState.hasRuntimeRelevantChanges(next: MihomoProfileState): Boolean =
+    type != next.type ||
+        url != next.url ||
+        ageSecretKey != next.ageSecretKey ||
+        contentPath != next.contentPath ||
+        contentSha256 != next.contentSha256 ||
+        contentSizeBytes != next.contentSizeBytes ||
+        overrideScriptId != next.overrideScriptId ||
+        disableOverrides != next.disableOverrides
 
 fun ResourceFileUpdateSource.urlFor(kind: ResourceFileKind): String? {
     return when (kind) {

@@ -1,0 +1,16 @@
+<resources>
+    <style name="AppTheme.Starting" parent="AppTheme">
+        <item name="android:windowBackground">@color/splash_background</item>
+        <item name="android:windowSplashScreenBackground">@color/splash_background</item>
+    </style>
+
+    <style name="AppTheme.Starting.Light" parent="AppTheme.Starting">
+        <item name="android:windowBackground">@color/splash_background_light</item>
+        <item name="android:windowSplashScreenBackground">@color/splash_background_light</item>
+    </style>
+
+    <style name="AppTheme.Starting.Dark" parent="AppTheme.Starting">
+        <item name="android:windowBackground">@color/splash_background_dark</item>
+        <item name="android:windowSplashScreenBackground">@color/splash_background_dark</item>
+    </style>
+</resources>

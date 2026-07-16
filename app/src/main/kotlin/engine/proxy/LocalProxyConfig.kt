@@ -16,6 +16,7 @@ import engine.tproxy.DefaultTproxyPort
 import engine.tun2socks.DefaultTun2SocksProxyPort
 import engine.vpn.VpnDefaults
 import java.util.concurrent.atomic.AtomicReference
+import engine.mihomo.raw.MihomoRawConfigSnapshot
 
 internal const val LocalProxyLoopbackAddress = NetworkDefaults.IPV4_LOOPBACK_ADDRESS
 private const val LocalProxyAllInterfacesAddress = NetworkDefaults.IPV4_ANY_ADDRESS
@@ -94,6 +95,16 @@ private fun AppState.localProxyExcludedPorts(): Set<Int> {
             add(bpf2SocksBridgePort.toPortOrNull() ?: RootBpf2SocksDefaultBridgePort)
         }
     }
+}
+
+internal fun MihomoRawConfigSnapshot.toLocalProxyOptionsOrNull(): LocalProxyOptions? {
+    val inbound = socksInbound.value ?: return null
+    return LocalProxyOptions(
+        listenAddress = LocalProxyLoopbackAddress,
+        port = inbound.port,
+        username = "",
+        password = "",
+    )
 }
 
 private fun LocalProxyOptions.matches(listenAddress: String, port: Int): Boolean {

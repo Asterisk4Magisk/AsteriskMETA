@@ -40,6 +40,10 @@
     <string name="qr_scan_choose_image">从相册选择</string>
 <!-- Common -->
     <string name="common_cancel">取消</string>
+    <string name="common_clear">清除</string>
+    <string name="common_search">搜索</string>
+    <string name="common_retry">重试</string>
+    <string name="common_all">全部</string>
     <string name="common_save">保存</string>
     <string name="common_add">添加</string>
     <string name="common_edit">编辑</string>
@@ -57,28 +61,140 @@
     <string name="common_update">更新</string>
     <string name="common_restore">恢复</string>
     <string name="common_complete">完成</string>
+    <string name="common_copy">复制</string>
     <string name="string_list_item_empty">条目不能为空</string>
     <string name="string_list_line_error">第 %1$d 行：%2$s</string>
 
     <!-- Navigation -->
-    <string name="nav_dashboard">仪表盘</string>
+    <string name="nav_dashboard">首页</string>
     <string name="nav_proxies">代理</string>
-    <string name="nav_apps">应用</string>
+    <string name="nav_configurations">配置</string>
     <string name="nav_settings">设置</string>
+    <string name="common_back">返回</string>
+    <string name="home_more_actions">更多操作</string>
+    <string name="home_service_enabled">服务已启用</string>
+    <string name="home_service_disabled">服务未启用</string>
+    <string name="home_accumulated_upload">累计上传</string>
+    <string name="home_accumulated_download">累计下载</string>
+    <string name="home_mode_change_failed">切换代理模式失败</string>
+    <string name="home_current_configuration">当前配置</string>
+    <string name="home_current_node">当前节点</string>
+    <string name="home_no_node">尚未选择节点</string>
+    <string name="home_network_activity">网络活动</string>
+    <string name="home_no_network_activity">暂无活动</string>
+    <string name="home_subscription_summary">订阅摘要</string>
+    <string name="home_no_subscription">当前配置暂无订阅用量信息</string>
+    <string name="home_subscription_used">已用</string>
+    <string name="home_subscription_total">总量</string>
+    <string name="home_subscription_remaining">剩余</string>
+    <string name="home_subscription_expiry">有效期至 %1$s</string>
+    <string name="home_monitor_resource">资源</string>
+    <string name="home_monitor_connections">连接</string>
+    <string name="home_monitor_traffic">流量</string>
+    <string name="home_monitor_network">网络</string>
+    <string name="home_value_unavailable">—</string>
+    <string name="home_resource_summary">CPU %1$s · %2$s</string>
+    <plurals name="home_connections_summary">
+        <item quantity="other">%1$d 个活动连接</item>
+    </plurals>
+    <string name="home_traffic_summary">今日 %1$s</string>
+
+    <!-- Monitoring -->
+    <string name="monitor_service_not_enabled">服务未启用</string>
+    <string name="monitor_loading">正在读取实时数据…</string>
+    <string name="monitor_data_unavailable">数据不可用</string>
+    <string name="monitor_data_stale">数据可能已过期</string>
+    <string name="monitor_value_unknown">未知</string>
+    <string name="monitor_no_samples">暂无采样；暂停期间会保留断点。</string>
+    <string name="monitor_milliseconds">%1$d 毫秒</string>
+    <string name="monitor_refresh">刷新</string>
+    <string name="monitor_retry">重试</string>
+    <string name="monitor_copy_value">复制数值</string>
+    <string name="monitor_copied">已复制</string>
+    <string name="monitor_filter_all">全部</string>
+    <string name="monitor_filter_proxy">代理</string>
+    <string name="monitor_filter_direct">直连</string>
+    <string name="monitor_sort_rate">实时速率</string>
+    <string name="monitor_sort_started">开始时间</string>
+    <string name="monitor_sort_target">目标</string>
+
+    <string name="monitor_connections_title">连接监控</string>
+    <string name="monitor_connections_active">活动连接</string>
+    <string name="monitor_connections_focus_routes">代理 %1$d · 直连 %2$d</string>
+    <string name="monitor_connections_status_summary">%1$s · %2$s</string>
+    <string name="monitor_connections_live">实时</string>
+    <string name="monitor_connections_paused">已暂停</string>
+    <string name="monitor_connections_pause">暂停连接监控</string>
+    <string name="monitor_connections_resume">继续连接监控</string>
+    <string name="monitor_connections_search">搜索目标、进程、规则或策略链</string>
+    <string name="monitor_connections_empty">暂无活动连接</string>
+    <string name="monitor_connections_no_match">没有匹配的连接</string>
+    <string name="monitor_connections_unknown_source">未知来源</string>
+    <string name="monitor_connections_close_one">关闭此连接</string>
+    <string name="monitor_connections_close_failed">无法关闭此连接</string>
+    <string name="monitor_connections_close_all">关闭全部连接</string>
+    <plurals name="monitor_connections_close_all_message">
+        <item quantity="other">确定关闭当前 %1$d 个活动连接吗？正在进行的请求可能会中断。</item>
+    </plurals>
+    <string name="monitor_connections_close_all_confirm">全部关闭</string>
+    <string name="monitor_connections_close_all_failed">无法关闭全部连接</string>
+    <string name="monitor_connections_details">连接详情</string>
+    <string name="monitor_connections_source">来源地址</string>
+    <string name="monitor_connections_target">目标地址</string>
+    <string name="monitor_connections_process">来源进程</string>
+    <string name="monitor_connections_network">网络协议</string>
+    <string name="monitor_connections_rule">命中规则</string>
+    <string name="monitor_connections_chain">策略链</string>
+    <string name="monitor_connections_download">下载</string>
+    <string name="monitor_connections_upload">上传</string>
+
+    <string name="monitor_resource_title">资源监控</string>
+    <string name="monitor_resource_source_root">Mihomo 进程 · Root</string>
+    <string name="monitor_resource_source_embedded">AsteriskMETA 进程 · 内嵌</string>
+    <string name="monitor_resource_root_explanation">CPU 数据来自独立运行的 Mihomo 进程。</string>
+    <string name="monitor_resource_embedded_explanation">CPU 包含同一进程内的 Mihomo 与 AsteriskMETA 开销，不能与 Root 模式直接横向比较。</string>
+    <string name="monitor_resource_cpu">进程 CPU</string>
+    <string name="monitor_resource_memory">Mihomo 内存</string>
+    <string name="monitor_resource_focus_memory">内存 %1$s</string>
+    <string name="monitor_resource_15_minutes">15 分钟</string>
+    <string name="monitor_resource_1_hour">1 小时</string>
+    <string name="monitor_resource_trend">共享趋势</string>
+    <string name="monitor_resource_details">采样详情</string>
+    <string name="monitor_resource_cpu_peak">CPU 峰值</string>
+    <string name="monitor_resource_memory_peak">内存峰值</string>
+    <string name="monitor_resource_pid">进程 PID</string>
+    <string name="monitor_resource_interval">采样间隔</string>
+
+    <string name="monitor_traffic_title">流量统计</string>
+    <string name="monitor_traffic_today">今日总量</string>
+    <string name="monitor_traffic_session">本次服务累计</string>
+    <string name="monitor_traffic_session_total">本次合计</string>
+    <string name="monitor_traffic_runtime">运行时长</string>
+    <string name="monitor_traffic_trend">5 分钟趋势</string>
+    <string name="monitor_traffic_last_5_minutes">最近 5 分钟；暂停期间不进行插值。</string>
+    <string name="monitor_traffic_7_days">近 7 日</string>
+    <string name="monitor_traffic_30_days">近 30 日</string>
+    <string name="monitor_traffic_total">合计</string>
+    <string name="monitor_traffic_local_notice">流量历史仅记录在应用私有本地存储中，不会发送到探测服务或订阅源。</string>
+
+    <string name="monitor_network_title">网络状态</string>
+    <string name="monitor_network_request_duration_value">请求耗时 %1$d 毫秒</string>
+    <string name="monitor_network_public">公网地址</string>
+    <string name="monitor_network_probe_source">由探测服务返回</string>
+    <string name="monitor_network_local">本地网络</string>
+    <string name="monitor_network_local_ipv4">本地 IPv4</string>
+    <string name="monitor_network_local_ipv6">本地 IPv6</string>
+    <string name="monitor_network_gateway">默认网关</string>
+    <string name="monitor_network_dns">DNS 服务器</string>
+    <string name="monitor_network_interface">网络接口</string>
+    <string name="monitor_network_privacy">探测隐私说明</string>
+    <string name="monitor_network_privacy_body">进入本页或刷新时，会分别向 %1$s 发送一次地址查询。请求不包含订阅、配置、设备标识、账号或 Mihomo 凭据；结果仅保留在内存中，不写入日志或设置。</string>
+    <string name="monitor_network_error_timeout">请求超时</string>
+    <string name="monitor_network_error_request">请求失败</string>
+    <string name="monitor_network_error_response">探测服务返回了无效地址</string>
 
     <!-- Mihomo -->
-    <string name="mihomo_dashboard_title">仪表盘</string>
-    <string name="mihomo_dashboard_profile">配置</string>
-    <string name="mihomo_dashboard_mode">模式</string>
-    <string name="mihomo_dashboard_network_speed">网络速度</string>
-    <string name="mihomo_dashboard_traffic_usage">流量统计</string>
-    <string name="mihomo_dashboard_network_detection">网络检测</string>
     <string name="mihomo_dashboard_network_detection_checking">检测中…</string>
-    <string name="mihomo_dashboard_local_ip">本地 IP</string>
-    <string name="mihomo_dashboard_upload">上传</string>
-    <string name="mihomo_dashboard_download">下载</string>
-    <string name="mihomo_dashboard_memory">内存</string>
-    <string name="mihomo_dashboard_unavailable">不可用</string>
     <string name="mihomo_dashboard_no_configuration">未配置</string>
     <string name="mihomo_dashboard_start_failed">启动代理失败</string>
     <string name="mihomo_dashboard_start_no_configuration">请先添加配置文件，再启动代理</string>
@@ -92,15 +208,16 @@
     <string name="mihomo_proxies_no_configuration_summary">请先添加或导入 Mihomo YAML 配置，然后再查看和切换代理节点。</string>
     <string name="mihomo_proxies_runtime_unavailable">Mihomo 运行时尚未就绪</string>
     <string name="mihomo_proxies_search">搜索代理</string>
-    <string name="mihomo_proxies_delay_test">延迟测试</string>
+    <string name="mihomo_proxies_group_test">整组测试</string>
     <string name="mihomo_proxies_delay_timeout">超时</string>
+    <string name="mihomo_proxies_delay_not_tested">未测试</string>
     <string name="mihomo_proxies_delay_failed">延迟测试失败</string>
     <string name="mihomo_proxies_delay_done">延迟测试完成</string>
     <string name="mihomo_proxies_select_failed">切换代理失败</string>
     <string name="mihomo_proxies_options">代理显示选项</string>
-    <string name="mihomo_proxies_option_filter">过滤</string>
     <string name="mihomo_proxies_option_filter_not_selectable">不可选择</string>
     <string name="mihomo_proxies_option_layout">布局</string>
+    <string name="mihomo_proxies_option_layout_auto">自动</string>
     <string name="mihomo_proxies_option_layout_single">单列</string>
     <string name="mihomo_proxies_option_layout_double">双列</string>
     <string name="mihomo_proxies_option_layout_multiple">多列</string>
@@ -109,26 +226,37 @@
     <string name="mihomo_proxies_option_sort_name">名称</string>
     <string name="mihomo_proxies_option_sort_delay">延迟</string>
     <string name="mihomo_providers_title">Proxy Providers</string>
-    <string name="mihomo_providers_count">{count} 个 Provider</string>
     <string name="mihomo_providers_empty">当前配置不包含 proxy-providers</string>
     <string name="mihomo_providers_refresh_all">全部刷新</string>
     <string name="mihomo_providers_refresh_done">Provider 已刷新</string>
     <string name="mihomo_providers_refresh_failed">刷新 Provider 失败</string>
     <string name="mihomo_providers_refresh_all_done">Provider 刷新完成：成功 %1$d；失败 %2$d</string>
     <string name="mihomo_provider_file_content">文件内容</string>
-    <string name="mihomo_provider_nodes">节点列表</string>
     <string name="mihomo_provider_traffic_unlimited">不限量</string>
     <string name="mihomo_provider_file_missing">Provider 文件不可用</string>
     <string name="mihomo_provider_raw_declaration">声明片段</string>
+    <string name="mihomo_provider_raw_read_only">只读</string>
+    <string name="mihomo_provider_raw_metadata">%1$s · %2$s</string>
+    <plurals name="mihomo_provider_raw_matches">
+        <item quantity="other">%1$d 处匹配</item>
+    </plurals>
     <string name="mihomo_provider_runtime_unavailable">运行时 Provider 数据不可用</string>
+    <string name="mihomo_provider_focus_loading">正在加载 Provider</string>
+    <string name="mihomo_provider_focus_ready">Provider 已就绪</string>
+    <string name="mihomo_provider_focus_empty">未配置 Provider</string>
+    <string name="mihomo_provider_focus_error">Provider 不可用</string>
+    <plurals name="mihomo_provider_focus_progress">
+        <item quantity="other">%1$d/%2$d 已就绪</item>
+    </plurals>
+    <string name="mihomo_provider_focus_updated">更新于 %1$s</string>
     <string name="mihomo_provider_nodes_empty">没有节点</string>
     <string name="mihomo_provider_nodes_count">{count} 个节点</string>
     <string name="mihomo_provider_nodes_search">搜索节点</string>
+    <string name="mihomo_provider_filter_available">可用</string>
+    <string name="mihomo_provider_filter_timeout">超时</string>
     <string name="mihomo_provider_delay_timeout">超时</string>
     <string name="mihomo_provider_missing">当前配置中不存在该 Provider</string>
     <string name="mihomo_configurations_title">配置管理</string>
-    <string name="mihomo_configurations_count">{count} 个配置</string>
-    <string name="mihomo_configurations_list">配置列表</string>
     <string name="mihomo_configuration_add">添加配置</string>
     <string name="mihomo_configuration_add_method_title">添加配置</string>
     <string name="mihomo_configuration_add_qr">二维码</string>
@@ -140,6 +268,21 @@
     <string name="mihomo_configuration_edit_file">编辑文件配置</string>
     <string name="mihomo_configuration_edit_url">编辑 URL 配置</string>
     <string name="mihomo_configuration_name">名称</string>
+    <string name="mihomo_configuration_properties">配置属性</string>
+    <string name="mihomo_configuration_raw_mode">完全关闭覆写</string>
+    <string name="mihomo_configuration_raw_mode_summary">仅原样加载 YAML；应用设置与覆写脚本不生效</string>
+    <string name="mihomo_configuration_raw_mode_confirm_title">使用原始配置？</string>
+    <string name="mihomo_configuration_raw_mode_confirm_message">覆写脚本将停止运行；端口等必要 YAML 字段缺失时可能无法启动代理服务。关闭后会恢复此前保存的应用设置。</string>
+    <string name="mihomo_configuration_raw_mode_confirm">使用原始 YAML</string>
+    <string name="mihomo_configuration_raw_mode_ready">配置检查：可以启动</string>
+    <string name="mihomo_configuration_raw_mode_degraded">配置检查：部分 API 或 DNS 功能不可用</string>
+    <string name="mihomo_configuration_raw_mode_blocked">配置检查：缺少必要 YAML 字段，当前无法启动</string>
+    <string name="mihomo_configuration_raw_mode_unchecked">内容可用后将执行配置检查</string>
+    <string name="mihomo_configuration_raw_chip">原始配置</string>
+    <string name="mihomo_configuration_raw_summary">原样加载 YAML</string>
+    <string name="mihomo_configuration_override_script_stopped">已由原始配置模式停用</string>
+    <string name="settings_value_from_yaml">来自 YAML</string>
+    <string name="settings_value_not_configured">未配置</string>
     <string name="mihomo_configuration_name_required">请输入配置名称</string>
     <string name="mihomo_configuration_url">URL</string>
     <string name="mihomo_configuration_user_agent">User-Agent</string>
@@ -150,6 +293,8 @@
     <string name="mihomo_configuration_content">YAML 内容</string>
     <string name="mihomo_configuration_type_file">本地文件</string>
     <string name="mihomo_configuration_type_url">远程 URL</string>
+    <string name="mihomo_configuration_chip_local_file">本地</string>
+    <string name="mihomo_configuration_chip_remote_subscription">订阅</string>
     <string name="mihomo_configuration_actions">配置操作</string>
     <string name="mihomo_configuration_preview">预览</string>
     <string name="mihomo_configuration_preview_title">预览 {name}</string>
@@ -174,15 +319,32 @@
     <string name="mihomo_override_script_name">脚本名称</string>
     <string name="mihomo_override_script_name_required">请输入脚本名称</string>
     <string name="mihomo_override_script_deleted">脚本已删除</string>
-    <string name="mihomo_override_script_debug_run">试运行</string>
+    <string name="mihomo_override_script_empty_summary">创建脚本，在服务启动前转换配置内容。</string>
+    <plurals name="mihomo_override_script_configuration_count">
+        <item quantity="other">%1$d 个配置</item>
+    </plurals>
+    <plurals name="mihomo_override_script_line_count">
+        <item quantity="other">%1$d 行</item>
+    </plurals>
+    <string name="mihomo_override_script_duplicate_name">{name} 副本</string>
+    <string name="mihomo_override_script_delete_title">删除覆写脚本？</string>
+    <plurals name="mihomo_override_script_delete_message">
+        <item quantity="other">删除“%1$s”后，引用它的 %2$d 个配置也会移除该脚本；两项变更将一并完成。</item>
+    </plurals>
+    <string name="mihomo_override_script_debug_run">调试</string>
     <string name="mihomo_override_script_debug_title">调试</string>
-    <string name="mihomo_override_script_debug_running">运行中…</string>
+    <string name="mihomo_override_script_debug_running">调试中…</string>
+    <string name="mihomo_override_script_debug_profile">临时测试配置</string>
+    <string name="mihomo_override_script_debug_profile_none">没有可用配置</string>
+    <string name="mihomo_override_script_debug_success">成功</string>
+    <string name="mihomo_override_script_debug_failed">失败</string>
     <string name="mihomo_override_script_debug_copy">复制报告</string>
     <string name="mihomo_override_script_debug_error">错误</string>
     <string name="mihomo_override_script_debug_summary_title">摘要</string>
     <string name="mihomo_override_script_debug_summary">节点 %1$d → %2$d · 策略组 %3$d → %4$d · 规则 %5$d → %6$d</string>
     <string name="mihomo_override_script_debug_logs">Console</string>
     <string name="mihomo_override_script_debug_no_logs">没有 console 输出</string>
+    <string name="mihomo_override_script_debug_no_output">没有输出 YAML</string>
     <string name="mihomo_override_script_debug_output">输出 YAML</string>
     <string name="mihomo_configuration_missing">配置不存在</string>
     <string name="mihomo_configuration_imported">配置已导入</string>
@@ -195,8 +357,7 @@
     <string name="mihomo_configuration_http_subscription_warning_confirm">仍然保存</string>
     <string name="mihomo_configuration_invalid_qr_content">二维码中没有可支持的订阅链接</string>
     <string name="settings_configurations">配置</string>
-    <string name="settings_configuration_management">配置管理</string>
-    <string name="settings_configuration_management_summary">管理 Mihomo YAML 配置</string>
+    <string name="proxy_app_list_settings_summary">选择需要使用代理的应用</string>
     <string name="settings_tun_stack">TUN 栈</string>
     <string name="settings_tun_stack_system">System</string>
     <string name="settings_tun_stack_gvisor">gVisor</string>
@@ -204,6 +365,11 @@
 
     <!-- Settings -->
     <string name="settings_title">设置</string>
+    <string name="settings_search_results">搜索结果</string>
+    <string name="settings_search_no_results">没有匹配的设置项</string>
+    <plurals name="settings_search_match_count">
+        <item quantity="other">匹配 %1$d 个设置项</item>
+    </plurals>
     <string name="settings_theme">主题</string>
     <string name="settings_color_mode">主题</string>
     <string name="settings_language">语言</string>
@@ -305,11 +471,20 @@
     <string name="settings_resource_files_source_metacubex_github">MetaCubeX（GitHub）</string>
     <string name="settings_resource_files_source_custom">自定义</string>
     <string name="settings_resource_files_source_custom_title">自定义资源地址</string>
+    <string name="settings_resource_files_overview">资源就绪情况</string>
+    <plurals name="settings_resource_files_overview_ready">
+        <item quantity="other">%1$d/%2$d 已就绪 · %3$s</item>
+    </plurals>
+    <string name="settings_resource_files_source_value">来源：%1$s</string>
+    <string name="settings_resource_files_last_check">最近检查 {time}</string>
     <string name="settings_resource_files_update">更新资源文件</string>
     <string name="settings_resource_files_add_custom">添加自定义资源文件</string>
     <string name="settings_resource_files_custom_file">自定义资源文件</string>
     <string name="settings_resource_files_custom_name">文件名</string>
-    <string name="settings_resource_files_custom_url">URL</string>
+    <string name="settings_resource_files_custom_url_optional">URL（可选）</string>
+    <string name="settings_resource_files_custom_url_invalid">请输入有效的 HTTP 或 HTTPS URL，或留空</string>
+    <string name="settings_resource_files_custom_section">自定义资源</string>
+    <string name="settings_resource_files_local_only">仅支持本地替换</string>
     <string name="settings_resource_files_custom_name_invalid">文件名无效</string>
     <string name="settings_resource_files_custom_name_duplicate">文件名已被占用</string>
     <string name="settings_resource_files_ready">已就绪</string>
@@ -416,9 +591,6 @@
     <string name="option_follow_system">跟随系统</string>
     <string name="option_light">浅色</string>
     <string name="option_dark">深色</string>
-    <string name="option_theme_system">跟随系统（Monet）</string>
-    <string name="option_theme_light">浅色（Monet）</string>
-    <string name="option_theme_dark">深色（Monet）</string>
     <string name="option_english">English</string>
     <string name="option_simplified_chinese">中文（简体）</string>
     <string name="theme_color_default">系统默认</string>
@@ -437,20 +609,29 @@
     <string name="about_view_source">在 GitHub 查看源码</string>
     <string name="about_join_telegram">加入我们的 Telegram 频道</string>
     <string name="license_title">第三方开源许可</string>
+    <string name="license_load_failed">无法加载许可证信息</string>
 
     <!-- Logs -->
     <string name="core_logs_title">核心日志</string>
     <string name="logcat_logs_title">Logcat</string>
-    <string name="logs_count">{count} 条</string>
     <string name="logs_copied_to_clipboard">已复制到剪切板</string>
     <string name="logs_export">导出日志</string>
     <string name="logs_exported">日志已导出</string>
     <string name="logs_export_failed">日志导出失败</string>
-    <string name="logs_output">日志输出</string>
-    <string name="logs_pull_to_refresh">下拉刷新</string>
-    <string name="logs_release_to_refresh">松开刷新</string>
-    <string name="logs_refreshing">正在刷新…</string>
-    <string name="logs_refreshed">刷新完成</string>
+    <string name="logs_page_subtitle">%1$s · %2$s</string>
+    <plurals name="logs_total_count">
+        <item quantity="other">共 %1$d 条</item>
+    </plurals>
+    <string name="logs_live">实时</string>
+    <string name="logs_paused">已暂停</string>
+    <string name="logs_pause">暂停日志流</string>
+    <string name="logs_resume">继续日志流</string>
+    <string name="logs_level_debug">调试</string>
+    <string name="logs_level_info">信息</string>
+    <string name="logs_level_warning">警告</string>
+    <string name="logs_level_error">错误</string>
+    <string name="logs_clear_title">清除日志？</string>
+    <string name="logs_clear_message">此操作会永久移除当前日志中的全部条目。</string>
 
     <!-- Proxy app list -->
     <string name="proxy_app_list_title">分应用代理</string>
@@ -462,10 +643,6 @@
     <string name="proxy_app_list_show_system_apps">显示系统应用</string>
     <string name="proxy_app_list_search_label">搜索应用名称</string>
     <string name="proxy_app_list_entry_summary">{package}</string>
-    <string name="proxy_app_list_pull_to_refresh">下拉刷新</string>
-    <string name="proxy_app_list_release_to_refresh">松开刷新</string>
-    <string name="proxy_app_list_refreshing">正在刷新…</string>
-    <string name="proxy_app_list_refreshed">刷新完成</string>
     <string name="proxy_app_list_loading">正在加载应用列表…</string>
     <string name="proxy_app_list_load_failed">应用列表加载失败</string>
     <string name="proxy_app_list_import_clipboard_title">导入应用名单</string>
@@ -477,8 +654,6 @@
     <string name="proxy_app_list_import_unsupported_mode">应用名单模式不支持</string>
 
     <!-- Proxy service -->
-    <string name="proxy_service_start">启动代理</string>
-    <string name="proxy_service_stop">停止代理</string>
     <string name="proxy_service_started">代理服务已启动</string>
     <string name="proxy_service_stopped">代理服务已停止</string>
 
@@ -487,4 +662,14 @@
     <string name="subscription_update_result_with_failed">已更新 {profileCount} 个配置，{failedCount} 个失败</string>
     <string name="subscription_install_config_invalid">无效的订阅链接</string>
     <string name="subscription_install_config_failed">导入订阅失败</string>
+    <string name="mihomo_configuration_restart_required">更改需要重启服务</string>
+    <string name="mihomo_configuration_restart_required_message">当前服务仍在使用先前配置。立即重启会先校验已保存的配置，校验失败时保留现有服务。</string>
+    <string name="mihomo_configuration_restart_now">立即重启</string>
+    <string name="mihomo_configuration_restart_later">稍后</string>
+    <string name="mihomo_configuration_restart_failed">无法使用已保存的配置重启，现有服务仍保持运行。</string>
+    <string name="mihomo_configuration_raw_api">Mihomo API</string>
+    <string name="mihomo_configuration_raw_dns_hijack">DNS 劫持</string>
+    <string name="mihomo_configuration_raw_run_mode">当前运行方式</string>
+    <string name="mihomo_configuration_raw_configured">已配置</string>
+    <string name="mihomo_configuration_raw_unavailable">不可用</string>
 </resources>

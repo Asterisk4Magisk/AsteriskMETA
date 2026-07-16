@@ -10,11 +10,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import app.R
+import ui.icons.AsteriskIcons as Icons
 import ui.components.StringListEditor
 import engine.network.isCidrAddress
 import androidx.compose.ui.res.stringResource
-import top.yukonga.miuix.kmp.basic.TextButton
-import top.yukonga.miuix.kmp.window.WindowBottomSheet
 import ui.text.formatTemplate
 import utils.toTrimmedNonEmptyList
 
@@ -45,18 +44,20 @@ internal fun PrivateAddressBottomSheet(
     val sanitizedCidrs = selectedCidrs.sanitizePrivateAddressCidrs()
     val invalidMessage = stringResource(R.string.settings_private_addresses_invalid)
 
-    WindowBottomSheet(
+    SettingsModalBottomSheet(
         show = show,
         title = stringResource(R.string.settings_private_addresses),
         startAction = {
             TextButton(
                 text = stringResource(R.string.common_cancel),
+                icon = Icons.Rounded.Close,
                 onClick = onDismissRequest,
             )
         },
         endAction = {
             TextButton(
                 text = stringResource(R.string.common_save),
+                icon = Icons.Rounded.Save,
                 onClick = { onSave(sanitizedCidrs) },
             )
         },

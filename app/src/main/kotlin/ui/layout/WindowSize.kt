@@ -6,16 +6,35 @@ package ui.layout
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+
+internal fun pageGutterForWidth(widthDp: Float): Dp = when {
+    widthDp >= 840f -> 32.dp
+    widthDp >= 600f -> 24.dp
+    else -> 16.dp
+}
+
+internal fun useNavigationRailForWidth(widthDp: Float): Boolean = widthDp >= 600f
+
+internal fun useSplitPaneForWidth(widthDp: Float): Boolean = widthDp >= 840f
+
+@Composable
+internal fun rememberWindowWidthDp(): Float = with(LocalDensity.current) {
+    LocalWindowInfo.current.containerSize.width.toDp().value
+}
+
+@Composable
+internal fun rememberPageGutter(): Dp {
+    return pageGutterForWidth(rememberWindowWidthDp())
+}
+
+@Composable
+fun shouldShowNavigationRail(): Boolean {
+    return useNavigationRailForWidth(rememberWindowWidthDp())
+}
 
 @Composable
 fun shouldShowSplitPane(): Boolean {
-    val windowInfo = LocalWindowInfo.current
-    val density = LocalDensity.current
-    return with(density) {
-        val widthDp = windowInfo.containerSize.width.toDp()
-        val heightDp = windowInfo.containerSize.height.toDp()
-        val ratio = heightDp / widthDp
-        widthDp >= 840.dp || (widthDp >= 600.dp && ratio < 1.2f)
-    }
+    return useSplitPaneForWidth(rememberWindowWidthDp())
 }

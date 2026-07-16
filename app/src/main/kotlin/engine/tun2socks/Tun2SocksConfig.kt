@@ -12,6 +12,7 @@ import engine.hevtun.HevSocks5TunnelPidFileName
 import engine.hevtun.hevSocks5TunnelLogFile
 import engine.proxy.LocalProxyOptions
 import engine.proxy.toLocalProxyOptions
+import engine.proxy.toLocalProxyOptionsOrNull
 import engine.root.RootConfigBuildContext
 import engine.root.AsteriskdConfig
 import engine.root.AsteriskdMode
@@ -28,11 +29,12 @@ import engine.vpn.toTunOptions
 import engine.mihomo.MihomoCoreLogPaths
 import engine.mihomo.prepareMihomoCoreLogPaths
 import features.resources.runtime.prepareMihomoResourceFilePaths
+import engine.mihomo.raw.runtimeIpv6Enabled
 import java.io.File
 
 internal data class Tun2SocksStartConfig(
     override val root: RootStartConfig,
-    override val localProxyOptions: LocalProxyOptions,
+    override val localProxyOptions: LocalProxyOptions?,
     val hevSocks5TunnelConfig: HevSocks5TunnelConfig,
     val iptablesConfig: RootIptablesConfig,
     override val asteriskdConfig: AsteriskdConfig,
@@ -48,8 +50,16 @@ internal val Tun2SocksBaseIptablesConfig = RootIptablesConfig(
 internal fun RootConfigBuildContext.buildTun2SocksStartConfig(): Tun2SocksStartConfig {
     val appState = this.appState
     val tunOptions = appState.toTunOptions()
-    val localProxyOptions = appState.toLocalProxyOptions()
-    val socks5ProxyPort = appState.tun2SocksInternalProxyPortValue()
+    val localProxyOptions = rawConfig?.let { config ->
+        requireNotNull(config.toLocalProxyOptionsOrNull()) {
+            "Raw Mihomo configuration requires a SOCKS or Mixed inbound for Tun2Socks mode"
+        }
+    } ?: appState.toLocalProxyOptions()
+    val socks5ProxyPort = rawConfig?.let { config ->
+        requireNotNull(config.socksInbound.value?.port) {
+            "Raw Mihomo configuration requires a SOCKS or Mixed inbound for Tun2Socks mode"
+        }
+    } ?: appState.tun2SocksInternalProxyPortValue()
     val rootStartConfig = buildRootStartConfig()
     val iptablesConfig = buildRootIptablesConfig(Tun2SocksBaseIptablesConfig)
     return Tun2SocksStartConfig(
@@ -60,7 +70,7 @@ internal fun RootConfigBuildContext.buildTun2SocksStartConfig(): Tun2SocksStartC
             coreLogPaths = rootStartConfig.coreLogPaths,
             socks5ProxyPort = socks5ProxyPort,
             tunOptions = tunOptions,
-            enableIpv6 = appState.enableIpv6,
+            enableIpv6 = rawConfig.runtimeIpv6Enabled(appState.enableIpv6),
         ),
         iptablesConfig = iptablesConfig,
         asteriskdConfig = rootStartConfig.buildAsteriskdConfig(

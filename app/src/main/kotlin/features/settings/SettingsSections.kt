@@ -10,19 +10,13 @@ import app.modes.RunModeVpnService
 import app.modes.isRootRunMode
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExitTransition
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Column
+import ui.icons.AsteriskIcons as Icons
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import app.R
+import ui.theme.AsteriskMotion
 import androidx.compose.ui.res.stringResource
-import top.yukonga.miuix.kmp.basic.SmallTitle
-import top.yukonga.miuix.kmp.preference.ArrowPreference
-import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
-import top.yukonga.miuix.kmp.preference.SwitchPreference
 
 @Composable
 internal fun settingsTunStackOptions() = listOf(
@@ -39,7 +33,6 @@ internal fun SettingsThemeSection(
     seedIndex: Int,
     languageOptions: List<String>,
     languageMode: Int,
-    isThemeColorMode: Boolean,
     onColorModeChange: (Int) -> Unit,
     onSeedIndexChange: (Int) -> Unit,
     onLanguageModeChange: (Int) -> Unit,
@@ -48,24 +41,21 @@ internal fun SettingsThemeSection(
     SettingsSectionCard {
         OverlayDropdownPreference(
             title = stringResource(R.string.settings_color_mode),
+            icon = Icons.Rounded.DarkMode,
             items = colorModeOptions,
             selectedIndex = colorMode,
             onSelectedIndexChange = onColorModeChange,
         )
-        AnimatedVisibility(
-            visible = isThemeColorMode,
-            enter = fadeIn() + expandVertically(),
-            exit = shrinkVertically() + fadeOut(),
-        ) {
-            OverlayDropdownPreference(
-                title = stringResource(R.string.settings_theme_color),
-                items = keyColorOptions,
-                selectedIndex = seedIndex,
-                onSelectedIndexChange = onSeedIndexChange,
-            )
-        }
+        OverlayDropdownPreference(
+            title = stringResource(R.string.settings_theme_color),
+            icon = Icons.Rounded.Palette,
+            items = keyColorOptions,
+            selectedIndex = seedIndex,
+            onSelectedIndexChange = onSeedIndexChange,
+        )
         OverlayDropdownPreference(
             title = stringResource(R.string.settings_language),
+            icon = Icons.Rounded.Language,
             items = languageOptions,
             selectedIndex = languageMode,
             onSelectedIndexChange = onLanguageModeChange,
@@ -75,18 +65,20 @@ internal fun SettingsThemeSection(
 
 @Composable
 internal fun SettingsSubscriptionsSection(
-    onOpenConfigurationManagement: () -> Unit,
+    onOpenProxyAppList: () -> Unit,
     onOpenResourceManagement: () -> Unit,
 ) {
     SmallTitle(text = stringResource(R.string.settings_configurations))
     SettingsSectionCard {
         ArrowPreference(
-            title = stringResource(R.string.settings_configuration_management),
-            summary = stringResource(R.string.settings_configuration_management_summary),
-            onClick = onOpenConfigurationManagement,
+            title = stringResource(R.string.proxy_app_list_title),
+            icon = Icons.Rounded.Apps,
+            summary = stringResource(R.string.proxy_app_list_settings_summary),
+            onClick = onOpenProxyAppList,
         )
         ArrowPreference(
             title = stringResource(R.string.settings_resource_management),
+            icon = Icons.Rounded.Folder,
             summary = stringResource(R.string.settings_resource_management_summary),
             onClick = onOpenResourceManagement,
         )
@@ -100,43 +92,94 @@ internal fun SettingsCoreSection(
     geodataLoaderOptions: List<String>,
     geodataLoader: Int,
     coreLogLevel: Int,
+    enableLocalDns: Boolean,
     onOpenDnsSettings: () -> Unit,
     onOpenSnifferSettings: () -> Unit,
     onEnableGeodataModeChange: (Boolean) -> Unit,
     onGeodataLoaderChange: (Int) -> Unit,
     onCoreLogLevelChange: (Int) -> Unit,
+    onEnableLocalDnsChange: (Boolean) -> Unit,
 ) {
+    val rawState = LocalRawConfigState.current
+    val raw = rawState.snapshot
+    val rawEnabled = rawState.showsReadOnlyYamlValues
+    val fromYaml = stringResource(R.string.settings_value_from_yaml)
+    val notConfigured = stringResource(R.string.settings_value_not_configured)
     SmallTitle(text = stringResource(R.string.settings_core))
     SettingsSectionCard {
-        ArrowPreference(
-            title = stringResource(R.string.settings_dns),
-            summary = stringResource(R.string.settings_dns_summary),
-            onClick = onOpenDnsSettings,
-        )
-        ArrowPreference(
-            title = stringResource(R.string.settings_sniffer),
-            summary = snifferSettingsSummary,
-            onClick = onOpenSnifferSettings,
-        )
-        SwitchPreference(
-            title = stringResource(R.string.settings_geodata_mode),
-            summary = stringResource(R.string.settings_geodata_mode_summary),
-            checked = enableGeodataMode,
-            onCheckedChange = onEnableGeodataModeChange,
-        )
-        OverlayDropdownPreference(
-            title = stringResource(R.string.settings_geodata_loader),
-            summary = stringResource(R.string.settings_geodata_loader_summary),
-            items = geodataLoaderOptions,
-            selectedIndex = geodataLoader.coerceIn(geodataLoaderOptions.indices),
-            onSelectedIndexChange = onGeodataLoaderChange,
-        )
-        OverlayDropdownPreference(
-            title = stringResource(R.string.settings_log_level),
-            items = SettingsLogLevelOptions,
-            selectedIndex = coreLogLevel,
-            onSelectedIndexChange = onCoreLogLevelChange,
-        )
+        if (!rawEnabled) {
+            ArrowPreference(
+                title = stringResource(R.string.settings_dns),
+                icon = Icons.Rounded.Dns,
+                summary = stringResource(R.string.settings_dns_summary),
+                onClick = onOpenDnsSettings,
+            )
+            ArrowPreference(
+                title = stringResource(R.string.settings_sniffer),
+                icon = Icons.Rounded.TravelExplore,
+                summary = snifferSettingsSummary,
+                onClick = onOpenSnifferSettings,
+            )
+            SwitchPreference(
+                title = stringResource(R.string.settings_geodata_mode),
+                icon = Icons.Rounded.Public,
+                summary = stringResource(R.string.settings_geodata_mode_summary),
+                checked = enableGeodataMode,
+                onCheckedChange = onEnableGeodataModeChange,
+            )
+            OverlayDropdownPreference(
+                title = stringResource(R.string.settings_geodata_loader),
+                icon = Icons.Rounded.Storage,
+                summary = stringResource(R.string.settings_geodata_loader_summary),
+                items = geodataLoaderOptions,
+                selectedIndex = geodataLoader.coerceIn(geodataLoaderOptions.indices),
+                onSelectedIndexChange = onGeodataLoaderChange,
+            )
+            OverlayDropdownPreference(
+                title = stringResource(R.string.settings_log_level),
+                icon = Icons.Rounded.BugReport,
+                items = SettingsLogLevelOptions,
+                selectedIndex = coreLogLevel,
+                onSelectedIndexChange = onCoreLogLevelChange,
+            )
+        } else {
+            SwitchPreference(
+                title = stringResource(R.string.settings_dns),
+                icon = Icons.Rounded.Dns,
+                summary = raw?.let { "DNS hijack · ${it.dnsHijack.path}" }
+                    ?: rawState.unavailableReason.orEmpty(),
+                checked = enableLocalDns,
+                onCheckedChange = onEnableLocalDnsChange,
+            )
+            SettingsReadOnlyRow(
+                title = stringResource(R.string.settings_sniffer),
+                value = raw?.snifferEnabled?.value?.toString() ?: notConfigured,
+                source = fromYaml,
+                summary = raw?.snifferEnabled?.path ?: rawState.unavailableReason.orEmpty(),
+                icon = Icons.Rounded.TravelExplore,
+            )
+            SettingsReadOnlyRow(
+                title = stringResource(R.string.settings_geodata_mode),
+                value = raw?.geodataMode?.value?.toString() ?: notConfigured,
+                source = fromYaml,
+                summary = raw?.geodataMode?.path ?: rawState.unavailableReason.orEmpty(),
+                icon = Icons.Rounded.Public,
+            )
+            SettingsReadOnlyRow(
+                title = stringResource(R.string.settings_geodata_loader),
+                value = raw?.geodataLoader?.value ?: notConfigured,
+                source = fromYaml,
+                summary = raw?.geodataLoader?.path ?: rawState.unavailableReason.orEmpty(),
+                icon = Icons.Rounded.Storage,
+            )
+            SettingsReadOnlyRow(
+                title = stringResource(R.string.settings_log_level),
+                value = raw?.logLevel?.value ?: notConfigured,
+                source = fromYaml,
+                summary = raw?.logLevel?.path ?: rawState.unavailableReason.orEmpty(),
+                icon = Icons.Rounded.BugReport,
+            )
+        }
     }
 }
 
@@ -154,39 +197,62 @@ internal fun SettingsAdvancedSection(
     onEnableIpv6PreferChange: (Boolean) -> Unit,
     onRunModeChange: (Int) -> Unit,
 ) {
+    val rawState = LocalRawConfigState.current
+    val raw = rawState.snapshot
     SmallTitle(text = stringResource(R.string.settings_advanced))
     SettingsSectionCard {
         SwitchPreference(
             title = stringResource(R.string.settings_broadcast_control),
+            icon = Icons.Rounded.CellTower,
             summary = stringResource(R.string.settings_broadcast_control_summary),
             checked = enableBroadcastControl,
             onCheckedChange = onEnableBroadcastControlChange,
         )
-        SwitchPreference(
-            title = "IPv6",
-            summary = stringResource(R.string.settings_ipv6_summary),
-            checked = enableIpv6,
-            onCheckedChange = onEnableIpv6Change,
-        )
-        AnimatedVisibility(
-            visible = enableIpv6,
-            enter = fadeIn() + expandVertically(),
-            exit = shrinkVertically() + fadeOut(),
-        ) {
+        if (!rawState.showsReadOnlyYamlValues) {
             SwitchPreference(
-                title = stringResource(R.string.settings_ipv6_prefer),
-                summary = stringResource(R.string.settings_ipv6_prefer_summary),
-                checked = enableIpv6Prefer,
-                onCheckedChange = onEnableIpv6PreferChange,
+                title = "IPv6",
+                icon = Icons.Rounded.Public,
+                summary = stringResource(R.string.settings_ipv6_summary),
+                checked = enableIpv6,
+                onCheckedChange = onEnableIpv6Change,
+            )
+            AnimatedVisibility(
+                visible = enableIpv6,
+            enter = AsteriskMotion.expandEnter(),
+            exit = AsteriskMotion.expandExit(),
+            ) {
+                SwitchPreference(
+                    title = stringResource(R.string.settings_ipv6_prefer),
+                    icon = Icons.Rounded.Route,
+                    summary = stringResource(R.string.settings_ipv6_prefer_summary),
+                    checked = enableIpv6Prefer,
+                    onCheckedChange = onEnableIpv6PreferChange,
+                )
+            }
+            ArrowPreference(
+                title = stringResource(R.string.mihomo_configuration_override_script),
+                icon = Icons.Rounded.Code,
+                summary = overrideScriptSummary,
+                onClick = onOpenOverrideScripts,
+            )
+        } else {
+            SettingsReadOnlyRow(
+                title = "IPv6",
+                value = raw?.ipv6?.value?.toString() ?: stringResource(R.string.settings_value_not_configured),
+                source = stringResource(R.string.settings_value_from_yaml),
+                summary = raw?.ipv6?.path ?: rawState.unavailableReason.orEmpty(),
+                icon = Icons.Rounded.Public,
+            )
+            SettingsReadOnlyRow(
+                title = stringResource(R.string.mihomo_configuration_override_script),
+                value = stringResource(R.string.mihomo_configuration_override_script_stopped),
+                source = stringResource(R.string.mihomo_configuration_raw_chip),
+                icon = Icons.Rounded.Lock,
             )
         }
-        ArrowPreference(
-            title = stringResource(R.string.mihomo_configuration_override_script),
-            summary = overrideScriptSummary,
-            onClick = onOpenOverrideScripts,
-        )
         OverlayDropdownPreference(
             title = stringResource(R.string.settings_run_mode),
+            icon = Icons.Rounded.AccountTree,
             items = runModeOptions,
             selectedIndex = selectedRunModeIndex.coerceIn(runModeOptions.indices),
             onSelectedIndexChange = onRunModeChange,
@@ -223,39 +289,57 @@ internal fun SettingsProxyModeSections(
     onOpenIgnoredInterfaces: () -> Unit,
     onOpenPrivateAddresses: () -> Unit,
 ) {
+    val rawState = LocalRawConfigState.current
+    val raw = rawState.snapshot
     AnimatedVisibility(
         visible = runMode == RunModeVpnService,
-        enter = fadeIn() + expandVertically(),
+        enter = AsteriskMotion.expandEnter(),
         exit = ExitTransition.None,
     ) {
         Column {
             SmallTitle(text = stringResource(R.string.settings_proxy_vpn_service))
             SettingsSectionCard {
-                ArrowPreference(
-                    title = stringResource(R.string.settings_local_proxy),
-                    summary = localProxySettingsSummary,
-                    onClick = onOpenLocalProxySettings,
-                )
+                if (!rawState.showsReadOnlyYamlValues) {
+                    ArrowPreference(
+                        title = stringResource(R.string.settings_local_proxy),
+                        icon = Icons.Rounded.Router,
+                        summary = localProxySettingsSummary,
+                        onClick = onOpenLocalProxySettings,
+                    )
+                } else {
+                    SettingsReadOnlyRow(
+                        title = stringResource(R.string.settings_local_proxy),
+                        value = raw?.socksInbound?.value?.port?.toString()
+                            ?: stringResource(R.string.settings_value_not_configured),
+                        source = stringResource(R.string.settings_value_from_yaml),
+                        summary = raw?.socksInbound?.path ?: rawState.unavailableReason.orEmpty(),
+                        icon = Icons.Rounded.Router,
+                    )
+                }
                 SwitchPreference(
                     title = stringResource(R.string.settings_traffic_stats_notification),
+                    icon = Icons.Rounded.Notifications,
                     summary = stringResource(R.string.settings_traffic_stats_notification_summary),
                     checked = enableTrafficStatsNotification,
                     onCheckedChange = onEnableTrafficStatsNotificationChange,
                 )
                 SwitchPreference(
                     title = stringResource(R.string.settings_vpn_append_http_proxy),
+                    icon = Icons.Rounded.Http,
                     summary = stringResource(R.string.settings_vpn_append_http_proxy_summary),
                     checked = enableVpnAppendHttpProxy,
                     onCheckedChange = onEnableVpnAppendHttpProxyChange,
                 )
                 SwitchPreference(
                     title = stringResource(R.string.settings_vpn_hev_tun),
+                    icon = Icons.Rounded.Memory,
                     summary = stringResource(R.string.settings_vpn_hev_tun_summary),
                     checked = enableVpnHevTun,
                     onCheckedChange = onEnableVpnHevTunChange,
                 )
                 ArrowPreference(
                     title = stringResource(R.string.settings_tun),
+                    icon = Icons.Rounded.SettingsInputComponent,
                     summary = tunSettingsSummary,
                     onClick = onOpenTunSettings,
                 )
@@ -264,7 +348,7 @@ internal fun SettingsProxyModeSections(
     }
     AnimatedVisibility(
         visible = runMode.isRootRunMode(),
-        enter = fadeIn() + expandVertically(),
+        enter = AsteriskMotion.expandEnter(),
         exit = ExitTransition.None,
     ) {
         Column {
@@ -281,11 +365,12 @@ internal fun SettingsProxyModeSections(
             SettingsSectionCard {
                 AnimatedVisibility(
                     visible = runMode.isRootRunMode(),
-                    enter = fadeIn() + expandVertically(),
-                    exit = shrinkVertically() + fadeOut(),
+            enter = AsteriskMotion.expandEnter(),
+            exit = AsteriskMotion.expandExit(),
                 ) {
                     SwitchPreference(
                         title = stringResource(R.string.settings_root_boot_script),
+                        icon = Icons.Rounded.PowerSettingsNew,
                         summary = stringResource(R.string.settings_root_boot_script_summary),
                         checked = enableRootBootScript,
                         onCheckedChange = onEnableRootBootScriptChange,
@@ -293,11 +378,12 @@ internal fun SettingsProxyModeSections(
                 }
                 AnimatedVisibility(
                     visible = runMode != RunModeBpf2Socks,
-                    enter = fadeIn() + expandVertically(),
-                    exit = shrinkVertically() + fadeOut(),
+            enter = AsteriskMotion.expandEnter(),
+            exit = AsteriskMotion.expandExit(),
                 ) {
                     SwitchPreference(
                         title = stringResource(R.string.settings_root_ebpf_matcher),
+                        icon = Icons.Rounded.Security,
                         summary = stringResource(R.string.settings_root_ebpf_matcher_summary),
                         checked = enableRootEbpfRules,
                         onCheckedChange = onEnableRootEbpfRulesChange,
@@ -305,11 +391,12 @@ internal fun SettingsProxyModeSections(
                 }
                 AnimatedVisibility(
                     visible = enableRootEbpfRules || runMode == RunModeBpf2Socks,
-                    enter = fadeIn() + expandVertically(),
-                    exit = shrinkVertically() + fadeOut(),
+            enter = AsteriskMotion.expandEnter(),
+            exit = AsteriskMotion.expandExit(),
                 ) {
                     SwitchPreference(
                         title = stringResource(R.string.settings_root_ebpf_bypass_direct_cidrs),
+                        icon = Icons.Rounded.Route,
                         summary = stringResource(R.string.settings_root_ebpf_bypass_direct_cidrs_summary),
                         checked = enableRootEbpfDirectCidrBypass,
                         onCheckedChange = onEnableRootEbpfDirectCidrBypassChange,
@@ -317,44 +404,72 @@ internal fun SettingsProxyModeSections(
                 }
                 AnimatedVisibility(
                     visible = !enableIpv6,
-                    enter = fadeIn() + expandVertically(),
-                    exit = shrinkVertically() + fadeOut(),
+            enter = AsteriskMotion.expandEnter(),
+            exit = AsteriskMotion.expandExit(),
                 ) {
                     SwitchPreference(
                         title = stringResource(R.string.settings_root_ipv6_disabler),
+                        icon = Icons.Rounded.Public,
                         summary = stringResource(R.string.settings_root_ipv6_disabler_summary),
                         checked = enableRootIpv6Disabler,
                         onCheckedChange = onEnableRootIpv6DisablerChange,
                     )
                 }
-                ArrowPreference(
-                    title = stringResource(R.string.settings_local_proxy),
-                    summary = localProxySettingsSummary,
-                    onClick = onOpenLocalProxySettings,
-                )
+                if (!rawState.showsReadOnlyYamlValues) {
+                    ArrowPreference(
+                        title = stringResource(R.string.settings_local_proxy),
+                        icon = Icons.Rounded.Router,
+                        summary = localProxySettingsSummary,
+                        onClick = onOpenLocalProxySettings,
+                    )
+                } else {
+                    SettingsReadOnlyRow(
+                        title = stringResource(R.string.settings_local_proxy),
+                        value = raw?.socksInbound?.value?.port?.toString()
+                            ?: stringResource(R.string.settings_value_not_configured),
+                        source = stringResource(R.string.settings_value_from_yaml),
+                        summary = raw?.socksInbound?.path ?: rawState.unavailableReason.orEmpty(),
+                        icon = Icons.Rounded.Router,
+                    )
+                }
                 AnimatedVisibility(
                     visible = runMode == RunModeTun || runMode == RunModeTun2Socks,
-                    enter = fadeIn() + expandVertically(),
-                    exit = shrinkVertically() + fadeOut(),
+            enter = AsteriskMotion.expandEnter(),
+            exit = AsteriskMotion.expandExit(),
                 ) {
-                    ArrowPreference(
-                        title = stringResource(R.string.settings_tun),
-                        summary = tunSettingsSummary,
-                        onClick = onOpenTunSettings,
-                    )
+                    if (!rawState.showsReadOnlyYamlValues || runMode == RunModeTun2Socks) {
+                        ArrowPreference(
+                            title = stringResource(R.string.settings_tun),
+                            icon = Icons.Rounded.SettingsInputComponent,
+                            summary = tunSettingsSummary,
+                            onClick = onOpenTunSettings,
+                        )
+                    } else {
+                        SettingsReadOnlyRow(
+                            title = stringResource(R.string.settings_tun),
+                            value = raw?.tunInbound?.value?.let { "${it.device} · ${it.stack} · ${it.mtu}" }
+                                ?: stringResource(R.string.settings_value_not_configured),
+                            source = stringResource(R.string.settings_value_from_yaml),
+                            summary = raw?.tunInbound?.path ?: rawState.unavailableReason.orEmpty(),
+                            icon = Icons.Rounded.SettingsInputComponent,
+                        )
+                    }
                 }
                 ArrowPreference(
                     title = stringResource(R.string.settings_external_interfaces),
+                    icon = Icons.Rounded.Cable,
                     summary = externalInterfacesSummary,
                     onClick = onOpenExternalInterfaces,
                 )
                 ArrowPreference(
                     title = stringResource(R.string.settings_ignored_interfaces),
+                    icon = Icons.Rounded.Block,
                     summary = ignoredInterfacesSummary,
                     onClick = onOpenIgnoredInterfaces,
                 )
                 ArrowPreference(
                     title = stringResource(R.string.settings_private_addresses),
+                    icon = Icons.Rounded.HomeWork,
                     summary = privateAddressCidrsSummary,
                     onClick = onOpenPrivateAddresses,
                 )
@@ -372,10 +487,12 @@ internal fun SettingsLogsSection(
     SettingsSectionCard {
         ArrowPreference(
             title = stringResource(R.string.settings_core_logs),
+            icon = Icons.AutoMirrored.Rounded.Article,
             onClick = onOpenCoreLogs,
         )
         ArrowPreference(
             title = stringResource(R.string.settings_logcat),
+            icon = Icons.Rounded.Terminal,
             onClick = onOpenLogcatLogs,
         )
     }
@@ -390,10 +507,12 @@ internal fun SettingsAboutSection(
     SettingsSectionCard(bottomPadding = 0.dp) {
         ArrowPreference(
             title = stringResource(R.string.settings_about_project),
+            icon = Icons.AutoMirrored.Rounded.Help,
             onClick = onOpenAbout,
         )
         ArrowPreference(
             title = stringResource(R.string.settings_open_source_licenses),
+            icon = Icons.Rounded.Policy,
             onClick = onOpenLicenses,
         )
     }

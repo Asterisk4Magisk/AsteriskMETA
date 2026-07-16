@@ -43,7 +43,7 @@ private fun loadQrBitmapWithImageDecoder(context: Context, uri: Uri): Bitmap {
     val source = ImageDecoder.createSource(context.contentResolver, uri)
     return ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
         decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
-        decoder.setTargetSampleSize(calculateSampleSize(info.size.width, info.size.height))
+        decoder.setTargetSampleSize(calculateQrBitmapSampleSize(info.size.width, info.size.height))
     }
 }
 
@@ -54,7 +54,7 @@ private fun loadQrBitmapWithBitmapFactory(context: Context, uri: Uri): Bitmap {
         BitmapFactory.decodeStream(input, null, bounds)
     }
     val options = BitmapFactory.Options().apply {
-        inSampleSize = calculateSampleSize(bounds.outWidth, bounds.outHeight)
+        inSampleSize = calculateQrBitmapSampleSize(bounds.outWidth, bounds.outHeight)
     }
     return resolver.openInputStream(uri)?.use { input ->
         BitmapFactory.decodeStream(input, null, options)
@@ -88,7 +88,7 @@ private fun decodeQrBitmap(bitmap: Bitmap): String? {
     }
 }
 
-private fun calculateSampleSize(width: Int, height: Int): Int {
+internal fun calculateQrBitmapSampleSize(width: Int, height: Int): Int {
     if (width <= 0 || height <= 0) {
         return 1
     }
