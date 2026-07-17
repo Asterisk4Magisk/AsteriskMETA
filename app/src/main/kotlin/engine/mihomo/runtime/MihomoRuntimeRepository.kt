@@ -49,10 +49,12 @@ internal class MihomoRuntimeRepository(
     private val trafficHistory = MihomoTrafficHistoryBuffer(MaxTrafficHistorySize)
     private val trafficHistoryLock = Any()
     private val runtimeStateLock = Any()
+    private val runtimePreparationMutex = Mutex()
     private val proxyRefreshMutex = Mutex()
     private var monitorJob: Job? = null
     private var delayTestJob: Job? = null
     private var activeSignature: MihomoRuntimeSignature? = null
+    private var preparedRuntimeSignature: MihomoPreparedRuntimeSignature? = null
     private var runtimeGeneration = 0L
     private var proxySnapshotConfigKey: Int? = null
     private val delayTestLock = Any()
@@ -147,7 +149,7 @@ internal class MihomoRuntimeRepository(
         }
         refreshConnectivity()
         monitorJob = appScope.launch(Dispatchers.IO) {
-            runCatching { prepareRuntime(appState, backend) }
+            runCatching { ensureInteractiveRuntime(appState, backend) }
                 .onFailure { error ->
                     if (error is CancellationException) throw error
                     reportRuntimeError("Mihomo runtime preparation", error)
@@ -517,6 +519,10 @@ internal class MihomoRuntimeRepository(
     ) {
         when (backend) {
             MihomoRuntimeBackend.Bridge -> {
+                val preserveActiveTun = appState.runMode == RunModeVpnService
+                if (preserveActiveTun && AndroidMihomoRuntime.isRunning()) {
+                    return
+                }
                 AndroidMihomoRuntime.ensureLoaded(
                     context = appContext,
                     config = VpnMihomoConfigFactory.create(
@@ -524,7 +530,7 @@ internal class MihomoRuntimeRepository(
                         request = ProxyEngineStartRequest(appState),
                         exposePorts = appState.exposeBridgePorts(),
                     ),
-                    preserveActiveTun = appState.runMode == RunModeVpnService,
+                    preserveActiveTun = preserveActiveTun,
                 )
             }
 
@@ -569,8 +575,38 @@ internal class MihomoRuntimeRepository(
         appState: AppState,
         backend: MihomoRuntimeBackend,
     ) {
+        val signature = MihomoPreparedRuntimeSignature(
+            backend = backend,
+            appState = appState,
+        )
+        if (isInteractiveRuntimePrepared(appState, signature)) return
+
         withContext(Dispatchers.IO) {
-            prepareRuntime(appState, backend)
+            runtimePreparationMutex.withLock {
+                if (isInteractiveRuntimePrepared(appState, signature)) return@withLock
+                prepareRuntime(appState, backend)
+                synchronized(runtimeStateLock) {
+                    preparedRuntimeSignature = signature
+                }
+            }
+        }
+    }
+
+    private fun isInteractiveRuntimePrepared(
+        appState: AppState,
+        signature: MihomoPreparedRuntimeSignature,
+    ): Boolean {
+        val signatureMatches = synchronized(runtimeStateLock) {
+            preparedRuntimeSignature == signature
+        }
+        if (!signatureMatches) return false
+
+        return when (signature.backend) {
+            MihomoRuntimeBackend.Bridge -> AndroidMihomoRuntime.isLoaded()
+            MihomoRuntimeBackend.Api -> {
+                appState.proxyRunning && appState.runMode == RunModeVpnService ||
+                    !AndroidMihomoRuntime.isLoaded()
+            }
         }
     }
 
@@ -880,6 +916,11 @@ internal class MihomoRuntimeRepository(
         val backend: MihomoRuntimeBackend,
         val trafficEnabled: Boolean,
         val runtimeConfigKey: Int,
+    )
+
+    private data class MihomoPreparedRuntimeSignature(
+        val backend: MihomoRuntimeBackend,
+        val appState: AppState,
     )
 
     private companion object {
