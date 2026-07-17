@@ -726,9 +726,11 @@ internal fun MihomoProfileSyncProgressDialog(
         title = { Text(stringResource(R.string.mihomo_configuration_save_sync_in_progress_title)) },
         text = { Text(message) },
         confirmButton = {
-            TextButton(onClick = onCancel) {
-                Text(stringResource(R.string.common_cancel))
-            }
+            AsteriskActionButton(
+                text = stringResource(R.string.common_cancel),
+                icon = Icons.Rounded.Close,
+                onClick = onCancel,
+            )
         },
     )
 }
@@ -760,18 +762,24 @@ internal fun MihomoProfileSyncFailureDialog(
         },
         dismissButton = {
             Row {
-                TextButton(onClick = onCancel) {
-                    Text(stringResource(R.string.common_cancel))
-                }
-                TextButton(onClick = onSaveAnyway) {
-                    Text(stringResource(R.string.mihomo_configuration_save_anyway))
-                }
+                AsteriskActionButton(
+                    text = stringResource(R.string.common_cancel),
+                    icon = Icons.Rounded.Close,
+                    onClick = onCancel,
+                )
+                AsteriskActionButton(
+                    text = stringResource(R.string.mihomo_configuration_save_anyway),
+                    icon = Icons.Rounded.Save,
+                    onClick = onSaveAnyway,
+                )
             }
         },
         confirmButton = {
-            TextButton(onClick = onRetry) {
-                Text(stringResource(R.string.common_retry))
-            }
+            AsteriskActionButton(
+                text = stringResource(R.string.common_retry),
+                icon = Icons.Rounded.Refresh,
+                onClick = onRetry,
+            )
         },
     )
 }
