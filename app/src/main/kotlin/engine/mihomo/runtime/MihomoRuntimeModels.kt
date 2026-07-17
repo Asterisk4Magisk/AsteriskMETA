@@ -105,6 +105,7 @@ internal data class MihomoRuntimeState(
     val version: MihomoVersionState = MihomoVersionState(),
     val configs: MihomoConfigsState = MihomoConfigsState(),
     val proxies: MihomoProxiesState = MihomoProxiesState(),
+    val proxiesRefreshing: Boolean = false,
     val delayTestingTarget: String? = null,
     val lastError: String = "",
 )

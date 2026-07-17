@@ -323,7 +323,7 @@ fun MihomoDashboardPage(
                     operationInProgress = operationInProgress,
                     onToggleService = ::toggleService,
                     onModeSelected = ::changeMode,
-                    onOpenConfiguration = { navigator.push(AppRoute.MihomoProfileList) },
+                    onOpenConfiguration = { mainDestinationState?.select(MainDestination.Configurations) },
                     onOpenNode = { mainDestinationState?.select(MainDestination.Proxies) },
                 )
             }

@@ -206,6 +206,7 @@
     <string name="mihomo_mode_global">Global</string>
     <string name="mihomo_mode_direct">Direct</string>
     <string name="mihomo_proxies_title">Proxies</string>
+    <string name="mihomo_proxies_loading">Loading proxies…</string>
     <string name="mihomo_proxies_no_configuration_title">No configuration added</string>
     <string name="mihomo_proxies_no_configuration_summary">Add or import a Mihomo YAML configuration before viewing and switching proxy nodes.</string>
     <string name="mihomo_proxies_runtime_unavailable">Mihomo runtime is not ready</string>

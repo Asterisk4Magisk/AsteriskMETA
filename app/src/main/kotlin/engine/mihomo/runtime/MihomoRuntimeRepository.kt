@@ -32,6 +32,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.net.ConnectException
 import kotlin.time.Duration.Companion.milliseconds
@@ -46,9 +48,13 @@ internal class MihomoRuntimeRepository(
     private val mutableState = MutableStateFlow(MihomoRuntimeState())
     private val trafficHistory = MihomoTrafficHistoryBuffer(MaxTrafficHistorySize)
     private val trafficHistoryLock = Any()
+    private val runtimeStateLock = Any()
+    private val proxyRefreshMutex = Mutex()
     private var monitorJob: Job? = null
     private var delayTestJob: Job? = null
     private var activeSignature: MihomoRuntimeSignature? = null
+    private var runtimeGeneration = 0L
+    private var proxySnapshotConfigKey: Int? = null
     private val delayTestLock = Any()
     @Volatile
     private var lastLoggedRuntimeError = ""
@@ -114,23 +120,30 @@ internal class MihomoRuntimeRepository(
             trafficEnabled = trafficEnabled,
             runtimeConfigKey = appState.mihomoRuntimeConfigKey(backend),
         )
-        if (activeSignature == signature && monitorJob?.isActive == true) {
+        val runtimeAlreadyActive = synchronized(runtimeStateLock) { activeSignature == signature } &&
+            monitorJob?.isActive == true
+        if (runtimeAlreadyActive) {
             return
         }
-        val resetDelays = activeSignature?.runtimeConfigKey != null &&
-            activeSignature?.runtimeConfigKey != signature.runtimeConfigKey
+        val resetProxies = synchronized(runtimeStateLock) {
+            proxySnapshotConfigKey != null && proxySnapshotConfigKey != signature.runtimeConfigKey
+        }
         stopMonitor(resetSnapshots = false)
-        activeSignature = signature
-        lastLoggedRuntimeError = ""
-        mutableState.update { current ->
-            val proxies = if (resetDelays) current.proxies.withoutDelays() else current.proxies
-            current.copy(
-                running = true,
-                control = control,
-                traffic = current.traffic.copy(connected = false),
-                proxies = proxies,
-                lastError = "",
-            )
+        val generation = synchronized(runtimeStateLock) {
+            activeSignature = signature
+            if (resetProxies) proxySnapshotConfigKey = null
+            lastLoggedRuntimeError = ""
+            mutableState.update { current ->
+                current.copy(
+                    running = true,
+                    control = control,
+                    traffic = current.traffic.copy(connected = false),
+                    proxies = if (resetProxies) MihomoProxiesState() else current.proxies,
+                    proxiesRefreshing = false,
+                    lastError = "",
+                )
+            }
+            runtimeGeneration
         }
         refreshConnectivity()
         monitorJob = appScope.launch(Dispatchers.IO) {
@@ -150,7 +163,14 @@ internal class MihomoRuntimeRepository(
             if (trafficEnabled) {
                 launch { collectTraffic(control, backend.useBridge()) }
             }
-            launch { pollRuntime(control, backend.useBridge()) }
+            launch {
+                pollRuntime(
+                    control = control,
+                    useBridge = backend.useBridge(),
+                    generation = generation,
+                    configKey = signature.runtimeConfigKey,
+                )
+            }
         }
     }
 
@@ -167,32 +187,60 @@ internal class MihomoRuntimeRepository(
         monitorJob?.cancel()
         monitorJob = null
         cancelDelayTest()
-        activeSignature = null
         if (resetSnapshots) {
             synchronized(trafficHistoryLock) { trafficHistory.clear() }
         }
-        mutableState.update { current ->
-            if (resetSnapshots) {
-                MihomoRuntimeState(
-                    device = current.device,
-                )
-            } else {
-                current.copy(
-                    running = false,
-                    traffic = current.traffic.copy(connected = false),
-                    delayTestingTarget = null,
-                    lastError = "",
-                )
+        synchronized(runtimeStateLock) {
+            runtimeGeneration += 1L
+            activeSignature = null
+            if (resetSnapshots) proxySnapshotConfigKey = null
+            mutableState.update { current ->
+                if (resetSnapshots) {
+                    MihomoRuntimeState(
+                        device = current.device,
+                    )
+                } else {
+                    current.copy(
+                        running = false,
+                        traffic = current.traffic.copy(connected = false),
+                        proxiesRefreshing = false,
+                        delayTestingTarget = null,
+                        lastError = "",
+                    )
+                }
             }
         }
     }
 
     suspend fun refresh(appState: AppState): Result<Unit> {
         return runCatching {
+            val generation = currentRuntimeGeneration()
             val control = resolveMihomoControlConfig(appState)
             val backend = resolveInteractiveBackend(appState, control)
-            ensureInteractiveRuntime(appState, backend)
-            refreshRuntime(control, backend.useBridge())
+            val configKey = appState.mihomoRuntimeConfigKey(appState.mihomoRuntimeBackend())
+            withContext(Dispatchers.IO) {
+                ensureInteractiveRuntime(appState, backend)
+                refreshRuntime(control, backend.useBridge(), generation, configKey)
+            }
+        }
+    }
+
+    suspend fun refreshProxies(appState: AppState): Result<Unit> {
+        return runCatching {
+            require(appState.hasUsableMihomoProfile()) { "Mihomo profile is not configured" }
+            val generation = currentRuntimeGeneration()
+            val control = resolveMihomoControlConfig(appState)
+            val backend = resolveInteractiveBackend(appState, control)
+            val configKey = appState.mihomoRuntimeConfigKey(appState.mihomoRuntimeBackend())
+            withContext(Dispatchers.IO) {
+                ensureInteractiveRuntime(appState, backend)
+                refreshProxySnapshot(
+                    control = control,
+                    useBridge = backend.useBridge(),
+                    generation = generation,
+                    configKey = configKey,
+                ).getOrThrow()
+            }
         }
     }
 
@@ -276,10 +324,12 @@ internal class MihomoRuntimeRepository(
             }
             val control = resolveMihomoControlConfig(appState)
             val backend = resolveInteractiveBackend(appState, control)
+            val generation = currentRuntimeGeneration()
+            val configKey = appState.mihomoRuntimeConfigKey(appState.mihomoRuntimeBackend())
             withContext(Dispatchers.IO) {
                 ensureInteractiveRuntime(appState, backend)
                 client.updateProxyProvider(control, providerName, backend.useBridge())
-                refreshRuntime(control, backend.useBridge())
+                refreshProxySnapshot(control, backend.useBridge(), generation, configKey, coalesce = false)
             }
         }
     }
@@ -291,11 +341,13 @@ internal class MihomoRuntimeRepository(
         return runCatching {
             val control = resolveMihomoControlConfig(appState)
             val backend = resolveInteractiveBackend(appState, control)
+            val generation = currentRuntimeGeneration()
+            val configKey = appState.mihomoRuntimeConfigKey(appState.mihomoRuntimeBackend())
             withContext(Dispatchers.IO) {
                 ensureInteractiveRuntime(appState, backend)
                 client.patchMode(control, mode, backend.useBridge())
-                applyMode(mode)
-                refreshRuntime(control, backend.useBridge())
+                applyMode(mode, generation, configKey)
+                refreshProxySnapshot(control, backend.useBridge(), generation, configKey, coalesce = false)
             }
         }
     }
@@ -311,7 +363,6 @@ internal class MihomoRuntimeRepository(
             withContext(Dispatchers.IO) {
                 ensureInteractiveRuntime(appState, backend)
                 client.patchLogLevel(control, appState.mihomoLogLevelName(), backend.useBridge())
-                refreshRuntime(control, backend.useBridge())
             }
         }
     }
@@ -324,11 +375,13 @@ internal class MihomoRuntimeRepository(
         return runCatching {
             val control = resolveMihomoControlConfig(appState)
             val backend = resolveInteractiveBackend(appState, control)
+            val generation = currentRuntimeGeneration()
+            val configKey = appState.mihomoRuntimeConfigKey(appState.mihomoRuntimeBackend())
             withContext(Dispatchers.IO) {
                 ensureInteractiveRuntime(appState, backend)
                 client.selectProxy(control, groupName, proxyName, backend.useBridge())
-                applySelectedProxy(groupName, proxyName)
-                refreshRuntime(control, backend.useBridge())
+                applySelectedProxy(groupName, proxyName, generation, configKey)
+                refreshProxySnapshot(control, backend.useBridge(), generation, configKey, coalesce = false)
                 refreshConnectivity()
             }
         }
@@ -418,11 +471,13 @@ internal class MihomoRuntimeRepository(
     ): MihomoDelayResult {
         val control = resolveMihomoControlConfig(appState)
         val backend = resolveInteractiveBackend(appState, control)
+        val generation = currentRuntimeGeneration()
+        val configKey = appState.mihomoRuntimeConfigKey(appState.mihomoRuntimeBackend())
         return withContext(Dispatchers.IO) {
             ensureInteractiveRuntime(appState, backend)
             client.testProxyDelay(control, proxyName, useBridge = backend.useBridge()).also { result ->
-                applyDelays(result)
-                refreshRuntime(control, backend.useBridge())
+                applyDelays(result, generation, configKey)
+                refreshProxySnapshot(control, backend.useBridge(), generation, configKey, coalesce = false)
             }
         }
     }
@@ -434,13 +489,15 @@ internal class MihomoRuntimeRepository(
     ): MihomoDelayResult {
         val control = resolveMihomoControlConfig(appState)
         val backend = resolveInteractiveBackend(appState, control)
+        val generation = currentRuntimeGeneration()
+        val configKey = appState.mihomoRuntimeConfigKey(appState.mihomoRuntimeBackend())
         return withContext(Dispatchers.IO) {
             ensureInteractiveRuntime(appState, backend)
             val expectedProxyNames = state.value.proxies.groups
                 .firstOrNull { group -> group.name == groupName }
                 ?.all
                 .orEmpty()
-            clearDelays(expectedProxyNames)
+            clearDelays(expectedProxyNames, generation, configKey)
             client.testGroupDelay(
                 config = control,
                 groupName = groupName,
@@ -448,8 +505,8 @@ internal class MihomoRuntimeRepository(
                 expectedProxyNames = expectedProxyNames,
                 useBridge = backend.useBridge(),
             ).also { result ->
-                applyDelays(result)
-                refreshRuntime(control, backend.useBridge())
+                applyDelays(result, generation, configKey)
+                refreshProxySnapshot(control, backend.useBridge(), generation, configKey, coalesce = false)
             }
         }
     }
@@ -578,52 +635,128 @@ internal class MihomoRuntimeRepository(
     private suspend fun pollRuntime(
         control: MihomoControlConfig,
         useBridge: Boolean,
+        generation: Long,
+        configKey: Int,
     ) {
+        runCatching { refreshRuntime(control, useBridge, generation, configKey) }
+            .onFailure { error -> handleRuntimePollingFailure(error, generation, configKey) }
         while (currentCoroutineContext().isActive) {
-            runCatching { refreshRuntime(control, useBridge) }
+            delay(ProxyFallbackPollIntervalMillis.milliseconds)
+            runCatching { refreshProxySnapshot(control, useBridge, generation, configKey) }
                 .onFailure { error ->
-                    if (error is CancellationException) throw error
-                    reportRuntimeError("Mihomo runtime polling", error)
-                    mutableState.update { current -> current.copy(lastError = error.message.orEmpty()) }
+                    handleRuntimePollingFailure(error, generation, configKey)
                 }
-            delay(RuntimePollIntervalMillis.milliseconds)
         }
     }
 
     private suspend fun refreshRuntime(
         control: MihomoControlConfig,
         useBridge: Boolean,
+        generation: Long,
+        configKey: Int,
     ) {
-        val configs = runRuntimeRequest { client.getConfigs(control, useBridge) }
+        refreshProxySnapshot(control, useBridge, generation, configKey)
+        if (!isRuntimeRequestCurrent(generation, configKey)) return
         val memory = runRuntimeRequest { client.getMemory(control, useBridge) }
         val version = runRuntimeRequest { client.getVersion(control, useBridge) }
-        val mode = configs.getOrNull()?.mode ?: state.value.configs.mode
-        val proxies = runRuntimeRequest { client.getProxies(control, useBridge, mode) }
-        val firstFailure = listOf(
-            "Mihomo API /configs" to configs.exceptionOrNull(),
-            "Mihomo API /memory" to memory.exceptionOrNull(),
-            "Mihomo API /proxies" to proxies.exceptionOrNull(),
-        ).firstOrNull { (_, error) -> error != null }
-        if (firstFailure != null) {
-            firstFailure.second?.let { error -> reportRuntimeError(firstFailure.first, error) }
-        } else {
-            lastLoggedRuntimeError = ""
-        }
-        val uiFailure = listOf(
-            "Mihomo API /memory" to memory.exceptionOrNull(),
-            "Mihomo API /proxies" to proxies.exceptionOrNull(),
-        ).firstOrNull { (_, error) -> error != null }
-        mutableState.update { current ->
-            val refreshedProxies = proxies.getOrNull()
+        memory.exceptionOrNull()?.let { error -> reportRuntimeError("Mihomo API /memory", error) }
+        updateRuntimeStateIfCurrent(generation, configKey) { current ->
             current.copy(
-                running = true,
-                control = control,
-                configs = configs.getOrNull() ?: current.configs,
                 memory = memory.getOrNull() ?: current.memory,
                 version = version.getOrNull() ?: current.version,
-                proxies = refreshedProxies?.withPreservedDelays(current.proxies) ?: current.proxies,
-                lastError = uiFailure?.second?.message.orEmpty(),
+                lastError = memory.exceptionOrNull()?.message ?: current.lastError,
             )
+        }
+    }
+
+    private suspend fun refreshProxySnapshot(
+        control: MihomoControlConfig,
+        useBridge: Boolean,
+        generation: Long,
+        configKey: Int,
+        coalesce: Boolean = true,
+    ): Result<Unit> {
+        val observedUpdatedAtMillis = state.value.proxies.updatedAtMillis
+        return proxyRefreshMutex.withLock {
+            if (!isRuntimeRequestCurrent(generation, configKey)) return@withLock Result.success(Unit)
+            val refreshedByAnotherRequest = synchronized(runtimeStateLock) {
+                proxySnapshotConfigKey == configKey &&
+                    state.value.proxies.updatedAtMillis > observedUpdatedAtMillis
+            }
+            if (coalesce && refreshedByAnotherRequest) return@withLock Result.success(Unit)
+
+            updateRuntimeStateIfCurrent(generation, configKey) { current ->
+                current.copy(proxiesRefreshing = true)
+            }
+            try {
+                val configs = runRuntimeRequest { client.getConfigs(control, useBridge) }
+                val mode = configs.getOrNull()?.mode ?: state.value.configs.mode
+                val proxies = runRuntimeRequest { client.getProxies(control, useBridge, mode) }
+                val committed = synchronized(runtimeStateLock) {
+                    if (!isRuntimeRequestCurrentLocked(generation, configKey)) {
+                        false
+                    } else {
+                        val refreshedProxies = proxies.getOrNull()
+                        if (refreshedProxies != null) proxySnapshotConfigKey = configKey
+                        mutableState.update { current ->
+                            current.copy(
+                                running = true,
+                                control = control,
+                                configs = configs.getOrNull() ?: current.configs,
+                                proxies = refreshedProxies?.withPreservedDelays(current.proxies)
+                                    ?: current.proxies,
+                                proxiesRefreshing = false,
+                                lastError = proxies.exceptionOrNull()?.message.orEmpty(),
+                            )
+                        }
+                        true
+                    }
+                }
+                if (!committed) return@withLock Result.success(Unit)
+                configs.exceptionOrNull()?.let { error -> reportRuntimeError("Mihomo API /configs", error) }
+                proxies.exceptionOrNull()?.let { error -> reportRuntimeError("Mihomo API /proxies", error) }
+                if (configs.isSuccess && proxies.isSuccess) lastLoggedRuntimeError = ""
+                proxies.map { }
+            } finally {
+                updateRuntimeStateIfCurrent(generation, configKey) { current ->
+                    if (current.proxiesRefreshing) current.copy(proxiesRefreshing = false) else current
+                }
+            }
+        }
+    }
+
+    private fun handleRuntimePollingFailure(
+        error: Throwable,
+        generation: Long,
+        configKey: Int,
+    ) {
+        if (error is CancellationException) throw error
+        if (!isRuntimeRequestCurrent(generation, configKey)) return
+        reportRuntimeError("Mihomo runtime polling", error)
+        updateRuntimeStateIfCurrent(generation, configKey) { current ->
+            current.copy(lastError = error.message.orEmpty())
+        }
+    }
+
+    private fun currentRuntimeGeneration(): Long = synchronized(runtimeStateLock) { runtimeGeneration }
+
+    private fun isRuntimeRequestCurrent(generation: Long, configKey: Int): Boolean =
+        synchronized(runtimeStateLock) { isRuntimeRequestCurrentLocked(generation, configKey) }
+
+    private fun isRuntimeRequestCurrentLocked(generation: Long, configKey: Int): Boolean {
+        return runtimeGeneration == generation && activeSignature?.runtimeConfigKey == configKey
+    }
+
+    private fun updateRuntimeStateIfCurrent(
+        generation: Long,
+        configKey: Int,
+        transform: (MihomoRuntimeState) -> MihomoRuntimeState,
+    ): Boolean = synchronized(runtimeStateLock) {
+        if (!isRuntimeRequestCurrentLocked(generation, configKey)) {
+            false
+        } else {
+            mutableState.update(transform)
+            true
         }
     }
 
@@ -652,9 +785,13 @@ internal class MihomoRuntimeRepository(
         AndroidAppLogger.warn(LogTag, "$source failed: $message", error)
     }
 
-    private fun applyDelays(result: MihomoDelayResult) {
+    private fun applyDelays(
+        result: MihomoDelayResult,
+        generation: Long,
+        configKey: Int,
+    ) {
         if (result.delays.isEmpty()) return
-        mutableState.update { current ->
+        updateRuntimeStateIfCurrent(generation, configKey) { current ->
             val nodes = current.proxies.nodes.map { node ->
                 result.delays[node.name]?.let { delay -> node.copy(delay = delay) } ?: node
             }
@@ -668,8 +805,8 @@ internal class MihomoRuntimeRepository(
         }
     }
 
-    private fun applyMode(mode: String) {
-        mutableState.update { current ->
+    private fun applyMode(mode: String, generation: Long, configKey: Int) {
+        updateRuntimeStateIfCurrent(generation, configKey) { current ->
             current.copy(
                 configs = current.configs.copy(mode = mode),
             )
@@ -679,8 +816,10 @@ internal class MihomoRuntimeRepository(
     private fun applySelectedProxy(
         groupName: String,
         proxyName: String,
+        generation: Long,
+        configKey: Int,
     ) {
-        mutableState.update { current ->
+        updateRuntimeStateIfCurrent(generation, configKey) { current ->
             val groups = current.proxies.groups.map { group ->
                 if (group.name == groupName) {
                     group.copy(now = proxyName)
@@ -697,10 +836,14 @@ internal class MihomoRuntimeRepository(
         }
     }
 
-    private fun clearDelays(proxyNames: List<String>) {
+    private fun clearDelays(
+        proxyNames: List<String>,
+        generation: Long,
+        configKey: Int,
+    ) {
         if (proxyNames.isEmpty()) return
         val targetNames = proxyNames.toSet()
-        mutableState.update { current ->
+        updateRuntimeStateIfCurrent(generation, configKey) { current ->
             val nodes = current.proxies.nodes.map { node ->
                 if (node.name in targetNames) node.copy(delay = null) else node
             }
@@ -732,14 +875,6 @@ internal class MihomoRuntimeRepository(
         )
     }
 
-    private fun MihomoProxiesState.withoutDelays(): MihomoProxiesState {
-        val nodes = nodes.map { node -> node.copy(delay = null) }
-        return copy(
-            nodes = nodes,
-            nodeByName = nodes.associateBy(MihomoProxyNode::name),
-        )
-    }
-
     private data class MihomoRuntimeSignature(
         val control: MihomoControlConfig,
         val backend: MihomoRuntimeBackend,
@@ -749,7 +884,7 @@ internal class MihomoRuntimeRepository(
 
     private companion object {
         const val LogTag = "MihomoRuntime"
-        const val RuntimePollIntervalMillis = 2_500L
+        const val ProxyFallbackPollIntervalMillis = 10_000L
         const val MaxTrafficHistorySize = 48
     }
 }
@@ -797,6 +932,11 @@ private fun AppState.mihomoRuntimeConfigKey(backend: MihomoRuntimeBackend): Int 
             runMode,
             mihomoControlPort,
             mihomoControlSecret,
+            selectedMihomoProfileId,
+            selectedMihomoProfileOrNull()?.contentSha256,
+            selectedMihomoProfileOrNull()?.disableOverrides,
+            proxyRunning,
+            mihomoMode,
         )
 
         MihomoRuntimeBackend.Bridge -> listOf(

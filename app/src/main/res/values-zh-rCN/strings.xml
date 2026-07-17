@@ -204,6 +204,7 @@
     <string name="mihomo_mode_global">全局</string>
     <string name="mihomo_mode_direct">直连</string>
     <string name="mihomo_proxies_title">代理</string>
+    <string name="mihomo_proxies_loading">正在加载代理…</string>
     <string name="mihomo_proxies_no_configuration_title">还没有配置文件</string>
     <string name="mihomo_proxies_no_configuration_summary">请先添加或导入 Mihomo YAML 配置，然后再查看和切换代理节点。</string>
     <string name="mihomo_proxies_runtime_unavailable">Mihomo 运行时尚未就绪</string>

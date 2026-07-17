@@ -116,6 +116,7 @@ import app.navigation.MainDestination
 import engine.mihomo.MihomoProfileFactory
 import engine.mihomo.hasMihomoProxyProviders
 import engine.mihomo.hasUsableMihomoProfile
+import engine.mihomo.selectedMihomoProfileOrNull
 import engine.mihomo.runtime.MihomoProxiesState
 import engine.mihomo.runtime.MihomoProxyGroup
 import engine.mihomo.runtime.MihomoProxyNode
@@ -148,6 +149,21 @@ fun MihomoProxyPage(
 
     val hasProfiles = appState.mihomoProfiles.isNotEmpty()
     val hasUsableProfile = appState.hasUsableMihomoProfile()
+    val selectedProfile = appState.selectedMihomoProfileOrNull()
+    LaunchedEffect(
+        services.mihomoRuntime,
+        hasUsableProfile,
+        appState.selectedMihomoProfileId,
+        selectedProfile?.contentSha256,
+        selectedProfile?.disableOverrides,
+        appState.proxyRunning,
+        appState.runMode,
+        appState.mihomoMode,
+    ) {
+        if (hasUsableProfile) {
+            services.mihomoRuntime.refreshProxies(appState)
+        }
+    }
     var hasProxyProviders by remember { mutableStateOf(false) }
     LaunchedEffect(appState) {
         hasProxyProviders = if (hasUsableProfile) {
@@ -381,7 +397,9 @@ fun MihomoProxyPage(
                                 key = "empty",
                                 span = { GridItemSpan(maxLineSpan) },
                             ) {
-                                if (hasProfiles) {
+                                if (runtimeState.proxiesRefreshing && hasUsableProfile) {
+                                    MihomoProxyLoadingCard()
+                                } else if (hasProfiles) {
                                     MihomoProxyEmptyCard()
                                 } else {
                                     MihomoProxyNoConfigurationCard(
@@ -966,6 +984,26 @@ private fun MihomoProxyNoConfigurationCard(
                 modifier = Modifier.align(Alignment.End),
             )
         }
+    }
+}
+
+@Composable
+private fun MihomoProxyLoadingCard() {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        CircularProgressIndicator(
+            modifier = Modifier.size(28.dp),
+            strokeWidth = 3.dp,
+        )
+        Text(
+            text = stringResource(R.string.mihomo_proxies_loading),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
