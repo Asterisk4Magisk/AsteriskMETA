@@ -7,6 +7,7 @@ import android.content.Context
 import app.modes.isRootRunMode
 import data.AndroidAppStateStore
 import engine.mihomo.runtime.MihomoConnection
+import engine.mihomo.runtime.MihomoConnectionsState
 import engine.mihomo.runtime.MihomoRuntimeRepository
 import features.logs.AndroidAppLogger
 import features.monitoring.network.AddressFamily
@@ -82,6 +83,7 @@ internal class MonitoringRepository(
                 .distinctUntilChanged()
                 .collectLatest { plan ->
                     updateNetworkPageVisibility(plan.networkPageVisible)
+                    if (plan.refreshLocalNetworkOnEnter) refreshLocalNetworkSnapshot()
                     coroutineScope {
                         plan.runtimeSummaryIntervalMillis?.let { interval ->
                             launch {
@@ -92,22 +94,13 @@ internal class MonitoringRepository(
                             }
                         }
                         plan.resourceIntervalMillis?.let { interval ->
-                            launch { collectResourceStats(interval) }
+                            launch { collectResourceStats(interval, plan.recordResourceHistory) }
                         }
                         plan.connectionIntervalMillis?.let { interval ->
-                            launch { collectConnections(interval) }
+                            launch { collectConnections(interval, plan.collectConnectionDetails) }
                         }
                         plan.trafficIntervalMillis?.let { interval ->
-                            launch { collectTrafficStats(interval) }
-                        }
-                        if (plan.observeLocalNetwork) {
-                            launch {
-                                networkMonitor.snapshots().collect { snapshot ->
-                                    mutableState.update { current ->
-                                        current.copy(network = current.network.copy(local = snapshot))
-                                    }
-                                }
-                            }
+                            launch { collectTrafficStats(interval, plan.recordTrafficHistory) }
                         }
                     }
                 }
@@ -168,7 +161,10 @@ internal class MonitoringRepository(
         }
     }
 
-    private suspend fun collectResourceStats(intervalMillis: Long) {
+    private suspend fun collectResourceStats(
+        intervalMillis: Long,
+        recordHistory: Boolean,
+    ) {
         var previousSnapshot: ProcessTickSnapshot? = null
         var previousSource: ProcessStatsSourceKind? = null
         while (currentCoroutineContext().isActive) {
@@ -204,7 +200,11 @@ internal class MonitoringRepository(
                         cpuPercent = cpuPercent,
                         memoryBytes = memoryBytes,
                     )
-                    val history = appendProcessStatsSample(current.resource.oneHourSamples, sample)
+                    val history = if (recordHistory) {
+                        appendProcessStatsSample(current.resource.oneHourSamples, sample)
+                    } else {
+                        null
+                    }
                     current.copy(
                         resource = current.resource.copy(
                             cpuPercent = cpuPercent,
@@ -214,8 +214,8 @@ internal class MonitoringRepository(
                             processId = reading?.snapshot?.pid,
                             memoryLimitBytes = mihomoRuntime.state.value.memory.osLimitBytes.takeIf { it > 0L },
                             sampleIntervalMillis = intervalMillis,
-                            fifteenMinuteSamples = history.fifteenMinutes,
-                            oneHourSamples = history.oneHour,
+                            fifteenMinuteSamples = history?.fifteenMinutes.orEmpty(),
+                            oneHourSamples = history?.oneHour.orEmpty(),
                         ),
                     )
                 }
@@ -224,7 +224,10 @@ internal class MonitoringRepository(
         }
     }
 
-    private suspend fun collectTrafficStats(intervalMillis: Long) {
+    private suspend fun collectTrafficStats(
+        intervalMillis: Long,
+        recordHistory: Boolean,
+    ) {
         while (currentCoroutineContext().isActive) {
             val runtime = mihomoRuntime.state.value
             val appState = stateStore.state.value
@@ -238,6 +241,7 @@ internal class MonitoringRepository(
                     ledger = trafficLedgerStore.snapshot(),
                     today = today,
                     runtimeTraffic = null,
+                    recordHistory = recordHistory,
                 )
             } else {
                 if (!trafficWasConnected) {
@@ -270,20 +274,24 @@ internal class MonitoringRepository(
                         sessionDownloadBytes = runtimeTraffic.totalDown,
                         sampleTimestampMillis = runtimeTraffic.latest.timestampMillis,
                     ),
+                    recordHistory = recordHistory,
                 )
             }
             delay(intervalMillis.milliseconds)
         }
     }
 
-    private suspend fun collectConnections(intervalMillis: Long) {
+    private suspend fun collectConnections(
+        intervalMillis: Long,
+        includeDetails: Boolean,
+    ) {
         while (currentCoroutineContext().isActive) {
-            refreshConnections()
+            refreshConnections(includeDetails)
             delay(intervalMillis.milliseconds)
         }
     }
 
-    private suspend fun refreshConnections() = connectionRefreshMutex.withLock {
+    private suspend fun refreshConnections(includeDetails: Boolean = true) = connectionRefreshMutex.withLock {
         val appState = stateStore.state.value
         if (!appState.proxyRunning) {
             mutableState.update { current ->
@@ -294,27 +302,41 @@ internal class MonitoringRepository(
             return@withLock
         }
         mutableState.update { current ->
-            if (current.connections.snapshot.updatedAtMillis == 0L) {
+            when {
+                !includeDetails && current.connections.snapshot.updatedAtMillis > 0L -> {
+                    current.copy(connections = current.connections.copy(snapshot = MihomoConnectionsState()))
+                }
+
+                includeDetails && current.connections.snapshot.updatedAtMillis == 0L -> {
                 current.copy(connections = current.connections.copy(status = ConnectionMonitorStatus.Loading, error = ""))
-            } else {
-                current
+                }
+
+                else -> current
             }
         }
         mihomoRuntime.getConnections(appState)
             .onSuccess { snapshot ->
                 mutableState.update { current ->
-                    val rated = deriveConnectionRates(
-                        previous = current.connections.snapshot.takeIf { it.updatedAtMillis > 0L },
-                        current = snapshot,
-                    )
+                    val detailSnapshot = if (includeDetails) {
+                        deriveConnectionRates(
+                            previous = current.connections.snapshot.takeIf { it.updatedAtMillis > 0L },
+                            current = snapshot,
+                        )
+                    } else {
+                        null
+                    }
+                    val displayedSnapshot = detailSnapshot ?: MihomoConnectionsState()
+                    val sourceSnapshot = detailSnapshot ?: snapshot
                     current.copy(
                         connections = MonitoringConnectionsSummary(
-                            activeCount = rated.connections.size,
-                            uploadBytesPerSecond = rated.connections.sumKnownRates(MihomoConnection::uploadBytesPerSecond),
-                            downloadBytesPerSecond = rated.connections.sumKnownRates(MihomoConnection::downloadBytesPerSecond),
-                            sessionUploadBytes = rated.uploadTotalBytes,
-                            sessionDownloadBytes = rated.downloadTotalBytes,
-                            snapshot = rated,
+                            activeCount = sourceSnapshot.connections.size,
+                            uploadBytesPerSecond = detailSnapshot?.connections
+                                ?.sumKnownRates(MihomoConnection::uploadBytesPerSecond),
+                            downloadBytesPerSecond = detailSnapshot?.connections
+                                ?.sumKnownRates(MihomoConnection::downloadBytesPerSecond),
+                            sessionUploadBytes = detailSnapshot?.uploadTotalBytes,
+                            sessionDownloadBytes = detailSnapshot?.downloadTotalBytes,
+                            snapshot = displayedSnapshot,
                             status = ConnectionMonitorStatus.Available,
                         ),
                     )
@@ -325,9 +347,10 @@ internal class MonitoringRepository(
                 mutableState.update { current ->
                     current.copy(
                         connections = current.connections.copy(
+                            snapshot = if (includeDetails) current.connections.snapshot else MihomoConnectionsState(),
                             status = ConnectionMonitorStatus.Error,
                             error = error.message.orEmpty(),
-                            stale = current.connections.snapshot.updatedAtMillis > 0L,
+                            stale = includeDetails && current.connections.snapshot.updatedAtMillis > 0L,
                         ),
                     )
                 }
@@ -338,6 +361,7 @@ internal class MonitoringRepository(
         ledger: features.monitoring.traffic.TrafficLedger,
         today: String,
         runtimeTraffic: TrafficRuntimeSummary?,
+        recordHistory: Boolean,
     ) {
         mutableState.update { current ->
             current.copy(
@@ -350,7 +374,9 @@ internal class MonitoringRepository(
                     sevenDays = ledger.totalForLastDays(7, today),
                     thirtyDays = ledger.totalForLastDays(30, today),
                     dailyTotals = ledger.days,
-                    speedSamples = runtimeTraffic?.let { summary ->
+                    speedSamples = if (!recordHistory) {
+                        emptyList()
+                    } else runtimeTraffic?.let { summary ->
                         val existing = current.traffic.speedSamples
                         val withLatest = if (existing.lastOrNull()?.timestampMillis == summary.sampleTimestampMillis) {
                             existing

@@ -10,10 +10,11 @@ import app.modes.MihomoModeGlobal
 import app.modes.MihomoModeRule
 import engine.mihomo.runtime.MihomoRuntimeState
 import engine.mihomo.runtime.MihomoTrafficSample
+import engine.mihomo.runtime.MihomoTrafficState
 import engine.mihomo.selectedMihomoProfileOrNull
 import features.monitoring.MonitoringState
-import utils.toReadableBytes
 import ui.theme.FocusTone
+import utils.toReadableBytes
 
 internal enum class HomeServiceStatus {
     Enabled,
@@ -54,23 +55,39 @@ internal data class HomeSubscriptionSummary(
     val expireAtSeconds: Long,
 )
 
-internal data class HomeDisplayState(
+internal data class HomeControllerRuntimeState(
+    val mihomoMode: Int?,
+    val selectedNode: String?,
+)
+
+internal data class HomeControllerState(
     val serviceStatus: HomeServiceStatus,
     val runMode: Int,
     val mihomoMode: Int,
     val mihomoModeReadOnly: Boolean,
     val primaryRows: List<HomePrimaryRow>,
+    val subscription: HomeSubscriptionSummary?,
+)
+
+internal data class HomeNetworkActivityState(
     val accumulatedUploadBytes: Long?,
     val accumulatedDownloadBytes: Long?,
     val uploadBytesPerSecond: Long?,
     val downloadBytesPerSecond: Long?,
     val networkSamples: List<MihomoTrafficSample>,
-    val networkRows: List<HomeNetworkRow>,
-    val subscription: HomeSubscriptionSummary?,
 ) {
     val hasNetworkSamples: Boolean
         get() = networkSamples.isNotEmpty()
 }
+
+internal data class HomeMonitoringOverviewState(
+    val serviceRunning: Boolean,
+    val resourceCpuPercent: Double?,
+    val resourceMemoryBytes: Long?,
+    val activeConnectionCount: Int?,
+    val todayTrafficBytes: Long,
+    val networkRows: List<HomeNetworkRow>,
+)
 
 internal data class HomeModeChange(
     val runtimeAppState: AppState,
@@ -78,44 +95,77 @@ internal data class HomeModeChange(
     val patchRuntime: Boolean,
 )
 
-internal fun buildHomeDisplayState(
+internal fun buildHomeControllerRuntimeState(
+    runtimeState: MihomoRuntimeState,
+): HomeControllerRuntimeState = HomeControllerRuntimeState(
+    mihomoMode = runtimeState.configs.mode.toMihomoModeOrNull(),
+    selectedNode = runtimeState.proxies.groups
+        .firstOrNull { group -> group.now.isNotBlank() }
+        ?.now,
+)
+
+internal fun buildHomeControllerState(
     appState: AppState,
     runtimeState: MihomoRuntimeState,
     rawMihomoMode: Int? = null,
-    monitoringState: MonitoringState = MonitoringState(),
-): HomeDisplayState {
+): HomeControllerState = buildHomeControllerState(
+    appState = appState,
+    runtimeState = buildHomeControllerRuntimeState(runtimeState),
+    rawMihomoMode = rawMihomoMode,
+)
+
+internal fun buildHomeControllerState(
+    appState: AppState,
+    runtimeState: HomeControllerRuntimeState,
+    rawMihomoMode: Int? = null,
+): HomeControllerState {
     val selectedProfile = appState.selectedMihomoProfileOrNull()
     val rawProfile = selectedProfile?.disableOverrides == true
-    val runtimeMihomoMode = runtimeState.configs.mode.toMihomoModeOrNull()
-    val trafficAvailable = appState.proxyRunning && runtimeState.traffic.connected
-    val selectedNode = runtimeState.proxies.groups
-        .firstOrNull { group -> group.now.isNotBlank() }
-        ?.now
-    return HomeDisplayState(
+    return HomeControllerState(
         serviceStatus = if (appState.proxyRunning) HomeServiceStatus.Enabled else HomeServiceStatus.Disabled,
         runMode = appState.runMode,
         mihomoMode = when {
-            rawProfile && appState.proxyRunning -> runtimeMihomoMode ?: rawMihomoMode ?: appState.mihomoMode
+            rawProfile && appState.proxyRunning -> runtimeState.mihomoMode ?: rawMihomoMode ?: appState.mihomoMode
             rawProfile -> rawMihomoMode ?: appState.mihomoMode
             else -> appState.mihomoMode
         },
         mihomoModeReadOnly = rawProfile && !appState.proxyRunning,
         primaryRows = listOf(
-            HomePrimaryRow(HomePrimaryRowKind.Node, selectedNode),
+            HomePrimaryRow(HomePrimaryRowKind.Node, runtimeState.selectedNode),
             HomePrimaryRow(HomePrimaryRowKind.Configuration, selectedProfile?.name?.takeIf(String::isNotBlank)),
-        ),
-        accumulatedUploadBytes = runtimeState.traffic.totalUp.takeIf { appState.proxyRunning },
-        accumulatedDownloadBytes = runtimeState.traffic.totalDown.takeIf { appState.proxyRunning },
-        uploadBytesPerSecond = runtimeState.traffic.latest.up.takeIf { trafficAvailable },
-        downloadBytesPerSecond = runtimeState.traffic.latest.down.takeIf { trafficAvailable },
-        networkSamples = if (trafficAvailable) runtimeState.traffic.history.takeLast(HomeNetworkSampleLimit) else emptyList(),
-        networkRows = listOf(
-            HomeNetworkRow(HomeNetworkRowKind.Ipv4, monitoringState.network.local.ipv4Addresses.firstOrNull()),
-            HomeNetworkRow(HomeNetworkRowKind.Ipv6, monitoringState.network.local.ipv6Addresses.firstOrNull()),
         ),
         subscription = selectedProfile?.subscriptionInfo?.toHomeSubscriptionSummaryOrNull(),
     )
 }
+
+internal fun buildHomeNetworkActivityState(
+    appState: AppState,
+    traffic: MihomoTrafficState,
+    networkSamples: List<MihomoTrafficSample>,
+): HomeNetworkActivityState {
+    val trafficAvailable = appState.proxyRunning && traffic.connected
+    return HomeNetworkActivityState(
+        accumulatedUploadBytes = traffic.totalUp.takeIf { appState.proxyRunning },
+        accumulatedDownloadBytes = traffic.totalDown.takeIf { appState.proxyRunning },
+        uploadBytesPerSecond = traffic.latest.up.takeIf { trafficAvailable },
+        downloadBytesPerSecond = traffic.latest.down.takeIf { trafficAvailable },
+        networkSamples = networkSamples.takeLast(HomeNetworkSampleLimit).takeIf { trafficAvailable }.orEmpty(),
+    )
+}
+
+internal fun buildHomeMonitoringOverviewState(
+    monitoringState: MonitoringState,
+): HomeMonitoringOverviewState = HomeMonitoringOverviewState(
+    serviceRunning = monitoringState.serviceRunning,
+    resourceCpuPercent = monitoringState.resource.cpuPercent,
+    resourceMemoryBytes = monitoringState.resource.memoryBytes,
+    activeConnectionCount = monitoringState.connections.activeCount,
+    todayTrafficBytes = monitoringState.traffic.today.total,
+    networkRows = listOf(
+        HomeNetworkRow(HomeNetworkRowKind.Ipv4, monitoringState.network.local.ipv4Addresses.firstOrNull()),
+        HomeNetworkRow(HomeNetworkRowKind.Ipv6, monitoringState.network.local.ipv6Addresses.firstOrNull()),
+    ),
+)
 
 internal fun buildHomeModeChange(
     appState: AppState,

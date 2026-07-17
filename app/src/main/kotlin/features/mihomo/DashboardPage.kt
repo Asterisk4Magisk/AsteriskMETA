@@ -1,7 +1,10 @@
 // Copyright 2026, AsteriskMETA contributors
 // SPDX-License-Identifier: GPL-3.0
 
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@file:OptIn(
+    androidx.compose.material3.ExperimentalMaterial3Api::class,
+    kotlinx.coroutines.FlowPreview::class,
+)
 
 package features.mihomo
 
@@ -25,7 +28,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import ui.icons.AsteriskIcons as Icons
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -38,10 +40,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -51,8 +53,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -66,7 +68,6 @@ import app.LocalNavigator
 import app.LocalUpdateAppState
 import app.R
 import app.collectAppState
-import app.withMihomoRestartApplied
 import app.modes.MihomoModeDirect
 import app.modes.MihomoModeGlobal
 import app.modes.MihomoModeRule
@@ -75,42 +76,60 @@ import app.modes.RunModeTproxy
 import app.modes.RunModeTun
 import app.modes.RunModeTun2Socks
 import app.navigation.MainDestination
-import app.navigation.Route as AppRoute
-import ui.layout.pageContentPaddingWithCutout
-import ui.layout.pageListPadding
-import ui.theme.AsteriskMotion
+import app.withMihomoRestartApplied
 import engine.mihomo.MihomoProfileEmptyErrorMessage
 import engine.mihomo.MihomoProfileMissingErrorMessage
 import engine.mihomo.mihomoModeName
-import engine.mihomo.selectedMihomoProfileOrNull
 import engine.mihomo.raw.MihomoRawConfigParser
+import engine.mihomo.runtime.MihomoTrafficSample
+import engine.mihomo.runtime.MihomoTrafficState
+import engine.mihomo.selectedMihomoProfileOrNull
 import engine.proxy.ProxyServiceResult
-import features.home.HomeDisplayState
+import features.home.HomeControllerState
+import features.home.HomeMonitoringOverviewState
+import features.home.HomeNetworkActivityState
 import features.home.HomeNetworkRowKind
 import features.home.HomePrimaryRowKind
 import features.home.HomeServiceStatus
+import features.home.HomeSubscriptionSummary
+import features.home.buildHomeControllerState
+import features.home.buildHomeControllerRuntimeState
 import features.home.buildHomeModeChange
-import features.home.buildHomeDisplayState
+import features.home.buildHomeMonitoringOverviewState
+import features.home.buildHomeNetworkActivityState
 import features.home.formatHomeRuntimeBytes
 import features.home.homeFocusTone
 import features.home.toMihomoModeOrNull
 import features.monitoring.MonitoringIntent
 import features.monitoring.ObserveMonitoring
-import features.monitoring.MonitoringState
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.sample
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import ui.components.AsteriskExpressiveCard
+import ui.components.AsteriskFocusSurface
+import ui.components.AsteriskPageCard
+import ui.components.AsteriskSegmentItem
+import ui.components.AsteriskSegmentedControl
+import ui.layout.pageContentPaddingWithCutout
+import ui.layout.pageListPadding
+import ui.theme.AsteriskMotion
+import ui.theme.AsteriskShapeTokens
+import ui.theme.ExpressiveShapeRole
+import ui.theme.FocusDensity
 import utils.toReadableBytes
 import java.text.DateFormat
 import java.util.Date
-import ui.theme.AsteriskShapeTokens
-import ui.components.AsteriskPageCard
-import ui.components.AsteriskExpressiveCard
-import ui.components.AsteriskFocusSurface
-import ui.components.AsteriskSegmentItem
-import ui.components.AsteriskSegmentedControl
-import ui.theme.ExpressiveShapeRole
-import ui.theme.FocusDensity
+import kotlin.time.Duration.Companion.milliseconds
+import app.navigation.Route as AppRoute
+import ui.icons.AsteriskIcons as Icons
+
+private data class HomeTrafficPresentation(
+    val traffic: MihomoTrafficState,
+    val samples: List<MihomoTrafficSample>,
+)
 
 @Composable
 fun MihomoDashboardPage(
@@ -119,8 +138,34 @@ fun MihomoDashboardPage(
     val appState by LocalAppStateStore.current.collectAppState()
     val updateAppState = LocalUpdateAppState.current
     val services = LocalAppServices.current
-    val runtimeState by services.mihomoRuntime.state.collectAsState()
-    val monitoringState by services.monitoring.state.collectAsState()
+    val controllerRuntimeState by remember(services.mihomoRuntime) {
+        services.mihomoRuntime.state
+            .map(::buildHomeControllerRuntimeState)
+            .distinctUntilChanged()
+    }.collectAsState(initial = buildHomeControllerRuntimeState(services.mihomoRuntime.state.collectAsState().value))
+    val trafficPresentation by remember(services.mihomoRuntime) {
+        services.mihomoRuntime.state
+            .map { state -> state.traffic }
+            .sample(HomeUiSampleIntervalMillis.milliseconds)
+            .map { traffic ->
+                HomeTrafficPresentation(
+                    traffic = traffic,
+                    samples = services.mihomoRuntime.trafficHistorySnapshot(HomeNetworkHistoryLimit),
+                )
+            }
+            .distinctUntilChanged()
+    }.collectAsState(
+        initial = HomeTrafficPresentation(
+            traffic = services.mihomoRuntime.state.collectAsState().value.traffic,
+            samples = services.mihomoRuntime.trafficHistorySnapshot(HomeNetworkHistoryLimit),
+        ),
+    )
+    val monitoringOverviewState by remember(services.monitoring) {
+        services.monitoring.state
+            .map(::buildHomeMonitoringOverviewState)
+            .distinctUntilChanged()
+            .sample(HomeUiSampleIntervalMillis.milliseconds)
+    }.collectAsState(initial = buildHomeMonitoringOverviewState(services.monitoring.state.collectAsState().value))
     val navigator = LocalNavigator.current
     val isWideScreen = LocalIsWideScreen.current
     val mainDestinationState = LocalMainDestinationState.current
@@ -147,11 +192,18 @@ fun MihomoDashboardPage(
             null
         }
     }
-    val homeState = remember(appState, runtimeState, rawMihomoMode, monitoringState) {
-        buildHomeDisplayState(appState, runtimeState, rawMihomoMode, monitoringState)
+    val controllerState = remember(appState, controllerRuntimeState, rawMihomoMode) {
+        buildHomeControllerState(appState, controllerRuntimeState, rawMihomoMode)
+    }
+    val networkActivityState = remember(appState.proxyRunning, trafficPresentation) {
+        buildHomeNetworkActivityState(
+            appState = appState,
+            traffic = trafficPresentation.traffic,
+            networkSamples = trafficPresentation.samples,
+        )
     }
     val latestAppState = rememberUpdatedState(appState)
-    val latestHomeState = rememberUpdatedState(homeState)
+    val latestControllerState = rememberUpdatedState(controllerState)
 
     val startFailedMessage = stringResource(R.string.mihomo_dashboard_start_failed)
     val startNoConfigurationMessage = stringResource(R.string.mihomo_dashboard_start_no_configuration)
@@ -217,7 +269,7 @@ fun MihomoDashboardPage(
         val stateSnapshot = latestAppState.value
         val modeChange = buildHomeModeChange(
             appState = stateSnapshot,
-            currentMode = latestHomeState.value.mihomoMode,
+            currentMode = latestControllerState.value.mihomoMode,
             requestedMode = mode,
         ) ?: return
         val previousMode = stateSnapshot.mihomoMode
@@ -266,7 +318,8 @@ fun MihomoDashboardPage(
             item("controller") {
                 HomeControllerCard(
                     appState = appState,
-                    homeState = homeState,
+                    controllerState = controllerState,
+                    networkActivityState = networkActivityState,
                     operationInProgress = operationInProgress,
                     onToggleService = ::toggleService,
                     onModeSelected = ::changeMode,
@@ -275,7 +328,7 @@ fun MihomoDashboardPage(
                 )
             }
             item("network_activity") {
-                NetworkActivityCard(homeState)
+                NetworkActivityCard(networkActivityState)
             }
             item("monitoring_row_one") {
                 Row(
@@ -284,7 +337,7 @@ fun MihomoDashboardPage(
                 ) {
                     MonitoringEntryCard(
                         title = stringResource(R.string.home_monitor_resource),
-                        summary = homeResourceSummary(monitoringState),
+                        summary = homeResourceSummary(monitoringOverviewState),
                         icon = Icons.Rounded.Memory,
                         prominent = true,
                         onClick = { navigator.push(AppRoute.ResourceMonitor) },
@@ -292,7 +345,7 @@ fun MihomoDashboardPage(
                     )
                     MonitoringEntryCard(
                         title = stringResource(R.string.home_monitor_connections),
-                        summary = monitoringState.connections.activeCount?.let { count ->
+                        summary = monitoringOverviewState.activeConnectionCount?.let { count ->
                             pluralStringResource(R.plurals.home_connections_summary, count, count)
                         } ?: stringResource(R.string.home_value_unavailable),
                         icon = Icons.Rounded.Lan,
@@ -310,7 +363,7 @@ fun MihomoDashboardPage(
                         title = stringResource(R.string.home_monitor_traffic),
                         summary = stringResource(
                             R.string.home_traffic_summary,
-                            monitoringState.traffic.today.total.toReadableBytes(),
+                            monitoringOverviewState.todayTrafficBytes.toReadableBytes(),
                         ),
                         icon = Icons.Rounded.DataUsage,
                         onClick = { navigator.push(AppRoute.TrafficMonitor) },
@@ -318,7 +371,7 @@ fun MihomoDashboardPage(
                     )
                     MonitoringEntryCard(
                         title = stringResource(R.string.home_monitor_network),
-                        summary = homeNetworkSummary(homeState),
+                        summary = homeNetworkSummary(monitoringOverviewState),
                         icon = Icons.Rounded.Public,
                         prominent = true,
                         onClick = { navigator.push(AppRoute.NetworkMonitor) },
@@ -327,7 +380,7 @@ fun MihomoDashboardPage(
                 }
             }
             item("subscription") {
-                SubscriptionSummaryCard(homeState)
+                SubscriptionSummaryCard(controllerState.subscription)
             }
         }
     }
@@ -336,7 +389,8 @@ fun MihomoDashboardPage(
 @Composable
 private fun HomeControllerCard(
     appState: AppState,
-    homeState: HomeDisplayState,
+    controllerState: HomeControllerState,
+    networkActivityState: HomeNetworkActivityState,
     operationInProgress: Boolean,
     onToggleService: () -> Unit,
     onModeSelected: (Int) -> Unit,
@@ -350,27 +404,27 @@ private fun HomeControllerCard(
         label = "home-service-switch-alpha",
     )
     AsteriskFocusSurface(
-        title = if (homeState.serviceStatus == HomeServiceStatus.Enabled) {
+        title = if (controllerState.serviceStatus == HomeServiceStatus.Enabled) {
             stringResource(R.string.home_service_enabled)
         } else {
             stringResource(R.string.home_service_disabled)
         },
         modifier = HomeContentModifier,
         density = FocusDensity.Large,
-        tone = homeFocusTone(homeState.serviceStatus),
-        summary = runModeLabel(homeState.runMode),
+        tone = homeFocusTone(controllerState.serviceStatus),
+        summary = runModeLabel(controllerState.runMode),
         stateIcon = Icons.Rounded.PowerSettingsNew,
         metrics = {
             HomeFocusMetric(
                 icon = Icons.Rounded.Upload,
                 label = stringResource(R.string.home_accumulated_upload),
-                value = formatHomeRuntimeBytes(homeState.accumulatedUploadBytes),
+                value = formatHomeRuntimeBytes(networkActivityState.accumulatedUploadBytes),
                 modifier = Modifier.weight(1f),
             )
             HomeFocusMetric(
                 icon = Icons.Rounded.Download,
                 label = stringResource(R.string.home_accumulated_download),
-                value = formatHomeRuntimeBytes(homeState.accumulatedDownloadBytes),
+                value = formatHomeRuntimeBytes(networkActivityState.accumulatedDownloadBytes),
                 modifier = Modifier.weight(1f),
             )
         },
@@ -380,7 +434,7 @@ private fun HomeControllerCard(
                 contentAlignment = Alignment.Center,
             ) {
                 Switch(
-                    checked = homeState.serviceStatus == HomeServiceStatus.Enabled,
+                    checked = controllerState.serviceStatus == HomeServiceStatus.Enabled,
                     onCheckedChange = { onToggleService() },
                     modifier = Modifier.alpha(serviceSwitchAlpha),
                     enabled = !operationInProgress,
@@ -424,7 +478,7 @@ private fun HomeControllerCard(
                     }
                 }
 
-                homeState.primaryRows
+                controllerState.primaryRows
                     .filter { row -> row.kind == HomePrimaryRowKind.Node }
                     .forEach { row ->
                         HomePrimaryRow(
@@ -435,7 +489,7 @@ private fun HomeControllerCard(
                         )
                     }
 
-                homeState.primaryRows
+                controllerState.primaryRows
                     .filter { row -> row.kind == HomePrimaryRowKind.Configuration }
                     .forEach { row ->
                         HomePrimaryRow(
@@ -450,11 +504,11 @@ private fun HomeControllerCard(
                     items = homeModeOptions().map { option ->
                         AsteriskSegmentItem(value = option.mode, label = option.label)
                     },
-                    selectedValue = homeState.mihomoMode,
+                    selectedValue = controllerState.mihomoMode,
                     onSelected = onModeSelected,
-                    enabled = !homeState.mihomoModeReadOnly,
+                    enabled = !controllerState.mihomoModeReadOnly,
                 )
-                if (homeState.mihomoModeReadOnly) {
+                if (controllerState.mihomoModeReadOnly) {
                     Text(
                         text = stringResource(R.string.settings_value_from_yaml),
                         style = MaterialTheme.typography.labelMedium,
@@ -563,7 +617,7 @@ private fun HomeControllerItemContent(
 }
 
 @Composable
-private fun NetworkActivityCard(homeState: HomeDisplayState) {
+private fun NetworkActivityCard(networkActivityState: HomeNetworkActivityState) {
     AsteriskPageCard(modifier = HomeContentModifier.height(180.dp)) {
         Column(
             modifier = Modifier
@@ -581,15 +635,15 @@ private fun NetworkActivityCard(homeState: HomeDisplayState) {
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    text = "↑ ${formatHomeSpeed(homeState.uploadBytesPerSecond)}   ↓ ${formatHomeSpeed(homeState.downloadBytesPerSecond)}",
+                    text = "↑ ${formatHomeSpeed(networkActivityState.uploadBytesPerSecond)}   ↓ ${formatHomeSpeed(networkActivityState.downloadBytesPerSecond)}",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             Spacer(Modifier.height(12.dp))
-            if (homeState.hasNetworkSamples) {
+            if (networkActivityState.hasNetworkSamples) {
                 NetworkActivityChart(
-                    state = homeState,
+                    state = networkActivityState,
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f),
@@ -614,7 +668,7 @@ private fun NetworkActivityCard(homeState: HomeDisplayState) {
 
 @Composable
 private fun NetworkActivityChart(
-    state: HomeDisplayState,
+    state: HomeNetworkActivityState,
     modifier: Modifier = Modifier,
 ) {
     val uploadColor = MaterialTheme.colorScheme.tertiary
@@ -657,8 +711,7 @@ private fun NetworkActivityChart(
 }
 
 @Composable
-private fun SubscriptionSummaryCard(homeState: HomeDisplayState) {
-    val summary = homeState.subscription
+private fun SubscriptionSummaryCard(summary: HomeSubscriptionSummary?) {
     AsteriskPageCard(modifier = HomeContentModifier) {
         Column(
             modifier = Modifier.padding(20.dp),
@@ -773,19 +826,19 @@ private fun homeModeOptions(): List<HomeModeOption> {
 }
 
 @Composable
-private fun homeResourceSummary(monitoringState: MonitoringState): String {
+private fun homeResourceSummary(monitoringState: HomeMonitoringOverviewState): String {
     if (!monitoringState.serviceRunning) return stringResource(R.string.home_value_unavailable)
-    val cpu = monitoringState.resource.cpuPercent
+    val cpu = monitoringState.resourceCpuPercent
         ?.let { value -> "%.1f%%".format(value) }
         ?: stringResource(R.string.home_value_unavailable)
-    val memory = monitoringState.resource.memoryBytes
+    val memory = monitoringState.resourceMemoryBytes
         ?.toReadableBytes()
         ?: stringResource(R.string.home_value_unavailable)
     return stringResource(R.string.home_resource_summary, cpu, memory)
 }
 
 @Composable
-private fun homeNetworkSummary(homeState: HomeDisplayState): String {
+private fun homeNetworkSummary(homeState: HomeMonitoringOverviewState): String {
     val ipv4 = homeState.networkRows
         .firstOrNull { row -> row.kind == HomeNetworkRowKind.Ipv4 }
         ?.value ?: "—"
@@ -819,6 +872,9 @@ private data class HomeModeOption(
     val mode: Int,
     val label: String,
 )
+
+private const val HomeUiSampleIntervalMillis = 1_000L
+private const val HomeNetworkHistoryLimit = 60
 
 private val HomeContentModifier = Modifier
     .fillMaxWidth()

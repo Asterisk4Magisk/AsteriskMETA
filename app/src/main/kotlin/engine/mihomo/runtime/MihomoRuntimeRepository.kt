@@ -44,6 +44,8 @@ internal class MihomoRuntimeRepository(
 ) : MihomoRuntimeLifecycleTarget {
     private val appContext = context.applicationContext
     private val mutableState = MutableStateFlow(MihomoRuntimeState())
+    private val trafficHistory = MihomoTrafficHistoryBuffer(MaxTrafficHistorySize)
+    private val trafficHistoryLock = Any()
     private var monitorJob: Job? = null
     private var delayTestJob: Job? = null
     private var activeSignature: MihomoRuntimeSignature? = null
@@ -52,6 +54,10 @@ internal class MihomoRuntimeRepository(
     private var lastLoggedRuntimeError = ""
 
     val state: StateFlow<MihomoRuntimeState> = mutableState.asStateFlow()
+
+    internal fun trafficHistorySnapshot(limit: Int): List<MihomoTrafficSample> = synchronized(trafficHistoryLock) {
+        trafficHistory.snapshot(limit)
+    }
 
     init {
         appScope.launch(Dispatchers.IO) {
@@ -162,6 +168,9 @@ internal class MihomoRuntimeRepository(
         monitorJob = null
         cancelDelayTest()
         activeSignature = null
+        if (resetSnapshots) {
+            synchronized(trafficHistoryLock) { trafficHistory.clear() }
+        }
         mutableState.update { current ->
             if (resetSnapshots) {
                 MihomoRuntimeState(
@@ -542,14 +551,13 @@ internal class MihomoRuntimeRepository(
     ) {
         runCatching {
             client.traffic(control, useBridge).collect { sample ->
+                synchronized(trafficHistoryLock) { trafficHistory.append(sample) }
                 mutableState.update { current ->
-                    val nextHistory = (current.traffic.history + sample).takeLast(MaxTrafficHistorySize)
                     current.copy(
                         traffic = current.traffic.copy(
                             latest = sample,
                             totalUp = sample.totalUp ?: (current.traffic.totalUp + sample.up),
                             totalDown = sample.totalDown ?: (current.traffic.totalDown + sample.down),
-                            history = nextHistory,
                             connected = true,
                         ),
                     )

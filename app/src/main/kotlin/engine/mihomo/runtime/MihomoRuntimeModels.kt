@@ -20,7 +20,6 @@ internal data class MihomoTrafficState(
     val latest: MihomoTrafficSample = MihomoTrafficSample(),
     val totalUp: Long = 0L,
     val totalDown: Long = 0L,
-    val history: List<MihomoTrafficSample> = emptyList(),
     val connected: Boolean = false,
 )
 
