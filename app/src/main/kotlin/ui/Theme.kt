@@ -37,9 +37,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.core.graphics.drawable.toDrawable
 import androidx.core.view.WindowCompat
 import app.R
 import app.modes.ColorModeDark
@@ -57,7 +59,7 @@ import ui.theme.LocalReduceMotion
 import ui.theme.LocalSpacing
 import ui.theme.resolveTheme
 
-val LocalColorMode = compositionLocalOf<Int> { ColorModeSystem }
+val LocalColorMode = compositionLocalOf { ColorModeSystem }
 private val LocalResolvedDarkTheme = compositionLocalOf { false }
 
 private const val ThemeSchemeSwitchFraction = 0.35f
@@ -162,7 +164,10 @@ fun AppTheme(
     ) {
         CompositionLocalProvider(LocalSpacing provides AsteriskSpacing()) {
             AsteriskMaterialTheme(colorScheme = displayedScheme) {
-                SystemBarAppearance(isDark = systemBarIsDark)
+                SystemBarAppearance(
+                    colorScheme = displayedScheme,
+                    isDark = systemBarIsDark,
+                )
                 ThemeTransitionOverlay(
                     transitionActive = transitionActive,
                     transitionProgress = transitionProgress,
@@ -267,11 +272,15 @@ fun keyColorFor(index: Int): Color? = if (index <= 0) null else KeyColors.getOrN
 private val DefaultSeedColor = Color(0xFF6750A4)
 
 @Composable
-private fun SystemBarAppearance(isDark: Boolean) {
+private fun SystemBarAppearance(
+    colorScheme: ColorScheme,
+    isDark: Boolean,
+) {
     val view = LocalView.current
     if (view.isInEditMode) return
     SideEffect {
         val window = (view.context as? Activity)?.window ?: return@SideEffect
+        window.setBackgroundDrawable(colorScheme.surface.toArgb().toDrawable())
         WindowCompat.getInsetsController(window, view).apply {
             isAppearanceLightStatusBars = !isDark
             isAppearanceLightNavigationBars = !isDark

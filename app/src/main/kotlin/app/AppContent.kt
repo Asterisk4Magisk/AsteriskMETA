@@ -9,6 +9,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -24,6 +26,7 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.union
 import ui.icons.AsteriskIcons as Icons
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationRail
@@ -131,8 +134,13 @@ fun AppContent(
         LocalSupportsSplitPane provides supportsSplitPane,
         LocalMainDestinationState provides mainDestinationState,
     ) {
-        val entryProvider = remember(backStack) {
-            entryProvider<NavKey> {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.surface),
+        ) {
+            val entryProvider = remember(backStack) {
+                entryProvider<NavKey> {
                 entry<Route.Main> {
                     Home(
                         padding = padding,
@@ -212,41 +220,42 @@ fun AppContent(
                     }
                 }
             }
+            }
+
+            val entries = rememberDecoratedNavEntries(
+                backStack = backStack,
+                entryDecorators = listOf(rememberSaveableStateHolderNavEntryDecorator()),
+                entryProvider = entryProvider,
+            )
+            val detailSpatialMotion = AsteriskMotion.spatial<IntOffset>()
+
+            NavDisplay(
+                entries = entries,
+                onBack = { navigator.pop() },
+                transitionSpec = {
+                    slideInHorizontally(
+                        animationSpec = detailSpatialMotion,
+                        initialOffsetX = { width -> width },
+                    ).togetherWith(
+                        slideOutHorizontally(
+                            animationSpec = detailSpatialMotion,
+                            targetOffsetX = { width -> -width / 3 },
+                        ),
+                    )
+                },
+                popTransitionSpec = {
+                    slideInHorizontally(
+                        animationSpec = detailSpatialMotion,
+                        initialOffsetX = { width -> -width / 3 },
+                    ).togetherWith(
+                        slideOutHorizontally(
+                            animationSpec = detailSpatialMotion,
+                            targetOffsetX = { width -> width },
+                        ),
+                    )
+                },
+            )
         }
-
-        val entries = rememberDecoratedNavEntries(
-            backStack = backStack,
-            entryDecorators = listOf(rememberSaveableStateHolderNavEntryDecorator()),
-            entryProvider = entryProvider,
-        )
-        val detailSpatialMotion = AsteriskMotion.spatial<IntOffset>()
-
-        NavDisplay(
-            entries = entries,
-            onBack = { navigator.pop() },
-            transitionSpec = {
-                slideInHorizontally(
-                    animationSpec = detailSpatialMotion,
-                    initialOffsetX = { width -> width },
-                ).togetherWith(
-                    slideOutHorizontally(
-                        animationSpec = detailSpatialMotion,
-                        targetOffsetX = { width -> -width / 3 },
-                    ),
-                )
-            },
-            popTransitionSpec = {
-                slideInHorizontally(
-                    animationSpec = detailSpatialMotion,
-                    initialOffsetX = { width -> -width / 3 },
-                ).togetherWith(
-                    slideOutHorizontally(
-                        animationSpec = detailSpatialMotion,
-                        targetOffsetX = { width -> width },
-                    ),
-                )
-            },
-        )
     }
 }
 
