@@ -4,8 +4,6 @@ package main
 import "C"
 
 import (
-	"unsafe"
-
 	"cfa/native/app"
 	"cfa/native/tunnel"
 )
@@ -89,7 +87,7 @@ func queryGroup(name C.c_string, sortMode C.c_string) *C.char {
 }
 
 //export healthCheck
-func healthCheck(completable unsafe.Pointer, name C.c_string) {
+func healthCheck(completable C.c_object, name C.c_string) {
 	go func(name string) {
 		tunnel.HealthCheck(name)
 
@@ -160,7 +158,7 @@ func queryProvider(pType C.c_string, name C.c_string) *C.char {
 }
 
 //export updateProvider
-func updateProvider(completable unsafe.Pointer, pType C.c_string, name C.c_string) {
+func updateProvider(completable C.c_object, pType C.c_string, name C.c_string) {
 	go func(pType, name string) {
 		C.complete(completable, marshalString(tunnel.UpdateProvider(pType, name)))
 

@@ -8,6 +8,7 @@
 #define TAG "ClashMetaForAndroid"
 
 typedef const char *c_string;
+typedef uintptr_t c_object;
 
 extern void (*mark_socket_func)(void *tun_interface, int fd);
 
@@ -26,19 +27,19 @@ extern void (*release_object_func)(void *obj);
 extern int (*open_content_func)(const char *url, char *error, int error_length);
 
 // cgo
-extern void mark_socket(void *interface, int fd);
+extern void mark_socket(c_object interface, int fd);
 
-extern int query_socket_uid(void *interface, int protocol, char *source, char *target);
+extern int query_socket_uid(c_object interface, int protocol, char *source, char *target);
 
-extern void complete(void *obj, char *error);
+extern void complete(c_object obj, char *error);
 
-extern void fetch_complete(void *completable, char *exception);
+extern void fetch_complete(c_object completable, char *exception);
 
-extern void fetch_report(void *fetch_callback, char *status_json);
+extern void fetch_report(c_object fetch_callback, char *status_json);
 
-extern int logcat_received(void *logcat_interface, char *payload);
+extern int logcat_received(c_object logcat_interface, char *payload);
 
-extern void release_object(void *obj);
+extern void release_object(c_object obj);
 
 extern int open_content(char *url, char *error, int error_length);
 

@@ -7,7 +7,6 @@ import (
 	"context"
 	"io"
 	"sync"
-	"unsafe"
 
 	"golang.org/x/sync/semaphore"
 
@@ -20,7 +19,7 @@ var rTun *remoteTun
 
 type remoteTun struct {
 	closer   io.Closer
-	callback unsafe.Pointer
+	callback C.c_object
 
 	closed bool
 	limit  *semaphore.Weighted
@@ -64,7 +63,7 @@ func (t *remoteTun) close() {
 }
 
 //export startTun
-func startTun(fd C.int, stack, gateway, portal, dns C.c_string, callback unsafe.Pointer) C.int {
+func startTun(fd C.int, stack, gateway, portal, dns C.c_string, callback C.c_object) C.int {
 	rTunLock.Lock()
 	defer rTunLock.Unlock()
 
@@ -98,7 +97,7 @@ func startTun(fd C.int, stack, gateway, portal, dns C.c_string, callback unsafe.
 }
 
 //export startTunContext
-func startTunContext(callback unsafe.Pointer) {
+func startTunContext(callback C.c_object) {
 	rTunLock.Lock()
 	defer rTunLock.Unlock()
 

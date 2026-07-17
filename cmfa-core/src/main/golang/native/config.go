@@ -5,13 +5,12 @@ import "C"
 
 import (
 	"runtime"
-	"unsafe"
 
 	"cfa/native/config"
 )
 
 type remoteValidCallback struct {
-	callback unsafe.Pointer
+	callback C.c_object
 }
 
 func (r *remoteValidCallback) reportStatus(json string) {
@@ -29,8 +28,8 @@ type ageDecryptResult struct {
 }
 
 //export fetchAndValid
-func fetchAndValid(callback unsafe.Pointer, path, url C.c_string, force C.int) {
-	go func(path, url string, callback unsafe.Pointer) {
+func fetchAndValid(callback C.c_object, path, url C.c_string, force C.int) {
+	go func(path, url string, callback C.c_object) {
 		cb := &remoteValidCallback{callback: callback}
 
 		err := config.FetchAndValid(path, url, force != 0, cb.reportStatus)
@@ -44,7 +43,7 @@ func fetchAndValid(callback unsafe.Pointer, path, url C.c_string, force C.int) {
 }
 
 //export load
-func load(completable unsafe.Pointer, path C.c_string) {
+func load(completable C.c_object, path C.c_string) {
 	go func(path string) {
 		C.complete(completable, marshalString(config.Load(path)))
 

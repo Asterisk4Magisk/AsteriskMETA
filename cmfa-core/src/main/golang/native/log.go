@@ -6,7 +6,6 @@ import "C"
 import (
 	"strings"
 	"time"
-	"unsafe"
 
 	"github.com/metacubex/mihomo/log"
 )
@@ -42,8 +41,8 @@ func init() {
 }
 
 //export subscribeLogcat
-func subscribeLogcat(remote unsafe.Pointer) {
-	go func(remote unsafe.Pointer) {
+func subscribeLogcat(remote C.c_object) {
+	go func(remote C.c_object) {
 		sub := log.Subscribe()
 		defer log.UnSubscribe(sub)
 

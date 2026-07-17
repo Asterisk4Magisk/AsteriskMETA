@@ -158,7 +158,7 @@ Java_com_github_kr328_clash_core_bridge_Bridge_nativeStartTun(JNIEnv *env, jobje
     scoped_string _dns = get_string(dns);
     jobject _interface = new_global(cb);
 
-    startTun(fd, _stack, _gateway, _portal, _dns, _interface);
+    startTun(fd, _stack, _gateway, _portal, _dns, (c_object) (uintptr_t) _interface);
 }
 
 JNIEXPORT void JNICALL
@@ -175,7 +175,7 @@ Java_com_github_kr328_clash_core_bridge_Bridge_nativeStartTunContext(JNIEnv *env
 
     jobject _interface = new_global(cb);
 
-    startTunContext(_interface);
+    startTunContext((c_object) (uintptr_t) _interface);
 }
 
 JNIEXPORT void JNICALL
@@ -242,7 +242,7 @@ Java_com_github_kr328_clash_core_bridge_Bridge_nativeHealthCheck(JNIEnv *env, jo
     jobject _completable = new_global(completable);
     scoped_string _name = get_string(name);
 
-    healthCheck(_completable, _name);
+    healthCheck((c_object) (uintptr_t) _completable, _name);
 }
 
 JNIEXPORT void JNICALL
@@ -299,7 +299,7 @@ Java_com_github_kr328_clash_core_bridge_Bridge_nativeLoad(JNIEnv *env, jobject t
     jobject _completable = new_global(completable);
     scoped_string _path = get_string(path);
 
-    load(_completable, _path);
+    load((c_object) (uintptr_t) _completable, _path);
 }
 
 JNIEXPORT void JNICALL
@@ -313,7 +313,7 @@ Java_com_github_kr328_clash_core_bridge_Bridge_nativeFetchAndValid(JNIEnv *env, 
     scoped_string _path = get_string(path);
     scoped_string _url = get_string(url);
 
-    fetchAndValid(_completable, _path, _url, force);
+    fetchAndValid((c_object) (uintptr_t) _completable, _path, _url, force);
 }
 
 JNIEXPORT void JNICALL
@@ -460,7 +460,7 @@ Java_com_github_kr328_clash_core_bridge_Bridge_nativeUpdateProvider(JNIEnv *env,
     scoped_string _type = get_string(type);
     scoped_string _name = get_string(name);
 
-    updateProvider(_completable, _type, _name);
+    updateProvider((c_object) (uintptr_t) _completable, _type, _name);
 }
 
 JNIEXPORT jstring JNICALL
@@ -508,7 +508,7 @@ Java_com_github_kr328_clash_core_bridge_Bridge_nativeSubscribeLogcat(JNIEnv *env
 
     jobject _callback = new_global(callback);
 
-    subscribeLogcat(_callback);
+    subscribeLogcat((c_object) (uintptr_t) _callback);
 }
 
 

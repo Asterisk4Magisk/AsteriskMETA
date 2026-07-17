@@ -17,16 +17,16 @@ int (*open_content_func)(const char *url, char *error, int error_length);
 
 void (*release_object_func)(void *obj);
 
-void mark_socket(void *interface, int fd) {
+void mark_socket(c_object interface, int fd) {
     TRACE_METHOD();
 
-    mark_socket_func(interface, fd);
+    mark_socket_func((void *) interface, fd);
 }
 
-int query_socket_uid(void *interface, int protocol, char *source, char *target) {
+int query_socket_uid(c_object interface, int protocol, char *source, char *target) {
     TRACE_METHOD();
 
-    int result = query_socket_uid_func(interface, protocol, source, target);
+    int result = query_socket_uid_func((void *) interface, protocol, source, target);
 
     free(source);
     free(target);
@@ -34,34 +34,34 @@ int query_socket_uid(void *interface, int protocol, char *source, char *target) 
     return result;
 }
 
-void complete(void *obj, char *error) {
+void complete(c_object obj, char *error) {
     TRACE_METHOD();
 
-    complete_func(obj, error);
+    complete_func((void *) obj, error);
 
     free(error);
 }
 
-void fetch_complete(void *fetch_callback, char *exception) {
+void fetch_complete(c_object fetch_callback, char *exception) {
     TRACE_METHOD();
 
-    fetch_complete_func(fetch_callback, exception);
+    fetch_complete_func((void *) fetch_callback, exception);
 
     free(exception);
 }
 
-void fetch_report(void *fetch_callback, char *json_status) {
+void fetch_report(c_object fetch_callback, char *json_status) {
     TRACE_METHOD();
 
-    fetch_report_func(fetch_callback, json_status);
+    fetch_report_func((void *) fetch_callback, json_status);
 
     free(json_status);
 }
 
-int logcat_received(void *logcat_interface, char *payload) {
+int logcat_received(c_object logcat_interface, char *payload) {
     TRACE_METHOD();
 
-    int result = logcat_received_func(logcat_interface, payload);
+    int result = logcat_received_func((void *) logcat_interface, payload);
 
     free(payload);
 
@@ -78,10 +78,10 @@ int open_content(char *url, char *error, int error_length) {
     return result;
 }
 
-void release_object(void *obj) {
+void release_object(c_object obj) {
     TRACE_METHOD();
 
-    release_object_func(obj);
+    release_object_func((void *) obj);
 }
 
 void log_info(char *msg) {
