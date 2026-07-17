@@ -6,14 +6,12 @@ package features.subscription.usecase
 import app.AppState
 import app.MihomoProfileState
 import app.withMihomoRestartRequired
-import com.github.kr328.clash.core.Clash
 import engine.mihomo.MihomoProfileContentRef
 import engine.mihomo.MihomoProfileContentStore
 import engine.network.toPortOrNull
 import features.logs.AndroidAppLogger
+import features.subscription.runtime.AndroidMihomoProfilePreparer
 import features.subscription.runtime.AndroidSubscriptionFetchOptions
-import features.subscription.runtime.AndroidMihomoProviderFetcher
-import features.subscription.runtime.AndroidSubscriptionFetcher
 import java.net.URI
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Clock
@@ -31,95 +29,106 @@ internal data class MihomoProfileSubscriptionUpdate(
     val profileId: Int,
     val contentRef: MihomoProfileContentRef,
     val subscriptionInfo: app.MihomoSubscriptionInfo,
+    val updateInterval: String? = null,
+)
+
+internal data class MihomoProfileSubscriptionFailure(
+    val profileId: Int,
+    val error: Throwable,
 )
 
 internal data class MihomoProfileSubscriptionUpdateResult(
     val updates: List<MihomoProfileSubscriptionUpdate>,
-    val failedProfileCount: Int,
+    val failures: List<MihomoProfileSubscriptionFailure>,
     val updatedAtMillis: Long,
 ) {
     val updatedProfileCount: Int
         get() = updates.size
+
+    val failedProfileCount: Int
+        get() = failures.size
 }
 
 internal suspend fun updateSubscriptions(
     profiles: List<MihomoProfileState>,
-    subscriptionFetcher: AndroidSubscriptionFetcher,
+    profilePreparer: AndroidMihomoProfilePreparer,
     contentStore: MihomoProfileContentStore,
-    providerFetcher: AndroidMihomoProviderFetcher? = null,
     fetchOptions: (MihomoProfileState) -> AndroidSubscriptionFetchOptions,
 ): MihomoProfileSubscriptionUpdateResult = supervisorScope {
     val results = profiles.map { profile ->
         async {
             updateMihomoProfile(
                 profile = profile,
-                subscriptionFetcher = subscriptionFetcher,
+                profilePreparer = profilePreparer,
                 contentStore = contentStore,
-                providerFetcher = providerFetcher,
                 fetchOptions = fetchOptions(profile),
             )
         }
     }.awaitAll()
-    val updates = results.filterNotNull()
+    val updates = results.mapNotNull { result -> result.getOrNull() }
+    val failures = results.mapIndexedNotNull { index, result ->
+        result.exceptionOrNull()?.let { error ->
+            MihomoProfileSubscriptionFailure(
+                profileId = profiles[index].id,
+                error = error,
+            )
+        }
+    }
     MihomoProfileSubscriptionUpdateResult(
         updates = updates,
-        failedProfileCount = results.size - updates.size,
+        failures = failures,
         updatedAtMillis = Clock.System.now().toEpochMilliseconds(),
     )
 }
 
 private suspend fun updateMihomoProfile(
     profile: MihomoProfileState,
-    subscriptionFetcher: AndroidSubscriptionFetcher,
+    profilePreparer: AndroidMihomoProfilePreparer,
     contentStore: MihomoProfileContentStore,
-    providerFetcher: AndroidMihomoProviderFetcher?,
     fetchOptions: AndroidSubscriptionFetchOptions,
-): MihomoProfileSubscriptionUpdate? {
-    return runCatching {
-        val result = subscriptionFetcher.fetchWithMetadata(
-            url = profile.url,
-            userAgent = profile.userAgent,
-            options = fetchOptions,
-        )
-        val content = result.content.decryptAge(profile.ageSecretKey)
-        providerFetcher?.fetchMissingProviders(
-            profileContent = content,
-            sourceUrl = profile.url,
-            ageSecretKey = profile.ageSecretKey,
-        )
-        val contentRef = contentStore.write(profile, content)
-        MihomoProfileSubscriptionUpdate(
-            profileId = profile.id,
-            contentRef = contentRef,
-            subscriptionInfo = result.subscriptionInfo,
-        ).also { update ->
-            if (update.contentRef.sizeBytes <= 0L) {
-                AndroidAppLogger.warn(
-                    LogTag,
-                    "Subscription update fetched blank profile ${profile.logIdentity()}",
+): Result<MihomoProfileSubscriptionUpdate> {
+    return try {
+        when (
+            val prepared = prepareMihomoProfileSubscription(
+                profile = profile,
+                profilePreparer = profilePreparer,
+                fetchOptions = fetchOptions,
+            )
+        ) {
+            is MihomoProfilePreparation.Success -> {
+                val contentRef = contentStore.write(profile, prepared.content)
+                Result.success(
+                    MihomoProfileSubscriptionUpdate(
+                        profileId = profile.id,
+                        contentRef = contentRef,
+                        subscriptionInfo = prepared.subscriptionInfo,
+                        updateInterval = prepared.updateIntervalMillis?.toStoredUpdateInterval(),
+                    ),
                 )
             }
-        }
-    }.onFailure { error ->
-        if (error is CancellationException) throw error
-        AndroidAppLogger.warn(
-            LogTag,
-            "Subscription update failed ${profile.logIdentity()}",
-            error,
-        )
-    }.getOrNull()
-}
 
-private fun String.decryptAge(ageSecretKey: String): String {
-    return Clash.decryptAge(this, ageSecretKey.trim().takeIf(String::isNotBlank))
+            is MihomoProfilePreparation.Failure -> Result.failure(prepared.error)
+        }
+    } catch (error: CancellationException) {
+        throw error
+    } catch (error: Throwable) {
+        Result.failure(error)
+    }.also { result ->
+        result.exceptionOrNull()?.let { error ->
+            AndroidAppLogger.warn(
+                LogTag,
+                "Subscription update failed ${profile.logIdentity()}",
+                error,
+            )
+        }
+    }
 }
 
 internal fun CoroutineScope.launchMihomoProfileSubscriptionUpdate(
     profiles: List<MihomoProfileState>,
     appStateSnapshot: AppState,
-    subscriptionFetcher: AndroidSubscriptionFetcher,
+    profilePreparer: AndroidMihomoProfilePreparer,
     contentStore: MihomoProfileContentStore,
-    providerFetcher: AndroidMihomoProviderFetcher? = null,
     updateAppState: ((AppState) -> AppState) -> Unit,
     onResult: suspend (MihomoProfileSubscriptionUpdateResult) -> Unit = {},
     onFailure: suspend (Throwable) -> Unit = {},
@@ -127,9 +136,8 @@ internal fun CoroutineScope.launchMihomoProfileSubscriptionUpdate(
     runCatching {
         val result = updateSubscriptions(
             profiles = profiles,
-            subscriptionFetcher = subscriptionFetcher,
+            profilePreparer = profilePreparer,
             contentStore = contentStore,
-            providerFetcher = providerFetcher,
             fetchOptions = { profile -> appStateSnapshot.toSubscriptionFetchOptions(profile) },
         )
         if (result.updates.isNotEmpty()) {
@@ -176,7 +184,9 @@ internal fun AppState.withUpdatedMihomoProfiles(
                 contentSha256 = update.contentRef.sha256,
                 contentSizeBytes = update.contentRef.sizeBytes,
                 subscriptionInfo = update.subscriptionInfo,
+                updateInterval = update.updateInterval ?: profile.updateInterval,
                 lastUpdatedAtMillis = updatedAtMillis,
+                syncFailed = false,
             )
         },
     ).withMihomoRestartRequired(selectedMihomoProfileId, changedSelectedProfile)
@@ -215,3 +225,10 @@ private fun String.toLogHost(): String {
         ?.takeIf(String::isNotBlank)
         ?: "<unknown>"
 }
+
+private fun Long.toStoredUpdateInterval(): String {
+    if (this <= 0L) return "0"
+    return (this / MillisPerHour).coerceAtLeast(1L).toString()
+}
+
+private const val MillisPerHour = 60L * 60L * 1000L

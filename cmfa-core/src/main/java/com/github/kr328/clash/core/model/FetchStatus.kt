@@ -19,6 +19,7 @@ data class FetchStatus(
 ) : Parcelable {
     enum class Action {
         FetchConfiguration,
+        Decrypting,
         FetchProviders,
         SubscriptionInfo,
         Verifying,

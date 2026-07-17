@@ -29,8 +29,7 @@ import features.resources.runtime.AndroidResourceFilePicker
 import features.settings.locale.localizedAppContext
 import features.subscription.SubscriptionInstallConfigUseCase
 import features.subscription.isSubscriptionInstallConfigUri
-import features.subscription.runtime.AndroidMihomoProviderFetcher
-import features.subscription.runtime.AndroidSubscriptionFetcher
+import features.subscription.runtime.AndroidMihomoProfilePreparer
 import features.subscription.toSubscriptionInstallConfigOrNull
 import features.subscription.usecase.subscriptionUpdateMessage
 import kotlinx.coroutines.launch
@@ -73,14 +72,11 @@ class MainActivity : ComponentActivity() {
     private val tipNotifier by lazy { AndroidToastTipNotifier(this) }
 
     private val subscriptionInstallConfigUseCase by lazy {
-        val subscriptionFetcher = AndroidSubscriptionFetcher()
+        val profilePreparer = AndroidMihomoProfilePreparer(this)
         SubscriptionInstallConfigUseCase(
             stateStore = AndroidAppStateStore.get(this),
-            subscriptionFetcher = subscriptionFetcher,
+            profilePreparer = profilePreparer,
             contentStore = MihomoProfileContentStore(this),
-            providerFetcher = AndroidMihomoProviderFetcher(
-                context = this,
-            ),
         )
     }
 

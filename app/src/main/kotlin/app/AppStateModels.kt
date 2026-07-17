@@ -40,6 +40,7 @@ data class MihomoProfileState(
     val subscriptionInfo: MihomoSubscriptionInfo = MihomoSubscriptionInfo(),
     val overrideScriptId: Int = DefaultMihomoOverrideScriptId,
     val disableOverrides: Boolean = false,
+    val syncFailed: Boolean = false,
 ) {
     val hasContent: Boolean
         get() = contentPath.isNotBlank() && contentSizeBytes > 0L

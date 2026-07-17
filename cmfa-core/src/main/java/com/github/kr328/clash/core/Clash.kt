@@ -4,8 +4,10 @@ import com.github.kr328.clash.core.bridge.*
 import com.github.kr328.clash.core.model.*
 import com.github.kr328.clash.core.util.parseInetSocketAddress
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
@@ -16,6 +18,8 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import java.io.File
 import java.net.InetSocketAddress
+import java.util.concurrent.atomic.AtomicLong
+import kotlin.coroutines.cancellation.CancellationException
 
 object Clash {
     enum class OverrideSlot {
@@ -199,35 +203,46 @@ object Clash {
         return Bridge.nativePatchSelector(selector, name)
     }
 
-    fun fetchAndValid(
+    suspend fun fetchAndValid(
         path: File,
         url: String,
-        force: Boolean,
+        options: FetchOptions = FetchOptions(),
         reportStatus: (FetchStatus) -> Unit
-    ): CompletableDeferred<Unit> {
-        return CompletableDeferred<Unit>().apply {
-            Bridge.nativeFetchAndValid(
-                object : FetchCallback {
-                    override fun report(statusJson: String) {
-                        reportStatus(
-                            Json.Default.decodeFromString(
-                                FetchStatus.serializer(),
-                                statusJson
-                            )
+    ) {
+        val taskId = nextFetchTaskId.getAndIncrement()
+        val completion = CompletableDeferred<Unit>()
+        Bridge.nativeFetchAndValid(
+            object : FetchCallback {
+                override fun report(statusJson: String) {
+                    reportStatus(
+                        Json.Default.decodeFromString(
+                            FetchStatus.serializer(),
+                            statusJson
                         )
-                    }
+                    )
+                }
 
-                    override fun complete(error: String?) {
-                        if (error != null)
-                            completeExceptionally(ClashException(error))
-                        else
-                            complete(Unit)
+                override fun complete(error: String?) {
+                    if (error != null) {
+                        completion.completeExceptionally(ClashException(error))
+                    } else {
+                        completion.complete(Unit)
                     }
-                },
-                path.absolutePath,
-                url,
-                force
-            )
+                }
+            },
+            taskId,
+            path.absolutePath,
+            url,
+            Json.Default.encodeToString(FetchOptions.serializer(), options),
+        )
+        try {
+            completion.await()
+        } catch (error: CancellationException) {
+            Bridge.nativeCancelFetch(taskId)
+            withContext(NonCancellable) {
+                runCatching { completion.await() }
+            }
+            throw error
         }
     }
 
@@ -336,6 +351,8 @@ object Clash {
         return Json.Default.decodeFromString(AgeKeyPair.serializer(), value)
     }
 }
+
+private val nextFetchTaskId = AtomicLong(1L)
 
 private fun JsonObject.errorOrNull(): String? {
     return this["error"]?.jsonPrimitive?.contentOrNull?.takeIf(String::isNotBlank)

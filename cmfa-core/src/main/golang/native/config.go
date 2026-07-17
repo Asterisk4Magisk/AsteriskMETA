@@ -4,7 +4,10 @@ package main
 import "C"
 
 import (
+	"context"
+	"encoding/json"
 	"runtime"
+	"sync"
 
 	"cfa/native/config"
 )
@@ -27,19 +30,50 @@ type ageDecryptResult struct {
 	Error   string `json:"error,omitempty"`
 }
 
+var fetchTaskCancels = struct {
+	sync.Mutex
+	values map[int64]context.CancelFunc
+}{values: make(map[int64]context.CancelFunc)}
+
 //export fetchAndValid
-func fetchAndValid(callback C.c_object, path, url C.c_string, force C.int) {
-	go func(path, url string, callback C.c_object) {
+func fetchAndValid(callback C.c_object, taskID C.longlong, path, url, optionsJSON C.c_string) {
+	id := int64(taskID)
+	ctx, cancel := context.WithCancel(context.Background())
+	fetchTaskCancels.Lock()
+	fetchTaskCancels.values[id] = cancel
+	fetchTaskCancels.Unlock()
+
+	go func(path, url, optionsJSON string, callback C.c_object) {
+		defer func() {
+			fetchTaskCancels.Lock()
+			delete(fetchTaskCancels.values, id)
+			fetchTaskCancels.Unlock()
+			cancel()
+		}()
 		cb := &remoteValidCallback{callback: callback}
 
-		err := config.FetchAndValid(path, url, force != 0, cb.reportStatus)
+		var options config.FetchOptions
+		err := json.Unmarshal([]byte(optionsJSON), &options)
+		if err == nil {
+			err = config.FetchAndValid(ctx, path, url, options, cb.reportStatus)
+		}
 
 		C.fetch_complete(callback, marshalString(err))
 
 		C.release_object(callback)
 
 		runtime.GC()
-	}(C.GoString(path), C.GoString(url), callback)
+	}(C.GoString(path), C.GoString(url), C.GoString(optionsJSON), callback)
+}
+
+//export cancelFetch
+func cancelFetch(taskID C.longlong) {
+	fetchTaskCancels.Lock()
+	cancel := fetchTaskCancels.values[int64(taskID)]
+	fetchTaskCancels.Unlock()
+	if cancel != nil {
+		cancel()
+	}
 }
 
 //export load

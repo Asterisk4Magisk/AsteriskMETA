@@ -32,7 +32,7 @@ import features.settings.usecase.SwitchRunModeUseCase
 import features.settings.usecase.RootBootScriptUseCase
 import features.settings.usecase.RootEbpfProbeUseCase
 import features.subscription.runtime.AndroidMihomoProviderFetcher
-import features.subscription.runtime.AndroidSubscriptionFetcher
+import features.subscription.runtime.AndroidMihomoProfilePreparer
 import system.AndroidNetworkInterfaceProvider
 import system.AndroidPackageProvider
 import system.AndroidRootShellGateway
@@ -78,7 +78,7 @@ fun App(
             resourceFilePicker = resourceFilePicker,
         )
     }
-    val subscriptionFetcher = remember { AndroidSubscriptionFetcher() }
+    val mihomoProfilePreparer = remember(appContext) { AndroidMihomoProfilePreparer(appContext) }
     val mihomoProfileContentStore = remember(appContext) {
         MihomoProfileContentStore(appContext)
     }
@@ -131,7 +131,7 @@ fun App(
         networkInterfaces,
         resourceFileUseCase,
         mihomoProfileContentStore,
-        subscriptionFetcher,
+        mihomoProfilePreparer,
         mihomoProviderFetcher,
         qrCodeScanner,
         mihomoProfileFilePicker,
@@ -153,7 +153,7 @@ fun App(
             networkInterfaces = networkInterfaces,
             resourceFileUseCase = resourceFileUseCase,
             mihomoProfileContentStore = mihomoProfileContentStore,
-            subscriptionFetcher = subscriptionFetcher,
+            mihomoProfilePreparer = mihomoProfilePreparer,
             mihomoProviderFetcher = mihomoProviderFetcher,
             qrCodeScanner = qrCodeScanner,
             mihomoProfileFilePicker = mihomoProfileFilePicker,
@@ -191,9 +191,8 @@ fun App(
     )
     SubscriptionAutoUpdater(
         stateStore = stateStore,
-        subscriptionFetcher = subscriptionFetcher,
+        profilePreparer = mihomoProfilePreparer,
         contentStore = mihomoProfileContentStore,
-        providerFetcher = mihomoProviderFetcher,
         updateAppState = updateAppState,
     )
     RootBootScriptSynchronizer(

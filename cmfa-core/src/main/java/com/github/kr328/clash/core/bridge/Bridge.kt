@@ -37,11 +37,13 @@ object Bridge {
     external fun nativeQueryGroupDelay(name: String, url: String, timeoutMillis: Int): String
     external fun nativePatchSelector(selector: String, name: String): Boolean
     external fun nativeFetchAndValid(
-        completable: FetchCallback,
+        callback: FetchCallback,
+        taskId: Long,
         path: String,
         url: String,
-        force: Boolean
+        optionsJson: String,
     )
+    external fun nativeCancelFetch(taskId: Long)
 
     external fun nativeLoad(completable: CompletableDeferred<Unit>, path: String)
     external fun nativeQueryProviders(): String

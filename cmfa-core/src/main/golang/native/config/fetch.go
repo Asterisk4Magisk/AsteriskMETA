@@ -3,6 +3,7 @@ package config
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -16,10 +17,27 @@ import (
 
 	"cfa/native/app"
 
+	A "github.com/metacubex/mihomo/adapter/outbound"
 	"github.com/metacubex/mihomo/adapter/provider"
+	"github.com/metacubex/mihomo/component/dialer"
 	clashHttp "github.com/metacubex/mihomo/component/http"
+	"github.com/metacubex/mihomo/component/proxydialer"
+	C "github.com/metacubex/mihomo/constant"
 	RB "github.com/metacubex/mihomo/rules/bundle"
 )
+
+type FetchProxy struct {
+	Host     string `json:"host"`
+	Port     int    `json:"port"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+type FetchOptions struct {
+	Force     bool        `json:"force"`
+	UserAgent string      `json:"userAgent"`
+	Proxy     *FetchProxy `json:"proxy"`
+}
 
 type Status struct {
 	Action            string   `json:"action"`
@@ -38,11 +56,22 @@ type fetchHeader struct {
 	ProfileUpdateInterval string
 }
 
-func openUrl(ctx context.Context, url string) (io.ReadCloser, fetchHeader, error) {
-	response, err := clashHttp.HttpRequest(ctx, url, http.MethodGet, http.Header{"User-Agent": {"ClashMetaForAndroid/" + app.VersionName()}}, nil)
+func openUrl(ctx context.Context, url string, userAgent string, requestDialer C.Dialer) (io.ReadCloser, fetchHeader, error) {
+	response, err := clashHttp.HttpRequest(
+		ctx,
+		url,
+		http.MethodGet,
+		http.Header{"User-Agent": {userAgent}},
+		nil,
+		clashHttp.WithDialer(requestDialer),
+	)
 
 	if err != nil {
 		return nil, fetchHeader{}, err
+	}
+	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
+		_ = response.Body.Close()
+		return nil, fetchHeader{}, fmt.Errorf("HTTP %d", response.StatusCode)
 	}
 
 	return response.Body, fetchHeader{
@@ -55,8 +84,8 @@ func openContent(url string) (io.ReadCloser, error) {
 	return app.OpenContent(url)
 }
 
-func fetch(url *U.URL, file string) (fetchHeader, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+func fetch(ctx context.Context, url *U.URL, file string, userAgent string, requestDialer C.Dialer) (fetchHeader, error) {
+	requestCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
 	var reader io.ReadCloser
@@ -65,7 +94,7 @@ func fetch(url *U.URL, file string) (fetchHeader, error) {
 
 	switch url.Scheme {
 	case "http", "https":
-		reader, header, err = openUrl(ctx, url.String())
+		reader, header, err = openUrl(requestCtx, url.String(), userAgent, requestDialer)
 	case "content":
 		reader, err = openContent(url.String())
 	default:
@@ -149,14 +178,24 @@ func reportSubscriptionInfo(header fetchHeader, reportStatus func(string)) {
 }
 
 func FetchAndValid(
+	ctx context.Context,
 	path string,
 	url string,
-	force bool,
+	options FetchOptions,
 	reportStatus func(string),
 ) error {
+	requestDialer, err := options.requestDialer()
+	if err != nil {
+		return err
+	}
+	defaultUserAgent := "ClashMetaForAndroid/" + app.VersionName()
+	mainUserAgent := strings.TrimSpace(options.UserAgent)
+	if mainUserAgent == "" {
+		mainUserAgent = defaultUserAgent
+	}
 	configPath := P.Join(path, "config.yaml")
 
-	if _, err := os.Stat(configPath); os.IsNotExist(err) || force {
+	if _, err := os.Stat(configPath); os.IsNotExist(err) || options.Force {
 		url, err := U.Parse(url)
 		if err != nil {
 			return err
@@ -171,7 +210,7 @@ func FetchAndValid(
 
 		reportStatus(string(bytes))
 
-		header, err := fetch(url, configPath)
+		header, err := fetch(ctx, url, configPath, mainUserAgent, requestDialer)
 		if err != nil {
 			return err
 		}
@@ -181,12 +220,42 @@ func FetchAndValid(
 
 	defer runtime.GC()
 
-	rawCfg, err := UnmarshalAndPatch(path)
+	statusBytes, _ := json.Marshal(&Status{
+		Action:      "Decrypting",
+		Args:        []string{},
+		Progress:    -1,
+		MaxProgress: -1,
+	})
+	reportStatus(string(statusBytes))
+
+	configData, err := os.ReadFile(configPath)
+	if err != nil {
+		return err
+	}
+	configData, err = DecryptBytes(configData)
 	if err != nil {
 		return err
 	}
 
+	statusBytes, _ = json.Marshal(&Status{
+		Action:      "Verifying",
+		Args:        []string{},
+		Progress:    -1,
+		MaxProgress: -1,
+	})
+	reportStatus(string(statusBytes))
+
+	rawCfg, err := UnmarshalAndPatchBytes(path, configData)
+	if err != nil {
+		return err
+	}
+
+	providerErrors := make([]error, 0)
 	forEachProviders(rawCfg, func(index int, total int, name string, provider map[string]any, prefix string) {
+		if err := ctx.Err(); err != nil {
+			providerErrors = append(providerErrors, err)
+			return
+		}
 		bytes, _ := json.Marshal(&Status{
 			Action:      "FetchProviders",
 			Args:        []string{name},
@@ -231,20 +300,29 @@ func FetchAndValid(
 
 		url, err := U.Parse(us)
 		if err != nil {
+			providerErrors = append(providerErrors, fmt.Errorf("parse provider %s URL: %w", name, err))
 			return
 		}
 
-		_, _ = fetch(url, ps)
+		if _, err := fetch(ctx, url, ps, defaultUserAgent, requestDialer); err != nil {
+			providerErrors = append(providerErrors, fmt.Errorf("fetch provider %s: %w", name, err))
+		}
 	})
+	if err := errors.Join(providerErrors...); err != nil {
+		return err
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 
-	bytes, _ := json.Marshal(&Status{
+	statusBytes, _ = json.Marshal(&Status{
 		Action:      "Verifying",
 		Args:        []string{},
 		Progress:    0xffff,
 		MaxProgress: 0xffff,
 	})
 
-	reportStatus(string(bytes))
+	reportStatus(string(statusBytes))
 
 	cfg, err := Parse(rawCfg)
 	if err != nil {
@@ -254,4 +332,25 @@ func FetchAndValid(
 	destroyProviders(cfg)
 
 	return nil
+}
+
+func (options FetchOptions) requestDialer() (C.Dialer, error) {
+	if options.Proxy == nil {
+		return dialer.NewDialer(), nil
+	}
+	proxy := options.Proxy
+	if strings.TrimSpace(proxy.Host) == "" || proxy.Port <= 0 || proxy.Port > 65535 {
+		return nil, fmt.Errorf("invalid fetch proxy address")
+	}
+	adapter, err := A.NewSocks5(A.Socks5Option{
+		Name:     "AsteriskMETA subscription fetch",
+		Server:   proxy.Host,
+		Port:     proxy.Port,
+		UserName: proxy.Username,
+		Password: proxy.Password,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return proxydialer.New(adapter, false), nil
 }

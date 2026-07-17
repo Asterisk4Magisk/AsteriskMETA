@@ -10,24 +10,23 @@ import data.AndroidAppStateStore
 import engine.mihomo.MihomoProfileContentStore
 import features.subscription.AutoSubscriptionCheckIntervalMillis
 import features.subscription.AutoSubscriptionRetryDelayMillis
-import features.subscription.runtime.AndroidMihomoProviderFetcher
-import features.subscription.runtime.AndroidSubscriptionFetcher
+import features.subscription.runtime.AndroidMihomoProfilePreparer
 import features.subscription.usecase.dueSubscriptionProfiles
 import features.subscription.usecase.toSubscriptionFetchOptions
 import features.subscription.usecase.updateSubscriptions
 import features.subscription.usecase.withUpdatedMihomoProfiles
 import kotlinx.coroutines.delay
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 internal fun SubscriptionAutoUpdater(
     stateStore: AndroidAppStateStore,
-    subscriptionFetcher: AndroidSubscriptionFetcher,
+    profilePreparer: AndroidMihomoProfilePreparer,
     contentStore: MihomoProfileContentStore,
-    providerFetcher: AndroidMihomoProviderFetcher,
     updateAppState: ((AppState) -> AppState) -> Unit,
 ) {
-    LaunchedEffect(stateStore, subscriptionFetcher, contentStore, providerFetcher) {
+    LaunchedEffect(stateStore, profilePreparer, contentStore) {
         val lastAttemptMillisByProfileId = mutableMapOf<Int, Long>()
         while (true) {
             val currentState = stateStore.state.value
@@ -41,9 +40,8 @@ internal fun SubscriptionAutoUpdater(
                 dueProfiles.forEach { profile -> lastAttemptMillisByProfileId[profile.id] = nowMillis }
                 val result = updateSubscriptions(
                     profiles = dueProfiles,
-                    subscriptionFetcher = subscriptionFetcher,
+                    profilePreparer = profilePreparer,
                     contentStore = contentStore,
-                    providerFetcher = providerFetcher,
                     fetchOptions = { profile -> currentState.toSubscriptionFetchOptions(profile) },
                 )
                 if (result.updates.isNotEmpty()) {
@@ -55,7 +53,7 @@ internal fun SubscriptionAutoUpdater(
                     }
                 }
             }
-            delay(AutoSubscriptionCheckIntervalMillis)
+            delay(AutoSubscriptionCheckIntervalMillis.milliseconds)
         }
     }
 }

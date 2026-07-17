@@ -36,7 +36,10 @@ func UnmarshalAndPatch(profilePath string) (*config.RawConfig, error) {
 	if err != nil {
 		return nil, err
 	}
+	return UnmarshalAndPatchBytes(profilePath, configData)
+}
 
+func UnmarshalAndPatchBytes(profilePath string, configData []byte) (*config.RawConfig, error) {
 	rawConfig, err := config.UnmarshalRawConfig(configData)
 	if err != nil {
 		return nil, err

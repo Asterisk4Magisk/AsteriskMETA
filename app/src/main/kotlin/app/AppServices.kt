@@ -16,7 +16,7 @@ import features.settings.usecase.SwitchRunModeUseCase
 import features.settings.usecase.RootBootScriptUseCase
 import features.settings.usecase.RootEbpfProbeUseCase
 import features.subscription.runtime.AndroidMihomoProviderFetcher
-import features.subscription.runtime.AndroidSubscriptionFetcher
+import features.subscription.runtime.AndroidMihomoProfilePreparer
 import kotlinx.coroutines.CoroutineScope
 import system.AndroidNetworkInterfaceProvider
 import system.AndroidPackageProvider
@@ -33,7 +33,7 @@ internal data class AppServices(
     val networkInterfaces: AndroidNetworkInterfaceProvider,
     val resourceFileUseCase: ResourceFileUseCase,
     val mihomoProfileContentStore: MihomoProfileContentStore,
-    val subscriptionFetcher: AndroidSubscriptionFetcher,
+    val mihomoProfilePreparer: AndroidMihomoProfilePreparer,
     val mihomoProviderFetcher: AndroidMihomoProviderFetcher,
     val qrCodeScanner: suspend () -> String?,
     val mihomoProfileFilePicker: suspend () -> Uri?,

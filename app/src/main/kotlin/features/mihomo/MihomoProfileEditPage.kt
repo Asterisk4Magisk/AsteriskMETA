@@ -5,6 +5,7 @@
 
 package features.mihomo
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Box
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -27,6 +29,7 @@ import androidx.compose.foundation.text.input.byValue
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -64,7 +67,6 @@ import app.LocalNavigator
 import app.LocalUpdateAppState
 import app.MihomoProfileState
 import app.MihomoProfileType
-import app.MihomoSubscriptionInfo
 import app.R
 import app.collectAppState
 import app.hasRuntimeRelevantChanges
@@ -86,10 +88,12 @@ import engine.proxy.ProxyServiceResult
 import features.settings.SettingsDropdownRow
 import features.subscription.isPlainHttpSubscriptionUrl
 import features.subscription.isValidManualSubscriptionUrl
-import features.subscription.usecase.launchMihomoProfileSubscriptionUpdate
-import features.subscription.usecase.subscriptionUpdateMessage
+import features.subscription.usecase.MihomoProfileSyncStage
+import features.subscription.usecase.toSubscriptionFetchOptions
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -125,12 +129,24 @@ fun MihomoProfileEditPage(
         profileType == MihomoProfileType.Url -> stringResource(R.string.mihomo_configuration_edit_url)
         else -> stringResource(R.string.mihomo_configuration_edit_file)
     }
-    val syncSuccessMessage = stringResource(R.string.subscription_update_result)
-    val syncFailedMessage = stringResource(R.string.subscription_update_result_with_failed)
-    val providerPrepareFailedMessage = stringResource(R.string.mihomo_configuration_provider_prepare_failed)
+    val syncSuccessMessage = stringResource(R.string.mihomo_configuration_save_sync_success)
+    val syncFailedSavedMessage = stringResource(R.string.mihomo_configuration_save_sync_failed_saved)
+    val saveFailedMessage = stringResource(R.string.mihomo_configuration_save_failed)
     val restartFailedMessage = stringResource(R.string.mihomo_configuration_restart_failed)
+    val profileSaveUseCase = remember(
+        services.mihomoProfilePreparer,
+        services.mihomoProfileContentStore,
+    ) {
+        MihomoProfileSaveUseCase.create(
+            profilePreparer = services.mihomoProfilePreparer,
+            contentStore = services.mihomoProfileContentStore,
+        )
+    }
 
     var saving by remember { mutableStateOf(false) }
+    var syncStage by remember { mutableStateOf<MihomoProfileSyncStage?>(null) }
+    var saveJob by remember { mutableStateOf<Job?>(null) }
+    var failedSave by remember { mutableStateOf<FailedMihomoProfileSave?>(null) }
     var showRestartRequired by remember { mutableStateOf(false) }
     var restartInProgress by remember { mutableStateOf(false) }
     val nameState = rememberTextFieldState(initialText = targetProfile?.name.orEmpty())
@@ -173,6 +189,8 @@ fun MihomoProfileEditPage(
     var rawParseResult by remember(targetProfile?.id, isNew) {
         mutableStateOf<MihomoRawConfigParseResult?>(null)
     }
+
+    BackHandler(enabled = saving) {}
 
     LaunchedEffect(targetProfile?.id, targetProfile?.contentPath, profileType) {
         if (targetProfile == null) {
@@ -261,28 +279,6 @@ fun MihomoProfileEditPage(
         }
     }
 
-    fun launchProfileSubscriptionUpdate(profile: MihomoProfileState) =
-        services.appScope.launchMihomoProfileSubscriptionUpdate(
-            profiles = listOf(profile),
-            appStateSnapshot = appState,
-            subscriptionFetcher = services.subscriptionFetcher,
-            contentStore = services.mihomoProfileContentStore,
-            providerFetcher = services.mihomoProviderFetcher,
-            updateAppState = updateAppState,
-            onResult = { result ->
-                services.tipNotifier.show(
-                    subscriptionUpdateMessage(
-                        result = result,
-                        successTemplate = syncSuccessMessage,
-                        failedTemplate = syncFailedMessage,
-                    ),
-                )
-            },
-            onFailure = { error ->
-                services.tipNotifier.showError(error, syncFailedMessage)
-            },
-        )
-
     fun restartWithSavedConfiguration() {
         if (restartInProgress) return
         restartInProgress = true
@@ -311,6 +307,75 @@ fun MihomoProfileEditPage(
                 }
             } finally {
                 restartInProgress = false
+            }
+        }
+    }
+
+    fun launchSave(draft: MihomoProfileSaveDraft) {
+        if (saving) return
+        failedSave = null
+        saving = true
+        lateinit var job: Job
+        job = scope.launch(start = CoroutineStart.LAZY) {
+            try {
+                val preparation = profileSaveUseCase.prepare(
+                    draft = draft,
+                    fetchOptions = stateStore.state.value.toSubscriptionFetchOptions(draft.desiredProfile),
+                    onStage = { stage -> syncStage = stage },
+                )
+                when (preparation) {
+                    is MihomoProfileSavePreparation.Success -> {
+                        syncStage = null
+                        val committed = profileSaveUseCase.commit(draft, preparation)
+                        val saved = saveProfile(committed, draft.originalProfile == null)
+                        if (preparation.synchronized) {
+                            services.tipNotifier.show(syncSuccessMessage)
+                        }
+                        if (stateStore.state.value.pendingMihomoRestartProfileId == saved.id) {
+                            showRestartRequired = true
+                        } else {
+                            navigator.pop()
+                        }
+                    }
+
+                    is MihomoProfileSavePreparation.Failure -> {
+                        failedSave = FailedMihomoProfileSave(draft, preparation)
+                    }
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                services.tipNotifier.showError(error, saveFailedMessage)
+            } finally {
+                if (saveJob === job) {
+                    saveJob = null
+                }
+                syncStage = null
+                saving = false
+            }
+        }
+        saveJob = job
+        job.start()
+    }
+
+    fun saveFailedDraft() {
+        val failed = failedSave ?: return
+        if (saving) return
+        failedSave = null
+        saving = true
+        scope.launch {
+            try {
+                val committed = profileSaveUseCase.commit(failed.draft, failed.failure)
+                saveProfile(committed, failed.draft.originalProfile == null)
+                services.tipNotifier.show(syncFailedSavedMessage)
+                navigator.pop()
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                failedSave = failed
+                services.tipNotifier.showError(error, saveFailedMessage)
+            } finally {
+                saving = false
             }
         }
     }
@@ -348,10 +413,7 @@ fun MihomoProfileEditPage(
             targetProfile.userAgent != cleanUserAgent ||
             targetProfile.ageSecretKey != cleanAgeSecretKey ||
             targetProfile.updateViaProxy != updateViaProxy
-        val savedProfile = if (targetProfile != null) {
-            if (urlChanged && targetProfile.hasContent) {
-                services.mihomoProfileContentStore.delete(targetProfile)
-            }
+        val desiredProfile = if (targetProfile != null) {
             targetProfile.copy(
                 name = cleanName,
                 type = MihomoProfileType.Url,
@@ -360,11 +422,6 @@ fun MihomoProfileEditPage(
                 updateInterval = cleanInterval,
                 updateViaProxy = updateViaProxy,
                 ageSecretKey = cleanAgeSecretKey,
-                contentPath = if (urlChanged) "" else targetProfile.contentPath,
-                contentSha256 = if (urlChanged) "" else targetProfile.contentSha256,
-                contentSizeBytes = if (urlChanged) 0L else targetProfile.contentSizeBytes,
-                subscriptionInfo = if (urlChanged) MihomoSubscriptionInfo() else targetProfile.subscriptionInfo,
-                lastUpdatedAtMillis = if (urlChanged) 0L else targetProfile.lastUpdatedAtMillis,
                 overrideScriptId = cleanOverrideScriptId,
                 disableOverrides = disableOverrides,
             )
@@ -382,15 +439,13 @@ fun MihomoProfileEditPage(
                 disableOverrides = disableOverrides,
             )
         }
-        val saved = saveProfile(savedProfile, targetProfile == null)
-        if (remoteOptionsChanged || !saved.hasContent) {
-            launchProfileSubscriptionUpdate(saved)
-        }
-        if (stateStore.state.value.pendingMihomoRestartProfileId == saved.id) {
-            showRestartRequired = true
-        } else {
-            navigator.pop()
-        }
+        launchSave(
+            MihomoProfileSaveDraft(
+                desiredProfile = desiredProfile,
+                originalProfile = targetProfile,
+                remoteOptionsChanged = remoteOptionsChanged,
+            ),
+        )
     }
 
     fun onSave() {
@@ -405,117 +460,32 @@ fun MihomoProfileEditPage(
             scope.launch { services.tipNotifier.show(nameRequiredMessage) }
             return
         }
-        saving = true
         val profileSnapshot = targetProfile
         val contentText = contentEditorState.snapshotText()
         val cleanOverrideScriptId = selectedOverrideScriptId()
-        val saveOutcome = CompletableDeferred<ProfileSaveOutcome>()
-        services.appScope.launch {
-            try {
-                val saved = runCatching {
-                    val contentChanged = withContext(Dispatchers.IO) {
-                        profileSnapshot == null || profileSnapshot.contentSha256 != contentText.sha256Hex()
-                    }
-                    val contentRef = withContext(Dispatchers.IO) {
-                        when {
-                            contentText.isBlank() -> {
-                                if (profileSnapshot?.hasContent == true) {
-                                    services.mihomoProfileContentStore.delete(profileSnapshot)
-                                }
-                                null
-                            }
-                            contentChanged && profileSnapshot != null -> services.mihomoProfileContentStore.write(
-                                profileSnapshot,
-                                contentText,
-                            )
-                            contentChanged -> services.mihomoProfileContentStore.writeNew(contentText)
-                            else -> null
-                        }
-                    }
-                    val localProfileModified = profileSnapshot == null ||
-                        profileSnapshot.type != MihomoProfileType.File ||
-                        profileSnapshot.name != cleanName ||
-                        contentChanged ||
-                        profileSnapshot.overrideScriptId != cleanOverrideScriptId ||
-                        profileSnapshot.disableOverrides != disableOverrides
-                    val savedProfile = profileSnapshot?.copy(
-                        name = cleanName,
-                        type = MihomoProfileType.File,
-                        url = "",
-                        contentPath = when {
-                            contentText.isBlank() -> ""
-                            contentRef != null -> contentRef.path
-                            else -> profileSnapshot.contentPath
-                        },
-                        contentSha256 = when {
-                            contentText.isBlank() -> ""
-                            contentRef != null -> contentRef.sha256
-                            else -> profileSnapshot.contentSha256
-                        },
-                        contentSizeBytes = when {
-                            contentText.isBlank() -> 0L
-                            contentRef != null -> contentRef.sizeBytes
-                            else -> profileSnapshot.contentSizeBytes
-                        },
-                        lastUpdatedAtMillis = if (localProfileModified) {
-                            System.currentTimeMillis()
-                        } else {
-                            profileSnapshot.lastUpdatedAtMillis
-                        },
-                        overrideScriptId = cleanOverrideScriptId,
-                        disableOverrides = disableOverrides,
-                    )
-                        ?: MihomoProfileState(
-                            id = DefaultMihomoProfileId,
-                            name = cleanName,
-                            type = MihomoProfileType.File,
-                            contentPath = contentRef?.path.orEmpty(),
-                            contentSha256 = contentRef?.sha256.orEmpty(),
-                            contentSizeBytes = contentRef?.sizeBytes ?: 0L,
-                            lastUpdatedAtMillis = System.currentTimeMillis(),
-                            overrideScriptId = cleanOverrideScriptId,
-                            disableOverrides = disableOverrides,
-                        )
-                    saveProfile(savedProfile, profileSnapshot == null)
-                }.onFailure { error ->
-                    if (error is CancellationException) throw error
-                    services.tipNotifier.showError(error, providerPrepareFailedMessage)
-                }.getOrNull()
-                if (saved == null) {
-                    saveOutcome.complete(ProfileSaveOutcome.Stay)
-                    return@launch
-                }
-                if (!saved.hasContent) {
-                    saveOutcome.complete(saved.profileSaveOutcome(stateStore.state.value.pendingMihomoRestartProfileId))
-                    return@launch
-                }
-                runCatching {
-                    services.mihomoProviderFetcher.fetchMissingProviders(
-                        profileContent = contentText,
-                        sourceUrl = saved.url,
-                        ageSecretKey = saved.ageSecretKey,
-                    )
-                }.onFailure { error ->
-                    if (error is CancellationException) throw error
-                    services.tipNotifier.showError(error, providerPrepareFailedMessage)
-                }
-                saveOutcome.complete(saved.profileSaveOutcome(stateStore.state.value.pendingMihomoRestartProfileId))
-            } catch (error: CancellationException) {
-                saveOutcome.completeExceptionally(error)
-                throw error
-            }
-        }
-        scope.launch {
-            try {
-                when (saveOutcome.await()) {
-                    ProfileSaveOutcome.Pop -> navigator.pop()
-                    ProfileSaveOutcome.PromptRestart -> showRestartRequired = true
-                    ProfileSaveOutcome.Stay -> Unit
-                }
-            } finally {
-                saving = false
-            }
-        }
+        val contentChanged = profileSnapshot == null || profileSnapshot.contentSha256 != contentText.sha256Hex()
+        val desiredProfile = profileSnapshot?.copy(
+            name = cleanName,
+            type = MihomoProfileType.File,
+            url = "",
+            overrideScriptId = cleanOverrideScriptId,
+            disableOverrides = disableOverrides,
+        ) ?: MihomoProfileState(
+            id = DefaultMihomoProfileId,
+            name = cleanName,
+            type = MihomoProfileType.File,
+            overrideScriptId = cleanOverrideScriptId,
+            disableOverrides = disableOverrides,
+        )
+        showFileProperties = false
+        launchSave(
+            MihomoProfileSaveDraft(
+                desiredProfile = desiredProfile,
+                originalProfile = profileSnapshot,
+                localContent = contentText,
+                contentChanged = contentChanged,
+            ),
+        )
     }
 
     Scaffold(
@@ -523,7 +493,10 @@ fun MihomoProfileEditPage(
             TopAppBar(
                 title = { Text(title, maxLines = 1) },
                 navigationIcon = {
-                    IconButton(onClick = { navigator.pop() }) {
+                    IconButton(
+                        onClick = { navigator.pop() },
+                        enabled = !saving,
+                    ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                             contentDescription = stringResource(R.string.common_back),
@@ -580,11 +553,13 @@ fun MihomoProfileEditPage(
                     if (profileType == MihomoProfileType.Url) {
                         OutlinedTextField(
                             state = nameState,
+                            enabled = !saving,
                             label = { Text(stringResource(R.string.mihomo_configuration_name)) },
                             lineLimits = TextFieldLineLimits.SingleLine,
                             modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
                         )
                         UrlProfileFields(
+                            enabled = !saving,
                             urlState = urlState,
                             userAgentState = userAgentState,
                             ageSecretKeyState = ageSecretKeyState,
@@ -614,6 +589,7 @@ fun MihomoProfileEditPage(
                     } else {
                         Surface(
                             onClick = { showFileProperties = true },
+                            enabled = !saving,
                             modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
                             shape = MaterialTheme.shapes.large,
                             color = MaterialTheme.colorScheme.surfaceContainer,
@@ -655,6 +631,7 @@ fun MihomoProfileEditPage(
                                 .fillMaxWidth()
                                 .weight(1f)
                                 .imePadding(),
+                            readOnly = saving,
                         )
                     }
                 }
@@ -687,6 +664,18 @@ fun MihomoProfileEditPage(
             onDismissRequest = { showHttpSubscriptionWarning = false },
             onConfirm = { saveUrlProfile(allowPlainHttp = true) },
         )
+        MihomoProfileSyncProgressDialog(
+            stage = syncStage.takeIf { saving },
+            onCancel = { saveJob?.cancel() },
+        )
+        failedSave?.let { failed ->
+            MihomoProfileSyncFailureDialog(
+                failure = failed.failure,
+                onRetry = { launchSave(failed.draft) },
+                onSaveAnyway = ::saveFailedDraft,
+                onCancel = { failedSave = null },
+            )
+        }
         RawModeConfirmationDialog(
             show = showRawModeConfirmation,
             onDismissRequest = { showRawModeConfirmation = false },
@@ -707,14 +696,85 @@ fun MihomoProfileEditPage(
     }
 }
 
-private enum class ProfileSaveOutcome {
-    Pop,
-    PromptRestart,
-    Stay,
+private data class FailedMihomoProfileSave(
+    val draft: MihomoProfileSaveDraft,
+    val failure: MihomoProfileSavePreparation.Failure,
+)
+
+@Composable
+internal fun MihomoProfileSyncProgressDialog(
+    stage: MihomoProfileSyncStage?,
+    onCancel: () -> Unit,
+) {
+    if (stage == null) return
+    val message = stringResource(
+        when (stage) {
+            MihomoProfileSyncStage.Downloading -> R.string.mihomo_configuration_save_sync_downloading
+            MihomoProfileSyncStage.Decrypting -> R.string.mihomo_configuration_save_sync_decrypting
+            MihomoProfileSyncStage.PreparingProviders -> R.string.mihomo_configuration_save_sync_preparing
+            MihomoProfileSyncStage.Verifying -> R.string.mihomo_configuration_save_sync_verifying
+        },
+    )
+    AlertDialog(
+        onDismissRequest = {},
+        icon = {
+            CircularProgressIndicator(
+                modifier = Modifier.size(36.dp),
+                strokeWidth = 3.dp,
+            )
+        },
+        title = { Text(stringResource(R.string.mihomo_configuration_save_sync_in_progress_title)) },
+        text = { Text(message) },
+        confirmButton = {
+            TextButton(onClick = onCancel) {
+                Text(stringResource(R.string.common_cancel))
+            }
+        },
+    )
 }
 
-private fun MihomoProfileState.profileSaveOutcome(pendingProfileId: Int): ProfileSaveOutcome =
-    if (pendingProfileId == id) ProfileSaveOutcome.PromptRestart else ProfileSaveOutcome.Pop
+@Composable
+internal fun MihomoProfileSyncFailureDialog(
+    failure: MihomoProfileSavePreparation.Failure,
+    onRetry: () -> Unit,
+    onSaveAnyway: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    val stage = stringResource(
+        when (failure.stage) {
+            MihomoProfileSyncStage.Downloading -> R.string.mihomo_configuration_save_sync_stage_download
+            MihomoProfileSyncStage.Decrypting -> R.string.mihomo_configuration_save_sync_stage_decrypt
+            MihomoProfileSyncStage.PreparingProviders -> R.string.mihomo_configuration_save_sync_stage_preparing
+            MihomoProfileSyncStage.Verifying -> R.string.mihomo_configuration_save_sync_stage_verifying
+        },
+    )
+    val detail = failure.error.localizedMessage
+        ?.takeIf(String::isNotBlank)
+        ?: failure.error::class.java.simpleName
+    AlertDialog(
+        onDismissRequest = onCancel,
+        icon = { Icon(Icons.Rounded.Warning, contentDescription = null) },
+        title = { Text(stringResource(R.string.mihomo_configuration_save_sync_failed_title)) },
+        text = {
+            Text(stringResource(R.string.mihomo_configuration_save_sync_failed_message, stage, detail))
+        },
+        dismissButton = {
+            Row {
+                TextButton(onClick = onCancel) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+                TextButton(onClick = onSaveAnyway) {
+                    Text(stringResource(R.string.mihomo_configuration_save_anyway))
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onRetry) {
+                Text(stringResource(R.string.common_retry))
+            }
+        },
+    )
+}
 
 @Composable
 internal fun RestartRequiredDialog(
@@ -778,6 +838,7 @@ private fun HttpSubscriptionWarningDialog(
 
 @Composable
 private fun ColumnScope.UrlProfileFields(
+    enabled: Boolean,
     urlState: TextFieldState,
     userAgentState: TextFieldState,
     ageSecretKeyState: TextFieldState,
@@ -802,12 +863,14 @@ private fun ColumnScope.UrlProfileFields(
     )
     OutlinedTextField(
         state = urlState,
+        enabled = enabled,
         label = { Text(stringResource(R.string.mihomo_configuration_url)) },
         lineLimits = TextFieldLineLimits.SingleLine,
         modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
     )
     OutlinedTextField(
         state = updateIntervalState,
+        enabled = enabled,
         label = { Text(stringResource(R.string.mihomo_configuration_update_interval)) },
         lineLimits = TextFieldLineLimits.SingleLine,
         inputTransformation = InputTransformation.byValue { _, proposed ->
@@ -836,11 +899,13 @@ private fun ColumnScope.UrlProfileFields(
             Switch(
                 checked = updateViaProxy,
                 onCheckedChange = onUpdateViaProxyChange,
+                enabled = enabled,
             )
         }
     }
     TextButton(
         onClick = { onAdvancedExpandedChange(!advancedExpanded) },
+        enabled = enabled,
         modifier = Modifier.align(Alignment.End).padding(top = 8.dp),
     ) {
         Icon(
@@ -859,12 +924,14 @@ private fun ColumnScope.UrlProfileFields(
         Column {
             OutlinedTextField(
                 state = userAgentState,
+                enabled = enabled,
                 label = { Text(stringResource(R.string.mihomo_configuration_user_agent)) },
                 lineLimits = TextFieldLineLimits.SingleLine,
                 modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
             )
             OutlinedTextField(
                 state = ageSecretKeyState,
+                enabled = enabled,
                 label = { Text(stringResource(R.string.mihomo_configuration_age_secret_key)) },
                 lineLimits = TextFieldLineLimits.SingleLine,
                 modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
@@ -873,14 +940,14 @@ private fun ColumnScope.UrlProfileFields(
                 options = overrideScriptOptions,
                 selectedIndex = selectedOverrideScriptIndex,
                 onSelectedIndexChange = onSelectedOverrideScriptIndexChange,
-                readOnly = disableOverrides,
+                readOnly = disableOverrides || !enabled,
             )
             RawConfigModeControl(
                 enabled = disableOverrides,
                 readiness = rawReadiness,
                 snapshot = rawSnapshot,
                 runMode = runMode,
-                onEnabledChange = onDisableOverridesChange,
+                onEnabledChange = { value -> if (enabled) onDisableOverridesChange(value) },
             )
         }
     }

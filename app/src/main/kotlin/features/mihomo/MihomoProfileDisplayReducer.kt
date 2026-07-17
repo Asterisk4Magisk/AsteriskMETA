@@ -17,6 +17,7 @@ internal data class MihomoProfileDisplayState(
     val showSync: Boolean,
     val hasOverrideScript: Boolean,
     val rawConfiguration: Boolean,
+    val syncFailed: Boolean,
 )
 
 internal fun reduceMihomoProfileDisplay(profile: MihomoProfileState): MihomoProfileDisplayState {
@@ -30,5 +31,10 @@ internal fun reduceMihomoProfileDisplay(profile: MihomoProfileState): MihomoProf
         showSync = isRemote && profile.url.isNotBlank(),
         hasOverrideScript = profile.overrideScriptId != DefaultMihomoOverrideScriptId,
         rawConfiguration = profile.disableOverrides,
+        syncFailed = profile.syncFailed,
     )
+}
+
+internal fun MihomoProfileState.withProviderSyncResult(failedCount: Int): MihomoProfileState {
+    return if (failedCount == 0) copy(syncFailed = false) else this
 }
