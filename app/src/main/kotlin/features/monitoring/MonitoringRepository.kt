@@ -62,6 +62,8 @@ internal class MonitoringRepository(
     private var trafficWasConnected = false
     private var trafficSessionId = trafficLedgerStore.snapshot().baseline?.sessionId
     private var trafficSessionSequence = 0L
+    private var previousProcessSnapshot: ProcessTickSnapshot? = null
+    private var previousProcessSource: ProcessStatsSourceKind? = null
     private var networkPageWasVisible = false
     private var networkPageSessionId: String? = null
     private var publicProbeGeneration = 0L
@@ -167,41 +169,51 @@ internal class MonitoringRepository(
     private suspend fun collectResourceStats(
         intervalMillis: Long,
         recordHistory: Boolean,
+    ) = coroutineScope {
+        launch { collectProcessStats(intervalMillis, recordHistory) }
+        launch { collectMemoryStats(maxOf(intervalMillis, MemoryMonitoringIntervalMillis)) }
+    }
+
+    private suspend fun collectProcessStats(
+        intervalMillis: Long,
+        recordHistory: Boolean,
     ) {
-        var previousSnapshot: ProcessTickSnapshot? = null
-        var previousSource: ProcessStatsSourceKind? = null
         while (currentCoroutineContext().isActive) {
             val appState = stateStore.state.value
             if (!appState.proxyRunning) {
-                previousSnapshot = null
-                previousSource = null
+                previousProcessSnapshot = null
+                previousProcessSource = null
                 mutableState.update { current ->
                     current.copy(
                         resource = current.resource.copy(
                             cpuPercent = null,
-                            memoryBytes = null,
                             source = null,
                             uptimeMillis = null,
                             processId = null,
-                            memoryLimitBytes = null,
                         ),
                     )
                 }
             } else {
                 val reading = processStatsSource.read(appState)
-                val baseline = previousSnapshot.takeIf { previousSource == reading?.source }
+                val baseline = previousProcessSnapshot.takeIf {
+                    previousProcessSource == reading?.source
+                }
+                val sameProcess = baseline != null && reading != null &&
+                    baseline.pid == reading.snapshot.pid &&
+                    baseline.startTimeTicks == reading.snapshot.startTimeTicks
                 val cpuPercent = reading?.snapshot?.let { current ->
                     calculateProcessCpuPercent(baseline, current)
                 }
-                previousSnapshot = reading?.snapshot
-                previousSource = reading?.source
-                val memoryBytes = mihomoRuntime.refreshMemoryNow(appState)
+                if (reading != null) {
+                    previousProcessSnapshot = reading.snapshot
+                    previousProcessSource = reading.source
+                }
                 val timestampMillis = System.currentTimeMillis()
                 mutableState.update { current ->
                     val sample = ProcessStatsSample(
                         timestampMillis = timestampMillis,
                         cpuPercent = cpuPercent,
-                        memoryBytes = memoryBytes,
+                        memoryBytes = current.resource.memoryBytes,
                     )
                     val history = if (recordHistory) {
                         appendProcessStatsSample(current.resource.oneHourSamples, sample)
@@ -210,15 +222,45 @@ internal class MonitoringRepository(
                     }
                     current.copy(
                         resource = current.resource.copy(
-                            cpuPercent = cpuPercent,
-                            memoryBytes = memoryBytes,
-                            source = reading?.source,
-                            uptimeMillis = reading?.uptimeMillis,
-                            processId = reading?.snapshot?.pid,
-                            memoryLimitBytes = mihomoRuntime.state.value.memory.osLimitBytes.takeIf { it > 0L },
+                            cpuPercent = when {
+                                cpuPercent != null -> cpuPercent
+                                reading == null || sameProcess -> current.resource.cpuPercent
+                                else -> null
+                            },
+                            source = reading?.source ?: current.resource.source,
+                            uptimeMillis = reading?.uptimeMillis ?: current.resource.uptimeMillis,
+                            processId = reading?.snapshot?.pid ?: current.resource.processId,
                             sampleIntervalMillis = intervalMillis,
                             fifteenMinuteSamples = history?.fifteenMinutes.orEmpty(),
                             oneHourSamples = history?.oneHour.orEmpty(),
+                        ),
+                    )
+                }
+            }
+            delay(intervalMillis.milliseconds)
+        }
+    }
+
+    private suspend fun collectMemoryStats(intervalMillis: Long) {
+        while (currentCoroutineContext().isActive) {
+            val appState = stateStore.state.value
+            if (!appState.proxyRunning) {
+                mutableState.update { current ->
+                    current.copy(
+                        resource = current.resource.copy(
+                            memoryBytes = null,
+                            memoryLimitBytes = null,
+                        ),
+                    )
+                }
+            } else {
+                val memoryBytes = mihomoRuntime.refreshMemoryNow(appState)
+                val memoryLimitBytes = mihomoRuntime.state.value.memory.osLimitBytes.takeIf { it > 0L }
+                mutableState.update { current ->
+                    current.copy(
+                        resource = current.resource.copy(
+                            memoryBytes = memoryBytes ?: current.resource.memoryBytes,
+                            memoryLimitBytes = memoryLimitBytes ?: current.resource.memoryLimitBytes,
                         ),
                     )
                 }
@@ -535,4 +577,5 @@ private fun List<MihomoConnection>.sumKnownRates(selector: (MihomoConnection) ->
 
 private const val TrafficSpeedHistoryMillis = 5L * 60L * 1_000L
 private const val MaxTrafficSpeedSamples = 301
+private const val MemoryMonitoringIntervalMillis = 3_000L
 private const val LogTag = "MonitoringRepository"
