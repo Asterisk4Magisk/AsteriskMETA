@@ -41,7 +41,7 @@
         },
         {
             "uniqueId": "github:MetaCubeX/ClashMetaForAndroid",
-            "artifactVersion": "v2.11.31-asterisk",
+            "artifactVersion": "v2.11.32-asterisk",
             "name": "CMFA Mihomo wrapper",
             "description": "Vendored CMFA Android core bridge module for Mihomo.",
             "website": "https://github.com/MetaCubeX/ClashMetaForAndroid",
@@ -106,7 +106,7 @@
         },
         {
             "uniqueId": "org.jetbrains.compose.material3:material3",
-            "artifactVersion": "1.11.0-alpha07",
+            "artifactVersion": "1.12.0-alpha03",
             "name": "Compose Material3 Components",
             "description": "Compose Material You Design Components library",
             "website": "https://github.com/JetBrains/compose-multiplatform",
@@ -158,7 +158,7 @@
         },
         {
             "uniqueId": "github:heiher/hev-socks5-tunnel",
-            "artifactVersion": "2.15.0",
+            "artifactVersion": "2.16.0",
             "name": "hev-socks5-tunnel",
             "description": "A tun2socks tunnel that forwards TUN traffic to a SOCKS5 server.",
             "website": "https://github.com/heiher/hev-socks5-tunnel",
@@ -249,7 +249,7 @@
         },
         {
             "uniqueId": "github:MetaCubeX/mihomo",
-            "artifactVersion": "v1.19.28",
+            "artifactVersion": "v1.19.29",
             "name": "Mihomo",
             "description": "An open platform for proxy and anti-censorship networking.",
             "website": "https://github.com/MetaCubeX/mihomo",

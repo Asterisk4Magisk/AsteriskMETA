@@ -20,8 +20,9 @@ import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -69,7 +70,14 @@ internal fun AsteriskModalBottomSheet(
     endAction: @Composable () -> Unit = EmptySheetAction,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val sheetState = rememberModalBottomSheetState()
+    val sheetState = rememberBottomSheetState(
+        initialValue = SheetValue.Hidden,
+        enabledValues = setOf(
+            SheetValue.Hidden,
+            SheetValue.PartiallyExpanded,
+            SheetValue.Expanded,
+        ),
+    )
     var renderSheet by remember { mutableStateOf(show) }
 
     LaunchedEffect(show) {
