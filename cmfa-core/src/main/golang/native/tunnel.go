@@ -40,6 +40,11 @@ func queryMemory() C.uint64_t {
 	return C.uint64_t(tunnel.Memory())
 }
 
+//export queryConnectionCount
+func queryConnectionCount() C.int {
+	return C.int(tunnel.ConnectionCount())
+}
+
 //export queryConnections
 func queryConnections() *C.char {
 	return marshalJson(tunnel.Snapshot())

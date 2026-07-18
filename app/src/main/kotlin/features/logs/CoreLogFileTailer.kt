@@ -3,15 +3,20 @@
 
 package features.logs
 
+import android.os.FileObserver
+import android.system.Os
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 import java.io.RandomAccessFile
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.Duration.Companion.milliseconds
 
 internal data class CoreLogFile(
@@ -41,40 +46,83 @@ internal class CoreLogFileTailer(
 
     private suspend fun tail(logFile: CoreLogFile) {
         val file = File(logFile.path)
-        file.parentFile?.mkdirs()
+        val directory = file.parentFile ?: return
+        directory.mkdirs()
         var position = runCatching { file.length() }.getOrDefault(0L)
         var failureLogged = false
-
-        while (scope.isActive) {
-            if (!file.exists()) {
-                delay(TailIntervalMillis.milliseconds)
-                continue
+        var reader: RandomAccessFile? = null
+        var fileIdentity: Long? = null
+        val signals = Channel<Unit>(Channel.CONFLATED)
+        val reopenRequested = AtomicBoolean(false)
+        @Suppress("DEPRECATION")
+        val observer = object : FileObserver(directory.absolutePath, FileEventMask) {
+            override fun onEvent(event: Int, path: String?) {
+                if (path != file.name) return
+                if (event and ReopenEventMask != 0) {
+                    reopenRequested.set(true)
+                }
+                signals.trySend(Unit)
             }
+        }
 
-            runCatching {
-                RandomAccessFile(file, "r").use { reader ->
-                    if (position > reader.length()) {
+        try {
+            observer.startWatching()
+            signals.trySend(Unit)
+            while (currentCoroutineContext().isActive) {
+                withTimeoutOrNull(TailFallbackIntervalMillis.milliseconds) {
+                    signals.receive()
+                }
+
+                if (!file.exists()) {
+                    reader?.close()
+                    reader = null
+                    fileIdentity = null
+                    continue
+                }
+                val currentFileIdentity = runCatching { Os.stat(file.absolutePath).st_ino }.getOrNull()
+                if (reader != null && fileIdentity != currentFileIdentity) {
+                    reader.close()
+                    reader = null
+                    position = 0L
+                }
+                if (reopenRequested.getAndSet(false)) {
+                    reader?.close()
+                    reader = null
+                    position = 0L
+                }
+
+                runCatching {
+                    val activeReader = reader ?: RandomAccessFile(file, "r").also { opened ->
+                        reader = opened
+                        fileIdentity = currentFileIdentity
+                    }
+                    if (position > activeReader.length()) {
                         position = 0L
                     }
-                    reader.seek(position)
+                    activeReader.seek(position)
 
-                    var line = reader.readUtf8Line()
+                    var line = activeReader.readUtf8Line()
                     while (line != null) {
                         repository.appendParsedCoreLogLine(line, logFile.defaultLevel)
-                        line = reader.readUtf8Line()
+                        line = activeReader.readUtf8Line()
                     }
-                    position = reader.filePointer
-                }
-            }.onSuccess {
-                failureLogged = false
-            }.onFailure { error ->
-                if (!failureLogged) {
-                    AndroidAppLogger.warn(LogTag, "Failed to tail Mihomo log file: ${file.absolutePath}", error)
-                    failureLogged = true
+                    position = activeReader.filePointer
+                }.onSuccess {
+                    failureLogged = false
+                }.onFailure { error ->
+                    runCatching { reader?.close() }
+                    reader = null
+                    fileIdentity = null
+                    if (!failureLogged) {
+                        AndroidAppLogger.warn(LogTag, "Failed to tail Mihomo log file: ${file.absolutePath}", error)
+                        failureLogged = true
+                    }
                 }
             }
-
-            delay(TailIntervalMillis.milliseconds)
+        } finally {
+            observer.stopWatching()
+            signals.close()
+            runCatching { reader?.close() }
         }
     }
 
@@ -86,7 +134,10 @@ internal class CoreLogFileTailer(
 
     private companion object {
         private const val LogTag = "CoreLogFileTailer"
-        private const val TailIntervalMillis = 500L
+        private const val TailFallbackIntervalMillis = 5_000L
+        private const val ReopenEventMask = FileObserver.CREATE or FileObserver.MOVED_TO or
+            FileObserver.DELETE or FileObserver.MOVED_FROM
+        private const val FileEventMask = FileObserver.CLOSE_WRITE or FileObserver.MODIFY or ReopenEventMask
     }
 }
 

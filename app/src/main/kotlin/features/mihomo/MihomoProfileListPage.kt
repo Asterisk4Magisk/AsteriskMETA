@@ -79,7 +79,7 @@ import app.nextAvailableMihomoProfileId
 import app.hasRuntimeRelevantChanges
 import app.withMihomoRestartApplied
 import app.withMihomoRestartRequired
-import engine.mihomo.hasMihomoProxyProviders
+import engine.mihomo.MihomoProviderMetadataCache
 import engine.mihomo.MihomoProfileFactory
 import engine.proxy.ProxyServiceResult
 import features.subscription.SubscriptionInstallConfig
@@ -177,10 +177,17 @@ fun MihomoProfileListPage(
         profilesWithProxyProviders = withContext(Dispatchers.IO) {
             profiles
                 .filter { profile ->
-                    profile.hasContent &&
-                        services.mihomoProfileContentStore
-                            .readOrEmpty(profile)
-                            .hasMihomoProxyProviders()
+                    if (!profile.hasContent) return@filter false
+                    val cacheKey = profile.contentSha256
+                        .takeIf(String::isNotBlank)
+                        ?.let { sha256 -> "profile:$sha256" }
+                        ?: "profile-path:${profile.contentPath}:${profile.contentSizeBytes}"
+                    val content = runCatching {
+                        services.mihomoProfileContentStore.read(profile)
+                    }.getOrNull() ?: return@filter false
+                    MihomoProviderMetadataCache.hasProxyProviders(cacheKey) {
+                        content
+                    }
                 }
                 .mapTo(mutableSetOf()) { profile -> profile.id }
         }

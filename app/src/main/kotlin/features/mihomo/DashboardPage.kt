@@ -59,6 +59,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import app.AppServices
 import app.AppState
 import app.LocalAppServices
 import app.LocalAppStateStore
@@ -131,6 +132,20 @@ private data class HomeTrafficPresentation(
     val samples: List<MihomoTrafficSample>,
 )
 
+private fun AppServices.homeControllerRuntimeSnapshot() =
+    buildHomeControllerRuntimeState(mihomoRuntime.state.value)
+
+private fun AppServices.homeTrafficPresentationSnapshot(): HomeTrafficPresentation {
+    val runtimeState = mihomoRuntime.state.value
+    return HomeTrafficPresentation(
+        traffic = runtimeState.traffic,
+        samples = mihomoRuntime.trafficHistorySnapshot(HomeNetworkHistoryLimit),
+    )
+}
+
+private fun AppServices.homeMonitoringOverviewSnapshot() =
+    buildHomeMonitoringOverviewState(monitoring.state.value)
+
 @Composable
 fun MihomoDashboardPage(
     padding: PaddingValues,
@@ -142,7 +157,7 @@ fun MihomoDashboardPage(
         services.mihomoRuntime.state
             .map(::buildHomeControllerRuntimeState)
             .distinctUntilChanged()
-    }.collectAsState(initial = buildHomeControllerRuntimeState(services.mihomoRuntime.state.collectAsState().value))
+    }.collectAsState(initial = services.homeControllerRuntimeSnapshot())
     val trafficPresentation by remember(services.mihomoRuntime) {
         services.mihomoRuntime.state
             .map { state -> state.traffic }
@@ -154,18 +169,13 @@ fun MihomoDashboardPage(
                 )
             }
             .distinctUntilChanged()
-    }.collectAsState(
-        initial = HomeTrafficPresentation(
-            traffic = services.mihomoRuntime.state.collectAsState().value.traffic,
-            samples = services.mihomoRuntime.trafficHistorySnapshot(HomeNetworkHistoryLimit),
-        ),
-    )
+    }.collectAsState(initial = services.homeTrafficPresentationSnapshot())
     val monitoringOverviewState by remember(services.monitoring) {
         services.monitoring.state
             .map(::buildHomeMonitoringOverviewState)
             .distinctUntilChanged()
             .sample(HomeUiSampleIntervalMillis.milliseconds)
-    }.collectAsState(initial = buildHomeMonitoringOverviewState(services.monitoring.state.collectAsState().value))
+    }.collectAsState(initial = services.homeMonitoringOverviewSnapshot())
     val navigator = LocalNavigator.current
     val isWideScreen = LocalIsWideScreen.current
     val mainDestinationState = LocalMainDestinationState.current

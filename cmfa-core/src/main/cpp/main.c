@@ -85,6 +85,14 @@ Java_com_github_kr328_clash_core_bridge_Bridge_nativeQueryMemory(JNIEnv *env, jo
     return (jlong) queryMemory();
 }
 
+JNIEXPORT jint JNICALL
+Java_com_github_kr328_clash_core_bridge_Bridge_nativeQueryConnectionCount(JNIEnv *env,
+                                                                          jobject thiz) {
+    TRACE_METHOD();
+
+    return (jint) queryConnectionCount();
+}
+
 JNIEXPORT jstring JNICALL
 Java_com_github_kr328_clash_core_bridge_Bridge_nativeQueryConnections(JNIEnv *env, jobject thiz) {
     TRACE_METHOD();

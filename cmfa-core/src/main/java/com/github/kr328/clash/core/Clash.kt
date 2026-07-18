@@ -61,6 +61,10 @@ object Clash {
         return Bridge.nativeQueryMemory()
     }
 
+    fun queryConnectionCount(): Int {
+        return Bridge.nativeQueryConnectionCount()
+    }
+
     fun queryConnections(): String {
         return Bridge.nativeQueryConnections()
     }

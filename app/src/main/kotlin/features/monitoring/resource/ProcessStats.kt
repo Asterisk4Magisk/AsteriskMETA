@@ -114,13 +114,36 @@ internal fun appendProcessStatsSample(
     sample: ProcessStatsSample,
 ): ProcessStatsHistory {
     val oneHourStart = sample.timestampMillis - OneHourMillis
-    val oneHour = (previousHour + sample)
-        .filter { candidate -> candidate.timestampMillis in oneHourStart..sample.timestampMillis }
-        .takeLast(MaxOneHourSamples)
+    val firstInWindow = previousHour.indexOfFirst { candidate ->
+        candidate.timestampMillis >= oneHourStart
+    }.let { index -> if (index >= 0) index else previousHour.size }
+    val firstRetained = maxOf(
+        firstInWindow,
+        previousHour.size - (MaxOneHourSamples - 1),
+    )
+    val oneHour = ArrayList<ProcessStatsSample>(
+        (previousHour.size - firstRetained + 1).coerceAtMost(MaxOneHourSamples),
+    )
+    for (index in firstRetained until previousHour.size) {
+        val candidate = previousHour[index]
+        if (candidate.timestampMillis <= sample.timestampMillis) {
+            oneHour += candidate
+        }
+    }
+    oneHour += sample
+
     val fifteenMinuteStart = sample.timestampMillis - FifteenMinutesMillis
-    val fifteenMinutes = oneHour
-        .filter { candidate -> candidate.timestampMillis >= fifteenMinuteStart }
-        .takeLast(MaxFifteenMinuteSamples)
+    val firstFifteenMinuteSample = oneHour.indexOfFirst { candidate ->
+        candidate.timestampMillis >= fifteenMinuteStart
+    }.let { index -> if (index >= 0) index else oneHour.size }
+    val firstFifteenMinuteRetained = maxOf(
+        firstFifteenMinuteSample,
+        oneHour.size - MaxFifteenMinuteSamples,
+    )
+    val fifteenMinutes = ArrayList<ProcessStatsSample>(oneHour.size - firstFifteenMinuteRetained)
+    for (index in firstFifteenMinuteRetained until oneHour.size) {
+        fifteenMinutes += oneHour[index]
+    }
     return ProcessStatsHistory(
         fifteenMinutes = fifteenMinutes,
         oneHour = oneHour,

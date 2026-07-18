@@ -112,7 +112,7 @@ androidComponents {
                 }
             }
 
-            tasks.register<BuildCmfaGoCoreTask>(taskName) {
+            val goBuildTask = tasks.register<BuildCmfaGoCoreTask>(taskName) {
                 description = "Build CMFA Go core for ${variant.name} $abi."
                 dependsOn(syncMihomoCoreVersion)
                 goModuleDirectory.set(goModuleDir)
@@ -131,13 +131,14 @@ androidComponents {
 
             tasks.configureEach {
                 if (name == "merge${variant.name.capitalizedForTask()}JniLibFolders") {
-                    dependsOn(taskName)
+                    dependsOn(goBuildTask)
+                    inputs.file(goBuildTask.flatMap { task -> task.outputFile })
                 }
                 if (name.startsWith("configureCMake$cmakeName[$abi]")) {
                     dependsOn(syncMihomoCoreVersion)
                 }
                 if (name.startsWith("buildCMake$cmakeName[$abi]")) {
-                    dependsOn(taskName)
+                    dependsOn(goBuildTask)
                 }
             }
         }

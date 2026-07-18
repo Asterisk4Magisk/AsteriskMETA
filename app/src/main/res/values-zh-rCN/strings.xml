@@ -367,7 +367,6 @@
     <string name="mihomo_configuration_imported">配置已导入</string>
     <string name="mihomo_configuration_import_file_failed">导入配置文件失败</string>
     <string name="mihomo_configuration_import_qr_failed">导入二维码失败</string>
-    <string name="mihomo_configuration_provider_prepare_failed">准备子订阅文件失败</string>
     <string name="mihomo_configuration_invalid_subscription_url">无效的订阅 URL</string>
     <string name="mihomo_configuration_http_subscription_warning_title">HTTP 订阅警告</string>
     <string name="mihomo_configuration_http_subscription_warning_message">当前订阅 URL 使用 HTTP 明文传输，配置内容可能在传输过程中被读取或篡改。仅在你信任该来源时继续保存。</string>

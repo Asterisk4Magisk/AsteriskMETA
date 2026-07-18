@@ -27,7 +27,9 @@ import features.monitoring.traffic.TrafficLedgerStore
 import features.monitoring.traffic.localTrafficDay
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -42,6 +44,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import system.AndroidRootShellGateway
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -228,56 +231,62 @@ internal class MonitoringRepository(
         intervalMillis: Long,
         recordHistory: Boolean,
     ) {
-        while (currentCoroutineContext().isActive) {
-            val runtime = mihomoRuntime.state.value
-            val appState = stateStore.state.value
-            val connected = appState.proxyRunning && runtime.running && runtime.traffic.connected
-            val now = System.currentTimeMillis()
-            val today = localTrafficDay(now)
-            if (!connected) {
-                trafficWasConnected = false
-                trafficSessionId = null
-                updateTrafficSummary(
-                    ledger = trafficLedgerStore.snapshot(),
-                    today = today,
-                    runtimeTraffic = null,
-                    recordHistory = recordHistory,
-                )
-            } else {
-                if (!trafficWasConnected) {
-                    trafficSessionId = trafficSessionId ?: newTrafficSessionId(now)
+        try {
+            while (currentCoroutineContext().isActive) {
+                val runtime = mihomoRuntime.state.value
+                val appState = stateStore.state.value
+                val connected = appState.proxyRunning && runtime.running && runtime.traffic.connected
+                val now = System.currentTimeMillis()
+                val today = localTrafficDay(now)
+                if (!connected) {
+                    trafficWasConnected = false
+                    trafficSessionId = null
+                    updateTrafficSummary(
+                        ledger = trafficLedgerStore.snapshot(),
+                        today = today,
+                        runtimeTraffic = null,
+                        recordHistory = recordHistory,
+                    )
+                } else {
+                    if (!trafficWasConnected) {
+                        trafficSessionId = trafficSessionId ?: newTrafficSessionId(now)
+                    }
+                    trafficWasConnected = true
+                    val runtimeTraffic = runtime.traffic
+                    val observedAt = runtimeTraffic.latest.timestampMillis
+                    val reduction = trafficLedgerStore.update(
+                        TrafficLedgerSample(
+                            sessionId = checkNotNull(trafficSessionId),
+                            uploadTotalBytes = runtimeTraffic.totalUp,
+                            downloadTotalBytes = runtimeTraffic.totalDown,
+                            observedAtMillis = observedAt,
+                            localDay = localTrafficDay(observedAt),
+                            sourceId = if (appState.runMode.isRootRunMode()) {
+                                "root:${appState.runMode}"
+                            } else {
+                                "embedded:${appState.runMode}"
+                            },
+                        ),
+                    )
+                    updateTrafficSummary(
+                        ledger = reduction.ledger,
+                        today = today,
+                        runtimeTraffic = TrafficRuntimeSummary(
+                            uploadBytesPerSecond = runtimeTraffic.latest.up,
+                            downloadBytesPerSecond = runtimeTraffic.latest.down,
+                            sessionUploadBytes = runtimeTraffic.totalUp,
+                            sessionDownloadBytes = runtimeTraffic.totalDown,
+                            sampleTimestampMillis = runtimeTraffic.latest.timestampMillis,
+                        ),
+                        recordHistory = recordHistory,
+                    )
                 }
-                trafficWasConnected = true
-                val runtimeTraffic = runtime.traffic
-                val observedAt = runtimeTraffic.latest.timestampMillis
-                val reduction = trafficLedgerStore.update(
-                    TrafficLedgerSample(
-                        sessionId = checkNotNull(trafficSessionId),
-                        uploadTotalBytes = runtimeTraffic.totalUp,
-                        downloadTotalBytes = runtimeTraffic.totalDown,
-                        observedAtMillis = observedAt,
-                        localDay = localTrafficDay(observedAt),
-                        sourceId = if (appState.runMode.isRootRunMode()) {
-                            "root:${appState.runMode}"
-                        } else {
-                            "embedded:${appState.runMode}"
-                        },
-                    ),
-                )
-                updateTrafficSummary(
-                    ledger = reduction.ledger,
-                    today = today,
-                    runtimeTraffic = TrafficRuntimeSummary(
-                        uploadBytesPerSecond = runtimeTraffic.latest.up,
-                        downloadBytesPerSecond = runtimeTraffic.latest.down,
-                        sessionUploadBytes = runtimeTraffic.totalUp,
-                        sessionDownloadBytes = runtimeTraffic.totalDown,
-                        sampleTimestampMillis = runtimeTraffic.latest.timestampMillis,
-                    ),
-                    recordHistory = recordHistory,
-                )
+                delay(intervalMillis.milliseconds)
             }
-            delay(intervalMillis.milliseconds)
+        } finally {
+            withContext(NonCancellable + Dispatchers.IO) {
+                trafficLedgerStore.flush()
+            }
         }
     }
 
@@ -314,29 +323,50 @@ internal class MonitoringRepository(
                 else -> current
             }
         }
+        if (!includeDetails) {
+            mihomoRuntime.getConnectionCount(appState)
+                .onSuccess { activeCount ->
+                    mutableState.update { current ->
+                        current.copy(
+                            connections = MonitoringConnectionsSummary(
+                                activeCount = activeCount,
+                                status = ConnectionMonitorStatus.Available,
+                            ),
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    if (error is CancellationException) throw error
+                    mutableState.update { current ->
+                        current.copy(
+                            connections = current.connections.copy(
+                                snapshot = MihomoConnectionsState(),
+                                status = ConnectionMonitorStatus.Error,
+                                error = error.message.orEmpty(),
+                                stale = false,
+                            ),
+                        )
+                    }
+                }
+            return@withLock
+        }
         mihomoRuntime.getConnections(appState)
             .onSuccess { snapshot ->
                 mutableState.update { current ->
-                    val detailSnapshot = if (includeDetails) {
-                        deriveConnectionRates(
-                            previous = current.connections.snapshot.takeIf { it.updatedAtMillis > 0L },
-                            current = snapshot,
-                        )
-                    } else {
-                        null
-                    }
-                    val displayedSnapshot = detailSnapshot ?: MihomoConnectionsState()
-                    val sourceSnapshot = detailSnapshot ?: snapshot
+                    val detailSnapshot = deriveConnectionRates(
+                        previous = current.connections.snapshot.takeIf { it.updatedAtMillis > 0L },
+                        current = snapshot,
+                    )
                     current.copy(
                         connections = MonitoringConnectionsSummary(
-                            activeCount = sourceSnapshot.connections.size,
-                            uploadBytesPerSecond = detailSnapshot?.connections
-                                ?.sumKnownRates(MihomoConnection::uploadBytesPerSecond),
-                            downloadBytesPerSecond = detailSnapshot?.connections
-                                ?.sumKnownRates(MihomoConnection::downloadBytesPerSecond),
-                            sessionUploadBytes = detailSnapshot?.uploadTotalBytes,
-                            sessionDownloadBytes = detailSnapshot?.downloadTotalBytes,
-                            snapshot = displayedSnapshot,
+                            activeCount = detailSnapshot.connections.size,
+                            uploadBytesPerSecond = detailSnapshot.connections
+                                .sumKnownRates(MihomoConnection::uploadBytesPerSecond),
+                            downloadBytesPerSecond = detailSnapshot.connections
+                                .sumKnownRates(MihomoConnection::downloadBytesPerSecond),
+                            sessionUploadBytes = detailSnapshot.uploadTotalBytes,
+                            sessionDownloadBytes = detailSnapshot.downloadTotalBytes,
+                            snapshot = detailSnapshot,
                             status = ConnectionMonitorStatus.Available,
                         ),
                     )
@@ -347,10 +377,10 @@ internal class MonitoringRepository(
                 mutableState.update { current ->
                     current.copy(
                         connections = current.connections.copy(
-                            snapshot = if (includeDetails) current.connections.snapshot else MihomoConnectionsState(),
+                            snapshot = current.connections.snapshot,
                             status = ConnectionMonitorStatus.Error,
                             error = error.message.orEmpty(),
-                            stale = includeDetails && current.connections.snapshot.updatedAtMillis > 0L,
+                            stale = current.connections.snapshot.updatedAtMillis > 0L,
                         ),
                     )
                 }

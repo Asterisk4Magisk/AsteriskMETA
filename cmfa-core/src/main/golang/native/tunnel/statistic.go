@@ -20,6 +20,15 @@ func Memory() uint64 {
 	return statistic.DefaultManager.Memory()
 }
 
+func ConnectionCount() int {
+	count := 0
+	statistic.DefaultManager.Range(func(_ statistic.Tracker) bool {
+		count++
+		return true
+	})
+	return count
+}
+
 func Snapshot() *statistic.Snapshot {
 	return statistic.DefaultManager.Snapshot()
 }

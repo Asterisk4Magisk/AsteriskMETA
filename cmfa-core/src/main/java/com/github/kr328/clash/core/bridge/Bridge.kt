@@ -17,6 +17,7 @@ object Bridge {
     external fun nativeQueryTrafficNow(): Long
     external fun nativeQueryTrafficTotal(): Long
     external fun nativeQueryMemory(): Long
+    external fun nativeQueryConnectionCount(): Int
     external fun nativeQueryConnections(): String
     external fun nativeCloseConnection(id: String): Boolean
     external fun nativeCloseAllConnections()

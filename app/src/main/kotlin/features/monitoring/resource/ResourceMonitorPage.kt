@@ -45,6 +45,8 @@ import features.monitoring.buildMonitoringResourceFocusState
 import ui.components.AsteriskFilterChip
 import ui.layout.rememberPageGutter
 import utils.toReadableBytes
+import kotlin.math.ceil
+import kotlin.math.roundToInt
 
 @Composable
 internal fun ResourceMonitorPage(padding: PaddingValues) {
@@ -216,8 +218,19 @@ private fun ResourceChart(
         val endTime = samples.lastOrNull()?.timestampMillis ?: System.currentTimeMillis()
         val startTime = endTime - windowMillis
         val visible = samples.filter { it.timestampMillis >= startTime }
-        val cpuMax = maxOf(100.0, visible.mapNotNull(ProcessStatsSample::cpuPercent).maxOrNull() ?: 0.0)
-        val memoryMax = maxOf(1L, visible.mapNotNull(ProcessStatsSample::memoryBytes).maxOrNull() ?: 0L).toDouble()
+        var observedCpuMax = 0.0
+        var observedMemoryMax = 0L
+        visible.forEach { sample ->
+            observedCpuMax = maxOf(observedCpuMax, sample.cpuPercent ?: 0.0)
+            observedMemoryMax = maxOf(observedMemoryMax, sample.memoryBytes ?: 0L)
+        }
+        val cpuMax = maxOf(100.0, observedCpuMax)
+        val memoryMax = maxOf(1L, observedMemoryMax).toDouble()
+        val maximumDrawPoints = (size.width / 2.dp.toPx()).roundToInt().coerceAtLeast(MinimumChartDrawPoints)
+        val cpuSamples = visible.downsampleForChart(maximumDrawPoints, ProcessStatsSample::cpuPercent)
+        val memorySamples = visible.downsampleForChart(maximumDrawPoints) { sample ->
+            sample.memoryBytes?.toDouble()
+        }
         repeat(4) { index ->
             val y = size.height * index / 3f
             drawLine(
@@ -228,20 +241,60 @@ private fun ResourceChart(
             )
         }
         drawSampleSeries(
-            samples = visible,
+            samples = cpuSamples,
             startTime = startTime,
             windowMillis = windowMillis,
             gapMillis = (expectedIntervalMillis * 5L) / 2L,
             color = cpuColor,
         ) { sample -> sample.cpuPercent?.div(cpuMax) }
         drawSampleSeries(
-            samples = visible,
+            samples = memorySamples,
             startTime = startTime,
             windowMillis = windowMillis,
             gapMillis = (expectedIntervalMillis * 5L) / 2L,
             color = memoryColor,
         ) { sample -> sample.memoryBytes?.toDouble()?.div(memoryMax) }
     }
+}
+
+private fun List<ProcessStatsSample>.downsampleForChart(
+    maximumPoints: Int,
+    value: (ProcessStatsSample) -> Double?,
+): List<ProcessStatsSample> {
+    if (size <= maximumPoints || size <= 2) return this
+
+    val bucketCount = ((maximumPoints - 2) / ChartPointsPerBucket).coerceAtLeast(1)
+    val interiorSize = size - 2
+    val bucketSize = ceil(interiorSize.toDouble() / bucketCount).toInt().coerceAtLeast(1)
+    val selectedIndices = ArrayList<Int>(maximumPoints + 2)
+    selectedIndices += 0
+
+    var bucketStart = 1
+    while (bucketStart < lastIndex) {
+        val bucketEnd = minOf(lastIndex, bucketStart + bucketSize)
+        var minimumIndex: Int? = null
+        var maximumIndex: Int? = null
+        var minimumValue = Double.POSITIVE_INFINITY
+        var maximumValue = Double.NEGATIVE_INFINITY
+        for (index in bucketStart until bucketEnd) {
+            val current = value(this[index]) ?: continue
+            if (current < minimumValue) {
+                minimumValue = current
+                minimumIndex = index
+            }
+            if (current > maximumValue) {
+                maximumValue = current
+                maximumIndex = index
+            }
+        }
+        listOfNotNull(bucketStart, minimumIndex, maximumIndex, bucketEnd - 1)
+            .distinct()
+            .sorted()
+            .forEach(selectedIndices::add)
+        bucketStart = bucketEnd
+    }
+    selectedIndices += lastIndex
+    return selectedIndices.distinct().map(::get)
 }
 
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawSampleSeries(
@@ -272,8 +325,12 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawSampleSeries(
 
 @Composable
 private fun ResourceDetails(resource: MonitoringResourceSummary) {
-    val cpuPeak = resource.oneHourSamples.mapNotNull(ProcessStatsSample::cpuPercent).maxOrNull()
-    val memoryPeak = resource.oneHourSamples.mapNotNull(ProcessStatsSample::memoryBytes).maxOrNull()
+    var cpuPeak: Double? = null
+    var memoryPeak: Long? = null
+    resource.oneHourSamples.forEach { sample ->
+        sample.cpuPercent?.let { value -> cpuPeak = maxOf(cpuPeak ?: value, value) }
+        sample.memoryBytes?.let { value -> memoryPeak = maxOf(memoryPeak ?: value, value) }
+    }
     MonitoringSectionCard(stringResource(R.string.monitor_resource_details), ResourceContentModifier) {
         Column {
             MonitoringValueRow(stringResource(R.string.monitor_resource_cpu_peak), cpuPeak?.let { "%.1f%%".format(it) } ?: "—")
@@ -301,4 +358,6 @@ private enum class ResourceChartRange(val windowMillis: Long) {
     OneHour(60L * 60L * 1_000L),
 }
 
+private const val MinimumChartDrawPoints = 64
+private const val ChartPointsPerBucket = 4
 private val ResourceContentModifier = Modifier.fillMaxWidth().widthIn(max = 840.dp)

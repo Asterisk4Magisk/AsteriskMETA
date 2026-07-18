@@ -102,6 +102,19 @@ internal class MihomoControlClient {
         return parseMihomoConnectionsJson(response)
     }
 
+    fun getConnectionCount(
+        config: MihomoControlConfig,
+        useBridge: Boolean,
+    ): Int {
+        if (useBridge) {
+            return Clash.queryConnectionCount()
+        }
+        return requestJsonObject(config, "/connections")["connections"]
+            .jsonArrayOrNull()
+            ?.size
+            ?: error("Invalid Mihomo API response for /connections")
+    }
+
     fun closeConnection(
         config: MihomoControlConfig,
         connectionId: String,

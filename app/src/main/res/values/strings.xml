@@ -374,7 +374,6 @@
     <string name="mihomo_configuration_imported">Configuration imported</string>
     <string name="mihomo_configuration_import_file_failed">Failed to import configuration file</string>
     <string name="mihomo_configuration_import_qr_failed">Failed to import QR code</string>
-    <string name="mihomo_configuration_provider_prepare_failed">Failed to prepare provider files</string>
     <string name="mihomo_configuration_invalid_subscription_url">Invalid subscription URL</string>
     <string name="mihomo_configuration_http_subscription_warning_title">HTTP subscription warning</string>
     <string name="mihomo_configuration_http_subscription_warning_message">This subscription URL uses HTTP cleartext transport. The configuration content may be read or modified in transit. Save only if you trust this source.</string>

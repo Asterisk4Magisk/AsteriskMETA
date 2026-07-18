@@ -89,12 +89,14 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.AppServices
 import app.LocalAppServices
 import app.LocalAppStateStore
 import app.LocalIsWideScreen
 import app.LocalMainDestinationState
 import app.LocalNavigator
 import app.LocalUpdateAppState
+import app.MihomoOverrideScriptState
 import app.R
 import app.collectAppState
 import app.modes.MihomoProxyLayoutAuto
@@ -114,19 +116,51 @@ import ui.components.AsteriskTonalButton
 import app.navigation.Route
 import app.navigation.MainDestination
 import engine.mihomo.MihomoProfileFactory
-import engine.mihomo.hasMihomoProxyProviders
+import engine.mihomo.MihomoProviderMetadataCache
 import engine.mihomo.hasUsableMihomoProfile
 import engine.mihomo.selectedMihomoProfileOrNull
+import engine.mihomo.sha256Hex
 import engine.mihomo.runtime.MihomoProxiesState
 import engine.mihomo.runtime.MihomoProxyGroup
 import engine.mihomo.runtime.MihomoProxyNode
+import engine.mihomo.runtime.MihomoRuntimeState
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 import ui.layout.pageContentPaddingWithCutout
 import ui.layout.pageListPadding
 import ui.theme.AsteriskMotion
+
+private data class MihomoProxyPageRuntimeState(
+    val proxies: MihomoProxiesState,
+    val proxiesRefreshing: Boolean,
+    val delayTestingTarget: String?,
+    val lastError: String,
+)
+
+private fun MihomoRuntimeState.toProxyPageRuntimeState() = MihomoProxyPageRuntimeState(
+    proxies = proxies,
+    proxiesRefreshing = proxiesRefreshing,
+    delayTestingTarget = delayTestingTarget,
+    lastError = lastError,
+)
+
+private fun AppServices.mihomoProxyPageRuntimeSnapshot() =
+    mihomoRuntime.state.value.toProxyPageRuntimeState()
+
+private data class MihomoProxyProviderDetectionSignature(
+    val profileId: Int,
+    val contentSha256: String,
+    val contentPath: String,
+    val contentSizeBytes: Long,
+    val disableOverrides: Boolean,
+    val overrideScripts: List<MihomoOverrideScriptState>,
+    val runMode: Int,
+    val mihomoMode: Int,
+)
 
 @Composable
 fun MihomoProxyPage(
@@ -139,7 +173,11 @@ fun MihomoProxyPage(
     val navigator = LocalNavigator.current
     val mainDestinationState = LocalMainDestinationState.current
     val services = LocalAppServices.current
-    val runtimeState by services.mihomoRuntime.state.collectAsState()
+    val runtimeState by remember(services.mihomoRuntime) {
+        services.mihomoRuntime.state
+            .map(MihomoRuntimeState::toProxyPageRuntimeState)
+            .distinctUntilChanged()
+    }.collectAsState(initial = services.mihomoProxyPageRuntimeSnapshot())
     val scope = rememberCoroutineScope()
     val tipNotifier = services.tipNotifier
     val runtimeUnavailableMessage = stringResource(R.string.mihomo_proxies_runtime_unavailable)
@@ -155,6 +193,8 @@ fun MihomoProxyPage(
         hasUsableProfile,
         appState.selectedMihomoProfileId,
         selectedProfile?.contentSha256,
+        selectedProfile?.contentPath,
+        selectedProfile?.contentSizeBytes,
         selectedProfile?.disableOverrides,
         appState.proxyRunning,
         appState.runMode,
@@ -165,12 +205,35 @@ fun MihomoProxyPage(
         }
     }
     var hasProxyProviders by remember { mutableStateOf(false) }
-    LaunchedEffect(appState) {
+    val providerDetectionSignature = remember(
+        appState.selectedMihomoProfileId,
+        selectedProfile?.contentSha256,
+        selectedProfile?.disableOverrides,
+        appState.mihomoOverrideScripts,
+        appState.runMode,
+        appState.mihomoMode,
+    ) {
+        MihomoProxyProviderDetectionSignature(
+            profileId = appState.selectedMihomoProfileId,
+            contentSha256 = selectedProfile?.contentSha256.orEmpty(),
+            contentPath = selectedProfile?.contentPath.orEmpty(),
+            contentSizeBytes = selectedProfile?.contentSizeBytes ?: 0L,
+            disableOverrides = selectedProfile?.disableOverrides ?: false,
+            overrideScripts = appState.mihomoOverrideScripts,
+            runMode = appState.runMode,
+            mihomoMode = appState.mihomoMode,
+        )
+    }
+    LaunchedEffect(hasUsableProfile, providerDetectionSignature) {
         hasProxyProviders = if (hasUsableProfile) {
             withContext(Dispatchers.IO) {
                 runCatching {
-                    MihomoProfileFactory.buildProfile(appContext, appState)
-                        .hasMihomoProxyProviders()
+                    val runtimeProfile = MihomoProfileFactory.buildProfile(appContext, appState)
+                    MihomoProviderMetadataCache.hasProxyProviders(
+                        key = "runtime:${runtimeProfile.sha256Hex()}",
+                    ) {
+                        runtimeProfile
+                    }
                 }.getOrDefault(false)
             }
         } else {

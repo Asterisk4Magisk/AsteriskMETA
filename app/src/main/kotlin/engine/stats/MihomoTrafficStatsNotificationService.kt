@@ -1,6 +1,8 @@
 // Copyright 2026, AsteriskMETA contributors
 // SPDX-License-Identifier: GPL-3.0
 
+@file:OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+
 package engine.stats
 
 import android.app.Notification
@@ -13,10 +15,12 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import app.AsteriskApplication
 import app.R
 import engine.mihomo.MihomoControlConfig
 import engine.mihomo.runtime.MihomoControlClient
 import engine.mihomo.runtime.MihomoProxiesState
+import engine.mihomo.runtime.MihomoRuntimeRepository
 import engine.mihomo.runtime.MihomoTrafficSample
 import features.logs.AndroidAppLogger
 import kotlinx.coroutines.CancellationException
@@ -28,6 +32,11 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import utils.toReadableBytes
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -42,7 +51,7 @@ private const val ChannelId = "mihomo_traffic_stats"
 private const val NotificationId = 3001
 private const val LogTag = "MihomoTrafficStats"
 private const val StreamRestartDelayMillis = 1_000L
-private const val NodeRefreshIntervalMillis = 10_000L
+private const val NodeRefreshIntervalMillis = 60_000L
 private const val MaxConsecutiveFailures = 5
 
 class MihomoTrafficStatsNotificationService : Service() {
@@ -107,6 +116,7 @@ class MihomoTrafficStatsNotificationService : Service() {
     private fun startMonitor(runtime: MihomoTrafficStatsRuntime) {
         monitorJob?.cancel()
         monitorJob = serviceScope.launch {
+            val repository = (application as AsteriskApplication).mihomoRuntime
             val accumulator = TrafficStatsAccumulator()
             var nodeName = runtime.nodeName.ifBlank { getString(R.string.proxy_traffic_stats_notification_title) }
             var lastNodeRefreshAt = 0L
@@ -114,10 +124,16 @@ class MihomoTrafficStatsNotificationService : Service() {
 
             while (currentCoroutineContext().isActive) {
                 val result = runCatching {
-                    client.traffic(runtime.control, runtime.useBridge).collect { sample ->
+                    trafficSamples(runtime, repository).collect { sample ->
                         consecutiveFailures = 0
                         val now = System.currentTimeMillis()
-                        if (now - lastNodeRefreshAt >= NodeRefreshIntervalMillis) {
+                        val repositoryState = repository.state.value
+                        repositoryState.proxies
+                            .currentProxyNodeName(repositoryState.configs.mode)
+                            ?.let { currentNode -> nodeName = currentNode }
+                        if (!repositoryState.traffic.connected &&
+                            now - lastNodeRefreshAt >= NodeRefreshIntervalMillis
+                        ) {
                             nodeName = resolveCurrentNodeName(runtime, nodeName)
                             lastNodeRefreshAt = now
                         }
@@ -138,6 +154,39 @@ class MihomoTrafficStatsNotificationService : Service() {
                 delay(StreamRestartDelayMillis.milliseconds)
             }
         }
+    }
+
+    private fun trafficSamples(
+        runtime: MihomoTrafficStatsRuntime,
+        repository: MihomoRuntimeRepository,
+    ): Flow<MihomoTrafficSample> {
+        return repository.state
+            .map { state -> state.traffic.connected }
+            .distinctUntilChanged()
+            .flatMapLatest { repositoryConnected ->
+                AndroidAppLogger.debug(
+                    LogTag,
+                    if (repositoryConnected) {
+                        "Using foreground runtime traffic stream"
+                    } else {
+                        "Using notification-owned traffic stream"
+                    },
+                )
+                if (repositoryConnected) {
+                    repository.state
+                        .map { state -> state.traffic }
+                        .distinctUntilChanged()
+                        .filter { traffic -> traffic.connected }
+                        .map { traffic ->
+                            traffic.latest.copy(
+                                totalUp = traffic.totalUp,
+                                totalDown = traffic.totalDown,
+                            )
+                        }
+                } else {
+                    client.traffic(runtime.control, runtime.useBridge)
+                }
+            }
     }
 
     private suspend fun resolveCurrentNodeName(
