@@ -38,20 +38,22 @@ internal fun SubscriptionAutoUpdater(
                 }
             if (dueProfiles.isNotEmpty()) {
                 dueProfiles.forEach { profile -> lastAttemptMillisByProfileId[profile.id] = nowMillis }
-                val result = updateSubscriptions(
+                updateSubscriptions(
                     profiles = dueProfiles,
                     profilePreparer = profilePreparer,
                     contentStore = contentStore,
                     fetchOptions = { profile -> currentState.toSubscriptionFetchOptions(profile) },
+                    onProfileCompleted = { _, profileResult, completedAtMillis ->
+                        profileResult.getOrNull()?.let { update ->
+                            updateAppState { state ->
+                                state.withUpdatedMihomoProfiles(
+                                    updates = listOf(update),
+                                    updatedAtMillis = completedAtMillis,
+                                )
+                            }
+                        }
+                    },
                 )
-                if (result.updates.isNotEmpty()) {
-                    updateAppState { state ->
-                        state.withUpdatedMihomoProfiles(
-                            updates = result.updates,
-                            updatedAtMillis = result.updatedAtMillis,
-                        )
-                    }
-                }
             }
             delay(AutoSubscriptionCheckIntervalMillis.milliseconds)
         }

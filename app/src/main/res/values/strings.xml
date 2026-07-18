@@ -305,6 +305,12 @@
     <string name="mihomo_configuration_preview_title">Preview {name}</string>
     <string name="mihomo_configuration_preview_failed">Failed to preview configuration</string>
     <string name="mihomo_configuration_sync">Sync</string>
+    <string name="mihomo_configuration_sync_all">Update all subscriptions</string>
+    <string name="mihomo_configuration_sync_all_in_progress_title">Updating subscriptions</string>
+    <string name="mihomo_configuration_sync_all_progress">%1$d / %2$d</string>
+    <string name="mihomo_configuration_sync_all_cancelled">Subscription update cancelled: {profileCount} updated, {failedCount} failed, {skippedCount} not processed</string>
+    <string name="mihomo_configuration_sync_all_interrupted">Subscription update stopped unexpectedly: {profileCount} updated, {failedCount} failed, {skippedCount} not processed</string>
+    <string name="mihomo_configuration_sync_all_busy">Another subscription update is already in progress</string>
     <string name="mihomo_configuration_sync_providers">Sync providers</string>
     <string name="mihomo_configuration_provider_sync_result">Proxy providers synced: total %1$d, succeeded %2$d, failed %3$d</string>
     <string name="mihomo_configuration_provider_sync_empty">Current configuration does not contain remote proxy-providers</string>

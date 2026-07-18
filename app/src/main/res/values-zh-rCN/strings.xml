@@ -301,6 +301,12 @@
     <string name="mihomo_configuration_preview_title">预览 {name}</string>
     <string name="mihomo_configuration_preview_failed">预览配置失败</string>
     <string name="mihomo_configuration_sync">同步</string>
+    <string name="mihomo_configuration_sync_all">更新所有订阅</string>
+    <string name="mihomo_configuration_sync_all_in_progress_title">正在更新订阅</string>
+    <string name="mihomo_configuration_sync_all_progress">第 %1$d / %2$d 个</string>
+    <string name="mihomo_configuration_sync_all_cancelled">订阅更新已取消：成功 {profileCount} 个，失败 {failedCount} 个，未处理 {skippedCount} 个</string>
+    <string name="mihomo_configuration_sync_all_interrupted">订阅更新意外中止：成功 {profileCount} 个，失败 {failedCount} 个，未处理 {skippedCount} 个</string>
+    <string name="mihomo_configuration_sync_all_busy">已有订阅更新任务正在进行</string>
     <string name="mihomo_configuration_sync_providers">同步子订阅</string>
     <string name="mihomo_configuration_provider_sync_result">子订阅同步完成：共 %1$d 个，成功 %2$d 个，失败 %3$d 个</string>
     <string name="mihomo_configuration_provider_sync_empty">当前配置不包含远程 proxy-providers</string>

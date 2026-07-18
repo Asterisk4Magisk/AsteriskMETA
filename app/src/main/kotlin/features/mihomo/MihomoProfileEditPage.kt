@@ -8,6 +8,7 @@ package features.mihomo
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -33,6 +34,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -54,6 +56,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -705,6 +708,10 @@ private data class FailedMihomoProfileSave(
 internal fun MihomoProfileSyncProgressDialog(
     stage: MihomoProfileSyncStage?,
     onCancel: () -> Unit,
+    title: String? = null,
+    profileName: String? = null,
+    progress: Float? = null,
+    progressLabel: String? = null,
 ) {
     if (stage == null) return
     val message = stringResource(
@@ -723,8 +730,35 @@ internal fun MihomoProfileSyncProgressDialog(
                 strokeWidth = 3.dp,
             )
         },
-        title = { Text(stringResource(R.string.mihomo_configuration_save_sync_in_progress_title)) },
-        text = { Text(message) },
+        title = {
+            Text(title ?: stringResource(R.string.mihomo_configuration_save_sync_in_progress_title))
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                profileName?.let { name ->
+                    Text(
+                        text = name,
+                        style = MaterialTheme.typography.titleSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Text(message)
+                progress?.let { value ->
+                    LinearProgressIndicator(
+                        progress = { value.coerceIn(0f, 1f) },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                progressLabel?.let { label ->
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        },
         confirmButton = {
             AsteriskActionButton(
                 text = stringResource(R.string.common_cancel),

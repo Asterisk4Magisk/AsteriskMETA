@@ -44,6 +44,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -87,13 +88,17 @@ import features.subscription.runtime.AndroidSubscriptionFetchOptions
 import features.subscription.toSubscriptionInstallConfigOrNull
 import features.subscription.usecase.MihomoProfileSyncStage
 import features.subscription.usecase.launchMihomoProfileSubscriptionUpdate
+import features.subscription.usecase.subscriptionUpdateRequestCount
 import features.subscription.usecase.subscriptionUpdateMessage
 import features.subscription.usecase.toSubscriptionFetchOptions
+import features.subscription.usecase.tryUpdateSubscriptionsSequentially
+import features.subscription.usecase.withUpdatedMihomoProfiles
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import ui.layout.pageContentPaddingWithCutout
@@ -130,6 +135,7 @@ fun MihomoProfileListPage(
     val updateAppState = LocalUpdateAppState.current
     val services = LocalAppServices.current
     val scope = rememberCoroutineScope()
+    val activeSubscriptionUpdateRequests by subscriptionUpdateRequestCount.collectAsState()
     val profileSaveUseCase = remember(
         services.mihomoProfilePreparer,
         services.mihomoProfileContentStore,
@@ -148,9 +154,17 @@ fun MihomoProfileListPage(
     var restartInProgress by remember { mutableStateOf(false) }
     var importSyncStage by remember { mutableStateOf<MihomoProfileSyncStage?>(null) }
     var importSaveJob by remember { mutableStateOf<Job?>(null) }
+    var batchSyncJob by remember { mutableStateOf<Job?>(null) }
+    var batchSyncProgress by remember { mutableStateOf<MihomoProfileBatchSyncProgress?>(null) }
     var failedImport by remember { mutableStateOf<FailedMihomoProfileImport?>(null) }
+    val remoteSubscriptionProfiles = appState.mihomoProfiles.filter { profile ->
+        profile.type == MihomoProfileType.Url && profile.url.isNotBlank()
+    }
     val syncSuccessMessage = stringResource(R.string.subscription_update_result)
     val syncFailedMessage = stringResource(R.string.subscription_update_result_with_failed)
+    val syncCancelledMessage = stringResource(R.string.mihomo_configuration_sync_all_cancelled)
+    val syncInterruptedMessage = stringResource(R.string.mihomo_configuration_sync_all_interrupted)
+    val syncBusyMessage = stringResource(R.string.mihomo_configuration_sync_all_busy)
     val providerSyncResultMessage = stringResource(R.string.mihomo_configuration_provider_sync_result)
     val providerSyncEmptyMessage = stringResource(R.string.mihomo_configuration_provider_sync_empty)
     val providerSyncFailedMessage = stringResource(R.string.mihomo_configuration_provider_sync_failed)
@@ -324,6 +338,112 @@ fun MihomoProfileListPage(
                 syncingProfileIds = syncingProfileIds - profile.id
             }
         }
+    }
+
+    fun syncAllSubscriptions() {
+        if (
+            batchSyncJob?.isActive == true ||
+            syncingProfileIds.isNotEmpty() ||
+            subscriptionUpdateRequestCount.value > 0
+        ) {
+            return
+        }
+        val profiles = remoteSubscriptionProfiles
+        if (profiles.isEmpty()) return
+        val ownedProfileIds = profiles.mapTo(mutableSetOf()) { profile -> profile.id }
+
+        var updatedCount = 0
+        var failedCount = 0
+        var processedCount = 0
+        var reserved = false
+        val updatedProfileIds = mutableSetOf<Int>()
+        lateinit var job: Job
+        job = scope.launch(start = CoroutineStart.LAZY) {
+            try {
+                val result = tryUpdateSubscriptionsSequentially(
+                    profiles = profiles,
+                    profilePreparer = services.mihomoProfilePreparer,
+                    contentStore = services.mihomoProfileContentStore,
+                    fetchOptions = { item -> stateStore.state.value.toSubscriptionFetchOptions(item) },
+                    onReserved = {
+                        reserved = true
+                        syncingProfileIds = syncingProfileIds + ownedProfileIds
+                    },
+                    onProfileStarted = { profile, currentIndex, totalCount ->
+                        batchSyncProgress = MihomoProfileBatchSyncProgress(
+                            profileId = profile.id,
+                            profileName = profile.name.ifBlank { profile.url },
+                            currentIndex = currentIndex,
+                            totalCount = totalCount,
+                            completedCount = processedCount,
+                            stage = MihomoProfileSyncStage.Downloading,
+                        )
+                    },
+                    onStage = { item, stage ->
+                        batchSyncProgress = batchSyncProgress
+                            ?.takeIf { progress -> progress.profileId == item.id }
+                            ?.copy(stage = stage)
+                    },
+                    onProfileCompleted = { item, profileResult, completedAtMillis ->
+                        profileResult
+                            .onSuccess { update ->
+                                updateAppState { state ->
+                                    state.withUpdatedMihomoProfiles(
+                                        updates = listOf(update),
+                                        updatedAtMillis = completedAtMillis,
+                                    )
+                                }
+                                updatedProfileIds += update.profileId
+                                updatedCount += 1
+                            }
+                            .onFailure { failedCount += 1 }
+                        processedCount += 1
+                        batchSyncProgress = batchSyncProgress
+                            ?.takeIf { progress -> progress.profileId == item.id }
+                            ?.copy(completedCount = processedCount)
+                    },
+                )
+                if (result == null) {
+                    services.tipNotifier.show(syncBusyMessage)
+                    return@launch
+                }
+                val template = if (failedCount > 0) syncFailedMessage else syncSuccessMessage
+                services.tipNotifier.show(
+                    template.formatTemplate(
+                        "profileCount" to updatedCount,
+                        "failedCount" to failedCount,
+                    ),
+                )
+            } catch (error: CancellationException) {
+                withContext(NonCancellable) {
+                    services.tipNotifier.show(
+                        syncCancelledMessage.formatTemplate(
+                            "profileCount" to updatedCount,
+                            "failedCount" to failedCount,
+                            "skippedCount" to profiles.size - processedCount,
+                        ),
+                    )
+                }
+                throw error
+            } catch (_: Throwable) {
+                services.tipNotifier.show(
+                    syncInterruptedMessage.formatTemplate(
+                        "profileCount" to updatedCount,
+                        "failedCount" to failedCount,
+                        "skippedCount" to profiles.size - processedCount,
+                    ),
+                )
+            } finally {
+                batchSyncProgress = null
+                if (reserved) syncingProfileIds = syncingProfileIds - ownedProfileIds
+                if (batchSyncJob === job) batchSyncJob = null
+                if (stateStore.state.value.pendingMihomoRestartProfileId in updatedProfileIds) {
+                    showRestartRequired = true
+                }
+            }
+        }
+        batchSyncJob = job
+        job.start()
     }
 
     fun restartWithUpdatedSubscription() {
@@ -549,6 +669,20 @@ fun MihomoProfileListPage(
                         }
                     }
                 },
+                actions = {
+                    IconButton(
+                        onClick = ::syncAllSubscriptions,
+                        enabled = remoteSubscriptionProfiles.isNotEmpty() &&
+                            syncingProfileIds.isEmpty() &&
+                            batchSyncJob?.isActive != true &&
+                            activeSubscriptionUpdateRequests == 0,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Sync,
+                            contentDescription = stringResource(R.string.mihomo_configuration_sync_all),
+                        )
+                    }
+                },
             )
         },
         floatingActionButton = {
@@ -637,6 +771,20 @@ fun MihomoProfileListPage(
             stage = importSyncStage.takeIf { importSaveJob?.isActive == true },
             onCancel = { importSaveJob?.cancel() },
         )
+        batchSyncProgress?.let { progress ->
+            MihomoProfileSyncProgressDialog(
+                stage = progress.stage,
+                onCancel = { batchSyncJob?.cancel() },
+                title = stringResource(R.string.mihomo_configuration_sync_all_in_progress_title),
+                profileName = progress.profileName,
+                progress = progress.fraction,
+                progressLabel = stringResource(
+                    R.string.mihomo_configuration_sync_all_progress,
+                    progress.currentIndex,
+                    progress.totalCount,
+                ),
+            )
+        }
         failedImport?.let { failed ->
             MihomoProfileSyncFailureDialog(
                 failure = failed.failure,
@@ -694,6 +842,18 @@ private data class MihomoProfileContentSignature(
     val contentSha256: String,
     val contentSizeBytes: Long,
 )
+
+private data class MihomoProfileBatchSyncProgress(
+    val profileId: Int,
+    val profileName: String,
+    val currentIndex: Int,
+    val totalCount: Int,
+    val completedCount: Int,
+    val stage: MihomoProfileSyncStage,
+) {
+    val fraction: Float
+        get() = if (totalCount == 0) 0f else completedCount.toFloat() / totalCount
+}
 
 @Composable
 private fun MihomoProfileCard(

@@ -17,13 +17,26 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Clock
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import ui.text.formatTemplate
 
 private const val LogTag = "SubscriptionUpdateUseCase"
+private val subscriptionUpdateMutex = Mutex()
+private val mutableSubscriptionUpdateRequestCount = MutableStateFlow(0)
+
+internal val subscriptionUpdateRequestCount: StateFlow<Int> =
+    mutableSubscriptionUpdateRequestCount.asStateFlow()
 
 internal data class MihomoProfileSubscriptionUpdate(
     val profileId: Int,
@@ -54,17 +67,105 @@ internal suspend fun updateSubscriptions(
     profilePreparer: AndroidMihomoProfilePreparer,
     contentStore: MihomoProfileContentStore,
     fetchOptions: (MihomoProfileState) -> AndroidSubscriptionFetchOptions,
-): MihomoProfileSubscriptionUpdateResult = supervisorScope {
-    val results = profiles.map { profile ->
-        async {
-            updateMihomoProfile(
-                profile = profile,
+    onStage: (MihomoProfileState, MihomoProfileSyncStage) -> Unit = { _, _ -> },
+    onProfileCompleted: (
+        MihomoProfileState,
+        Result<MihomoProfileSubscriptionUpdate>,
+        Long,
+    ) -> Unit = { _, _, _ -> },
+): MihomoProfileSubscriptionUpdateResult {
+    registerSubscriptionUpdateRequest()
+    return try {
+        subscriptionUpdateMutex.withLock {
+            performSubscriptionUpdates(
+                profiles = profiles,
                 profilePreparer = profilePreparer,
                 contentStore = contentStore,
-                fetchOptions = fetchOptions(profile),
+                fetchOptions = fetchOptions,
+                sequential = false,
+                onStage = onStage,
+                onProfileCompleted = onProfileCompleted,
             )
         }
-    }.awaitAll()
+    } finally {
+        unregisterSubscriptionUpdateRequest()
+    }
+}
+
+internal suspend fun tryUpdateSubscriptionsSequentially(
+    profiles: List<MihomoProfileState>,
+    profilePreparer: AndroidMihomoProfilePreparer,
+    contentStore: MihomoProfileContentStore,
+    fetchOptions: (MihomoProfileState) -> AndroidSubscriptionFetchOptions,
+    onReserved: () -> Unit = {},
+    onProfileStarted: (MihomoProfileState, Int, Int) -> Unit = { _, _, _ -> },
+    onStage: (MihomoProfileState, MihomoProfileSyncStage) -> Unit = { _, _ -> },
+    onProfileCompleted: (
+        MihomoProfileState,
+        Result<MihomoProfileSubscriptionUpdate>,
+        Long,
+    ) -> Unit = { _, _, _ -> },
+): MihomoProfileSubscriptionUpdateResult? {
+    if (!tryRegisterExclusiveSubscriptionUpdateRequest()) return null
+    if (!subscriptionUpdateMutex.tryLock()) {
+        unregisterSubscriptionUpdateRequest()
+        return null
+    }
+    return try {
+        onReserved()
+        performSubscriptionUpdates(
+            profiles = profiles,
+            profilePreparer = profilePreparer,
+            contentStore = contentStore,
+            fetchOptions = fetchOptions,
+            sequential = true,
+            onProfileStarted = onProfileStarted,
+            onStage = onStage,
+            onProfileCompleted = onProfileCompleted,
+        )
+    } finally {
+        subscriptionUpdateMutex.unlock()
+        unregisterSubscriptionUpdateRequest()
+    }
+}
+
+private suspend fun performSubscriptionUpdates(
+    profiles: List<MihomoProfileState>,
+    profilePreparer: AndroidMihomoProfilePreparer,
+    contentStore: MihomoProfileContentStore,
+    fetchOptions: (MihomoProfileState) -> AndroidSubscriptionFetchOptions,
+    sequential: Boolean,
+    onProfileStarted: (MihomoProfileState, Int, Int) -> Unit = { _, _, _ -> },
+    onStage: (MihomoProfileState, MihomoProfileSyncStage) -> Unit,
+    onProfileCompleted: (
+        MihomoProfileState,
+        Result<MihomoProfileSubscriptionUpdate>,
+        Long,
+    ) -> Unit,
+): MihomoProfileSubscriptionUpdateResult = supervisorScope {
+    suspend fun updateProfile(index: Int, profile: MihomoProfileState): Result<MihomoProfileSubscriptionUpdate> {
+        onProfileStarted(profile, index + 1, profiles.size)
+        val result = updateMihomoProfile(
+            profile = profile,
+            profilePreparer = profilePreparer,
+            contentStore = contentStore,
+            fetchOptions = fetchOptions(profile),
+            onStage = { stage -> onStage(profile, stage) },
+        )
+        val completedAtMillis = Clock.System.now().toEpochMilliseconds()
+        withContext(NonCancellable) {
+            onProfileCompleted(profile, result, completedAtMillis)
+        }
+        return result
+    }
+
+    val results = if (sequential) {
+        profiles.mapIndexed { index, profile -> updateProfile(index, profile) }
+    } else {
+        profiles.mapIndexed { index, profile ->
+            async { updateProfile(index, profile) }
+        }.awaitAll()
+    }
     val updates = results.mapNotNull { result -> result.getOrNull() }
     val failures = results.mapIndexedNotNull { index, result ->
         result.exceptionOrNull()?.let { error ->
@@ -81,11 +182,27 @@ internal suspend fun updateSubscriptions(
     )
 }
 
+private fun registerSubscriptionUpdateRequest() {
+    mutableSubscriptionUpdateRequestCount.update { count -> count + 1 }
+}
+
+private fun tryRegisterExclusiveSubscriptionUpdateRequest(): Boolean {
+    return mutableSubscriptionUpdateRequestCount.compareAndSet(expect = 0, update = 1)
+}
+
+private fun unregisterSubscriptionUpdateRequest() {
+    mutableSubscriptionUpdateRequestCount.update { count ->
+        check(count > 0) { "Subscription update request count became negative" }
+        count - 1
+    }
+}
+
 private suspend fun updateMihomoProfile(
     profile: MihomoProfileState,
     profilePreparer: AndroidMihomoProfilePreparer,
     contentStore: MihomoProfileContentStore,
     fetchOptions: AndroidSubscriptionFetchOptions,
+    onStage: (MihomoProfileSyncStage) -> Unit,
 ): Result<MihomoProfileSubscriptionUpdate> {
     return try {
         when (
@@ -93,6 +210,7 @@ private suspend fun updateMihomoProfile(
                 profile = profile,
                 profilePreparer = profilePreparer,
                 fetchOptions = fetchOptions,
+                onStage = onStage,
             )
         ) {
             is MihomoProfilePreparation.Success -> {
@@ -139,15 +257,17 @@ internal fun CoroutineScope.launchMihomoProfileSubscriptionUpdate(
             profilePreparer = profilePreparer,
             contentStore = contentStore,
             fetchOptions = { profile -> appStateSnapshot.toSubscriptionFetchOptions(profile) },
+            onProfileCompleted = { _, profileResult, completedAtMillis ->
+                profileResult.getOrNull()?.let { update ->
+                    updateAppState { state ->
+                        state.withUpdatedMihomoProfiles(
+                            updates = listOf(update),
+                            updatedAtMillis = completedAtMillis,
+                        )
+                    }
+                }
+            },
         )
-        if (result.updates.isNotEmpty()) {
-            updateAppState { state ->
-                state.withUpdatedMihomoProfiles(
-                    updates = result.updates,
-                    updatedAtMillis = result.updatedAtMillis,
-                )
-            }
-        }
         result
     }.onSuccess { result ->
         onResult(result)

@@ -44,15 +44,17 @@ internal class SubscriptionInstallConfigUseCase(
             profilePreparer = profilePreparer,
             contentStore = contentStore,
             fetchOptions = { stateStore.state.value.toSubscriptionFetchOptions(it) },
+            onProfileCompleted = { _, profileResult, completedAtMillis ->
+                profileResult.getOrNull()?.let { update ->
+                    stateStore.update { state ->
+                        state.withUpdatedMihomoProfiles(
+                            updates = listOf(update),
+                            updatedAtMillis = completedAtMillis,
+                        )
+                    }
+                }
+            },
         )
-        if (result.updates.isNotEmpty()) {
-            stateStore.update { state ->
-                state.withUpdatedMihomoProfiles(
-                    updates = result.updates,
-                    updatedAtMillis = result.updatedAtMillis,
-                )
-            }
-        }
         return SubscriptionInstallResult(profile = profile, updateResult = result)
     }
 }
