@@ -64,6 +64,42 @@ abstract class GenerateAboutLibrariesJsonTask : DefaultTask() {
         )
         val bundledRuntimeLibraries = listOf(
             library(
+                "github:Asterisk4Magisk/asteriskd",
+                ProjectConfig.ASTERISKD_VERSION,
+                "asteriskd",
+                "A root Android daemon that synchronizes local-address bypass rules and pinned eBPF maps.",
+                "https://github.com/Asterisk4Magisk/asteriskd",
+                "https://github.com/Asterisk4Magisk/asteriskd",
+                listOf("GPL-3.0"),
+            ),
+            library(
+                "github:Asterisk4Magisk/bpf2socks",
+                ProjectConfig.BPF2SOCKS_VERSION,
+                "bpf2socks",
+                "A root Android/Linux traffic bridge that forwards TCP and UDP through a SOCKS5 upstream using eBPF.",
+                "https://github.com/Asterisk4Magisk/bpf2socks",
+                "https://github.com/Asterisk4Magisk/bpf2socks",
+                listOf("GPL-3.0"),
+            ),
+            library(
+                "github:Asterisk4Magisk/bpfmatcher",
+                ProjectConfig.BPF_MATCHER_VERSION,
+                "bpfmatcher",
+                "An eBPF socket-filter loader for iptables xt_bpf matching.",
+                "https://github.com/Asterisk4Magisk/bpfmatcher",
+                "https://github.com/Asterisk4Magisk/bpfmatcher",
+                listOf("GPL-3.0"),
+            ),
+            library(
+                "github:Asterisk4Magisk/setuidgid",
+                ProjectConfig.SETUIDGID_VERSION,
+                "setuidgid",
+                "A privileged Android/Linux helper that launches a process under an explicit numeric UID and GID.",
+                "https://github.com/Asterisk4Magisk/setuidgid",
+                "https://github.com/Asterisk4Magisk/setuidgid",
+                listOf("GPL-3.0"),
+            ),
+            library(
                 "github:MetaCubeX/ClashMetaForAndroid",
                 ProjectConfig.CMFA_WRAPPER_VERSION,
                 "CMFA Mihomo wrapper",

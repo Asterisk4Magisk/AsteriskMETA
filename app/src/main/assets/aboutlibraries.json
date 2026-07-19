@@ -40,6 +40,45 @@
             ]
         },
         {
+            "uniqueId": "github:Asterisk4Magisk/asteriskd",
+            "artifactVersion": "v1.0.0",
+            "name": "asteriskd",
+            "description": "A root Android daemon that synchronizes local-address bypass rules and pinned eBPF maps.",
+            "website": "https://github.com/Asterisk4Magisk/asteriskd",
+            "scm": {
+                "url": "https://github.com/Asterisk4Magisk/asteriskd"
+            },
+            "licenses": [
+                "GPL-3.0"
+            ]
+        },
+        {
+            "uniqueId": "github:Asterisk4Magisk/bpf2socks",
+            "artifactVersion": "v1.0.0",
+            "name": "bpf2socks",
+            "description": "A root Android/Linux traffic bridge that forwards TCP and UDP through a SOCKS5 upstream using eBPF.",
+            "website": "https://github.com/Asterisk4Magisk/bpf2socks",
+            "scm": {
+                "url": "https://github.com/Asterisk4Magisk/bpf2socks"
+            },
+            "licenses": [
+                "GPL-3.0"
+            ]
+        },
+        {
+            "uniqueId": "github:Asterisk4Magisk/bpfmatcher",
+            "artifactVersion": "v1.0.0",
+            "name": "bpfmatcher",
+            "description": "An eBPF socket-filter loader for iptables xt_bpf matching.",
+            "website": "https://github.com/Asterisk4Magisk/bpfmatcher",
+            "scm": {
+                "url": "https://github.com/Asterisk4Magisk/bpfmatcher"
+            },
+            "licenses": [
+                "GPL-3.0"
+            ]
+        },
+        {
             "uniqueId": "github:MetaCubeX/ClashMetaForAndroid",
             "artifactVersion": "v2.11.32-asterisk",
             "name": "CMFA Mihomo wrapper",
@@ -297,6 +336,19 @@
             },
             "licenses": [
                 "Apache-2.0"
+            ]
+        },
+        {
+            "uniqueId": "github:Asterisk4Magisk/setuidgid",
+            "artifactVersion": "v1.0.0",
+            "name": "setuidgid",
+            "description": "A privileged Android/Linux helper that launches a process under an explicit numeric UID and GID.",
+            "website": "https://github.com/Asterisk4Magisk/setuidgid",
+            "scm": {
+                "url": "https://github.com/Asterisk4Magisk/setuidgid"
+            },
+            "licenses": [
+                "GPL-3.0"
             ]
         },
         {
