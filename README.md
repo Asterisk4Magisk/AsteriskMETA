@@ -104,9 +104,9 @@ The build:
 - prepares bundled Mihomo native runtime files
 - checks out the Mihomo submodule to `ProjectConfig.MIHOMO_CORE_VERSION` before CMFA JNI builds
 - checks out `hev-socks5-tunnel` to `ProjectConfig.HEV_SOCKS5_TUNNEL_VERSION` before building it
-- builds the native `hev-socks5-tunnel` JNI library and CLI runtime from the vendored submodule
+- builds the native `hev-socks5-tunnel` JNI library and CLI runtime from its submodule
 - builds the vendored CMFA Go core
-- builds the native `setuidgid`, `asteriskd`, and `bpf2socks` helpers
+- checks out `asteriskd`, `bpf2socks`, `bpfmatcher`, and `setuidgid` to their `ProjectConfig` versions before building them with the NDK
 - produces ABI split APKs for `arm64-v8a`, `armeabi-v7a`, `x86`, `x86_64`, plus a universal APK
 
 If Gradle cannot find Android NDK, set `ndk.dir` in `local.properties`, set `ANDROID_NDK_HOME`, or install an NDK under the Android SDK.
@@ -125,8 +125,10 @@ appops set org.asterisk.zcc.ameta ACTIVATE_VPN allow
 
 ## Credits
 
-- [Mihomo](https://github.com/MetaCubeX/mihomo)
-- [ClashMetaForAndroid](https://github.com/MetaCubeX/ClashMetaForAndroid)
-- [hev-socks5-tunnel](https://github.com/heiher/hev-socks5-tunnel)
-- [libsu](https://github.com/topjohnwu/libsu)
-- [Jetpack Compose Material 3](https://developer.android.com/develop/ui/compose/designsystems/material3)
+- [@MetaCubeX/mihomo](https://github.com/MetaCubeX/mihomo)
+- [@MetaCubeX/ClashMetaForAndroid](https://github.com/MetaCubeX/ClashMetaForAndroid)
+- [@heiher/hev-socks5-tunnel](https://github.com/heiher/hev-socks5-tunnel)
+- [@topjohnwu/libsu](https://github.com/topjohnwu/libsu)
+- [@android/material3](https://developer.android.com/develop/ui/compose/designsystems/material3)
+- [@MetaCubeX/meta-rules-dat](https://github.com/MetaCubeX/meta-rules-dat)
+- [@mayaxcn/china-ip-list](https://github.com/mayaxcn/china-ip-list)

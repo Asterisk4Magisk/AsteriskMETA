@@ -104,9 +104,9 @@ macOS 或 Linux：
 - 准备内置 Mihomo native 运行时文件
 - 在 CMFA JNI 构建前将 Mihomo submodule checkout 到 `ProjectConfig.MIHOMO_CORE_VERSION`
 - 构建前将 `hev-socks5-tunnel` checkout 到 `ProjectConfig.HEV_SOCKS5_TUNNEL_VERSION`
-- 从 vendored submodule 构建 native `hev-socks5-tunnel` JNI library 和 CLI runtime
+- 从 submodule 构建 native `hev-socks5-tunnel` JNI library 和 CLI runtime
 - 构建 vendored CMFA Go core
-- 构建 native `setuidgid`、`asteriskd` 和 `bpf2socks` helper
+- 将 `asteriskd`、`bpf2socks`、`bpfmatcher` 和 `setuidgid` checkout 到各自的 `ProjectConfig` 版本，再使用 NDK 构建
 - 产出 `arm64-v8a`、`armeabi-v7a`、`x86`、`x86_64` 四个 ABI split APK，以及一个 universal APK
 
 如果 Gradle 找不到 Android NDK，请在 `local.properties` 中设置 `ndk.dir`，设置 `ANDROID_NDK_HOME`，或在 Android SDK 下安装 NDK。
@@ -125,8 +125,10 @@ appops set org.asterisk.zcc.ameta ACTIVATE_VPN allow
 
 ## 致谢
 
-- [Mihomo](https://github.com/MetaCubeX/mihomo)
-- [ClashMetaForAndroid](https://github.com/MetaCubeX/ClashMetaForAndroid)
-- [hev-socks5-tunnel](https://github.com/heiher/hev-socks5-tunnel)
-- [libsu](https://github.com/topjohnwu/libsu)
-- [Jetpack Compose Material 3](https://developer.android.com/develop/ui/compose/designsystems/material3)
+- [@MetaCubeX/mihomo](https://github.com/MetaCubeX/mihomo)
+- [@MetaCubeX/ClashMetaForAndroid](https://github.com/MetaCubeX/ClashMetaForAndroid)
+- [@heiher/hev-socks5-tunnel](https://github.com/heiher/hev-socks5-tunnel)
+- [@topjohnwu/libsu](https://github.com/topjohnwu/libsu)
+- [@android/material3](https://developer.android.com/develop/ui/compose/designsystems/material3)
+- [@MetaCubeX/meta-rules-dat](https://github.com/MetaCubeX/meta-rules-dat)
+- [@mayaxcn/china-ip-list](https://github.com/mayaxcn/china-ip-list)
