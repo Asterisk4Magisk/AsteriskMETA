@@ -6,6 +6,7 @@ plugins {
 }
 
 val generatedJniLibsDir: Provider<Directory> = layout.buildDirectory.dir("generated/jniLibs")
+val bpfMatcherSubmoduleDir = layout.projectDirectory.dir("src/main/native")
 
 android {
     namespace = "bpfmatcher"
@@ -37,8 +38,16 @@ android {
     }
 }
 
+val syncBpfMatcherVersion = tasks.register<SyncGitSubmoduleVersionTask>("syncBpfMatcherVersion") {
+    submoduleVersion.set(ProjectConfig.BPF_MATCHER_VERSION)
+    repositoryRootDirectory.set(rootProject.layout.projectDirectory)
+    submoduleDirectory.set(bpfMatcherSubmoduleDir)
+    submodulePath.set(bpfMatcherSubmoduleDir.asFile.relativeTo(rootProject.projectDir).invariantSeparatorsPath)
+}
+
 val buildBpfMatcher = tasks.register<BuildBpfMatcherTask>("buildBpfMatcher") {
-    sourceFile.set(layout.projectDirectory.file("src/main/native/bpf-matcher.c"))
+    dependsOn(syncBpfMatcherVersion)
+    sourceFile.set(bpfMatcherSubmoduleDir.file("bpf-matcher.c"))
     outputDirectory.set(generatedJniLibsDir)
     rootProject.layout.projectDirectory.file("local.properties")
         .takeIf { it.asFile.exists() }

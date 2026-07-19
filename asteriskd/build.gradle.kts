@@ -6,6 +6,7 @@ plugins {
 }
 
 val generatedJniLibsDir: Provider<Directory> = layout.buildDirectory.dir("generated/jniLibs")
+val asteriskdSubmoduleDir = layout.projectDirectory.dir("src/main/native")
 
 android {
     namespace = "asteriskd"
@@ -29,8 +30,16 @@ android {
     }
 }
 
+val syncAsteriskdVersion = tasks.register<SyncGitSubmoduleVersionTask>("syncAsteriskdVersion") {
+    submoduleVersion.set(ProjectConfig.ASTERISKD_VERSION)
+    repositoryRootDirectory.set(rootProject.layout.projectDirectory)
+    submoduleDirectory.set(asteriskdSubmoduleDir)
+    submodulePath.set(asteriskdSubmoduleDir.asFile.relativeTo(rootProject.projectDir).invariantSeparatorsPath)
+}
+
 val buildAsteriskd = tasks.register<BuildAsteriskdTask>("buildAsteriskd") {
-    sourceDirectory.set(layout.projectDirectory.dir("src/main/native"))
+    dependsOn(syncAsteriskdVersion)
+    sourceDirectory.set(asteriskdSubmoduleDir)
     outputDirectory.set(generatedJniLibsDir)
     rootProject.layout.projectDirectory.file("local.properties")
         .takeIf { it.asFile.exists() }
@@ -42,7 +51,3 @@ val buildAsteriskd = tasks.register<BuildAsteriskdTask>("buildAsteriskd") {
 tasks.named("preBuild") {
     dependsOn(buildAsteriskd)
 }
-
-
-
-

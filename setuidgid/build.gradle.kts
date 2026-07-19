@@ -6,6 +6,7 @@ plugins {
 }
 
 val generatedJniLibsDir: Provider<Directory> = layout.buildDirectory.dir("generated/jniLibs")
+val setuidgidSubmoduleDir = layout.projectDirectory.dir("src/main/native")
 
 android {
     namespace = "setuidgid"
@@ -37,8 +38,16 @@ android {
     }
 }
 
+val syncSetuidgidVersion = tasks.register<SyncGitSubmoduleVersionTask>("syncSetuidgidVersion") {
+    submoduleVersion.set(ProjectConfig.SETUIDGID_VERSION)
+    repositoryRootDirectory.set(rootProject.layout.projectDirectory)
+    submoduleDirectory.set(setuidgidSubmoduleDir)
+    submodulePath.set(setuidgidSubmoduleDir.asFile.relativeTo(rootProject.projectDir).invariantSeparatorsPath)
+}
+
 val buildSetuidgid = tasks.register<BuildSetuidgidTask>("buildSetuidgid") {
-    sourceFile.set(layout.projectDirectory.file("src/main/native/setuidgid.c"))
+    dependsOn(syncSetuidgidVersion)
+    sourceFile.set(setuidgidSubmoduleDir.file("setuidgid.c"))
     outputDirectory.set(generatedJniLibsDir)
     rootProject.layout.projectDirectory.file("local.properties")
         .takeIf { it.asFile.exists() }

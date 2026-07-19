@@ -14,13 +14,6 @@ val mihomoSubmoduleDir = layout.projectDirectory.dir("src/foss/golang/clash")
 val goOutputDir = layout.buildDirectory.dir("outputs/golang")
 val rootLocalPropertiesFile = rootProject.layout.projectDirectory.file("local.properties")
 
-val syncMihomoCoreVersion = tasks.register<SyncMihomoCoreVersionTask>("syncMihomoCoreVersion") {
-    mihomoCoreVersion.set(ProjectConfig.MIHOMO_CORE_VERSION)
-    repositoryRootDirectory.set(rootProject.layout.projectDirectory)
-    submoduleDirectory.set(mihomoSubmoduleDir)
-    submodulePath.set(mihomoSubmoduleDir.asFile.relativeTo(rootProject.projectDir).invariantSeparatorsPath)
-}
-
 android {
     namespace = "com.github.kr328.clash.core"
     compileSdk = ProjectConfig.TARGET_SDK
@@ -82,6 +75,13 @@ val abis = listOf(
     "x86" to "X86",
     "x86_64" to "X8664",
 )
+
+val syncMihomoCoreVersion = tasks.register<SyncGitSubmoduleVersionTask>("syncMihomoCoreVersion") {
+    submoduleVersion.set(ProjectConfig.MIHOMO_CORE_VERSION)
+    repositoryRootDirectory.set(rootProject.layout.projectDirectory)
+    submoduleDirectory.set(mihomoSubmoduleDir)
+    submodulePath.set(mihomoSubmoduleDir.asFile.relativeTo(rootProject.projectDir).invariantSeparatorsPath)
+}
 
 androidComponents {
     beforeVariants(selector().all()) { variant ->

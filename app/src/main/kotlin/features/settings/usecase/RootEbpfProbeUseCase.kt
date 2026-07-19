@@ -9,6 +9,7 @@ import engine.root.buildRootEbpfSelinuxPolicyApplicatorCommand
 import engine.root.parseRootEbpfSelinuxPolicyApplicator
 import engine.root.parseRootEbpfProbeResult
 import engine.root.prepareRootRuntimeLayout
+import engine.root.RootEbpfPinnedObjectDir
 import system.AndroidRootShellGateway
 import system.ShellExecOptions
 import utils.shellQuote
@@ -30,6 +31,8 @@ internal class RootEbpfProbeUseCase(
                 runtimeLayout.bpfMatcherPath.shellQuote(),
                 "--probe",
                 "--json",
+                "--bpf-dir",
+                RootEbpfPinnedObjectDir.shellQuote(),
                 "--ipv6",
                 if (state.enableIpv6) "1" else "0",
             ).joinToString(" ")

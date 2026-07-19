@@ -17,11 +17,11 @@ internal enum class AsteriskdMode(
 
 @Serializable
 internal data class AsteriskdConfig(
-    val version: Int = 1,
+    val version: Int = 2,
     val mode: String,
     val enableIpv6: Boolean,
     val disableSystemIpv6: Boolean,
-    val dataDirectory: String,
+    val readyPath: String,
     val ignoredInterfaces: List<String>,
     val virtualInterfaces: List<String>,
     val hotspotInterfacePrefixes: List<String>,
@@ -30,18 +30,20 @@ internal data class AsteriskdConfig(
     val bpfLocalMaps: AsteriskdBpfLocalMaps?,
     val stopScriptPath: String,
     val statePath: String,
+    val emergencyProcesses: List<AsteriskdEmergencyProcess>,
 ) {
     companion object {
         fun forMode(
             mode: AsteriskdMode,
             enableIpv6: Boolean,
             disableSystemIpv6: Boolean,
-            dataDirectory: String,
+            readyPath: String,
             ignoredInterfaces: List<String>,
             virtualInterfaces: List<String>,
             hotspotInterfacePrefixes: List<String>,
-            stopScriptPath: String = "$dataDirectory/$RootStopScriptFileName",
-            statePath: String = "$dataDirectory/$RootAsteriskdStateFileName",
+            stopScriptPath: String,
+            statePath: String,
+            emergencyProcesses: List<AsteriskdEmergencyProcess>,
         ): AsteriskdConfig {
             val bypass = if (mode == AsteriskdMode.Bpf2Socks) {
                 null
@@ -56,7 +58,7 @@ internal data class AsteriskdConfig(
                 mode = mode.configValue,
                 enableIpv6 = enableIpv6,
                 disableSystemIpv6 = disableSystemIpv6,
-                dataDirectory = dataDirectory,
+                readyPath = readyPath,
                 ignoredInterfaces = ignoredInterfaces.distinct(),
                 virtualInterfaces = virtualInterfaces.distinct(),
                 hotspotInterfacePrefixes = hotspotInterfacePrefixes.distinct(),
@@ -76,6 +78,7 @@ internal data class AsteriskdConfig(
                 },
                 stopScriptPath = stopScriptPath,
                 statePath = statePath,
+                emergencyProcesses = emergencyProcesses,
             )
         }
     }
@@ -92,6 +95,12 @@ internal data class AsteriskdBypassTarget(
 internal data class AsteriskdBpfLocalMaps(
     val ipv4Path: String,
     val ipv6Path: String?,
+)
+
+@Serializable
+internal data class AsteriskdEmergencyProcess(
+    val pidPath: String,
+    val commandMarker: String,
 )
 
 internal const val AsteriskdIpv4BypassAnchorChain = RootAsteriskdBypass4Anchor

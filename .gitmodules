@@ -5,3 +5,15 @@
 [submodule "hevtun/src/main/jni/hev-socks5-tunnel"]
 	path = hevtun/src/main/jni/hev-socks5-tunnel
 	url = https://github.com/heiher/hev-socks5-tunnel
+[submodule "asteriskd/src/main/native"]
+	path = asteriskd/src/main/native
+	url = https://github.com/Asterisk4Magisk/asteriskd.git
+[submodule "bpf2socks/src/main/native"]
+	path = bpf2socks/src/main/native
+	url = https://github.com/Asterisk4Magisk/bpf2socks.git
+[submodule "bpfmatcher/src/main/native"]
+	path = bpfmatcher/src/main/native
+	url = https://github.com/Asterisk4Magisk/bpfmatcher.git
+[submodule "setuidgid/src/main/native"]
+	path = setuidgid/src/main/native
+	url = https://github.com/Asterisk4Magisk/setuidgid.git

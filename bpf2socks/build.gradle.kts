@@ -6,6 +6,7 @@ plugins {
 }
 
 val generatedJniLibsDir: Provider<Directory> = layout.buildDirectory.dir("generated/jniLibs")
+val bpf2SocksSubmoduleDir = layout.projectDirectory.dir("src/main/native")
 
 android {
     namespace = "bpf2socks"
@@ -37,8 +38,16 @@ android {
     }
 }
 
+val syncBpf2SocksVersion = tasks.register<SyncGitSubmoduleVersionTask>("syncBpf2SocksVersion") {
+    submoduleVersion.set(ProjectConfig.BPF2SOCKS_VERSION)
+    repositoryRootDirectory.set(rootProject.layout.projectDirectory)
+    submoduleDirectory.set(bpf2SocksSubmoduleDir)
+    submodulePath.set(bpf2SocksSubmoduleDir.asFile.relativeTo(rootProject.projectDir).invariantSeparatorsPath)
+}
+
 val buildBpf2Socks = tasks.register<BuildBpf2SocksTask>("buildBpf2Socks") {
-    sourceDirectory.set(layout.projectDirectory.dir("src/main/native"))
+    dependsOn(syncBpf2SocksVersion)
+    sourceDirectory.set(bpf2SocksSubmoduleDir)
     outputDirectory.set(generatedJniLibsDir)
     rootProject.layout.projectDirectory.file("local.properties")
         .takeIf { it.asFile.exists() }

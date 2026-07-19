@@ -4,6 +4,8 @@
 package engine.root
 
 import android.content.Context
+import engine.hevtun.HevSocks5TunnelConfigFileName
+import engine.hevtun.HevSocks5TunnelPidFileName
 import kotlinx.serialization.json.Json
 import utils.shellQuote
 import utils.shellQuoteForCase
@@ -22,12 +24,30 @@ internal fun RootStartConfig.buildAsteriskdConfig(
         mode = mode,
         enableIpv6 = enableIpv6,
         disableSystemIpv6 = disableSystemIpv6,
-        dataDirectory = runtimeLayout.dataDir,
+        readyPath = runtimeLayout.asteriskdReadyPath,
         ignoredInterfaces = iptablesConfig.ignoredInterfaces,
         virtualInterfaces = virtualInterfaces,
         hotspotInterfacePrefixes = iptablesConfig.externalInterfacePrefixes,
         stopScriptPath = runtimeLayout.stopScriptPath,
         statePath = runtimeLayout.asteriskdStatePath,
+        emergencyProcesses = runtimeLayout.asteriskdEmergencyProcesses(),
+    )
+}
+
+private fun RootRuntimeLayout.asteriskdEmergencyProcesses(): List<AsteriskdEmergencyProcess> {
+    return listOf(
+        AsteriskdEmergencyProcess(
+            pidPath = pidPath,
+            commandMarker = configPath,
+        ),
+        AsteriskdEmergencyProcess(
+            pidPath = bpf2socksPidPath,
+            commandMarker = bpf2socksConfigPath,
+        ),
+        AsteriskdEmergencyProcess(
+            pidPath = File(dataDir, HevSocks5TunnelPidFileName).absolutePath,
+            commandMarker = File(dataDir, HevSocks5TunnelConfigFileName).absolutePath,
+        ),
     )
 }
 

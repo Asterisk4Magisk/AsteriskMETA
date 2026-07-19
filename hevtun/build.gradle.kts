@@ -23,13 +23,6 @@ private val hevTunArtifacts = listOf(
     ),
 )
 
-val syncHevSocks5TunnelVersion = tasks.register<SyncHevSocks5TunnelVersionTask>("syncHevSocks5TunnelVersion") {
-    hevSocks5TunnelVersion.set(ProjectConfig.HEV_SOCKS5_TUNNEL_VERSION)
-    repositoryRootDirectory.set(rootProject.layout.projectDirectory)
-    submoduleDirectory.set(hevSocks5TunnelSubmoduleDir)
-    submodulePath.set(hevSocks5TunnelSubmoduleDir.asFile.relativeTo(rootProject.projectDir).invariantSeparatorsPath)
-}
-
 android {
     namespace = "hevtun"
     compileSdk = ProjectConfig.TARGET_SDK
@@ -58,6 +51,13 @@ android {
     lint {
         disable += "ChromeOsAbiSupport"
     }
+}
+
+val syncHevSocks5TunnelVersion = tasks.register<SyncGitSubmoduleVersionTask>("syncHevSocks5TunnelVersion") {
+    submoduleVersion.set(ProjectConfig.HEV_SOCKS5_TUNNEL_VERSION)
+    repositoryRootDirectory.set(rootProject.layout.projectDirectory)
+    submoduleDirectory.set(hevSocks5TunnelSubmoduleDir)
+    submodulePath.set(hevSocks5TunnelSubmoduleDir.asFile.relativeTo(rootProject.projectDir).invariantSeparatorsPath)
 }
 
 private val buildHevTunAssetTasks = ProjectConfig.SUPPORTED_ANDROID_ABIS.flatMap { abi ->
