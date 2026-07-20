@@ -69,14 +69,14 @@ internal class MihomoCodeEditorState(
     internal fun detach(editor: CodeEditor) {
         if (this.editor !== editor) return
         retainedText = editor.text.toString()
-        isEmpty = editor.text.length == 0
+        isEmpty = editor.text.isEmpty()
         isFocused = false
         this.editor = null
     }
 
     internal fun onContentChanged(editor: CodeEditor, action: Int) {
         if (this.editor !== editor || action == ContentChangeEvent.ACTION_SET_NEW_TEXT) return
-        isEmpty = editor.text.length == 0
+        isEmpty = editor.text.isEmpty()
         documentVersion += 1
     }
 
@@ -241,6 +241,7 @@ private fun MihomoSoraEditor.configure(
     setWordwrap(false)
     setPinLineNumber(true)
     setLineNumberEnabled(true)
+    setDisplayLnPanel(false)
     setLineNumberMarginLeft(dp(LineNumberMargin).toFloat())
     setDividerWidth(dp(DividerWidth).toFloat())
     setHighlightCurrentBlock(false)
@@ -383,6 +384,9 @@ private fun CodeEditorColors.toSoraColorScheme(): EditorColorScheme {
         setColor(EditorColorScheme.SELECTION_HANDLE, accent.toArgb())
         setColor(EditorColorScheme.SELECTED_TEXT_BACKGROUND, selection.toArgb())
         setColor(EditorColorScheme.CURRENT_LINE, currentLine.toArgb())
+        setColor(EditorColorScheme.SCROLL_BAR_TRACK, border.toArgb())
+        setColor(EditorColorScheme.SCROLL_BAR_THUMB, lineNumber.toArgb())
+        setColor(EditorColorScheme.SCROLL_BAR_THUMB_PRESSED, accent.toArgb())
         setColor(EditorColorScheme.KEYWORD, keyword.toArgb())
         setColor(EditorColorScheme.ATTRIBUTE_NAME, key.toArgb())
         setColor(EditorColorScheme.LITERAL, string.toArgb())
