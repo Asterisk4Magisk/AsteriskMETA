@@ -4,11 +4,14 @@
 package ui.components
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -19,6 +22,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.text.BasicTextField
 import ui.icons.AsteriskIcons as Icons
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -27,7 +31,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -41,8 +44,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.R
 import ui.theme.AsteriskShapeTokens
@@ -259,52 +265,76 @@ private fun RowScope.StringListItemField(
     isError: Boolean,
     focusRequester: FocusRequester,
 ) {
-    val activeContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest
-    val activeBorderColor = MaterialTheme.colorScheme.outlineVariant
-    val containerColor by animateColorAsState(
-        targetValue = if (editing) {
-            activeContainerColor
-        } else {
-            activeContainerColor.copy(alpha = 0f)
-        },
-        animationSpec = AsteriskMotion.effects(),
-        label = "string-list-field-container",
-    )
-    val borderColor by animateColorAsState(
-        targetValue = when {
-            editing && isError -> MaterialTheme.colorScheme.error
-            editing -> activeBorderColor
-            else -> activeBorderColor.copy(alpha = 0f)
-        },
-        animationSpec = AsteriskMotion.effects(),
-        label = "string-list-field-border",
-    )
-    OutlinedTextField(
-        value = if (editing) editValue else value,
-        onValueChange = { if (editing) onEditValueChange(it) },
-        modifier = Modifier
-            .weight(1f)
-            .focusRequester(focusRequester),
-        enabled = editing,
-        singleLine = true,
-        isError = editing && isError,
-        textStyle = MaterialTheme.typography.bodyMedium,
-        shape = AsteriskShapeTokens.InnerContainer,
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedTextColor = MaterialTheme.colorScheme.onSurface,
-            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-            disabledTextColor = MaterialTheme.colorScheme.onSecondaryContainer,
-            focusedContainerColor = containerColor,
-            unfocusedContainerColor = containerColor,
-            disabledContainerColor = containerColor,
-            errorContainerColor = containerColor,
-            focusedBorderColor = borderColor,
-            unfocusedBorderColor = borderColor,
-            disabledBorderColor = borderColor,
-            errorBorderColor = MaterialTheme.colorScheme.error,
+    if (editing) {
+        val interactionSource = remember { MutableInteractionSource() }
+        val focused by interactionSource.collectIsFocusedAsState()
+        val borderColor = when {
+            isError -> MaterialTheme.colorScheme.error
+            focused -> MaterialTheme.colorScheme.primary
+            else -> MaterialTheme.colorScheme.outlineVariant
+        }
+        val borderWidth = if (focused) 2.dp else 1.dp
+        BasicTextField(
+            value = editValue,
+            onValueChange = onEditValueChange,
+            modifier = Modifier
+                .weight(1f)
+                .heightIn(min = 56.dp)
+                .focusRequester(focusRequester),
+            singleLine = true,
+            textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
+            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+            interactionSource = interactionSource,
+            decorationBox = { innerTextField ->
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.CenterStart,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 56.dp)
+                            .expandHorizontallyBy(StringListItemEditorBorderExtension)
+                            .background(
+                                color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                shape = AsteriskShapeTokens.InnerContainer,
+                            )
+                            .border(
+                                width = borderWidth,
+                                color = borderColor,
+                                shape = AsteriskShapeTokens.InnerContainer,
+                            ),
+                    )
+                    innerTextField()
+                }
+            },
+        )
+    } else {
+        Text(
+            text = value,
+            modifier = Modifier.weight(1f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSecondaryContainer,
+        )
+    }
+}
+
+private fun Modifier.expandHorizontallyBy(extra: androidx.compose.ui.unit.Dp): Modifier = layout { measurable, constraints ->
+    val extraPx = extra.roundToPx()
+    val placeable = measurable.measure(
+        constraints.copy(
+            minWidth = constraints.minWidth + extraPx * 2,
+            maxWidth = constraints.maxWidth + extraPx * 2,
         ),
     )
+    layout(width = constraints.maxWidth, height = placeable.height) {
+        placeable.placeRelative(x = -extraPx, y = 0)
+    }
 }
+
+private val StringListItemEditorBorderExtension = 8.dp
 
 @Composable
 private fun RowScope.StringListEditableField(
