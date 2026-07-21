@@ -102,9 +102,9 @@ internal fun AppState.toDnsSettingsDraft(): DnsSettingsDraft {
 
 internal data class SnifferSettingsDraft(
     val enableSniffer: Boolean = true,
-    val enableSnifferOverrideDestination: Boolean = false,
-    val snifferForceDnsMapping: Boolean = false,
-    val snifferParsePureIp: Boolean = false,
+    val enableSnifferOverrideDestination: Boolean = true,
+    val snifferForceDnsMapping: Boolean = true,
+    val snifferParsePureIp: Boolean = true,
     val snifferHttpPorts: List<String> = DefaultMihomoSnifferHttpPorts,
     val snifferTlsPorts: List<String> = DefaultMihomoSnifferTlsPorts,
     val snifferQuicPorts: List<String> = DefaultMihomoSnifferQuicPorts,
