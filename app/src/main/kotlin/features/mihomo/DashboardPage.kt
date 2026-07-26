@@ -894,5 +894,5 @@ private val HomeControllerItemIconSlotSize = 28.dp
 private val HomeControllerItemIconSize = 24.dp
 private val HomeControllerTrafficIconSize = 28.dp
 private val HomeControllerTrafficIconOffsetY = 0.5.dp
-private val HomeControllerContentOffset = 6.dp
+private val HomeControllerContentOffset = 10.dp
 private val HomeControllerItemTextSpacing = 14.dp
