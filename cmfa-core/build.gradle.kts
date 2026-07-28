@@ -11,7 +11,10 @@ plugins {
 val golangSource = layout.projectDirectory.dir("src/main/golang/native")
 val goModuleDir = layout.projectDirectory.dir("src/foss/golang")
 val mihomoSubmoduleDir = layout.projectDirectory.dir("src/foss/golang/clash")
+val mihomoLogSource = mihomoSubmoduleDir.file("log/log.go")
+val mihomoLogOverlaySource = layout.projectDirectory.file("src/main/golang/overlay/mihomo/log/log.go")
 val goOutputDir = layout.buildDirectory.dir("outputs/golang")
+val mihomoGoOverlayOutput = layout.buildDirectory.file("generated/mihomoOverlay/overlay.json")
 val rootLocalPropertiesFile = rootProject.layout.projectDirectory.file("local.properties")
 
 android {
@@ -83,6 +86,13 @@ val syncMihomoCoreVersion = tasks.register<SyncGitSubmoduleVersionTask>("syncMih
     submodulePath.set(mihomoSubmoduleDir.asFile.relativeTo(rootProject.projectDir).invariantSeparatorsPath)
 }
 
+val generateMihomoGoOverlay = tasks.register<GenerateMihomoGoOverlayTask>("generateMihomoGoOverlay") {
+    dependsOn(syncMihomoCoreVersion)
+    originalSourceFile.set(mihomoLogSource)
+    replacementSourceFile.set(mihomoLogOverlaySource)
+    overlayFile.set(mihomoGoOverlayOutput)
+}
+
 androidComponents {
     beforeVariants(selector().all()) { variant ->
         variant.enableAndroidTest = false
@@ -114,10 +124,11 @@ androidComponents {
 
             val goBuildTask = tasks.register<BuildCmfaGoCoreTask>(taskName) {
                 description = "Build CMFA Go core for ${variant.name} $abi."
-                dependsOn(syncMihomoCoreVersion)
+                dependsOn(generateMihomoGoOverlay)
                 goModuleDirectory.set(goModuleDir)
                 goSourceDirectory.set(golangSource)
                 mihomoSubmoduleDirectory.set(mihomoSubmoduleDir)
+                goOverlayFile.set(generateMihomoGoOverlay.flatMap { task -> task.overlayFile })
                 if (rootLocalPropertiesFile.asFile.exists()) {
                     localPropertiesFile.set(rootLocalPropertiesFile)
                 }

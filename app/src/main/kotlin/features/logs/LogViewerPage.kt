@@ -272,7 +272,7 @@ private fun LogViewerPage(
                             entry = entry,
                             onClick = {
                                 scope.launch {
-                                    clipboard.setPlainText(entry.copyText())
+                                    clipboard.setPlainText(coreLogEntryText(entry))
                                     tipNotifier.show(copiedMessage)
                                 }
                             },
@@ -340,8 +340,6 @@ private fun LogLevelFilterRow(
     }
 }
 
-private fun CoreLogEntry.copyText(): String = "$time  ${level.uppercase()}  $message"
-
 private suspend fun Context.exportLogEntries(
     uri: Uri,
     entries: List<CoreLogEntry>,
@@ -351,7 +349,7 @@ private suspend fun Context.exportLogEntries(
         outputStream.writer(Charsets.UTF_8).use { writer ->
             entries.forEachIndexed { index, entry ->
                 if (index > 0) writer.write("\n")
-                writer.write(entry.copyText())
+                writer.write(coreLogEntryText(entry))
             }
         }
     }

@@ -14,9 +14,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 internal class MihomoCoreLogSubscriber {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -31,7 +28,7 @@ internal class MihomoCoreLogSubscriber {
                     AndroidCoreLogRepository.appendPersisted(
                         level = message.level.toCoreLogLevel(),
                         message = message.message,
-                        time = message.time.toCoreLogTime(),
+                        timestampMillis = message.time.time,
                     )
                 }
             }.onFailure { error ->
@@ -56,16 +53,6 @@ private fun LogMessage.Level.toCoreLogLevel(): String {
         LogMessage.Level.Silent -> "debug"
         LogMessage.Level.Info,
         LogMessage.Level.Unknown -> "info"
-    }
-}
-
-private fun Date.toCoreLogTime(): String {
-    return CoreLogTimeFormat.get()!!.format(this)
-}
-
-private val CoreLogTimeFormat = object : ThreadLocal<SimpleDateFormat>() {
-    override fun initialValue(): SimpleDateFormat {
-        return SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
     }
 }
 

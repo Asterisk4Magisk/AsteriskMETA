@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 import java.io.RandomAccessFile
+import java.util.TimeZone
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -142,33 +143,53 @@ internal class CoreLogFileTailer(
 }
 
 internal data class ParsedCoreLogLine(
-    val time: String?,
+    val timestampMillis: Long?,
     val level: String,
     val message: String,
 )
 
-private val MihomoLogLineRegex = Regex("""^(\d{4}[-/]\d{2}[-/]\d{2}\s+\d{2}:\d{2}:\d{2})\s+\[([A-Za-z]+)]\s*(.*)$""")
-private val MihomoLogLineWithoutLevelRegex = Regex("""^(\d{4}[-/]\d{2}[-/]\d{2}\s+\d{2}:\d{2}:\d{2})\s+(.*)$""")
+private const val PersistedCoreLogTimestampPattern =
+    """(?:\d+|—|\d{4}[-/]\d{2}[-/]\d{2}\s+\d{2}:\d{2}:\d{2})"""
+
+private val MihomoLogrusLineRegex =
+    Regex("""^time=(?:"([^"]+)"|(\S+))\s+level=([A-Za-z]+)\s+msg=(.*)$""")
+private val MihomoLogLineRegex =
+    Regex("""^($PersistedCoreLogTimestampPattern)\s+\[([A-Za-z]+)]\s*(.*)$""")
+private val MihomoLogLineWithoutLevelRegex =
+    Regex("""^($PersistedCoreLogTimestampPattern)\s+(.*)$""")
 
 internal fun CoreLogRepository.appendParsedCoreLogLine(line: String, defaultLevel: String) {
     val parsedLine = parseCoreLogLine(line, defaultLevel) ?: return
-    if (parsedLine.time == null) {
-        append(level = parsedLine.level, message = parsedLine.message)
-    } else {
-        append(level = parsedLine.level, message = parsedLine.message, time = parsedLine.time)
-    }
+    append(
+        level = parsedLine.level,
+        message = parsedLine.message,
+        timestampMillis = parsedLine.timestampMillis,
+    )
 }
 
-internal fun parseCoreLogLine(line: String, defaultLevel: String): ParsedCoreLogLine? {
+internal fun parseCoreLogLine(
+    line: String,
+    defaultLevel: String,
+    timeZone: TimeZone = TimeZone.getDefault(),
+): ParsedCoreLogLine? {
     val trimmedLine = line.trim()
     if (trimmedLine.isEmpty()) {
         return null
     }
 
+    MihomoLogrusLineRegex.matchEntire(trimmedLine)?.let { match ->
+        val timestamp = match.groupValues[1].ifEmpty { match.groupValues[2] }
+        return ParsedCoreLogLine(
+            timestampMillis = parseCoreLogRfc3339Timestamp(timestamp),
+            level = match.groupValues[3],
+            message = decodeLogrusValue(match.groupValues[4]),
+        )
+    }
+
     MihomoLogLineRegex.matchEntire(trimmedLine)?.let { match ->
         val (time, level, message) = match.destructured
         return ParsedCoreLogLine(
-            time = time.replace('/', '-'),
+            timestampMillis = parseCoreLogTimestamp(time, timeZone),
             level = level,
             message = message,
         )
@@ -177,15 +198,69 @@ internal fun parseCoreLogLine(line: String, defaultLevel: String): ParsedCoreLog
     MihomoLogLineWithoutLevelRegex.matchEntire(trimmedLine)?.let { match ->
         val (time, message) = match.destructured
         return ParsedCoreLogLine(
-            time = time.replace('/', '-'),
+            timestampMillis = parseCoreLogTimestamp(time, timeZone),
             level = defaultLevel,
             message = message,
         )
     }
 
     return ParsedCoreLogLine(
-        time = null,
+        timestampMillis = null,
         level = defaultLevel,
         message = trimmedLine,
     )
+}
+
+internal fun restoredCoreLogEntries(
+    lines: List<String>,
+    defaultLevel: String,
+    timeZone: TimeZone = TimeZone.getDefault(),
+): List<CoreLogEntry> {
+    return lines
+        .mapNotNull { line -> parseCoreLogLine(line, defaultLevel, timeZone) }
+        .mapIndexed { index, parsedLine ->
+            CoreLogEntry(
+                id = index + 1L,
+                timestampMillis = parsedLine.timestampMillis,
+                level = parsedLine.level,
+                message = parsedLine.message,
+            )
+        }
+}
+
+private fun decodeLogrusValue(value: String): String {
+    val trimmedValue = value.trim()
+    if (trimmedValue.length < 2 || trimmedValue.first() != '"' || trimmedValue.last() != '"') {
+        return trimmedValue
+    }
+
+    return buildString(trimmedValue.length - 2) {
+        var escaped = false
+        trimmedValue.substring(1, trimmedValue.lastIndex).forEach { char ->
+            if (!escaped) {
+                if (char == '\\') {
+                    escaped = true
+                } else {
+                    append(char)
+                }
+                return@forEach
+            }
+
+            when (char) {
+                '\\' -> append('\\')
+                '"' -> append('"')
+                'n' -> append('\n')
+                'r' -> append('\r')
+                't' -> append('\t')
+                else -> {
+                    append('\\')
+                    append(char)
+                }
+            }
+            escaped = false
+        }
+        if (escaped) {
+            append('\\')
+        }
+    }
 }

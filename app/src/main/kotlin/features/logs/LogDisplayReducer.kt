@@ -19,7 +19,7 @@ internal fun reduceLogEntries(
     val normalizedQuery = query.trim()
     return entries.filter { entry ->
         val matchesQuery = normalizedQuery.isEmpty() || listOf(
-            entry.time,
+            formatCoreLogTime(entry.timestampMillis),
             entry.level,
             entry.message,
         ).any { value -> value.contains(normalizedQuery, ignoreCase = true) }

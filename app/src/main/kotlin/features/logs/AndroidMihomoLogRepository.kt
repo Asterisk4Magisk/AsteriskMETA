@@ -31,9 +31,10 @@ internal abstract class AndroidMihomoLogRepository(
         restorePreviousLogs()
     }
 
-    fun appendPersisted(level: String, message: String, time: String) {
-        super.append(level, message, time)
-        fileStore.appendLine("$time [$level] $message")
+    fun appendPersisted(level: String, message: String, timestampMillis: Long?) {
+        super.append(level, message, timestampMillis)
+        val persistedTime = timestampMillis?.toString() ?: "—"
+        fileStore.appendLine("$persistedTime [$level] $message")
     }
 
     override fun clear() {
@@ -43,10 +44,10 @@ internal abstract class AndroidMihomoLogRepository(
 
     override suspend fun refresh() {
         val context = appContext ?: return
-        val restoredLines = withContext(Dispatchers.IO) {
-            readRestoredLines(context)
+        val restoredEntries = withContext(Dispatchers.IO) {
+            readRestoredEntries(context)
         }
-        replaceRestoredLines(restoredLines)
+        replaceEntries(restoredEntries)
     }
 
     private fun restorePreviousLogs() {
@@ -55,47 +56,14 @@ internal abstract class AndroidMihomoLogRepository(
             return
         }
 
-        replaceRestoredLines(readRestoredLines(context))
+        replaceEntries(readRestoredEntries(context))
     }
 
-    private fun readRestoredLines(context: Context): List<RestoredCoreLogLine> {
-        var order = 0L
+    private fun readRestoredEntries(context: Context): List<CoreLogEntry> {
         val file = logFile(context)
-        return fileStore
-            .readLastLines()
-            .mapNotNull { line ->
-                parseCoreLogLine(line, file.defaultLevel)?.let { parsedLine ->
-                    RestoredCoreLogLine(
-                        order = order++,
-                        parsedLine = parsedLine,
-                    )
-                }
-            }
-            .sortedWith(
-                compareBy<RestoredCoreLogLine> { it.parsedLine.time.orEmpty() }
-                    .thenBy { it.order },
-            )
-            .takeLast(MaxEntries)
-    }
-
-    private fun replaceRestoredLines(restoredLines: List<RestoredCoreLogLine>) {
-        replaceEntries(
-            restoredLines.mapIndexed { index, restoredLine ->
-                val parsedLine = restoredLine.parsedLine
-                CoreLogEntry(
-                    id = index + 1L,
-                    time = parsedLine.time ?: currentLogTime(),
-                    level = parsedLine.level,
-                    message = parsedLine.message,
-                )
-            }
+        return restoredCoreLogEntries(
+            lines = fileStore.readLastLines(),
+            defaultLevel = file.defaultLevel,
         )
     }
 }
-
-private data class RestoredCoreLogLine(
-    val order: Long,
-    val parsedLine: ParsedCoreLogLine,
-)
-
-private const val MaxEntries = CoreLogMaxEntries

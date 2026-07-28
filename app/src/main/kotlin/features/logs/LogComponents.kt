@@ -71,7 +71,7 @@ internal fun LogEntryCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = entry.time,
+                    text = formatCoreLogTime(entry.timestampMillis),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

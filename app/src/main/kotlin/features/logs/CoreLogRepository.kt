@@ -3,7 +3,6 @@
 
 package features.logs
 
-import java.util.Calendar
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -11,7 +10,7 @@ import kotlinx.coroutines.flow.update
 
 data class CoreLogEntry(
     val id: Long,
-    val time: String,
+    val timestampMillis: Long?,
     val level: String,
     val message: String,
 )
@@ -19,7 +18,7 @@ data class CoreLogEntry(
 interface CoreLogRepository {
     val entries: StateFlow<List<CoreLogEntry>>
 
-    fun append(level: String, message: String, time: String = currentLogTime())
+    fun append(level: String, message: String, timestampMillis: Long?)
 
     fun clear()
 
@@ -34,7 +33,7 @@ open class InMemoryCoreLogRepository(
 
     override val entries: StateFlow<List<CoreLogEntry>> = mutableEntries.asStateFlow()
 
-    override fun append(level: String, message: String, time: String) {
+    override fun append(level: String, message: String, timestampMillis: Long?) {
         val normalizedMessage = message.trim()
         if (normalizedMessage.isEmpty()) {
             return
@@ -43,7 +42,7 @@ open class InMemoryCoreLogRepository(
             val nextId = (entries.lastOrNull()?.id ?: 0L) + 1L
             (entries + CoreLogEntry(
                 id = nextId,
-                time = time,
+                timestampMillis = timestampMillis,
                 level = level.normalizedLogLevel(),
                 message = normalizedMessage,
             )).takeLast(maxEntries)
@@ -83,22 +82,3 @@ private fun String.normalizedLogLevel(): String {
         else -> "info"
     }
 }
-
-fun currentLogTime(): String {
-    val calendar = Calendar.getInstance()
-    return buildString {
-        append(calendar.get(Calendar.YEAR))
-        append('-')
-        append((calendar.get(Calendar.MONTH) + 1).twoDigits())
-        append('-')
-        append(calendar.get(Calendar.DAY_OF_MONTH).twoDigits())
-        append(' ')
-        append(calendar.get(Calendar.HOUR_OF_DAY).twoDigits())
-        append(':')
-        append(calendar.get(Calendar.MINUTE).twoDigits())
-        append(':')
-        append(calendar.get(Calendar.SECOND).twoDigits())
-    }
-}
-
-private fun Int.twoDigits(): String = toString().padStart(2, '0')

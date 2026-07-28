@@ -36,6 +36,10 @@ abstract class BuildCmfaGoCoreTask : DefaultTask() {
     @get:PathSensitive(PathSensitivity.RELATIVE)
     abstract val mihomoSubmoduleDirectory: DirectoryProperty
 
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val goOverlayFile: RegularFileProperty
+
     @get:Optional
     @get:InputFile
     @get:PathSensitive(PathSensitivity.NONE)
@@ -72,6 +76,8 @@ abstract class BuildCmfaGoCoreTask : DefaultTask() {
         val command = buildList {
             add("go")
             add("build")
+            add("-overlay")
+            add(goOverlayFile.get().asFile.absolutePath)
             add("-buildmode")
             add("c-shared")
             add("-trimpath")

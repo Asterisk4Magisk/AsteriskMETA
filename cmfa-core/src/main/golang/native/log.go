@@ -5,7 +5,6 @@ import "C"
 
 import (
 	"strings"
-	"time"
 
 	"github.com/metacubex/mihomo/log"
 )
@@ -54,7 +53,7 @@ func subscribeLogcat(remote C.c_object) {
 			rMsg := &message{
 				Level:   msg.LogLevel.String(),
 				Message: msg.Payload,
-				Time:    time.Now().UnixNano() / 1000 / 1000,
+				Time:    msg.Time.UnixMilli(),
 			}
 
 			if C.logcat_received(remote, marshalJson(rMsg)) != 0 {

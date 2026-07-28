@@ -26,9 +26,13 @@ internal object AndroidLogcatRepository : InMemoryCoreLogRepository() {
         restorePreviousLogs()
     }
 
-    override fun append(level: String, message: String, time: String) {
-        super.append(level, message, time)
-        appendPersistedLine(time = time, level = level, message = message)
+    override fun append(level: String, message: String, timestampMillis: Long?) {
+        super.append(level, message, timestampMillis)
+        appendPersistedLine(
+            timestampMillis = timestampMillis,
+            level = level,
+            message = message,
+        )
     }
 
     override fun clear() {
@@ -50,12 +54,16 @@ internal object AndroidLogcatRepository : InMemoryCoreLogRepository() {
         val pendingEntries = entries.value
         replaceEntries(readPersistedEntries() + pendingEntries)
         pendingEntries.forEach { entry ->
-            appendPersistedLine(time = entry.time, level = entry.level, message = entry.message)
+            appendPersistedLine(
+                timestampMillis = entry.timestampMillis,
+                level = entry.level,
+                message = entry.message,
+            )
         }
     }
 
-    private fun appendPersistedLine(time: String, level: String, message: String) {
-        fileStore.appendLine(encodeLogLine(time, level, message))
+    private fun appendPersistedLine(timestampMillis: Long?, level: String, message: String) {
+        fileStore.appendLine(encodeLogLine(timestampMillis, level, message))
     }
 
     private fun readPersistedEntries(): List<CoreLogEntry> {
@@ -68,8 +76,12 @@ internal object AndroidLogcatRepository : InMemoryCoreLogRepository() {
 
 private const val LogcatFieldSeparator = '\t'
 
-private fun encodeLogLine(time: String, level: String, message: String): String {
-    return listOf(time, level, message.encodeBase64()).joinToString(LogcatFieldSeparator.toString())
+private fun encodeLogLine(timestampMillis: Long?, level: String, message: String): String {
+    return listOf(
+        timestampMillis?.toString().orEmpty(),
+        level,
+        message.encodeBase64(),
+    ).joinToString(LogcatFieldSeparator.toString())
 }
 
 private fun decodeLogLine(id: Long, line: String): CoreLogEntry? {
@@ -80,7 +92,7 @@ private fun decodeLogLine(id: Long, line: String): CoreLogEntry? {
     val message = fields[2].decodeBase64StringOrNull() ?: return null
     return CoreLogEntry(
         id = id,
-        time = fields[0],
+        timestampMillis = decodePersistedLogTimestamp(fields[0]),
         level = fields[1],
         message = message,
     )
