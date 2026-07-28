@@ -15,6 +15,7 @@ import engine.mihomo.MihomoControlConfig
 import engine.mihomo.raw.loadSelectedRawConfig
 import engine.mihomo.raw.usesRawMihomoConfig
 import engine.proxy.ProxyEngineStartRequest
+import engine.root.prepareRootRuntimeLayout
 import engine.vpn.AndroidMihomoRuntime
 import engine.vpn.VpnMihomoConfigFactory
 import features.logs.AndroidAppLogger
@@ -275,6 +276,22 @@ internal class MihomoRuntimeRepository(
             withContext(Dispatchers.IO) {
                 ensureInteractiveRuntime(appState, backend)
                 client.getProxyProvider(control, providerName, backend.useBridge())
+            }
+        }
+    }
+
+    suspend fun reloadInteractiveProfileFromDisk(appState: AppState): Result<Unit> {
+        return runCatching {
+            require(appState.hasUsableMihomoProfile()) { "Mihomo profile is not configured" }
+            val control = resolveMihomoControlConfig(appState)
+            val backend = resolveInteractiveBackend(appState, control)
+            withContext(Dispatchers.IO) {
+                ensureInteractiveRuntime(appState, backend)
+                client.reloadProfile(
+                    config = control,
+                    profilePath = appContext.prepareRootRuntimeLayout().configPath,
+                    reloadLocally = backend.useBridge() || appState.runMode == RunModeVpnService,
+                )
             }
         }
     }

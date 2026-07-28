@@ -221,6 +221,21 @@ internal class MihomoControlClient {
         request(config, "/providers/proxies/${providerName.urlEncode()}", method = "PUT")
     }
 
+    suspend fun reloadProfile(
+        config: MihomoControlConfig,
+        profilePath: String,
+        reloadLocally: Boolean,
+    ) {
+        if (reloadLocally) {
+            AndroidMihomoRuntime.reloadProfile()
+            return
+        }
+        val body = buildJsonObject {
+            put("path", profilePath)
+        }
+        request(config, "/configs?force=true", method = "PUT", body = body.toString())
+    }
+
     suspend fun patchMode(
         config: MihomoControlConfig,
         mode: String,

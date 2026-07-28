@@ -311,6 +311,7 @@
     <string name="mihomo_configuration_provider_sync_result">子订阅同步完成：共 %1$d 个，成功 %2$d 个，失败 %3$d 个</string>
     <string name="mihomo_configuration_provider_sync_empty">当前配置不包含远程 proxy-providers</string>
     <string name="mihomo_configuration_provider_sync_failed">同步子订阅失败</string>
+    <string name="mihomo_configuration_provider_sync_usage_reload_failed">子订阅已同步：共 %1$d 个，成功 %2$d 个，失败 %3$d 个，但用量刷新失败</string>
     <string name="mihomo_configuration_save_sync_in_progress_title">正在同步配置</string>
     <string name="mihomo_configuration_save_sync_downloading">正在下载配置…</string>
     <string name="mihomo_configuration_save_sync_decrypting">正在解密配置…</string>
@@ -331,6 +332,32 @@
     <string name="mihomo_configuration_last_modified">修改时间 {time}</string>
     <string name="mihomo_configuration_traffic_summary">{used} / {total} · 到期 {expire}</string>
     <string name="mihomo_configuration_expire_unlimited">不限期</string>
+    <string name="mihomo_configuration_provider_usage_title">子订阅用量</string>
+    <plurals name="mihomo_configuration_provider_usage_count">
+        <item quantity="other">%1$d 个子订阅</item>
+    </plurals>
+    <string name="mihomo_configuration_provider_usage_total">合计 %1$s / %2$s</string>
+    <plurals name="mihomo_configuration_provider_usage_unlimited_count">
+        <item quantity="other">%1$d 个不限量</item>
+    </plurals>
+    <plurals name="mihomo_configuration_provider_usage_missing_count">
+        <item quantity="other">%1$d 个未提供用量</item>
+    </plurals>
+    <plurals name="mihomo_configuration_provider_usage_unavailable_count">
+        <item quantity="other">%1$d 个暂时不可用</item>
+    </plurals>
+    <string name="mihomo_configuration_provider_usage_loading">正在加载子订阅用量…</string>
+    <string name="mihomo_configuration_provider_usage_requires_proxy">启动代理后可查看子订阅用量</string>
+    <string name="mihomo_configuration_provider_usage_failed">子订阅用量暂时不可用</string>
+    <string name="mihomo_configuration_provider_usage_retry">点击重试</string>
+    <string name="mihomo_configuration_provider_usage_missing">未提供用量</string>
+    <string name="mihomo_configuration_provider_usage_unavailable">暂时不可用</string>
+    <string name="mihomo_configuration_provider_usage_remaining">剩余 %1$d%%</string>
+    <string name="mihomo_configuration_provider_usage_expires">%1$s 到期</string>
+    <string name="mihomo_configuration_provider_usage_no_expiry">未提供到期时间</string>
+    <string name="mihomo_configuration_provider_usage_open_details">查看完整 Provider 详情</string>
+    <string name="mihomo_configuration_provider_usage_expanded">已展开</string>
+    <string name="mihomo_configuration_provider_usage_collapsed">已折叠</string>
     <string name="mihomo_configuration_override_script">覆写脚本</string>
     <string name="mihomo_configuration_override_script_content">JavaScript 内容</string>
     <string name="mihomo_configuration_override_script_none">不应用</string>

@@ -315,6 +315,7 @@
     <string name="mihomo_configuration_provider_sync_result">Proxy providers synced: total %1$d, succeeded %2$d, failed %3$d</string>
     <string name="mihomo_configuration_provider_sync_empty">Current configuration does not contain remote proxy-providers</string>
     <string name="mihomo_configuration_provider_sync_failed">Failed to sync providers</string>
+    <string name="mihomo_configuration_provider_sync_usage_reload_failed">Providers synced (total %1$d, succeeded %2$d, failed %3$d), but usage refresh failed</string>
     <string name="mihomo_configuration_save_sync_in_progress_title">Syncing configuration</string>
     <string name="mihomo_configuration_save_sync_downloading">Downloading…</string>
     <string name="mihomo_configuration_save_sync_decrypting">Decrypting…</string>
@@ -335,6 +336,36 @@
     <string name="mihomo_configuration_last_modified">Modified {time}</string>
     <string name="mihomo_configuration_traffic_summary">{used} / {total} · expires {expire}</string>
     <string name="mihomo_configuration_expire_unlimited">Unlimited</string>
+    <string name="mihomo_configuration_provider_usage_title">Provider usage</string>
+    <plurals name="mihomo_configuration_provider_usage_count">
+        <item quantity="one">%1$d provider</item>
+        <item quantity="other">%1$d providers</item>
+    </plurals>
+    <string name="mihomo_configuration_provider_usage_total">Total %1$s / %2$s</string>
+    <plurals name="mihomo_configuration_provider_usage_unlimited_count">
+        <item quantity="one">%1$d unlimited</item>
+        <item quantity="other">%1$d unlimited</item>
+    </plurals>
+    <plurals name="mihomo_configuration_provider_usage_missing_count">
+        <item quantity="one">%1$d without usage data</item>
+        <item quantity="other">%1$d without usage data</item>
+    </plurals>
+    <plurals name="mihomo_configuration_provider_usage_unavailable_count">
+        <item quantity="one">%1$d unavailable</item>
+        <item quantity="other">%1$d unavailable</item>
+    </plurals>
+    <string name="mihomo_configuration_provider_usage_loading">Loading provider usage…</string>
+    <string name="mihomo_configuration_provider_usage_requires_proxy">Start the proxy to view provider usage</string>
+    <string name="mihomo_configuration_provider_usage_failed">Provider usage is temporarily unavailable</string>
+    <string name="mihomo_configuration_provider_usage_retry">Tap to retry</string>
+    <string name="mihomo_configuration_provider_usage_missing">Usage not provided</string>
+    <string name="mihomo_configuration_provider_usage_unavailable">Temporarily unavailable</string>
+    <string name="mihomo_configuration_provider_usage_remaining">%1$d%% remaining</string>
+    <string name="mihomo_configuration_provider_usage_expires">Expires %1$s</string>
+    <string name="mihomo_configuration_provider_usage_no_expiry">No expiry provided</string>
+    <string name="mihomo_configuration_provider_usage_open_details">View full Provider details</string>
+    <string name="mihomo_configuration_provider_usage_expanded">Expanded</string>
+    <string name="mihomo_configuration_provider_usage_collapsed">Collapsed</string>
     <string name="mihomo_configuration_override_script">Override script</string>
     <string name="mihomo_configuration_override_script_content">JavaScript content</string>
     <string name="mihomo_configuration_override_script_none">Do not apply</string>
