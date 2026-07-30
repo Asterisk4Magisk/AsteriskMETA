@@ -13,8 +13,8 @@ import engine.root.RootIptablesConfig
 import engine.root.RootProxyRouteRulePriority
 import engine.root.RootProxyAppWhitelistSystemUids
 import engine.root.appendDeleteRuleLoop
-import engine.root.appendAsteriskdBypassAnchorCleanup
-import engine.root.appendAsteriskdBypassAnchorJump
+import engine.root.appendAsteriskdBypassBoundary
+import engine.root.appendAsteriskdBypassCleanup
 import engine.root.appendIpRuleDeleteLoop
 import engine.root.appendRootEbpfXtbpfInterfaceTproxyRules
 import engine.root.appendRootEbpfXtbpfMarkRules
@@ -62,8 +62,8 @@ internal fun RootIptablesConfig.buildCleanupRulesCommand(): String {
         appendRootIpv6DnsRejectCleanupRules()
         appendIptablesVariantCleanupRules(this@buildCleanupRulesCommand, ipv6IptablesVariant(useDummyInterface = false))
         appendIptablesVariantCleanupRules(this@buildCleanupRulesCommand, ipv6IptablesVariant(useDummyInterface = true))
-        appendAsteriskdBypassAnchorCleanup(RootIptablesCommand, ipv6 = false)
-        appendAsteriskdBypassAnchorCleanup(RootIp6tablesCommand, ipv6 = true)
+        appendAsteriskdBypassCleanup(RootIptablesCommand, ipv6 = false)
+        appendAsteriskdBypassCleanup(RootIp6tablesCommand, ipv6 = true)
     }
 }
 
@@ -121,7 +121,7 @@ private fun StringBuilder.appendIptablesVariantSetupRules(
             interfaces = emptyList(),
             input = true,
         )
-        appendAsteriskdBypassAnchorJump(variant.command, variant.preroutingChain, ipv6 = variant.tproxyOnIp == "::")
+        appendAsteriskdBypassBoundary(variant.command, variant.preroutingChain, ipv6 = variant.tproxyOnIp == "::")
         appendPreroutingMarkedTproxyRules(variant, port, config.mark)
         appendEbpfPreroutingRules(config, variant, port)
         appendOutputUidReturnRules(variant.command, variant.outputChain, config.forcedBypassUids)
@@ -146,7 +146,7 @@ private fun StringBuilder.appendIptablesVariantSetupRules(
             interfaces = emptyList(),
             input = false,
         )
-        appendAsteriskdBypassAnchorJump(variant.command, variant.outputChain, ipv6 = variant.tproxyOnIp == "::")
+        appendAsteriskdBypassBoundary(variant.command, variant.outputChain, ipv6 = variant.tproxyOnIp == "::")
         appendRootEbpfXtbpfMarkRules(
             command = variant.command,
             chain = variant.outputChain,
@@ -172,7 +172,7 @@ private fun StringBuilder.appendIptablesVariantSetupRules(
         interfaces = emptyList(),
         input = true,
     )
-    appendAsteriskdBypassAnchorJump(variant.command, variant.preroutingChain, ipv6 = variant.tproxyOnIp == "::")
+    appendAsteriskdBypassBoundary(variant.command, variant.preroutingChain, ipv6 = variant.tproxyOnIp == "::")
     appendPreroutingMarkedTproxyRules(variant, port, config.mark)
     config.externalInterfacePrefixes.forEach { prefix ->
         appendPreroutingInterfaceTproxyRules(variant, prefix, port, config.mark)
@@ -208,7 +208,7 @@ private fun StringBuilder.appendIptablesVariantSetupRules(
         interfaces = emptyList(),
         input = false,
     )
-    appendAsteriskdBypassAnchorJump(variant.command, variant.outputChain, ipv6 = variant.tproxyOnIp == "::")
+    appendAsteriskdBypassBoundary(variant.command, variant.outputChain, ipv6 = variant.tproxyOnIp == "::")
     appendScript("${variant.command} -t mangle -A ${variant.outputChain} -m owner --gid-owner $RootMihomoGid -j RETURN")
     appendOutputApplicationMarkRules(
         command = variant.command,

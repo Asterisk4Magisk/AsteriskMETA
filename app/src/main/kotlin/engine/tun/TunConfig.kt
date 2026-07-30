@@ -15,8 +15,13 @@ import engine.root.RootEbpfRuntimeConfig
 import engine.root.RootIptablesConfig
 import engine.root.RootModeStartConfig
 import engine.root.RootStartConfig
+import engine.root.AsteriskdBypassConsumerChains
 import engine.root.buildAsteriskdConfig
 import engine.tun2socks.Tun2SocksBaseIptablesConfig
+import engine.tun2socks.Tun2SocksOutput6Chain
+import engine.tun2socks.Tun2SocksOutputChain
+import engine.tun2socks.Tun2SocksPrerouting6Chain
+import engine.tun2socks.Tun2SocksPreroutingChain
 import engine.vpn.TunOptions
 import engine.vpn.toTunOptions
 
@@ -64,6 +69,10 @@ internal fun RootConfigBuildContext.buildTunStartConfig(): TunStartConfig {
             mode = AsteriskdMode.Tun,
             iptablesConfig = iptablesConfig,
             virtualInterfaces = listOf(tunConfig.device),
+            bypassConsumerChains = AsteriskdBypassConsumerChains(
+                ipv4 = listOf(Tun2SocksPreroutingChain, Tun2SocksOutputChain),
+                ipv6 = listOf(Tun2SocksPrerouting6Chain, Tun2SocksOutput6Chain),
+            ),
         ),
         rootEbpfConfig = buildRootEbpfRuntimeConfig(iptablesConfig),
     )

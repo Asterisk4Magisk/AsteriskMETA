@@ -15,6 +15,7 @@ import engine.proxy.toLocalProxyOptions
 import engine.proxy.toLocalProxyOptionsOrNull
 import engine.root.RootConfigBuildContext
 import engine.root.AsteriskdConfig
+import engine.root.AsteriskdBypassConsumerChains
 import engine.root.AsteriskdMode
 import engine.root.RootEbpfRuntimeConfig
 import engine.root.RootIptablesConfig
@@ -77,6 +78,10 @@ internal fun RootConfigBuildContext.buildTun2SocksStartConfig(): Tun2SocksStartC
             mode = AsteriskdMode.Tun2Socks,
             iptablesConfig = iptablesConfig,
             virtualInterfaces = listOf("asterisk0"),
+            bypassConsumerChains = AsteriskdBypassConsumerChains(
+                ipv4 = listOf(Tun2SocksPreroutingChain, Tun2SocksOutputChain),
+                ipv6 = listOf(Tun2SocksPrerouting6Chain, Tun2SocksOutput6Chain),
+            ),
         ),
         rootEbpfConfig = buildRootEbpfRuntimeConfig(iptablesConfig),
     )

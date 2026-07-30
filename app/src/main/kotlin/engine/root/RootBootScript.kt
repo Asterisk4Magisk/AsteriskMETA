@@ -88,7 +88,7 @@ private fun <Config : RootModeStartConfig> Config.buildRootStartupScript(
         append('\n')
         appendScript("section \"Install $modeName rules\"")
         append(buildSetupRulesCommand(this@buildRootStartupScript))
-        appendScript("# Rule cleanup can remove bypass slots; recreate the monitor chains before its first sync.")
+        appendScript("# Rule cleanup can remove bypass boundaries; recreate the marker chains before the first sync.")
         appendScript("section \"Prepare asteriskd chains\"")
         append(root.buildPrepareAsteriskdCommand())
         appendScript("# Start the address monitor after rules and BPF maps are ready.")
