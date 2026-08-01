@@ -280,6 +280,22 @@ internal class MihomoRuntimeRepository(
         }
     }
 
+    suspend fun getRuleProviderSummaries(
+        appState: AppState,
+    ): Result<Map<String, MihomoRuleProviderRuntimeSummary>> {
+        return runMihomoRuntimeCatching {
+            if (!appState.hasUsableMihomoProfile()) {
+                error("Mihomo profile is not configured")
+            }
+            val control = resolveMihomoControlConfig(appState)
+            val backend = resolveInteractiveBackend(appState, control)
+            withContext(Dispatchers.IO) {
+                ensureInteractiveRuntime(appState, backend)
+                client.getRuleProviders(control, backend.useBridge())
+            }
+        }
+    }
+
     suspend fun reloadInteractiveProfileFromDisk(appState: AppState): Result<Unit> {
         return runCatching {
             require(appState.hasUsableMihomoProfile()) { "Mihomo profile is not configured" }
@@ -355,9 +371,9 @@ internal class MihomoRuntimeRepository(
         appState: AppState,
         providerName: String,
     ): Result<Unit> {
-        return runCatching {
+        return runMihomoRuntimeCatching {
             if (!appState.hasUsableMihomoProfile()) {
-                return@runCatching
+                return@runMihomoRuntimeCatching
             }
             val control = resolveMihomoControlConfig(appState)
             val backend = resolveInteractiveBackend(appState, control)
@@ -367,6 +383,23 @@ internal class MihomoRuntimeRepository(
                 ensureInteractiveRuntime(appState, backend)
                 client.updateProxyProvider(control, providerName, backend.useBridge())
                 refreshProxySnapshot(control, backend.useBridge(), generation, configKey, coalesce = false)
+            }
+        }
+    }
+
+    suspend fun refreshRuleProvider(
+        appState: AppState,
+        providerName: String,
+    ): Result<Unit> {
+        return runMihomoRuntimeCatching {
+            if (!appState.hasUsableMihomoProfile()) {
+                return@runMihomoRuntimeCatching
+            }
+            val control = resolveMihomoControlConfig(appState)
+            val backend = resolveInteractiveBackend(appState, control)
+            withContext(Dispatchers.IO) {
+                ensureInteractiveRuntime(appState, backend)
+                client.updateRuleProvider(control, providerName, backend.useBridge())
             }
         }
     }

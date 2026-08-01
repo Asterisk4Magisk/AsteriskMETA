@@ -18,6 +18,12 @@ internal data class MihomoProviderDeclaration(
     val declarationYaml: String,
     val rawSource: MihomoProviderRawSource,
     val ageSecretKey: String = "",
+    val ruleMetadata: MihomoRuleProviderDeclarationMetadata? = null,
+)
+
+internal data class MihomoRuleProviderDeclarationMetadata(
+    val behavior: String,
+    val format: String,
 )
 
 internal sealed interface MihomoProviderRawSource {
@@ -26,11 +32,22 @@ internal sealed interface MihomoProviderRawSource {
     data object Missing : MihomoProviderRawSource
 }
 
-internal data class MihomoProviderRawContent(
-    val content: String = "",
-    val lastError: String = "",
-    val declarationOnly: Boolean = false,
-)
+internal sealed interface MihomoProviderRawContent {
+    val lastError: String
+
+    data class Text(
+        val content: String = "",
+        override val lastError: String = "",
+        val declarationOnly: Boolean = false,
+    ) : MihomoProviderRawContent
+
+    data class Binary(
+        val byteSize: Long,
+        val format: String,
+        val ruleCount: Int? = null,
+        override val lastError: String = "",
+    ) : MihomoProviderRawContent
+}
 
 internal fun String.parseMihomoProxyProviderDeclarations(
     dataDir: File,
@@ -59,6 +76,13 @@ internal fun String.hasMihomoProvider(type: MihomoProviderType): Boolean {
         ?.get(type.topLevelKey)
         .asProviderMap()
         .isNotEmpty()
+}
+
+internal fun String.hasMihomoProviders(): Boolean {
+    val root = parseMihomoYamlRoot() ?: return false
+    return MihomoProviderType.entries.any { type ->
+        root[type.topLevelKey].asProviderMap().isNotEmpty()
+    }
 }
 
 internal fun String.mihomoRemoteProviderFiles(
@@ -160,6 +184,17 @@ private fun Map<*, *>.toMihomoProviderDeclaration(
         "http", "file" -> MihomoProviderRawSource.File(providerFileCandidates(dataDir, type))
         else -> MihomoProviderRawSource.Missing
     }
+    val ruleMetadata = if (type == MihomoProviderType.Rule) {
+        MihomoRuleProviderDeclarationMetadata(
+            behavior = normalized["behavior"].asProviderTextOrNull()?.lowercase().orEmpty(),
+            format = normalized["format"].asProviderTextOrNull()
+                ?.lowercase()
+                .orEmpty()
+                .ifBlank { "yaml" },
+        )
+    } else {
+        null
+    }
     return MihomoProviderDeclaration(
         name = name,
         providerType = type,
@@ -168,6 +203,7 @@ private fun Map<*, *>.toMihomoProviderDeclaration(
         declarationYaml = declarationYaml,
         rawSource = rawSource,
         ageSecretKey = ageSecretKey,
+        ruleMetadata = ruleMetadata,
     )
 }
 

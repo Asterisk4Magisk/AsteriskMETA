@@ -48,10 +48,10 @@ sealed interface Route : NavKey {
     data object MihomoProfileList : Route
 
     @Serializable
-    data object MihomoProviders : Route
+    data object MihomoProviderManagement : Route
 
     @Serializable
-    data class MihomoProviderDetail(val providerName: String) : Route
+    data class MihomoProxyProviderDetail(val providerName: String) : Route
 
     @Serializable
     data object MihomoOverrideScripts : Route

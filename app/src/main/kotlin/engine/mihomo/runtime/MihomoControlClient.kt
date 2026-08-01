@@ -209,6 +209,19 @@ internal class MihomoControlClient {
         return root.toProxyProviderRuntimeDetail(providerName)
     }
 
+    fun getRuleProviders(
+        config: MihomoControlConfig,
+        useBridge: Boolean,
+    ): Map<String, MihomoRuleProviderRuntimeSummary> {
+        if (useBridge) {
+            return Clash.queryProviders().queryMihomoRuleProviderSummaries { provider ->
+                Bridge.nativeQueryProvider(Provider.Type.Rule.toString(), provider.name)
+            }
+        }
+        return requestJsonObject(config, "/providers/rules")
+            .toMihomoRuleProviderRuntimeSummaries()
+    }
+
     suspend fun updateProxyProvider(
         config: MihomoControlConfig,
         providerName: String,
@@ -219,6 +232,18 @@ internal class MihomoControlClient {
             return
         }
         request(config, "/providers/proxies/${providerName.urlEncode()}", method = "PUT")
+    }
+
+    suspend fun updateRuleProvider(
+        config: MihomoControlConfig,
+        providerName: String,
+        useBridge: Boolean,
+    ) {
+        if (useBridge) {
+            Clash.updateProvider(Provider.Type.Rule, providerName).await()
+            return
+        }
+        request(config, "/providers/rules/${providerName.urlEncode()}", method = "PUT")
     }
 
     suspend fun reloadProfile(
@@ -575,6 +600,28 @@ internal class MihomoControlClient {
     }
 }
 
+internal fun Iterable<Provider>.queryMihomoRuleProviderSummaries(
+    query: (Provider) -> String?,
+): Map<String, MihomoRuleProviderRuntimeSummary> {
+    val runtimeJson = Json { ignoreUnknownKeys = true }
+    return asSequence()
+        .filter { provider -> provider.type == Provider.Type.Rule }
+        .mapNotNull { provider ->
+            try {
+                val response = query(provider) ?: return@mapNotNull null
+                val root = runtimeJson.parseToJsonElement(response).jsonObjectOrNull()
+                    ?: return@mapNotNull null
+                if (root.errorMessageOrNull() != null) return@mapNotNull null
+                val summary = root.toMihomoRuleProviderRuntimeSummary(provider.name)
+                summary.name to summary
+            } catch (error: Throwable) {
+                if (error is CancellationException) throw error
+                null
+            }
+        }
+        .toMap()
+}
+
 private suspend fun IOException.isExpectedMihomoStreamEnd(): Boolean {
     if (!currentCoroutineContext().isActive) {
         return false
@@ -749,7 +796,7 @@ private fun JsonObject.latestDelay(): Int? {
 
 private fun JsonObject.toProxyProviderRuntimeDetail(fallbackName: String): MihomoProxyProviderRuntimeDetail {
     val nodes = this["proxies"].jsonArrayOrNull()
-        ?.mapNotNull { item -> item.jsonObjectOrNull()?.toMihomoProviderNode() }
+        ?.mapNotNull { item -> item.jsonObjectOrNull()?.toMihomoProxyProviderNode() }
         .orEmpty()
     return MihomoProxyProviderRuntimeDetail(
         name = stringValue("name") ?: stringValue("Name") ?: fallbackName,
@@ -765,10 +812,10 @@ private fun JsonObject.toProxyProviderRuntimeDetail(fallbackName: String): Mihom
     )
 }
 
-private fun JsonObject.toMihomoProviderNode(): MihomoProviderNode {
+private fun JsonObject.toMihomoProxyProviderNode(): MihomoProxyProviderNode {
     val name = stringValue("name") ?: stringValue("Name") ?: ""
     val type = stringValue("type") ?: stringValue("Type") ?: ""
-    return MihomoProviderNode(
+    return MihomoProxyProviderNode(
         name = name,
         title = stringValue("title") ?: stringValue("Title") ?: name,
         subtitle = stringValue("subtitle") ?: stringValue("Subtitle") ?: type,

@@ -95,6 +95,26 @@ func QueryProvider(t string, name string, uiSubtitlePattern *regexp2.Regexp) (ma
 		detail["proxies"] = convertProxies(p.Proxies(), uiSubtitlePattern)
 		detail["testUrl"] = p.HealthCheckURL()
 		return detail, nil
+	case "Rule":
+		p := tunnel.RuleProviders()[name]
+		if p == nil {
+			return nil, fmt.Errorf("%s not found", name)
+		}
+
+		detail := map[string]any{}
+		if payload, err := json.Marshal(p); err == nil {
+			_ = json.Unmarshal(payload, &detail)
+		}
+		updatedAt := time.Time{}
+		if s, ok := p.(UpdatableProvider); ok {
+			updatedAt = s.UpdatedAt()
+		}
+
+		detail["name"] = p.Name()
+		detail["vehicleType"] = p.VehicleType().String()
+		detail["type"] = p.Type().String()
+		detail["updatedAt"] = updatedAt.UnixNano() / 1000 / 1000
+		return detail, nil
 	default:
 		return nil, ErrInvalidType
 	}

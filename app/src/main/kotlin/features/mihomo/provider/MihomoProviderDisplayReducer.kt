@@ -3,7 +3,7 @@
 
 package features.mihomo.provider
 
-import engine.mihomo.runtime.MihomoProviderNode
+import engine.mihomo.runtime.MihomoProxyProviderNode
 import engine.mihomo.runtime.MihomoProxyProviderRuntimeDetail
 import features.mihomo.displayMihomoProtocolName
 
@@ -14,7 +14,7 @@ internal enum class ProviderReadiness {
     Error,
 }
 
-internal data class ProviderFocusState(
+internal data class ProxyProviderFocusState(
     val readiness: ProviderReadiness,
     val providerCount: Int,
     val readyCount: Int,
@@ -22,19 +22,19 @@ internal data class ProviderFocusState(
     val updatedAtMillis: Long,
 )
 
-internal fun reduceProviderFocusState(
+internal fun reduceProxyProviderFocusState(
     providerCount: Int,
     runtimeDetails: Collection<MihomoProxyProviderRuntimeDetail>,
     loading: Boolean,
     error: String,
-): ProviderFocusState {
+): ProxyProviderFocusState {
     val readiness = when {
         error.isNotBlank() -> ProviderReadiness.Error
         loading -> ProviderReadiness.Loading
         providerCount == 0 -> ProviderReadiness.Empty
         else -> ProviderReadiness.Ready
     }
-    return ProviderFocusState(
+    return ProxyProviderFocusState(
         readiness = readiness,
         providerCount = providerCount.coerceAtLeast(0),
         readyCount = runtimeDetails.size.coerceAtMost(providerCount.coerceAtLeast(0)),
@@ -43,17 +43,21 @@ internal fun reduceProviderFocusState(
     )
 }
 
-internal enum class ProviderNodeFilter {
+internal enum class ProxyProviderNodeFilter {
     All,
     Available,
     Timeout,
 }
 
-internal fun reduceMihomoProviderNodes(
-    nodes: List<MihomoProviderNode>,
+internal fun proxyProviderNodeFilterForPage(page: Int): ProxyProviderNodeFilter {
+    return ProxyProviderNodeFilter.entries.getOrNull(page) ?: ProxyProviderNodeFilter.All
+}
+
+internal fun reduceMihomoProxyProviderNodes(
+    nodes: List<MihomoProxyProviderNode>,
     query: String,
-    filter: ProviderNodeFilter = ProviderNodeFilter.All,
-): List<MihomoProviderNode> {
+    filter: ProxyProviderNodeFilter = ProxyProviderNodeFilter.All,
+): List<MihomoProxyProviderNode> {
     val normalizedQuery = query.trim()
     return nodes.filter { node ->
         val matchesQuery = normalizedQuery.isEmpty() || listOf(
@@ -64,10 +68,20 @@ internal fun reduceMihomoProviderNodes(
             node.type.displayMihomoProtocolName(),
         ).any { value -> value.contains(normalizedQuery, ignoreCase = true) }
         val matchesFilter = when (filter) {
-            ProviderNodeFilter.All -> true
-            ProviderNodeFilter.Available -> node.delay?.let { it >= 0 } == true
-            ProviderNodeFilter.Timeout -> node.delay?.let { it < 0 } == true
+            ProxyProviderNodeFilter.All -> true
+            ProxyProviderNodeFilter.Available -> node.delay?.let { it >= 0 } == true
+            ProxyProviderNodeFilter.Timeout -> node.delay?.let { it < 0 } == true
         }
         matchesQuery && matchesFilter
     }
+}
+
+internal fun ruleProviderChipLabels(
+    vehicle: String,
+    behavior: String,
+    format: String,
+): List<String> = buildList {
+    add(vehicle)
+    behavior.takeIf(String::isNotBlank)?.let(::add)
+    format.takeIf(String::isNotBlank)?.let(::add)
 }

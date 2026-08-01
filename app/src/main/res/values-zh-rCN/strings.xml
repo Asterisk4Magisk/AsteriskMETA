@@ -226,15 +226,33 @@
     <string name="mihomo_proxies_option_sort_default">默认</string>
     <string name="mihomo_proxies_option_sort_name">名称</string>
     <string name="mihomo_proxies_option_sort_delay">延迟</string>
-    <string name="mihomo_providers_title">Proxy Providers</string>
-    <string name="mihomo_providers_empty">当前配置不包含 proxy-providers</string>
-    <string name="mihomo_providers_refresh_all">全部刷新</string>
-    <string name="mihomo_providers_refresh_done">Provider 已刷新</string>
-    <string name="mihomo_providers_refresh_failed">刷新 Provider 失败</string>
-    <string name="mihomo_providers_refresh_all_done">Provider 刷新完成：成功 %1$d；失败 %2$d</string>
+    <string name="mihomo_provider_management_title">Providers</string>
+    <string name="mihomo_provider_management_refresh_current">刷新当前 Tab</string>
+    <string name="mihomo_proxy_providers_tab">Proxy Providers</string>
+    <string name="mihomo_rule_providers_tab">Rule Providers</string>
+    <string name="mihomo_proxy_providers_empty">当前配置不包含 proxy-providers</string>
+    <string name="mihomo_rule_providers_empty">当前配置不包含 rule-providers</string>
+    <string name="mihomo_proxy_providers_refresh_done">Proxy Provider 已刷新</string>
+    <string name="mihomo_proxy_providers_refresh_failed">刷新 Proxy Provider 失败</string>
+    <string name="mihomo_proxy_providers_refresh_all_done">Proxy Provider 刷新完成：成功 %1$d；失败 %2$d</string>
+    <string name="mihomo_rule_providers_refresh_done">Rule Provider 已刷新</string>
+    <string name="mihomo_rule_providers_refresh_failed">刷新 Rule Provider 失败</string>
+    <string name="mihomo_rule_providers_refresh_all_done">Rule Provider 刷新完成：成功 %1$d；失败 %2$d</string>
     <string name="mihomo_provider_file_content">文件内容</string>
     <string name="mihomo_provider_traffic_unlimited">不限量</string>
     <string name="mihomo_provider_file_missing">Provider 文件不可用</string>
+    <string name="mihomo_provider_declarations_load_failed">加载 Provider 声明失败</string>
+    <string name="mihomo_provider_declarations_load_failed_detail">加载 Provider 声明失败：%1$s</string>
+    <string name="mihomo_rule_provider_binary_preview">二进制规则集</string>
+    <string name="mihomo_rule_provider_binary_unavailable">MRS 内容无法作为文本预览。</string>
+    <plurals name="mihomo_rule_provider_rules_count">
+        <item quantity="other">%1$d 条规则</item>
+    </plurals>
+    <string name="mihomo_rule_provider_vehicle">载体：%1$s</string>
+    <string name="mihomo_rule_provider_behavior">行为：%1$s</string>
+    <string name="mihomo_rule_provider_format">格式：%1$s</string>
+    <string name="mihomo_rule_provider_updated">更新于：%1$s</string>
+    <string name="mihomo_rule_provider_runtime_unavailable">运行时元数据不可用</string>
     <string name="mihomo_provider_raw_declaration">声明片段</string>
     <string name="mihomo_provider_raw_read_only">只读</string>
     <string name="mihomo_provider_raw_metadata">%1$s · %2$s</string>
@@ -242,6 +260,7 @@
         <item quantity="other">%1$d 处匹配</item>
     </plurals>
     <string name="mihomo_provider_runtime_unavailable">运行时 Provider 数据不可用</string>
+    <string name="mihomo_provider_runtime_error">%1$s：%2$s</string>
     <string name="mihomo_provider_focus_loading">正在加载 Provider</string>
     <string name="mihomo_provider_focus_ready">Provider 已就绪</string>
     <string name="mihomo_provider_focus_empty">未配置 Provider</string>
@@ -256,6 +275,7 @@
     <string name="mihomo_provider_filter_available">可用</string>
     <string name="mihomo_provider_filter_timeout">超时</string>
     <string name="mihomo_provider_delay_timeout">超时</string>
+    <string name="mihomo_provider_delay_value">%1$d 毫秒</string>
     <string name="mihomo_provider_missing">当前配置中不存在该 Provider</string>
     <string name="mihomo_configurations_title">配置管理</string>
     <string name="mihomo_configuration_add">添加配置</string>

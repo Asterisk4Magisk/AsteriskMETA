@@ -74,8 +74,8 @@ import features.mihomo.MihomoOverrideScriptListPage
 import features.mihomo.MihomoProfileEditPage
 import features.mihomo.MihomoProfileListPage
 import features.mihomo.MihomoProxyPage
-import features.mihomo.provider.MihomoProviderDetailPage
-import features.mihomo.provider.MihomoProviderListPage
+import features.mihomo.provider.MihomoProviderManagementPage
+import features.mihomo.provider.MihomoProxyProviderDetailPage
 import features.proxy.app.ProxyAppListPage
 import features.resources.ResourceManagementPage
 import features.settings.SettingsPage
@@ -186,12 +186,12 @@ fun AppContent(
                         onBack = { navigator.pop() },
                     )
                 }
-                entry<Route.MihomoProviders> {
-                    MihomoProviderListPage(padding = padding)
+                entry<Route.MihomoProviderManagement> {
+                    MihomoProviderManagementPage(padding = padding)
                 }
-                entry<Route.MihomoProviderDetail> { route ->
+                entry<Route.MihomoProxyProviderDetail> { route ->
                     key(route.providerName) {
-                        MihomoProviderDetailPage(
+                        MihomoProxyProviderDetailPage(
                             padding = padding,
                             providerName = route.providerName,
                         )

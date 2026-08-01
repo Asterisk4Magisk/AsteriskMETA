@@ -70,7 +70,7 @@ internal data class MihomoProxiesState(
     }
 }
 
-internal data class MihomoProviderNode(
+internal data class MihomoProxyProviderNode(
     val name: String,
     val title: String = "",
     val subtitle: String = "",
@@ -93,7 +93,17 @@ internal data class MihomoProxyProviderRuntimeDetail(
     val testUrl: String = "",
     val expectedStatus: String = "",
     val subscriptionInfo: MihomoProviderSubscriptionInfo? = null,
-    val nodes: List<MihomoProviderNode> = emptyList(),
+    val nodes: List<MihomoProxyProviderNode> = emptyList(),
+)
+
+internal data class MihomoRuleProviderRuntimeSummary(
+    val name: String,
+    val behavior: String = "",
+    val format: String = "",
+    val ruleCount: Int = 0,
+    val type: String = "",
+    val vehicleType: String = "",
+    val updatedAtMillis: Long = 0L,
 )
 
 internal data class MihomoRuntimeState(

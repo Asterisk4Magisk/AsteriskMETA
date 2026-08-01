@@ -945,7 +945,7 @@ fun MihomoProfileListPage(
                             providerUsageExpandedProfileId = if (expanded) profile.id else null
                         },
                         onProviderUsageRetry = ::retryProviderUsage,
-                        onOpenProviderDetails = { navigator.push(Route.MihomoProviders) },
+                        onOpenProviderDetails = { navigator.push(Route.MihomoProviderManagement) },
                         onSelect = { selectProfile(profile) },
                         onAction = { action ->
                             when (action) {

@@ -20,7 +20,7 @@ internal class MihomoProviderRawContentLoader {
         unavailableMessage: String,
     ): MihomoProviderRawContent = withContext(Dispatchers.IO) {
         when (val source = provider.rawSource) {
-            is MihomoProviderRawSource.Inline -> MihomoProviderRawContent(
+            is MihomoProviderRawSource.Inline -> MihomoProviderRawContent.Text(
                 content = source.content,
                 declarationOnly = true,
             )
@@ -32,7 +32,7 @@ internal class MihomoProviderRawContentLoader {
                 unavailableMessage = unavailableMessage,
             )
 
-            MihomoProviderRawSource.Missing -> MihomoProviderRawContent(
+            MihomoProviderRawSource.Missing -> MihomoProviderRawContent.Text(
                 content = provider.declarationYaml,
                 declarationOnly = true,
                 lastError = unavailableMessage,
@@ -49,33 +49,75 @@ internal class MihomoProviderRawContentLoader {
         val file = source.candidates.firstOrNull { candidate -> candidate.isFile }
             ?: source.candidates.firstOrNull()
         if (file == null) {
-            return MihomoProviderRawContent(
-                lastError = unavailableMessage,
+            return providerDeclarationFallbackContent(
+                declarationYaml = provider.declarationYaml,
+                errorMessage = "",
+                unavailableMessage = unavailableMessage,
             )
         }
         if (!file.isFile) {
-            return MihomoProviderRawContent(
-                lastError = unavailableMessage,
+            return providerDeclarationFallbackContent(
+                declarationYaml = provider.declarationYaml,
+                errorMessage = "",
+                unavailableMessage = unavailableMessage,
             )
         }
         return runCatching {
+            val header = file.inputStream().use { input ->
+                val bytes = ByteArray(MihomoProviderHeaderSize)
+                val count = input.read(bytes)
+                if (count > 0) bytes.copyOf(count) else byteArrayOf()
+            }
+            val format = provider.ruleMetadata?.format.orEmpty()
+            if (isMihomoProviderBinaryContent(format, header)) {
+                return@runCatching MihomoProviderRawContent.Binary(
+                    byteSize = file.length(),
+                    format = format.ifBlank { MihomoMrsFormat },
+                )
+            }
             val content = file.readText(Charsets.UTF_8)
                 .decryptAge(provider.ageSecretKey.ifBlank { profileAgeSecretKey })
-            MihomoProviderRawContent(
+            MihomoProviderRawContent.Text(
                 content = content,
             )
         }.getOrElse { error ->
-            MihomoProviderRawContent(
-                lastError = error.message.orEmpty(),
+            providerDeclarationFallbackContent(
+                declarationYaml = provider.declarationYaml,
+                errorMessage = error.message.orEmpty(),
+                unavailableMessage = unavailableMessage,
             )
         }
     }
+}
+
+internal fun providerDeclarationFallbackContent(
+    declarationYaml: String,
+    errorMessage: String,
+    unavailableMessage: String,
+): MihomoProviderRawContent.Text {
+    return MihomoProviderRawContent.Text(
+        content = declarationYaml,
+        lastError = errorMessage.ifBlank { unavailableMessage },
+        declarationOnly = true,
+    )
 }
 
 internal fun Context.mihomoProviderDataDir(): File {
     return File(applicationContext.prepareMihomoResourceFilePaths().dataDir)
 }
 
+internal fun isMihomoProviderBinaryContent(format: String, header: ByteArray): Boolean {
+    val hasMrsMagic = header.size >= 4 &&
+        header[0] == 'M'.code.toByte() &&
+        header[1] == 'R'.code.toByte() &&
+        header[2] == 'S'.code.toByte() &&
+        header[3] == 1.toByte()
+    return format.equals("mrs", ignoreCase = true) || hasMrsMagic
+}
+
 private fun String.decryptAge(ageSecretKey: String): String {
     return Clash.decryptAge(this, ageSecretKey.trim().takeIf(String::isNotBlank))
 }
+
+private const val MihomoProviderHeaderSize = 4
+private const val MihomoMrsFormat = "mrs"

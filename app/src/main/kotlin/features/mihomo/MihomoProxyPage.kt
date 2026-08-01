@@ -149,7 +149,7 @@ private fun MihomoRuntimeState.toProxyPageRuntimeState() = MihomoProxyPageRuntim
 private fun AppServices.mihomoProxyPageRuntimeSnapshot() =
     mihomoRuntime.state.value.toProxyPageRuntimeState()
 
-private data class MihomoProxyProviderDetectionSignature(
+private data class MihomoProviderDetectionSignature(
     val profileId: Int,
     val contentSha256: String,
     val contentPath: String,
@@ -202,7 +202,7 @@ fun MihomoProxyPage(
             services.mihomoRuntime.refreshProxies(appState)
         }
     }
-    var hasProxyProviders by remember { mutableStateOf(false) }
+    var hasProviders by remember { mutableStateOf(false) }
     val providerDetectionSignature = remember(
         appState.selectedMihomoProfileId,
         selectedProfile?.contentSha256,
@@ -211,7 +211,7 @@ fun MihomoProxyPage(
         appState.runMode,
         appState.mihomoMode,
     ) {
-        MihomoProxyProviderDetectionSignature(
+        MihomoProviderDetectionSignature(
             profileId = appState.selectedMihomoProfileId,
             contentSha256 = selectedProfile?.contentSha256.orEmpty(),
             contentPath = selectedProfile?.contentPath.orEmpty(),
@@ -223,11 +223,11 @@ fun MihomoProxyPage(
         )
     }
     LaunchedEffect(hasUsableProfile, providerDetectionSignature) {
-        hasProxyProviders = if (hasUsableProfile) {
+        hasProviders = if (hasUsableProfile) {
             withContext(Dispatchers.IO) {
                 runCatching {
                     val runtimeProfile = MihomoProfileFactory.buildProfile(appContext, appState)
-                    MihomoProviderMetadataCache.hasProxyProviders(
+                    MihomoProviderMetadataCache.hasProviders(
                         key = "runtime:${runtimeProfile.sha256Hex()}",
                     ) {
                         runtimeProfile
@@ -364,13 +364,13 @@ fun MihomoProxyPage(
                 TopAppBar(
                     title = { Text(stringResource(R.string.mihomo_proxies_title)) },
                     actions = {
-                        if (hasProxyProviders) {
+                        if (hasProviders) {
                             IconButton(
-                                onClick = { navigator.push(Route.MihomoProviders) },
+                                onClick = { navigator.push(Route.MihomoProviderManagement) },
                             ) {
                                 Icon(
                                     imageVector = Icons.Rounded.FolderOpen,
-                                    contentDescription = stringResource(R.string.mihomo_providers_title),
+                                    contentDescription = stringResource(R.string.mihomo_provider_management_title),
                                 )
                             }
                         }

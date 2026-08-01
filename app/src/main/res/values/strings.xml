@@ -228,15 +228,34 @@
     <string name="mihomo_proxies_option_sort_default">Default</string>
     <string name="mihomo_proxies_option_sort_name">Name</string>
     <string name="mihomo_proxies_option_sort_delay">Delay</string>
-    <string name="mihomo_providers_title">Proxy providers</string>
-    <string name="mihomo_providers_empty">The current configuration does not contain proxy-providers</string>
-    <string name="mihomo_providers_refresh_all">Refresh all</string>
-    <string name="mihomo_providers_refresh_done">Provider refreshed</string>
-    <string name="mihomo_providers_refresh_failed">Failed to refresh provider</string>
-    <string name="mihomo_providers_refresh_all_done">Providers refresh complete: success %1$d; failed %2$d</string>
+    <string name="mihomo_provider_management_title">Providers</string>
+    <string name="mihomo_provider_management_refresh_current">Refresh current tab</string>
+    <string name="mihomo_proxy_providers_tab">Proxy Providers</string>
+    <string name="mihomo_rule_providers_tab">Rule Providers</string>
+    <string name="mihomo_proxy_providers_empty">The current configuration does not contain proxy-providers</string>
+    <string name="mihomo_rule_providers_empty">The current configuration does not contain rule-providers</string>
+    <string name="mihomo_proxy_providers_refresh_done">Proxy Provider refreshed</string>
+    <string name="mihomo_proxy_providers_refresh_failed">Failed to refresh Proxy Provider</string>
+    <string name="mihomo_proxy_providers_refresh_all_done">Proxy Providers refresh complete: success %1$d; failed %2$d</string>
+    <string name="mihomo_rule_providers_refresh_done">Rule Provider refreshed</string>
+    <string name="mihomo_rule_providers_refresh_failed">Failed to refresh Rule Provider</string>
+    <string name="mihomo_rule_providers_refresh_all_done">Rule Providers refresh complete: success %1$d; failed %2$d</string>
     <string name="mihomo_provider_file_content">File content</string>
     <string name="mihomo_provider_traffic_unlimited">Unlimited</string>
     <string name="mihomo_provider_file_missing">Provider file is unavailable</string>
+    <string name="mihomo_provider_declarations_load_failed">Failed to load Provider declarations</string>
+    <string name="mihomo_provider_declarations_load_failed_detail">Failed to load Provider declarations: %1$s</string>
+    <string name="mihomo_rule_provider_binary_preview">Binary rule set</string>
+    <string name="mihomo_rule_provider_binary_unavailable">MRS content can’t be previewed as text.</string>
+    <plurals name="mihomo_rule_provider_rules_count">
+        <item quantity="one">%1$d rule</item>
+        <item quantity="other">%1$d rules</item>
+    </plurals>
+    <string name="mihomo_rule_provider_vehicle">Vehicle: %1$s</string>
+    <string name="mihomo_rule_provider_behavior">Behavior: %1$s</string>
+    <string name="mihomo_rule_provider_format">Format: %1$s</string>
+    <string name="mihomo_rule_provider_updated">Updated: %1$s</string>
+    <string name="mihomo_rule_provider_runtime_unavailable">Runtime metadata unavailable</string>
     <string name="mihomo_provider_raw_declaration">Declaration snippet</string>
     <string name="mihomo_provider_raw_read_only">Read-only</string>
     <string name="mihomo_provider_raw_metadata">%1$s · %2$s</string>
@@ -245,6 +264,7 @@
         <item quantity="other">%1$d matches</item>
     </plurals>
     <string name="mihomo_provider_runtime_unavailable">Runtime provider data is unavailable</string>
+    <string name="mihomo_provider_runtime_error">%1$s: %2$s</string>
     <string name="mihomo_provider_focus_loading">Loading providers</string>
     <string name="mihomo_provider_focus_ready">Providers ready</string>
     <string name="mihomo_provider_focus_empty">No providers configured</string>
@@ -260,6 +280,7 @@
     <string name="mihomo_provider_filter_available">Available</string>
     <string name="mihomo_provider_filter_timeout">Timeout</string>
     <string name="mihomo_provider_delay_timeout">Timeout</string>
+    <string name="mihomo_provider_delay_value">%1$d ms</string>
     <string name="mihomo_provider_missing">Provider does not exist in the current configuration</string>
     <string name="mihomo_configurations_title">Configuration management</string>
     <string name="mihomo_configuration_add">Add configuration</string>
