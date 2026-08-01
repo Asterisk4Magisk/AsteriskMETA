@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -20,6 +19,7 @@ import ui.components.AsteriskActionButton
 @Composable
 internal fun SettingsModalBottomSheet(
     show: Boolean,
+    dismissEnabled: Boolean = true,
     title: String,
     startAction: @Composable () -> Unit,
     endAction: @Composable () -> Unit,
@@ -28,6 +28,7 @@ internal fun SettingsModalBottomSheet(
 ) {
     AsteriskModalBottomSheet(
         show = show,
+        dismissEnabled = dismissEnabled,
         onDismissRequest = onDismissRequest,
         title = title,
         startAction = { startAction() },
@@ -36,8 +37,7 @@ internal fun SettingsModalBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(max = 720.dp)
-                .imePadding(),
+                .heightIn(max = 720.dp),
         ) {
             Box(
                 modifier = Modifier

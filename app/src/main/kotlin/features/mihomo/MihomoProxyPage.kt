@@ -12,8 +12,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -287,6 +285,7 @@ fun MihomoProxyPage(
         }
     }
 
+    val pagerSpatialMotion = AsteriskMotion.spatial<Float>()
     LaunchedEffect(resolvedSelectedGroupName, groupNames) {
         val selectedIndex = groupNames.indexOf(resolvedSelectedGroupName)
         if (
@@ -296,7 +295,7 @@ fun MihomoProxyPage(
         ) {
             groupPagerState.animateScrollToPage(
                 page = selectedIndex,
-                animationSpec = tween(easing = LinearEasing),
+                animationSpec = pagerSpatialMotion,
             )
         }
     }
@@ -489,7 +488,11 @@ fun MihomoProxyPage(
                                 val selectionEnabled = isMihomoProxyGroupSelectable(group) && runtimeAvailable
                                 MihomoProxyNodeCard(
                                     modifier = Modifier
-                                        .animateItem()
+                                        .animateItem(
+                                            fadeInSpec = AsteriskMotion.effects(),
+                                            placementSpec = AsteriskMotion.spatial(),
+                                            fadeOutSpec = AsteriskMotion.effects(),
+                                        )
                                         .fillMaxWidth(),
                                     node = node,
                                     selected = isMihomoProxyNodeCurrent(

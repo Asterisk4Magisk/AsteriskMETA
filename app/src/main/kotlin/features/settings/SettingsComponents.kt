@@ -48,6 +48,7 @@ import app.modes.RunModeBpf2Socks
 import app.modes.RunModeTun2Socks
 import app.modes.RunModeTproxy
 import androidx.compose.ui.res.stringResource
+import ui.components.AsteriskExpansionIndicator
 import ui.text.formatTemplate
 
 internal val SettingsLogLevelOptions = listOf("debug", "info", "warning", "error", "silent")
@@ -209,9 +210,8 @@ internal fun SettingsDropdownRow(
             value = value,
             modifier = Modifier.clickable(role = Role.DropdownList) { expanded = !expanded },
             trailing = {
-                Icon(
-                    imageVector = if (expanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
-                    contentDescription = null,
+                AsteriskExpansionIndicator(
+                    expanded = expanded,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             },

@@ -9,7 +9,6 @@ import app.modes.RunModeTun2Socks
 import app.modes.RunModeVpnService
 import app.modes.isRootRunMode
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.layout.Column
 import ui.icons.AsteriskIcons as Icons
 import androidx.compose.runtime.Composable
@@ -218,8 +217,8 @@ internal fun SettingsAdvancedSection(
             )
             AnimatedVisibility(
                 visible = enableIpv6,
-            enter = AsteriskMotion.expandEnter(),
-            exit = AsteriskMotion.expandExit(),
+                enter = AsteriskMotion.contentEnter(),
+                exit = AsteriskMotion.contentExit(),
             ) {
                 SwitchPreference(
                     title = stringResource(R.string.settings_ipv6_prefer),
@@ -293,8 +292,8 @@ internal fun SettingsProxyModeSections(
     val raw = rawState.snapshot
     AnimatedVisibility(
         visible = runMode == RunModeVpnService,
-        enter = AsteriskMotion.expandEnter(),
-        exit = ExitTransition.None,
+        enter = AsteriskMotion.contentEnter(),
+        exit = AsteriskMotion.contentExit(),
     ) {
         Column {
             SmallTitle(text = stringResource(R.string.settings_proxy_vpn_service))
@@ -348,8 +347,8 @@ internal fun SettingsProxyModeSections(
     }
     AnimatedVisibility(
         visible = runMode.isRootRunMode(),
-        enter = AsteriskMotion.expandEnter(),
-        exit = ExitTransition.None,
+        enter = AsteriskMotion.contentEnter(),
+        exit = AsteriskMotion.contentExit(),
     ) {
         Column {
             SmallTitle(
@@ -365,8 +364,8 @@ internal fun SettingsProxyModeSections(
             SettingsSectionCard {
                 AnimatedVisibility(
                     visible = runMode.isRootRunMode(),
-            enter = AsteriskMotion.expandEnter(),
-            exit = AsteriskMotion.expandExit(),
+                    enter = AsteriskMotion.contentEnter(),
+                    exit = AsteriskMotion.contentExit(),
                 ) {
                     SwitchPreference(
                         title = stringResource(R.string.settings_root_boot_script),
@@ -378,8 +377,8 @@ internal fun SettingsProxyModeSections(
                 }
                 AnimatedVisibility(
                     visible = runMode != RunModeBpf2Socks,
-            enter = AsteriskMotion.expandEnter(),
-            exit = AsteriskMotion.expandExit(),
+                    enter = AsteriskMotion.contentEnter(),
+                    exit = AsteriskMotion.contentExit(),
                 ) {
                     SwitchPreference(
                         title = stringResource(R.string.settings_root_ebpf_matcher),
@@ -391,8 +390,8 @@ internal fun SettingsProxyModeSections(
                 }
                 AnimatedVisibility(
                     visible = enableRootEbpfRules || runMode == RunModeBpf2Socks,
-            enter = AsteriskMotion.expandEnter(),
-            exit = AsteriskMotion.expandExit(),
+                    enter = AsteriskMotion.contentEnter(),
+                    exit = AsteriskMotion.contentExit(),
                 ) {
                     SwitchPreference(
                         title = stringResource(R.string.settings_root_ebpf_bypass_direct_cidrs),
@@ -404,8 +403,8 @@ internal fun SettingsProxyModeSections(
                 }
                 AnimatedVisibility(
                     visible = !enableIpv6,
-            enter = AsteriskMotion.expandEnter(),
-            exit = AsteriskMotion.expandExit(),
+                    enter = AsteriskMotion.contentEnter(),
+                    exit = AsteriskMotion.contentExit(),
                 ) {
                     SwitchPreference(
                         title = stringResource(R.string.settings_root_ipv6_disabler),
@@ -434,8 +433,8 @@ internal fun SettingsProxyModeSections(
                 }
                 AnimatedVisibility(
                     visible = runMode == RunModeTun || runMode == RunModeTun2Socks,
-            enter = AsteriskMotion.expandEnter(),
-            exit = AsteriskMotion.expandExit(),
+                    enter = AsteriskMotion.contentEnter(),
+                    exit = AsteriskMotion.contentExit(),
                 ) {
                     if (!rawState.showsReadOnlyYamlValues || runMode == RunModeTun2Socks) {
                         ArrowPreference(

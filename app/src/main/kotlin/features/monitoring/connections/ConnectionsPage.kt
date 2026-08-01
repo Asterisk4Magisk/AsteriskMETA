@@ -64,6 +64,7 @@ import features.monitoring.reduceConnections
 import features.monitoring.resolveDisplayedConnections
 import kotlinx.coroutines.launch
 import ui.components.AsteriskActionButton
+import ui.components.AsteriskExpansionIndicator
 import ui.components.AsteriskFilterChip
 import ui.components.AsteriskPinnedSearchArea
 import ui.layout.rememberPageGutter
@@ -401,8 +402,8 @@ private fun ConnectionCard(
                     color = MaterialTheme.colorScheme.primary,
                 )
             }
-            Icon(
-                imageVector = if (expanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
+            AsteriskExpansionIndicator(
+                expanded = expanded,
                 contentDescription = stringResource(R.string.monitor_connections_details),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -412,8 +413,8 @@ private fun ConnectionCard(
         }
         AnimatedVisibility(
             visible = expanded,
-            enter = AsteriskMotion.expandEnter(),
-            exit = AsteriskMotion.expandExit(),
+            enter = AsteriskMotion.contentEnter(),
+            exit = AsteriskMotion.contentExit(),
         ) {
             Column(
                 modifier = Modifier

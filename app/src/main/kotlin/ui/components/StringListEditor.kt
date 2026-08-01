@@ -131,7 +131,7 @@ internal fun StringListEditor(
             if (sanitizedValues.isEmpty()) StringListStatusText(emptyText)
             sanitizedValues.forEachIndexed { index, value ->
                 val editing = editingIndex == index
-                val contentSizeMotion = AsteriskMotion.spatial<androidx.compose.ui.unit.IntSize>()
+                val contentSizeMotion = AsteriskMotion.contentSpatial<androidx.compose.ui.unit.IntSize>()
                 val actionMotion = AsteriskMotion.fastSpatial<Float>()
                 val editError = if (editing) {
                     editInput.trim().takeIf(String::isNotEmpty)?.let(validateInput)

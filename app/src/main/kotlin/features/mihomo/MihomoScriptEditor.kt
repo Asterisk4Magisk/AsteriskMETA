@@ -41,6 +41,7 @@ import io.github.rosemoe.sora.text.Content
 import io.github.rosemoe.sora.widget.CodeEditor
 import io.github.rosemoe.sora.widget.schemes.EditorColorScheme
 import ui.isInDarkTheme
+import ui.theme.AsteriskMotion
 import ui.theme.AsteriskShapeTokens
 
 @Stable
@@ -150,9 +151,15 @@ private fun SoraCodeEditor(
 ) {
     val colors = rememberCodeEditorColors()
     val colorScheme = remember(colors) { colors.toSoraColorScheme() }
-    val borderWidth by animateDpAsState(if (state.isFocused) FocusedBorderWidth else 0.dp)
+    val borderWidth by animateDpAsState(
+        targetValue = if (state.isFocused) FocusedBorderWidth else 0.dp,
+        animationSpec = AsteriskMotion.fastSpatial(),
+        label = "script-editor-border-width",
+    )
     val borderColor by animateColorAsState(
-        if (state.isFocused) colors.accent else colors.border,
+        targetValue = if (state.isFocused) colors.accent else colors.border,
+        animationSpec = AsteriskMotion.effects(),
+        label = "script-editor-border-color",
     )
 
     Surface(

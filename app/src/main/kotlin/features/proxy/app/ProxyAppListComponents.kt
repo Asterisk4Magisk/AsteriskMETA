@@ -5,7 +5,6 @@ package features.proxy.app
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
@@ -60,6 +59,7 @@ import ui.components.AsteriskFilterChip
 import ui.components.AsteriskInfoChip
 import ui.components.AsteriskSelectionCard
 import ui.text.formatTemplate
+import ui.theme.AsteriskMotion
 import ui.theme.AsteriskShapeTokens
 import ui.icons.AsteriskIcons as Icons
 
@@ -295,12 +295,12 @@ private fun AppIcon(
         } else {
             MaterialTheme.colorScheme.surfaceContainerHighest
         },
-        animationSpec = tween(180),
+        animationSpec = AsteriskMotion.effects(),
         label = "per-app-icon-background",
     )
     val appIconAlpha by animateFloatAsState(
         targetValue = if (enabled) 1f else 0.42f,
-        animationSpec = tween(180),
+        animationSpec = AsteriskMotion.effects(),
         label = "per-app-icon-alpha",
     )
     val appIconColorFilter = if (enabled) {

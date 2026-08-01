@@ -152,8 +152,8 @@ internal fun DnsSettingsBottomSheet(
 
                 AnimatedVisibility(
                     visible = draft.dnsEnhancedMode == MihomoDnsModeFakeIp,
-                    enter = AsteriskMotion.expandEnter(),
-                    exit = AsteriskMotion.expandExit(),
+                    enter = AsteriskMotion.contentEnter(),
+                    exit = AsteriskMotion.contentExit(),
                 ) {
                     DnsSheetSection(title = stringResource(R.string.settings_dns_section_fake_ip)) {
                         DnsInlineTextField(
@@ -238,8 +238,8 @@ internal fun DnsSettingsBottomSheet(
                     )
                     AnimatedVisibility(
                         visible = draft.dnsFallbackFilterGeoip,
-                    enter = AsteriskMotion.expandEnter(),
-                    exit = AsteriskMotion.expandExit(),
+                    enter = AsteriskMotion.contentEnter(),
+                    exit = AsteriskMotion.contentExit(),
                     ) {
                         DnsInlineTextField(
                             value = draft.dnsFallbackFilterGeoipCode,
@@ -291,8 +291,8 @@ internal fun DnsSettingsBottomSheet(
                     )
                     AnimatedVisibility(
                         visible = draft.dnsUseHosts,
-                    enter = AsteriskMotion.expandEnter(),
-                    exit = AsteriskMotion.expandExit(),
+                    enter = AsteriskMotion.contentEnter(),
+                    exit = AsteriskMotion.contentExit(),
                     ) {
                         Column {
                             SwitchPreference(

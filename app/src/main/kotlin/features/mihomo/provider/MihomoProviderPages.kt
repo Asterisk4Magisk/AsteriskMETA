@@ -91,6 +91,7 @@ import ui.layout.pageHorizontalPadding
 import ui.layout.pageContentPaddingWithCutout
 import ui.layout.pageListPadding
 import ui.text.formatTemplate
+import ui.theme.AsteriskMotion
 import utils.ReadableByteUnit
 import utils.toReadableBytes
 import utils.toReadableDateOrDash
@@ -296,7 +297,11 @@ fun MihomoProviderListPage(
                         key = { provider -> provider.name },
                     ) { provider ->
                         MihomoProviderCard(
-                            modifier = Modifier.animateItem(),
+                            modifier = Modifier.animateItem(
+                                fadeInSpec = AsteriskMotion.effects(),
+                                placementSpec = AsteriskMotion.spatial(),
+                                fadeOutSpec = AsteriskMotion.effects(),
+                            ),
                             provider = provider,
                             runtimeDetail = providerRuntimeDetails[provider.name],
                             refreshing = provider.name in refreshingNames,
@@ -521,7 +526,11 @@ private fun androidx.compose.foundation.lazy.LazyListScope.providerNodeItems(
         ) { node ->
             ProviderNodeCard(
                 node = node,
-                modifier = Modifier.animateItem(),
+                modifier = Modifier.animateItem(
+                    fadeInSpec = AsteriskMotion.effects(),
+                    placementSpec = AsteriskMotion.spatial(),
+                    fadeOutSpec = AsteriskMotion.effects(),
+                ),
             )
         }
     }

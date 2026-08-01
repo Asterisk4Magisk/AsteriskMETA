@@ -7,7 +7,6 @@ package features.mihomo
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -54,7 +53,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.ImeAction
@@ -101,6 +99,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import ui.components.AsteriskActionButton
+import ui.components.AsteriskExpansionIndicator
 import ui.components.AsteriskListRow
 import ui.components.AsteriskModalBottomSheet
 import ui.layout.pageContentPaddingWithCutout
@@ -898,11 +897,6 @@ private fun ColumnScope.UrlProfileFields(
     runMode: Int,
     onDisableOverridesChange: (Boolean) -> Unit,
 ) {
-    val advancedIconRotation by animateFloatAsState(
-        targetValue = if (advancedExpanded) 180f else 0f,
-        animationSpec = AsteriskMotion.fastSpatial(),
-        label = "url-profile-advanced-icon",
-    )
     OutlinedTextField(
         state = urlState,
         enabled = enabled,
@@ -950,18 +944,14 @@ private fun ColumnScope.UrlProfileFields(
         enabled = enabled,
         modifier = Modifier.align(Alignment.End).padding(top = 8.dp),
     ) {
-        Icon(
-            imageVector = Icons.Rounded.ExpandMore,
-            contentDescription = null,
-            modifier = Modifier.graphicsLayer { rotationZ = advancedIconRotation },
-        )
+        AsteriskExpansionIndicator(expanded = advancedExpanded)
         Spacer(Modifier.width(8.dp))
         Text(stringResource(R.string.settings_advanced))
     }
     AnimatedVisibility(
         visible = advancedExpanded,
-        enter = AsteriskMotion.expandEnter(),
-        exit = AsteriskMotion.expandExit(),
+        enter = AsteriskMotion.contentEnter(),
+        exit = AsteriskMotion.contentExit(),
     ) {
         Column {
             OutlinedTextField(
@@ -1010,11 +1000,6 @@ private fun FileProfilePropertiesSheet(
     onDismissRequest: () -> Unit,
 ) {
     var advancedExpanded by remember { mutableStateOf(false) }
-    val advancedIconRotation by animateFloatAsState(
-        targetValue = if (advancedExpanded) 180f else 0f,
-        animationSpec = AsteriskMotion.fastSpatial(),
-        label = "file-profile-advanced-icon",
-    )
     AsteriskModalBottomSheet(
         show = show,
         onDismissRequest = onDismissRequest,
@@ -1043,18 +1028,14 @@ private fun FileProfilePropertiesSheet(
                 onClick = { advancedExpanded = !advancedExpanded },
                 modifier = Modifier.align(Alignment.End),
             ) {
-                Icon(
-                    imageVector = Icons.Rounded.ExpandMore,
-                    contentDescription = null,
-                    modifier = Modifier.graphicsLayer { rotationZ = advancedIconRotation },
-                )
+                AsteriskExpansionIndicator(expanded = advancedExpanded)
                 Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.settings_advanced))
             }
             AnimatedVisibility(
                 visible = advancedExpanded,
-                enter = AsteriskMotion.expandEnter(),
-                exit = AsteriskMotion.expandExit(),
+                enter = AsteriskMotion.contentEnter(),
+                exit = AsteriskMotion.contentExit(),
             ) {
                 Column {
                     ProfileOverrideScriptSelector(

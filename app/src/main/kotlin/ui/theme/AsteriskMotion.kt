@@ -8,15 +8,33 @@ package ui.theme
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MotionScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.staticCompositionLocalOf
 
 internal val LocalReduceMotion = staticCompositionLocalOf { false }
+
+/**
+ * Smooth, non-bouncing spatial motion for content that changes the surrounding layout.
+ */
+internal object AsteriskContentMotionScheme {
+    private val defaultSpatialSpec: FiniteAnimationSpec<Any> = spring(
+        dampingRatio = Spring.DampingRatioNoBouncy,
+        stiffness = Spring.StiffnessMediumLow,
+    )
+
+    @Suppress("UNCHECKED_CAST")
+    fun <T> defaultSpatialSpec(): FiniteAnimationSpec<T> =
+        defaultSpatialSpec as FiniteAnimationSpec<T>
+}
 
 /**
  * The only feature-facing motion gateway. Spatial changes and visual effects intentionally use
@@ -58,8 +76,19 @@ internal object AsteriskMotion {
     }
 
     @Composable
-    fun expandEnter(): EnterTransition = expandVertically(animationSpec = spatial())
+    fun <T> contentSpatial(): FiniteAnimationSpec<T> = if (LocalReduceMotion.current) {
+        snap()
+    } else {
+        AsteriskContentMotionScheme.defaultSpatialSpec()
+    }
 
     @Composable
-    fun expandExit(): ExitTransition = shrinkVertically(animationSpec = spatial())
+    fun contentEnter(): EnterTransition =
+        fadeIn(animationSpec = contentSpatial()) +
+            expandVertically(animationSpec = contentSpatial())
+
+    @Composable
+    fun contentExit(): ExitTransition =
+        shrinkVertically(animationSpec = contentSpatial()) +
+            fadeOut(animationSpec = contentSpatial())
 }

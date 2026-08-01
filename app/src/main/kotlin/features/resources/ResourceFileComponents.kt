@@ -51,6 +51,7 @@ import app.R
 import app.ResourceFileStatus
 import ui.components.AsteriskActionButton
 import ui.components.AsteriskChipTone
+import ui.components.AsteriskExpansionIndicator
 import ui.components.AsteriskInfoChip
 import ui.components.AsteriskModalBottomSheet
 import ui.components.AsteriskStatusCard
@@ -137,7 +138,7 @@ internal fun ResourceOverviewCard(
             TextButton(onClick = { sourceMenuExpanded = true }, enabled = !updating) {
                 Text(stringResource(R.string.settings_resource_files_source))
                 Spacer(Modifier.width(4.dp))
-                Icon(Icons.Rounded.ExpandMore, contentDescription = null)
+                AsteriskExpansionIndicator(expanded = sourceMenuExpanded)
             }
             DropdownMenu(
                 expanded = sourceMenuExpanded,

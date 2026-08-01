@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -44,11 +43,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import app.R
+import ui.components.AsteriskExpansionIndicator
 import ui.theme.AsteriskMotion
 import utils.ReadableByteUnit
 import utils.toReadableBytes
 import utils.toReadableDateOrDash
-import ui.icons.AsteriskIcons as Icons
 
 @Composable
 internal fun MihomoProviderUsageSection(
@@ -68,12 +67,12 @@ internal fun MihomoProviderUsageSection(
         if (visibleState != null) retainedVisibleState = visibleState
     }
     val effectsMotion = AsteriskMotion.effects<Float>()
-    val sizeMotion = AsteriskMotion.spatial<IntSize>()
+    val sizeMotion = AsteriskMotion.contentSpatial<IntSize>()
 
     AnimatedVisibility(
         visible = visibleState != null,
-        enter = AsteriskMotion.expandEnter() + fadeIn(animationSpec = effectsMotion),
-        exit = AsteriskMotion.expandExit() + fadeOut(animationSpec = effectsMotion),
+        enter = AsteriskMotion.contentEnter(),
+        exit = AsteriskMotion.contentExit(),
     ) {
         if (renderedState != null) {
             MihomoProviderUsageVisibleContent(
@@ -303,17 +302,16 @@ private fun MihomoProviderUsageReady(
                 }
             }
             Spacer(modifier = Modifier.width(8.dp))
-            Icon(
-                imageVector = if (expanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
-                contentDescription = null,
+            AsteriskExpansionIndicator(
+                expanded = expanded,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
         AnimatedVisibility(
             visible = expanded,
-            enter = AsteriskMotion.expandEnter(),
-            exit = AsteriskMotion.expandExit(),
+            enter = AsteriskMotion.contentEnter(),
+            exit = AsteriskMotion.contentExit(),
         ) {
             Column {
                 summary.items.forEach { item ->
