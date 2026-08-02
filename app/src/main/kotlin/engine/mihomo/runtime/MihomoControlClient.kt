@@ -8,7 +8,6 @@ import com.github.kr328.clash.core.bridge.Bridge
 import com.github.kr328.clash.core.model.ConfigurationOverride
 import com.github.kr328.clash.core.model.LogMessage
 import com.github.kr328.clash.core.model.Provider
-import com.github.kr328.clash.core.model.ProxySort
 import com.github.kr328.clash.core.model.TunnelState
 import engine.mihomo.DefaultMihomoDelayTestUrl
 import engine.mihomo.DefaultMihomoDelayTimeoutMillis
@@ -20,7 +19,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.isActive
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -147,48 +145,19 @@ internal class MihomoControlClient {
         useBridge: Boolean,
         mode: String,
     ): MihomoProxiesState {
-        if (useBridge) {
-            return queryBridgeProxies()
+        val response = if (useBridge) {
+            Bridge.nativeQueryRuntimeProxies()
+        } else {
+            request(config, "/asterisk/runtime/proxies")
         }
-        val root = requestJsonObject(config, "/proxies")
-        val proxyObjects = root.objectValue("proxies").orEmpty()
-        val nodes = linkedMapOf<String, MihomoProxyNode>()
-        val groups = mutableListOf<MihomoProxyGroup>()
-
-        proxyObjects.forEach { (name, element) ->
-            val item = element as? JsonObject ?: return@forEach
-            val proxyName = item.stringValue("name") ?: name
-            val all = item.stringListValue("all")
-            val hidden = item.booleanValue("hidden") ?: false
-            val type = item.stringValue("type").orEmpty().ifBlank { "Proxy" }
-            if (all.isNotEmpty()) {
-                groups += MihomoProxyGroup(
-                    name = proxyName,
-                    type = type,
-                    now = item.stringValue("now").orEmpty(),
-                    all = all,
-                    hidden = hidden,
-                    icon = item.stringValue("icon").orEmpty(),
-                    testUrl = item.stringValue("testUrl").orEmpty(),
-                )
-            }
-            nodes[proxyName] = MihomoProxyNode(
-                name = proxyName,
-                type = type,
-                udp = item.booleanValue("udp") ?: false,
-                delay = item.latestDelay(),
-            )
-        }
-
-        val globalProxyNames = proxyObjects[MihomoGlobalGroupName]
-            .jsonObjectOrNull()
-            ?.stringListValue("all")
+        val snapshot = parseMihomoRuntimeProxySnapshot(response)
+        val globalProxyNames = snapshot.groups
+            .firstOrNull { group -> group.name == MihomoGlobalGroupName }
+            ?.all
+            ?.map(MihomoProxyNodeId::name)
             .orEmpty()
-        return MihomoProxiesState(
-            groups = groups.filterVisibleForMode(mode, globalProxyNames),
-            nodes = nodes.values.toList(),
-            nodeByName = nodes,
-            updatedAtMillis = System.currentTimeMillis(),
+        return snapshot.copy(
+            groups = snapshot.groups.filterVisibleForMode(mode, globalProxyNames),
         )
     }
 
@@ -321,27 +290,32 @@ internal class MihomoControlClient {
 
     suspend fun testProxyDelay(
         config: MihomoControlConfig,
-        proxyName: String,
+        proxyId: MihomoProxyNodeId,
         url: String = DefaultMihomoDelayTestUrl,
         timeoutMillis: Int = DefaultMihomoDelayTimeoutMillis,
+        expectedStatus: String = "",
         useBridge: Boolean,
     ): MihomoDelayResult {
-        val delay = if (useBridge) {
-            runDelayTestOrTimeout {
-                withTimeoutOrNull((timeoutMillis.toLong() + BridgeHealthCheckGraceMillis).milliseconds) {
-                    Clash.queryProxyDelay(proxyName, url, timeoutMillis)
-                } ?: MihomoTimeoutDelay
-            }
+        val response = if (useBridge) {
+            Bridge.nativeQueryRuntimeNodeDelay(
+                name = proxyId.name,
+                provider = proxyId.providerName.orEmpty(),
+                url = url,
+                expected = expectedStatus,
+                timeoutMillis = timeoutMillis,
+            )
         } else {
-            runDelayTestOrTimeout {
-                val root = requestJsonObject(
-                    config,
-                    "/proxies/${proxyName.urlEncode()}/delay?url=${url.urlEncode()}&timeout=$timeoutMillis",
-                )
-                root.intValue("delay") ?: MihomoTimeoutDelay
-            }
+            request(
+                config,
+                "/asterisk/runtime/delay/node" +
+                    "?name=${proxyId.name.urlEncode()}" +
+                    "&provider=${proxyId.providerName.orEmpty().urlEncode()}" +
+                    "&url=${url.urlEncode()}" +
+                    "&expected=${expectedStatus.urlEncode()}" +
+                    "&timeout=$timeoutMillis",
+            )
         }
-        return MihomoDelayResult(mapOf(proxyName to delay.toMihomoTestDelay(timeoutMillis)))
+        return parseMihomoDelayResult(response)
     }
 
     suspend fun testGroupDelay(
@@ -349,32 +323,53 @@ internal class MihomoControlClient {
         groupName: String,
         url: String = DefaultMihomoDelayTestUrl,
         timeoutMillis: Int = DefaultMihomoDelayTimeoutMillis,
-        expectedProxyNames: List<String> = emptyList(),
+        expectedStatus: String = "",
         useBridge: Boolean,
     ): MihomoDelayResult {
-        if (useBridge) {
-            val groupProxyNames = expectedProxyNames.ifEmpty {
-                runCatching {
-                    Clash.queryGroup(groupName, ProxySort.Default).proxies.map { proxy -> proxy.name }
-                }.getOrDefault(emptyList())
-            }
-            val delays = runGroupDelayTestOrTimeout {
-                withTimeoutOrNull((timeoutMillis.toLong() + BridgeHealthCheckGraceMillis).milliseconds) {
-                    Clash.queryGroupDelay(groupName, url, timeoutMillis)
-                } ?: emptyMap()
-            }
-            return MihomoDelayResult(delays.withTimeoutFallback(groupProxyNames, timeoutMillis))
-        }
-        val delays = runGroupDelayTestOrTimeout {
-            val root = requestJsonObject(
-                config,
-                "/group/${groupName.urlEncode()}/delay?url=${url.urlEncode()}&timeout=$timeoutMillis",
+        val response = if (useBridge) {
+            Bridge.nativeQueryRuntimeGroupDelay(
+                name = groupName,
+                url = url,
+                expected = expectedStatus,
+                timeoutMillis = timeoutMillis,
             )
-            root.mapValues { (_, value) ->
-                value.intValue() ?: MihomoTimeoutDelay
-            }
+        } else {
+            request(
+                config,
+                "/asterisk/runtime/delay/group/${groupName.urlEncode()}" +
+                    "?url=${url.urlEncode()}" +
+                    "&expected=${expectedStatus.urlEncode()}" +
+                    "&timeout=$timeoutMillis",
+            )
         }
-        return MihomoDelayResult(delays.withTimeoutFallback(expectedProxyNames, timeoutMillis))
+        return parseMihomoDelayResult(response)
+    }
+
+    suspend fun testProviderDelay(
+        config: MihomoControlConfig,
+        providerName: String,
+        url: String = DefaultMihomoDelayTestUrl,
+        timeoutMillis: Int = DefaultMihomoDelayTimeoutMillis,
+        expectedStatus: String = "",
+        useBridge: Boolean,
+    ): MihomoDelayResult {
+        val response = if (useBridge) {
+            Bridge.nativeQueryRuntimeProviderDelay(
+                name = providerName,
+                url = url,
+                expected = expectedStatus,
+                timeoutMillis = timeoutMillis,
+            )
+        } else {
+            request(
+                config,
+                "/asterisk/runtime/delay/provider/${providerName.urlEncode()}" +
+                    "?url=${url.urlEncode()}" +
+                    "&expected=${expectedStatus.urlEncode()}" +
+                    "&timeout=$timeoutMillis",
+            )
+        }
+        return parseMihomoDelayResult(response)
     }
 
     fun traffic(config: MihomoControlConfig, useBridge: Boolean): Flow<MihomoTrafficSample> = flow {
@@ -423,43 +418,6 @@ internal class MihomoControlClient {
             }
             delay(StreamReconnectDelayMillis.milliseconds)
         }
-    }
-
-    private fun queryBridgeProxies(): MihomoProxiesState {
-        val nodes = linkedMapOf<String, MihomoProxyNode>()
-        val groups = Clash.queryGroupNames(excludeNotSelectable = false).map { groupName ->
-            val group = Clash.queryGroup(groupName, ProxySort.Default)
-            val proxies = group.proxies
-            val proxyNames = proxies.map { proxy -> proxy.name }
-            nodes[groupName] = MihomoProxyNode(
-                name = groupName,
-                type = group.type,
-                delay = null,
-            )
-            proxies.forEach { proxy ->
-                nodes[proxy.name] = MihomoProxyNode(
-                    name = proxy.name,
-                    type = proxy.type,
-                    udp = false,
-                    delay = proxy.delay.toMihomoHistoryDelayOrNull(),
-                )
-            }
-            MihomoProxyGroup(
-                name = groupName,
-                type = group.type,
-                now = group.now,
-                all = proxyNames,
-                hidden = false,
-                icon = "",
-                testUrl = DefaultMihomoDelayTestUrl,
-            )
-        }
-        return MihomoProxiesState(
-            groups = groups,
-            nodes = nodes.values.toList(),
-            nodeByName = nodes,
-            updatedAtMillis = System.currentTimeMillis(),
-        )
     }
 
     private fun parseTrafficLine(line: String): MihomoTrafficSample? {
@@ -596,7 +554,6 @@ internal class MihomoControlClient {
         const val MemorySampleReadLimit = 3
         const val StreamReconnectDelayMillis = 1_000L
         const val BridgeTrafficPollIntervalMillis = 1_000L
-        const val BridgeHealthCheckGraceMillis = 1_000L
     }
 }
 
@@ -779,12 +736,6 @@ private fun JsonObject.objectValue(name: String): JsonObject? {
     return this[name].jsonObjectOrNull()
 }
 
-private fun JsonObject.stringListValue(name: String): List<String> {
-    return this[name].jsonArrayOrNull()
-        ?.mapNotNull { item -> item.jsonPrimitiveOrNull()?.contentOrNull?.takeIf(String::isNotBlank) }
-        .orEmpty()
-}
-
 private fun JsonObject.latestDelay(): Int? {
     val history = this["history"].jsonArrayOrNull().orEmpty()
     return history
@@ -815,14 +766,20 @@ private fun JsonObject.toProxyProviderRuntimeDetail(fallbackName: String): Mihom
 private fun JsonObject.toMihomoProxyProviderNode(): MihomoProxyProviderNode {
     val name = stringValue("name") ?: stringValue("Name") ?: ""
     val type = stringValue("type") ?: stringValue("Type") ?: ""
+    val normalizedDelay = intValue("delay")?.toMihomoHistoryDelayOrNull()
+        ?: intValue("Delay")?.toMihomoHistoryDelayOrNull()
+        ?: latestDelay()
     return MihomoProxyProviderNode(
         name = name,
         title = stringValue("title") ?: stringValue("Title") ?: name,
         subtitle = stringValue("subtitle") ?: stringValue("Subtitle") ?: type,
         type = type,
-        delay = intValue("delay")?.toMihomoHistoryDelayOrNull()
-            ?: intValue("Delay")?.toMihomoHistoryDelayOrNull()
-            ?: latestDelay(),
+        delay = normalizedDelay?.takeIf { delay -> delay > 0 },
+        delayStatus = when {
+            normalizedDelay == null -> null
+            normalizedDelay < 0 -> MihomoDelayStatus.Timeout
+            else -> MihomoDelayStatus.Success
+        },
     )
 }
 
@@ -848,45 +805,6 @@ private fun Int.toMihomoHistoryDelayOrNull(
         this >= timeoutMillis -> MihomoTimeoutDelay
         else -> this
     }
-}
-
-private fun Int.toMihomoTestDelay(timeoutMillis: Int): Int {
-    return when {
-        this <= 0 -> MihomoTimeoutDelay
-        this == MihomoUntestedDelay -> MihomoTimeoutDelay
-        this >= timeoutMillis -> MihomoTimeoutDelay
-        else -> this
-    }
-}
-
-private suspend fun runDelayTestOrTimeout(block: suspend () -> Int): Int {
-    return runCatching { block() }
-        .getOrElse { error ->
-            if (error is CancellationException) throw error
-            MihomoTimeoutDelay
-        }
-}
-
-private suspend fun runGroupDelayTestOrTimeout(block: suspend () -> Map<String, Int>): Map<String, Int> {
-    return runCatching { block() }
-        .getOrElse { error ->
-            if (error is CancellationException) throw error
-            emptyMap()
-        }
-}
-
-private fun Map<String, Int>.withTimeoutFallback(
-    proxyNames: List<String>,
-    timeoutMillis: Int,
-): Map<String, Int> {
-    val normalized = linkedMapOf<String, Int>()
-    forEach { (proxyName, delay) ->
-        normalized[proxyName] = delay.toMihomoTestDelay(timeoutMillis)
-    }
-    proxyNames.forEach { proxyName ->
-        normalized.putIfAbsent(proxyName, MihomoTimeoutDelay)
-    }
-    return normalized
 }
 
 private fun JsonElement?.longValue(): Long? {

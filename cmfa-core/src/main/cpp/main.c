@@ -288,6 +288,75 @@ Java_com_github_kr328_clash_core_bridge_Bridge_nativeQueryGroupDelay(JNIEnv *env
     return new_string(response);
 }
 
+JNIEXPORT jstring JNICALL
+Java_com_github_kr328_clash_core_bridge_Bridge_nativeQueryRuntimeProxies(JNIEnv *env,
+                                                                         jobject thiz) {
+    TRACE_METHOD();
+
+    scoped_string response = queryRuntimeProxies();
+
+    return new_string(response);
+}
+
+JNIEXPORT jstring JNICALL
+Java_com_github_kr328_clash_core_bridge_Bridge_nativeQueryRuntimeNodeDelay(JNIEnv *env,
+                                                                           jobject thiz,
+                                                                           jstring name,
+                                                                           jstring provider,
+                                                                           jstring url,
+                                                                           jstring expected,
+                                                                           jint timeout_millis) {
+    TRACE_METHOD();
+
+    scoped_string _name = get_string(name);
+    scoped_string _provider = get_string(provider);
+    scoped_string _url = get_string(url);
+    scoped_string _expected = get_string(expected);
+
+    scoped_string response = queryRuntimeNodeDelay(
+            _name, _provider, _url, _expected, timeout_millis);
+
+    return new_string(response);
+}
+
+JNIEXPORT jstring JNICALL
+Java_com_github_kr328_clash_core_bridge_Bridge_nativeQueryRuntimeGroupDelay(JNIEnv *env,
+                                                                            jobject thiz,
+                                                                            jstring name,
+                                                                            jstring url,
+                                                                            jstring expected,
+                                                                            jint timeout_millis) {
+    TRACE_METHOD();
+
+    scoped_string _name = get_string(name);
+    scoped_string _url = get_string(url);
+    scoped_string _expected = get_string(expected);
+
+    scoped_string response = queryRuntimeGroupDelay(
+            _name, _url, _expected, timeout_millis);
+
+    return new_string(response);
+}
+
+JNIEXPORT jstring JNICALL
+Java_com_github_kr328_clash_core_bridge_Bridge_nativeQueryRuntimeProviderDelay(JNIEnv *env,
+                                                                               jobject thiz,
+                                                                               jstring name,
+                                                                               jstring url,
+                                                                               jstring expected,
+                                                                               jint timeout_millis) {
+    TRACE_METHOD();
+
+    scoped_string _name = get_string(name);
+    scoped_string _url = get_string(url);
+    scoped_string _expected = get_string(expected);
+
+    scoped_string response = queryRuntimeProviderDelay(
+            _name, _url, _expected, timeout_millis);
+
+    return new_string(response);
+}
+
 JNIEXPORT jboolean JNICALL
 Java_com_github_kr328_clash_core_bridge_Bridge_nativePatchSelector(JNIEnv *env, jobject thiz,
                                                                    jstring selector, jstring name) {

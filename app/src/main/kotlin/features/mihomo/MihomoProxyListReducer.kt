@@ -12,6 +12,7 @@ import app.modes.MihomoProxySortDelay
 import app.modes.MihomoProxySortName
 import engine.mihomo.runtime.MihomoProxiesState
 import engine.mihomo.runtime.MihomoProxyGroup
+import engine.mihomo.runtime.MihomoProxyNodeId
 
 internal fun filterMihomoProxyGroups(
     proxies: MihomoProxiesState,
@@ -26,14 +27,15 @@ internal fun reduceMihomoProxyNodeNames(
     proxies: MihomoProxiesState,
     query: String,
     sort: Int,
-): List<String> {
+): List<MihomoProxyNodeId> {
     val keyword = query.trim()
     return group?.all
-        ?.filter { nodeName ->
-            val node = proxies.node(nodeName)
+        ?.filter { nodeId ->
+            val node = proxies.node(nodeId)
             val displayType = node.type.displayMihomoProtocolName()
             keyword.isEmpty() ||
                 node.name.contains(keyword, ignoreCase = true) ||
+                node.providerName.orEmpty().contains(keyword, ignoreCase = true) ||
                 node.type.contains(keyword, ignoreCase = true) ||
                 displayType.contains(keyword, ignoreCase = true)
         }
@@ -79,22 +81,22 @@ internal fun isMihomoProxyGroupSelectable(group: MihomoProxyGroup): Boolean {
     }
 }
 
-private fun List<String>.sortMihomoProxyNodeNames(
+private fun List<MihomoProxyNodeId>.sortMihomoProxyNodeNames(
     proxies: MihomoProxiesState,
     sort: Int,
-): List<String> {
+): List<MihomoProxyNodeId> {
     return when (sort) {
         MihomoProxySortName -> sortedWith(
-            compareBy(String.CASE_INSENSITIVE_ORDER) { nodeName ->
-                proxies.node(nodeName).name
-            },
+            compareBy<MihomoProxyNodeId, String>(String.CASE_INSENSITIVE_ORDER) { nodeId ->
+                proxies.node(nodeId).name
+            }.thenBy(String.CASE_INSENSITIVE_ORDER) { nodeId -> nodeId.providerName.orEmpty() },
         )
         MihomoProxySortDelay -> sortedWith(
-            compareBy<String> { nodeName ->
-                proxies.node(nodeName).delay.toMihomoProxyDelaySortValue()
-            }.thenBy(String.CASE_INSENSITIVE_ORDER) { nodeName ->
-                proxies.node(nodeName).name
-            },
+            compareBy<MihomoProxyNodeId> { nodeId ->
+                proxies.node(nodeId).delay.toMihomoProxyDelaySortValue()
+            }.thenBy(String.CASE_INSENSITIVE_ORDER) { nodeId ->
+                proxies.node(nodeId).name
+            }.thenBy(String.CASE_INSENSITIVE_ORDER) { nodeId -> nodeId.providerName.orEmpty() },
         )
         else -> this
     }

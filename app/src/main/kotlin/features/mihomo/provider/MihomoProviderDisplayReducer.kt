@@ -5,6 +5,9 @@ package features.mihomo.provider
 
 import engine.mihomo.runtime.MihomoProxyProviderNode
 import engine.mihomo.runtime.MihomoProxyProviderRuntimeDetail
+import engine.mihomo.runtime.MihomoDelayResult
+import engine.mihomo.runtime.MihomoDelayStatus
+import engine.mihomo.runtime.withDelayResult
 import features.mihomo.displayMihomoProtocolName
 
 internal enum class ProviderReadiness {
@@ -69,11 +72,27 @@ internal fun reduceMihomoProxyProviderNodes(
         ).any { value -> value.contains(normalizedQuery, ignoreCase = true) }
         val matchesFilter = when (filter) {
             ProxyProviderNodeFilter.All -> true
-            ProxyProviderNodeFilter.Available -> node.delay?.let { it >= 0 } == true
-            ProxyProviderNodeFilter.Timeout -> node.delay?.let { it < 0 } == true
+            ProxyProviderNodeFilter.Available -> node.delayStatus == MihomoDelayStatus.Success
+            ProxyProviderNodeFilter.Timeout -> node.delayStatus == MihomoDelayStatus.Timeout
         }
         matchesQuery && matchesFilter
     }
+}
+
+internal fun mergeMihomoProviderRuntimeRefresh(
+    detail: MihomoProxyProviderRuntimeDetail,
+    latestDelayResult: MihomoDelayResult?,
+): MihomoProxyProviderRuntimeDetail {
+    return latestDelayResult?.let(detail::withDelayResult) ?: detail
+}
+
+internal fun mergeMihomoProviderDelayResults(
+    previous: MihomoDelayResult?,
+    latest: MihomoDelayResult,
+): MihomoDelayResult {
+    if (previous == null || previous.measurements.isEmpty()) return latest
+    if (latest.measurements.isEmpty()) return previous
+    return MihomoDelayResult(previous.measurements + latest.measurements)
 }
 
 internal fun ruleProviderChipLabels(

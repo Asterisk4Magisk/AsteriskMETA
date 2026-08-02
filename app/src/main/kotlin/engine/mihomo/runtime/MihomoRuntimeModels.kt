@@ -42,18 +42,58 @@ internal data class MihomoConfigsState(
     val mixedPort: Int? = null,
 )
 
-internal data class MihomoProxyNode(
+internal data class MihomoProxyNodeId(
     val name: String,
+    val providerName: String? = null,
+)
+
+internal enum class MihomoDelayStatus {
+    Success,
+    Timeout,
+    Failed,
+}
+
+internal data class MihomoDelayMeasurement(
+    val id: MihomoProxyNodeId,
+    val status: MihomoDelayStatus,
+    val delay: Int? = null,
+    val error: String = "",
+)
+
+internal data class MihomoProxyNode(
+    val id: MihomoProxyNodeId,
     val type: String,
+    val title: String = id.name,
+    val subtitle: String = type,
     val udp: Boolean = false,
     val delay: Int? = null,
-)
+    val delayStatus: MihomoDelayStatus? = delay?.let { MihomoDelayStatus.Success },
+    val delayError: String = "",
+) {
+    val name: String
+        get() = id.name
+
+    val providerName: String?
+        get() = id.providerName
+
+    constructor(
+        name: String,
+        type: String,
+        udp: Boolean = false,
+        delay: Int? = null,
+    ) : this(
+        id = MihomoProxyNodeId(name),
+        type = type,
+        udp = udp,
+        delay = delay,
+    )
+}
 
 internal data class MihomoProxyGroup(
     val name: String,
     val type: String,
     val now: String = "",
-    val all: List<String> = emptyList(),
+    val all: List<MihomoProxyNodeId> = emptyList(),
     val hidden: Boolean = false,
     val icon: String = "",
     val testUrl: String = "",
@@ -62,11 +102,15 @@ internal data class MihomoProxyGroup(
 internal data class MihomoProxiesState(
     val groups: List<MihomoProxyGroup> = emptyList(),
     val nodes: List<MihomoProxyNode> = emptyList(),
-    val nodeByName: Map<String, MihomoProxyNode> = emptyMap(),
+    val nodeById: Map<MihomoProxyNodeId, MihomoProxyNode> = nodes.associateBy(MihomoProxyNode::id),
     val updatedAtMillis: Long = 0L,
 ) {
+    fun node(id: MihomoProxyNodeId): MihomoProxyNode {
+        return nodeById[id] ?: MihomoProxyNode(id = id, type = "Proxy")
+    }
+
     fun node(name: String): MihomoProxyNode {
-        return nodeByName[name] ?: MihomoProxyNode(name = name, type = "Proxy")
+        return node(MihomoProxyNodeId(name))
     }
 }
 
@@ -76,6 +120,8 @@ internal data class MihomoProxyProviderNode(
     val subtitle: String = "",
     val type: String = "",
     val delay: Int? = null,
+    val delayStatus: MihomoDelayStatus? = delay?.let { MihomoDelayStatus.Success },
+    val delayError: String = "",
 )
 
 internal data class MihomoProviderSubscriptionInfo(
@@ -116,13 +162,38 @@ internal data class MihomoRuntimeState(
     val configs: MihomoConfigsState = MihomoConfigsState(),
     val proxies: MihomoProxiesState = MihomoProxiesState(),
     val proxiesRefreshing: Boolean = false,
-    val delayTestingTarget: String? = null,
+    val delayTestingTarget: MihomoDelayTarget? = null,
     val lastError: String = "",
 )
 
 internal data class MihomoDelayResult(
-    val delays: Map<String, Int> = emptyMap(),
+    val measurements: Map<MihomoProxyNodeId, MihomoDelayMeasurement> = emptyMap(),
 ) {
+    val delays: Map<MihomoProxyNodeId, Int>
+        get() = measurements.mapNotNull { (id, measurement) ->
+            measurement.delay?.let { delay -> id to delay }
+        }.toMap()
+
     val firstDelay: Int?
-        get() = delays.values.firstOrNull()
+        get() = measurements.values.firstNotNullOfOrNull(MihomoDelayMeasurement::delay)
+
+    fun measurement(id: MihomoProxyNodeId): MihomoDelayMeasurement? = measurements[id]
+}
+
+internal sealed interface MihomoDelayTarget {
+    data class Node(val id: MihomoProxyNodeId) : MihomoDelayTarget
+
+    data class Group(val name: String) : MihomoDelayTarget
+
+    data class Provider(val name: String) : MihomoDelayTarget
+}
+
+internal fun MihomoRuntimeState.clearDelayTestingTarget(
+    completedTarget: MihomoDelayTarget,
+): MihomoRuntimeState {
+    return if (delayTestingTarget == completedTarget) {
+        copy(delayTestingTarget = null)
+    } else {
+        this
+    }
 }

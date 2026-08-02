@@ -36,6 +36,26 @@ object Bridge {
     external fun nativeHealthCheckAll()
     external fun nativeQueryProxyDelay(name: String, url: String, timeoutMillis: Int): String
     external fun nativeQueryGroupDelay(name: String, url: String, timeoutMillis: Int): String
+    external fun nativeQueryRuntimeProxies(): String
+    external fun nativeQueryRuntimeNodeDelay(
+        name: String,
+        provider: String,
+        url: String,
+        expected: String,
+        timeoutMillis: Int,
+    ): String
+    external fun nativeQueryRuntimeGroupDelay(
+        name: String,
+        url: String,
+        expected: String,
+        timeoutMillis: Int,
+    ): String
+    external fun nativeQueryRuntimeProviderDelay(
+        name: String,
+        url: String,
+        expected: String,
+        timeoutMillis: Int,
+    ): String
     external fun nativePatchSelector(selector: String, name: String): Boolean
     external fun nativeFetchAndValid(
         callback: FetchCallback,

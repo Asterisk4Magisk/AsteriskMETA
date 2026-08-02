@@ -248,17 +248,11 @@
     <plurals name="mihomo_rule_provider_rules_count">
         <item quantity="other">%1$d 条规则</item>
     </plurals>
-    <string name="mihomo_rule_provider_vehicle">载体：%1$s</string>
-    <string name="mihomo_rule_provider_behavior">行为：%1$s</string>
-    <string name="mihomo_rule_provider_format">格式：%1$s</string>
     <string name="mihomo_rule_provider_updated">更新于：%1$s</string>
     <string name="mihomo_rule_provider_runtime_unavailable">运行时元数据不可用</string>
     <string name="mihomo_provider_raw_declaration">声明片段</string>
     <string name="mihomo_provider_raw_read_only">只读</string>
     <string name="mihomo_provider_raw_metadata">%1$s · %2$s</string>
-    <plurals name="mihomo_provider_raw_matches">
-        <item quantity="other">%1$d 处匹配</item>
-    </plurals>
     <string name="mihomo_provider_runtime_unavailable">运行时 Provider 数据不可用</string>
     <string name="mihomo_provider_runtime_error">%1$s：%2$s</string>
     <string name="mihomo_provider_focus_loading">正在加载 Provider</string>
@@ -560,7 +554,6 @@
     <string name="settings_resource_files_missing">缺失</string>
     <string name="settings_resource_files_updated_at">更新时间 {time}</string>
     <string name="settings_resource_files_size">大小 {size}</string>
-    <string name="settings_resource_files_updating">正在更新资源文件…</string>
     <string name="settings_resource_file_update_queued">等待更新</string>
     <string name="settings_resource_file_updating">正在更新资源文件</string>
     <string name="settings_resource_files_updated">资源文件已更新</string>

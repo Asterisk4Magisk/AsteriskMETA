@@ -41,7 +41,6 @@ import ui.icons.AsteriskIcons as Icons
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -81,7 +80,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -119,6 +117,8 @@ import engine.mihomo.hasUsableMihomoProfile
 import engine.mihomo.selectedMihomoProfileOrNull
 import engine.mihomo.sha256Hex
 import engine.mihomo.runtime.MihomoProxiesState
+import engine.mihomo.runtime.MihomoDelayTarget
+import engine.mihomo.runtime.MihomoDelayStatus
 import engine.mihomo.runtime.MihomoProxyGroup
 import engine.mihomo.runtime.MihomoProxyNode
 import engine.mihomo.runtime.MihomoRuntimeState
@@ -135,7 +135,7 @@ import ui.theme.AsteriskMotion
 private data class MihomoProxyPageRuntimeState(
     val proxies: MihomoProxiesState,
     val proxiesRefreshing: Boolean,
-    val delayTestingTarget: String?,
+    val delayTestingTarget: MihomoDelayTarget?,
     val lastError: String,
 )
 
@@ -281,7 +281,7 @@ fun MihomoProxyPage(
         if (pendingSelections.isEmpty()) return@LaunchedEffect
         pendingSelections = pendingSelections.filter { (groupName, proxyName) ->
             val group = visibleProxies.groups.firstOrNull { item -> item.name == groupName } ?: return@filter false
-            group.now != proxyName && proxyName in group.all
+            group.now != proxyName && group.all.any { nodeId -> nodeId.name == proxyName }
         }
     }
 
@@ -343,7 +343,7 @@ fun MihomoProxyPage(
     fun testProxy(node: MihomoProxyNode) {
         if (!requireRuntime() || testingTarget != null) return
         scope.launch {
-            services.mihomoRuntime.testProxyDelay(appState, node.name)
+            services.mihomoRuntime.testProxyDelay(appState, node.id)
                 .onSuccess { tipNotifier.show(delayDoneMessage) }
                 .onFailure { error -> tipNotifier.showError(error, delayFailedMessage) }
         }
@@ -482,9 +482,9 @@ fun MihomoProxyPage(
                         } else {
                             items(
                                 items = pageNodes,
-                                key = { nodeName -> "${group.name}:$nodeName" },
-                            ) { nodeName ->
-                                val node = proxies.node(nodeName)
+                                key = { nodeId -> nodeId },
+                            ) { nodeId ->
+                                val node = proxies.node(nodeId)
                                 val selectionEnabled = isMihomoProxyGroupSelectable(group) && runtimeAvailable
                                 MihomoProxyNodeCard(
                                     modifier = Modifier
@@ -501,9 +501,9 @@ fun MihomoProxyPage(
                                         pendingSelections = pendingSelections,
                                     ),
                                     selectionEnabled = selectionEnabled,
-                                    runtimeAvailable = runtimeAvailable,
+                                    delayTestEnabled = runtimeAvailable && testingTarget == null,
                                     compact = columns > 1,
-                                    testing = testingTarget == node.name,
+                                    testing = testingTarget == MihomoDelayTarget.Node(node.id),
                                     onSelect = { selectProxy(group, node) },
                                     onDelayTest = { testProxy(node) },
                                 )
@@ -513,9 +513,9 @@ fun MihomoProxyPage(
                 }
             }
             selectedGroup?.let { group ->
-                ProxyDelayToolbar(
+                MihomoDelayToolbar(
                     enabled = runtimeAvailable && testingTarget == null,
-                    testing = testingTarget == group.name,
+                    testing = testingTarget == MihomoDelayTarget.Group(group.name),
                     onDelayTest = { testGroup(group) },
                     bottomPadding = contentPadding.calculateBottomPadding(),
                     modifier = Modifier
@@ -807,7 +807,7 @@ private fun MihomoProxyNodeCard(
     node: MihomoProxyNode,
     selected: Boolean,
     selectionEnabled: Boolean,
-    runtimeAvailable: Boolean,
+    delayTestEnabled: Boolean,
     compact: Boolean,
     testing: Boolean,
     onSelect: () -> Unit,
@@ -825,7 +825,7 @@ private fun MihomoProxyNodeCard(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Text(
-                    text = node.name,
+                    text = node.title.ifBlank { node.name },
                     modifier = Modifier.weight(1f),
                     style = if (compact) {
                         MaterialTheme.typography.titleSmall.copy(
@@ -851,10 +851,12 @@ private fun MihomoProxyNodeCard(
             }
             ProtocolDelayLine(
                 protocol = node.type,
+                providerName = node.providerName.orEmpty(),
                 delay = node.delay,
+                delayStatus = node.delayStatus,
                 selected = selected,
                 testing = testing,
-                enabled = runtimeAvailable && !testing,
+                enabled = delayTestEnabled,
                 compact = compact,
                 onClick = onDelayTest,
             )
@@ -876,7 +878,9 @@ private fun MihomoProxyNodeCard(
 @Composable
 private fun ProtocolDelayLine(
     protocol: String,
+    providerName: String,
     delay: Int?,
+    delayStatus: MihomoDelayStatus?,
     selected: Boolean,
     testing: Boolean,
     enabled: Boolean,
@@ -885,8 +889,9 @@ private fun ProtocolDelayLine(
 ) {
     val delayText = when {
         testing -> ""
-        delay == null -> stringResource(R.string.mihomo_proxies_delay_not_tested)
-        delay < 0 -> stringResource(R.string.mihomo_proxies_delay_timeout)
+        delayStatus == MihomoDelayStatus.Timeout -> stringResource(R.string.mihomo_proxies_delay_timeout)
+        delayStatus == MihomoDelayStatus.Failed -> stringResource(R.string.mihomo_proxies_delay_failed)
+        delayStatus == null || delay == null -> stringResource(R.string.mihomo_proxies_delay_not_tested)
         else -> "$delay ms"
     }.trim()
     val viewConfiguration = LocalViewConfiguration.current
@@ -905,19 +910,34 @@ private fun ProtocolDelayLine(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            AsteriskInfoChip(
-                text = protocol.displayMihomoProtocolName(compact = compact),
-                modifier = Modifier.weight(1f, fill = false),
-                emphasized = selected,
-                textStyle = if (compact) {
-                    MaterialTheme.typography.labelSmall.copy(
-                        fontSize = 10.sp,
-                        lineHeight = 14.sp,
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                AsteriskInfoChip(
+                    text = protocol.displayMihomoProtocolName(compact = compact),
+                    modifier = Modifier.weight(1f, fill = false),
+                    emphasized = selected,
+                    textStyle = if (compact) {
+                        MaterialTheme.typography.labelSmall.copy(
+                            fontSize = 10.sp,
+                            lineHeight = 14.sp,
+                        )
+                    } else {
+                        MaterialTheme.typography.labelSmall
+                    },
+                )
+                if (providerName.isNotBlank()) {
+                    Text(
+                        text = providerName,
+                        modifier = Modifier.padding(start = 6.dp).weight(1f, fill = false),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
-                } else {
-                    MaterialTheme.typography.labelSmall
-                },
-            )
+                }
+            }
             Box(
                 modifier = Modifier.padding(end = 8.dp).height(28.dp),
                 contentAlignment = Alignment.CenterEnd,
@@ -939,7 +959,7 @@ private fun ProtocolDelayLine(
                             MaterialTheme.typography.labelMedium
                         },
                         fontWeight = FontWeight.Medium,
-                        color = delayColor(delay),
+                        color = delayColor(delay, delayStatus),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         textAlign = TextAlign.End,
@@ -948,51 +968,6 @@ private fun ProtocolDelayLine(
             }
         }
     }
-}
-
-@Composable
-private fun ProxyDelayToolbar(
-    enabled: Boolean,
-    testing: Boolean,
-    onDelayTest: () -> Unit,
-    bottomPadding: Dp,
-    modifier: Modifier = Modifier,
-) {
-    Box(
-        modifier = modifier.padding(
-            end = 20.dp,
-            bottom = bottomPadding + MihomoFloatingToolbarBottomSpacing,
-        ),
-    ) {
-        ExtendedFloatingActionButton(
-            onClick = { if (enabled) onDelayTest() },
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-            contentColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(
-                alpha = if (enabled && !testing) 1f else 0.45f,
-            ),
-            icon = {
-                if (testing) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.5.dp,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    )
-                } else {
-                    DelayToolbarGlyph()
-                }
-            },
-            text = { Text(stringResource(R.string.mihomo_proxies_group_test)) },
-        )
-    }
-}
-
-@Composable
-private fun DelayToolbarGlyph(
-) {
-    Icon(
-        imageVector = Icons.Rounded.Speed,
-        contentDescription = stringResource(R.string.mihomo_proxies_group_test),
-    )
 }
 
 @Composable
@@ -1074,10 +1049,12 @@ private fun MihomoProxyLoadingCard() {
 }
 
 @Composable
-private fun delayColor(delay: Int?): Color {
+private fun delayColor(delay: Int?, status: MihomoDelayStatus?): Color {
     return when {
-        delay == null -> MaterialTheme.colorScheme.onSurfaceVariant
-        delay < 0 -> MaterialTheme.colorScheme.error
+        status == MihomoDelayStatus.Timeout || status == MihomoDelayStatus.Failed -> {
+            MaterialTheme.colorScheme.error
+        }
+        status == null || delay == null -> MaterialTheme.colorScheme.onSurfaceVariant
         delay < 300 -> MaterialTheme.colorScheme.primary
         delay < 500 -> MaterialTheme.colorScheme.tertiary
         else -> MaterialTheme.colorScheme.error
@@ -1087,4 +1064,3 @@ private fun delayColor(delay: Int?): Color {
 private val MihomoProxyNodeCardHeight = 112.dp
 private val MihomoProxyNodeCardPadding = PaddingValues(start = 10.dp, top = 14.dp, end = 10.dp, bottom = 10.dp)
 private val MihomoProxyNodeGridSpacing = 12.dp
-private val MihomoFloatingToolbarBottomSpacing = 16.dp

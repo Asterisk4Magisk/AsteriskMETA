@@ -251,18 +251,11 @@
         <item quantity="one">%1$d rule</item>
         <item quantity="other">%1$d rules</item>
     </plurals>
-    <string name="mihomo_rule_provider_vehicle">Vehicle: %1$s</string>
-    <string name="mihomo_rule_provider_behavior">Behavior: %1$s</string>
-    <string name="mihomo_rule_provider_format">Format: %1$s</string>
     <string name="mihomo_rule_provider_updated">Updated: %1$s</string>
     <string name="mihomo_rule_provider_runtime_unavailable">Runtime metadata unavailable</string>
     <string name="mihomo_provider_raw_declaration">Declaration snippet</string>
     <string name="mihomo_provider_raw_read_only">Read-only</string>
     <string name="mihomo_provider_raw_metadata">%1$s · %2$s</string>
-    <plurals name="mihomo_provider_raw_matches">
-        <item quantity="one">%1$d match</item>
-        <item quantity="other">%1$d matches</item>
-    </plurals>
     <string name="mihomo_provider_runtime_unavailable">Runtime provider data is unavailable</string>
     <string name="mihomo_provider_runtime_error">%1$s: %2$s</string>
     <string name="mihomo_provider_focus_loading">Loading providers</string>
@@ -574,7 +567,6 @@
     <string name="settings_resource_files_missing">Missing</string>
     <string name="settings_resource_files_updated_at">Updated {time}</string>
     <string name="settings_resource_files_size">Size {size}</string>
-    <string name="settings_resource_files_updating">Updating resource files…</string>
     <string name="settings_resource_file_update_queued">Queued for update</string>
     <string name="settings_resource_file_updating">Updating resource file</string>
     <string name="settings_resource_files_updated">Resource files updated</string>
