@@ -81,6 +81,32 @@ internal data class KeyedMihomoProviderUsageState<K>(
     }
 }
 
+internal sealed interface MihomoProviderNamesLoadPlan {
+    data object AwaitMetadata : MihomoProviderNamesLoadPlan
+    data object BuildEffectiveProfile : MihomoProviderNamesLoadPlan
+    data class UseCached(val names: List<String>) : MihomoProviderNamesLoadPlan
+}
+
+internal data class MihomoProviderNamesMetadata(
+    val contentKey: String,
+    val names: List<String>,
+)
+
+internal fun planMihomoProviderNamesLoad(
+    currentContentKey: String?,
+    metadata: MihomoProviderNamesMetadata?,
+    customOverrideEnabled: Boolean,
+): MihomoProviderNamesLoadPlan {
+    return when {
+        currentContentKey == null || metadata?.contentKey != currentContentKey -> {
+            MihomoProviderNamesLoadPlan.AwaitMetadata
+        }
+
+        customOverrideEnabled -> MihomoProviderNamesLoadPlan.BuildEffectiveProfile
+        else -> MihomoProviderNamesLoadPlan.UseCached(metadata.names)
+    }
+}
+
 internal suspend fun <T> withDelayedMihomoProviderUsageLoading(
     delayMillis: Long = MihomoProviderUsageLoadingDelayMillis,
     onLoading: () -> Unit,

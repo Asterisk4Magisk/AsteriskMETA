@@ -16,12 +16,14 @@ internal data class EscapedYamlContent(
     val replacements: Map<String, String>,
 ) {
     fun restore(text: String): String {
+        if (replacements.isEmpty()) return text
         return replacements.entries.fold(text) { result, (token, original) ->
             result.replace(token, original)
         }
     }
 
     fun restoreParsedValue(value: Any?): Any? {
+        if (replacements.isEmpty()) return value
         return when (value) {
             is Map<*, *> -> linkedMapOf<Any?, Any?>().apply {
                 value.forEach { (key, childValue) ->
@@ -36,9 +38,15 @@ internal data class EscapedYamlContent(
 }
 
 internal fun String.escapeSupplementaryYamlCodePoints(): EscapedYamlContent {
+    val firstSupplementaryIndex = findFirstSupplementaryIndex()
+    if (firstSupplementaryIndex < 0) {
+        return EscapedYamlContent(this, emptyMap())
+    }
+
     val replacements = linkedMapOf<String, String>()
     val escaped = buildString(length) {
-        var index = 0
+        append(this@escapeSupplementaryYamlCodePoints, 0, firstSupplementaryIndex)
+        var index = firstSupplementaryIndex
         while (index < this@escapeSupplementaryYamlCodePoints.length) {
             val char = this@escapeSupplementaryYamlCodePoints[index]
             if (
@@ -62,4 +70,13 @@ internal fun String.escapeSupplementaryYamlCodePoints(): EscapedYamlContent {
         }
     }
     return EscapedYamlContent(escaped, replacements)
+}
+
+private fun String.findFirstSupplementaryIndex(): Int {
+    for (index in 0 until lastIndex) {
+        if (this[index].isHighSurrogate() && this[index + 1].isLowSurrogate()) {
+            return index
+        }
+    }
+    return -1
 }

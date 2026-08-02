@@ -14,6 +14,19 @@ import engine.mihomo.runtime.MihomoProxiesState
 import engine.mihomo.runtime.MihomoProxyGroup
 import engine.mihomo.runtime.MihomoProxyNodeId
 
+internal fun MihomoProxyNodeId.toMihomoProxyLazyItemKey(): String {
+    val provider = providerName
+    return buildString {
+        append("mihomo-proxy:")
+        if (provider == null) {
+            append("-1:")
+        } else {
+            append(provider.length).append(':').append(provider)
+        }
+        append(name.length).append(':').append(name)
+    }
+}
+
 internal fun filterMihomoProxyGroups(
     proxies: MihomoProxiesState,
     excludeNotSelectable: Boolean,

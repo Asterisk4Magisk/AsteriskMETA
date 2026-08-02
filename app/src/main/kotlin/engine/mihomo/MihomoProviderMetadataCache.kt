@@ -5,12 +5,14 @@ package engine.mihomo
 
 internal object MihomoProviderMetadataCache {
     private val providerPresence = providerPresenceCache()
-    private val proxyProviderPresence = object : LinkedHashMap<String, Boolean>(
+    private val proxyProviderNames = object : LinkedHashMap<String, List<String>>(
         MaximumEntries,
         LoadFactor,
         true,
     ) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Boolean>?): Boolean {
+        override fun removeEldestEntry(
+            eldest: MutableMap.MutableEntry<String, List<String>>?,
+        ): Boolean {
             return size > MaximumEntries
         }
     }
@@ -19,8 +21,11 @@ internal object MihomoProviderMetadataCache {
         return providerPresence.cachedProviderPresence(key) { content().hasMihomoProviders() }
     }
 
-    fun hasProxyProviders(key: String, content: () -> String): Boolean {
-        return proxyProviderPresence.cachedProviderPresence(key) { content().hasMihomoProxyProviders() }
+    fun getProxyProviderNames(
+        key: String,
+        detector: () -> List<String>,
+    ): List<String> {
+        return proxyProviderNames.cachedProviderMetadata(key) { detector().toList() }
     }
 
     private fun providerPresenceCache() = object : LinkedHashMap<String, Boolean>(
@@ -36,7 +41,12 @@ internal object MihomoProviderMetadataCache {
     private fun MutableMap<String, Boolean>.cachedProviderPresence(
         key: String,
         detector: () -> Boolean,
-    ): Boolean {
+    ): Boolean = cachedProviderMetadata(key, detector)
+
+    private fun <T> MutableMap<String, T>.cachedProviderMetadata(
+        key: String,
+        detector: () -> T,
+    ): T {
         synchronized(this) {
             if (containsKey(key)) return getValue(key)
         }

@@ -482,7 +482,7 @@ fun MihomoProxyPage(
                         } else {
                             items(
                                 items = pageNodes,
-                                key = { nodeId -> nodeId },
+                                key = { nodeId -> nodeId.toMihomoProxyLazyItemKey() },
                             ) { nodeId ->
                                 val node = proxies.node(nodeId)
                                 val selectionEnabled = isMihomoProxyGroupSelectable(group) && runtimeAvailable

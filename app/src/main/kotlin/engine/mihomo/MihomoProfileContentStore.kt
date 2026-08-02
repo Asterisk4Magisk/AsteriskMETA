@@ -7,6 +7,7 @@ import android.content.Context
 import app.MihomoProfileState
 import utils.writeAtomically
 import java.io.File
+import java.io.Reader
 import java.security.MessageDigest
 import java.util.UUID
 
@@ -35,6 +36,20 @@ internal class MihomoProfileContentStore(
             error(MihomoProfileEmptyErrorMessage)
         }
         return bytes
+    }
+
+    fun <T> useReader(
+        profile: MihomoProfileState,
+        block: (Reader) -> T,
+    ): T {
+        if (!profile.hasContent) {
+            error(MihomoProfileEmptyErrorMessage)
+        }
+        val source = File(profile.contentPath)
+        if (!source.isFile || source.length() <= 0L) {
+            error(MihomoProfileEmptyErrorMessage)
+        }
+        return source.bufferedReader(Charsets.UTF_8).use(block)
     }
 
     fun readOrEmpty(profile: MihomoProfileState): String {

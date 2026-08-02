@@ -83,15 +83,17 @@ import app.withMihomoRestartApplied
 import app.withMihomoRestartRequired
 import engine.mihomo.MihomoProviderMetadataCache
 import engine.mihomo.MihomoProfileFactory
-import engine.mihomo.parseMihomoProxyProviderDeclarations
+import engine.mihomo.parseMihomoProxyProviderNames
 import engine.mihomo.raw.usesRawMihomoConfig
 import engine.proxy.ProxyServiceResult
 import features.mihomo.provider.KeyedMihomoProviderUsageState
+import features.mihomo.provider.MihomoProviderNamesLoadPlan
+import features.mihomo.provider.MihomoProviderNamesMetadata
 import features.mihomo.provider.MihomoProviderUsageLoadState
 import features.mihomo.provider.MihomoProviderUsageSection
 import features.mihomo.provider.loadMihomoProviderUsage
-import features.mihomo.provider.mihomoProviderDataDir
 import features.mihomo.provider.nextMihomoProviderUsageReloadToken
+import features.mihomo.provider.planMihomoProviderNamesLoad
 import features.mihomo.provider.resolveMihomoProviderUsagePreflightState
 import features.mihomo.provider.toMihomoProviderUsageLoadState
 import features.mihomo.provider.withDelayedMihomoProviderUsageLoading
@@ -162,7 +164,9 @@ fun MihomoProfileListPage(
     var previewProfileName by remember { mutableStateOf("") }
     var previewProfileContent by remember { mutableStateOf<String?>(null) }
     var syncingProfileIds by remember { mutableStateOf<Set<Int>>(emptySet()) }
-    var profilesWithProxyProviders by remember { mutableStateOf<Set<Int>>(emptySet()) }
+    var proxyProviderNamesByProfileId by remember {
+        mutableStateOf<Map<Int, MihomoProviderNamesMetadata>>(emptyMap())
+    }
     var keyedProviderUsageState by remember {
         mutableStateOf(KeyedMihomoProviderUsageState<MihomoProviderUsageLoadKey>())
     }
@@ -211,22 +215,29 @@ fun MihomoProfileListPage(
     }
     LaunchedEffect(profileContentSignatures) {
         val profiles = appState.mihomoProfiles
-        profilesWithProxyProviders = withContext(Dispatchers.IO) {
-            profiles
-                .filter { profile ->
-                    if (!profile.hasContent) return@filter false
-                    val cacheKey = profile.contentSha256
-                        .takeIf(String::isNotBlank)
-                        ?.let { sha256 -> "profile:$sha256" }
-                        ?: "profile-path:${profile.contentPath}:${profile.contentSizeBytes}"
-                    val content = runCatching {
-                        services.mihomoProfileContentStore.read(profile)
-                    }.getOrNull() ?: return@filter false
-                    MihomoProviderMetadataCache.hasProxyProviders(cacheKey) {
-                        content
+        proxyProviderNamesByProfileId = emptyMap()
+        proxyProviderNamesByProfileId = withContext(Dispatchers.IO) {
+            buildMap {
+                profiles.forEach { profile ->
+                    if (!profile.hasContent) return@forEach
+                    val cacheKey = profile.providerMetadataContentKey()
+                    val names = try {
+                        MihomoProviderMetadataCache.getProxyProviderNames(cacheKey) {
+                            services.mihomoProfileContentStore.useReader(profile) { reader ->
+                                reader.parseMihomoProxyProviderNames()
+                            }
+                        }
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (_: Exception) {
+                        emptyList()
                     }
+                    put(
+                        profile.id,
+                        MihomoProviderNamesMetadata(contentKey = cacheKey, names = names),
+                    )
                 }
-                .mapTo(mutableSetOf()) { profile -> profile.id }
+            }
         }
     }
 
@@ -251,6 +262,13 @@ fun MihomoProfileListPage(
             reloadToken = providerUsageReloadToken,
         )
     }
+    val providerNamesLoadPlan = planMihomoProviderNamesLoad(
+        currentContentKey = selectedProfile?.providerMetadataContentKey(),
+        metadata = selectedProfile?.let { profile -> proxyProviderNamesByProfileId[profile.id] },
+        customOverrideEnabled = selectedProfile?.let { profile ->
+            !profile.disableOverrides && profile.overrideScriptId != DefaultMihomoOverrideScriptId
+        } == true,
+    )
 
     LaunchedEffect(appState.proxyRunning) {
         if (!appState.proxyRunning) {
@@ -260,6 +278,7 @@ fun MihomoProfileListPage(
     }
     LaunchedEffect(
         providerUsageLoadKey,
+        providerNamesLoadPlan,
         providerUsageWaitingForProfileStop,
         providerUsageProfileStopFailed,
     ) {
@@ -273,15 +292,25 @@ fun MihomoProfileListPage(
             publish(MihomoProviderUsageLoadState.Hidden)
             return@LaunchedEffect
         }
+        if (providerNamesLoadPlan == MihomoProviderNamesLoadPlan.AwaitMetadata) {
+            publish(MihomoProviderUsageLoadState.Hidden)
+            return@LaunchedEffect
+        }
 
         try {
             val finalState = withDelayedMihomoProviderUsageLoading(
                 onLoading = { publish(MihomoProviderUsageLoadState.Loading) },
             ) {
-                val providerNames = withContext(Dispatchers.IO) {
-                    MihomoProfileFactory.buildProfile(context.applicationContext, appState)
-                        .parseMihomoProxyProviderDeclarations(context.mihomoProviderDataDir())
-                        .map { declaration -> declaration.name }
+                val providerNames = when (providerNamesLoadPlan) {
+                    MihomoProviderNamesLoadPlan.AwaitMetadata -> emptyList()
+                    MihomoProviderNamesLoadPlan.BuildEffectiveProfile -> {
+                        withContext(Dispatchers.IO) {
+                            MihomoProfileFactory.buildProfile(context.applicationContext, appState)
+                                .parseMihomoProxyProviderNames()
+                        }
+                    }
+
+                    is MihomoProviderNamesLoadPlan.UseCached -> providerNamesLoadPlan.names
                 }
                 val preflightState = resolveMihomoProviderUsagePreflightState(
                     providerCount = providerNames.size,
@@ -934,7 +963,12 @@ fun MihomoProfileListPage(
                         selected = selected,
                         restartRequired = profile.id == appState.pendingMihomoRestartProfileId,
                         syncing = profile.id in syncingProfileIds,
-                        hasProxyProviders = profile.id in profilesWithProxyProviders,
+                        hasProxyProviders = proxyProviderNamesByProfileId[profile.id]
+                            ?.takeIf { metadata ->
+                                metadata.contentKey == profile.providerMetadataContentKey()
+                            }
+                            ?.names
+                            ?.isNotEmpty() == true,
                         providerUsageState = if (selected) {
                             keyedProviderUsageState.stateFor(providerUsageLoadKey)
                         } else {
@@ -1060,6 +1094,13 @@ private data class MihomoProfileContentSignature(
     val contentSha256: String,
     val contentSizeBytes: Long,
 )
+
+private fun MihomoProfileState.providerMetadataContentKey(): String {
+    return contentSha256
+        .takeIf(String::isNotBlank)
+        ?.let { sha256 -> "profile:$sha256" }
+        ?: "profile-path:$contentPath:$contentSizeBytes"
+}
 
 private data class MihomoProviderUsageLoadKey(
     val profileId: Int,
