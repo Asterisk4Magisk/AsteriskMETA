@@ -11,6 +11,7 @@ import engine.proxy.ProxyServiceUseCase
 import engine.mihomo.runtime.MihomoRuntimeRepository
 import features.logs.CoreLogRepository
 import features.monitoring.MonitoringRepository
+import features.resources.ResourceFileUpdateCoordinator
 import features.resources.ResourceFileUseCase
 import features.settings.usecase.SwitchRunModeUseCase
 import features.settings.usecase.RootBootScriptUseCase
@@ -32,6 +33,7 @@ internal data class AppServices(
     val packageCatalog: AndroidPackageProvider,
     val networkInterfaces: AndroidNetworkInterfaceProvider,
     val resourceFileUseCase: ResourceFileUseCase,
+    val resourceFileUpdateCoordinator: ResourceFileUpdateCoordinator,
     val mihomoProfileContentStore: MihomoProfileContentStore,
     val mihomoProfilePreparer: AndroidMihomoProfilePreparer,
     val mihomoProviderFetcher: AndroidMihomoProviderFetcher,

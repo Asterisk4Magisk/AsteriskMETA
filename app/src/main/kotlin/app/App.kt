@@ -26,7 +26,10 @@ import data.AndroidAppStateStore
 import engine.mihomo.MihomoProfileContentStore
 import engine.proxy.AndroidProxyEngine
 import engine.proxy.ProxyServiceUseCase
+import features.resources.ResourceFileUpdateCoordinator
+import features.resources.ResourceFileUpdateRequest
 import features.resources.ResourceFileUseCase
+import features.resources.runtime.AndroidResourceFileDownloadCancellation
 import features.settings.locale.ProvideAppLanguage
 import features.settings.usecase.SwitchRunModeUseCase
 import features.settings.usecase.RootBootScriptUseCase
@@ -76,6 +79,32 @@ fun App(
         ResourceFileUseCase(
             context = appContext,
             resourceFilePicker = resourceFilePicker,
+        )
+    }
+    val resourceFileUpdateCoordinator = remember(appScope, resourceFileUseCase) {
+        ResourceFileUpdateCoordinator(
+            scope = appScope,
+            execute = { request ->
+                when (request) {
+                    is ResourceFileUpdateRequest.BuiltIn -> resourceFileUseCase.update(
+                        kind = request.kind,
+                        source = request.source,
+                        options = request.options,
+                        customResourceFiles = request.customResourceFiles,
+                    )
+                    is ResourceFileUpdateRequest.Custom -> resourceFileUseCase.updateCustom(
+                        customFile = request.file,
+                        options = request.options,
+                        customResourceFiles = request.customResourceFiles,
+                    )
+                    is ResourceFileUpdateRequest.All -> resourceFileUseCase.update(
+                        source = request.source,
+                        options = request.options,
+                        customResourceFiles = request.customResourceFiles,
+                    )
+                }
+            },
+            cancelRunning = AndroidResourceFileDownloadCancellation::cancel,
         )
     }
     val mihomoProfilePreparer = remember(appContext) { AndroidMihomoProfilePreparer(appContext) }
@@ -130,6 +159,7 @@ fun App(
         packageCatalog,
         networkInterfaces,
         resourceFileUseCase,
+        resourceFileUpdateCoordinator,
         mihomoProfileContentStore,
         mihomoProfilePreparer,
         mihomoProviderFetcher,
@@ -152,6 +182,7 @@ fun App(
             packageCatalog = packageCatalog,
             networkInterfaces = networkInterfaces,
             resourceFileUseCase = resourceFileUseCase,
+            resourceFileUpdateCoordinator = resourceFileUpdateCoordinator,
             mihomoProfileContentStore = mihomoProfileContentStore,
             mihomoProfilePreparer = mihomoProfilePreparer,
             mihomoProviderFetcher = mihomoProviderFetcher,
