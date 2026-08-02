@@ -89,13 +89,15 @@ import engine.proxy.ProxyServiceResult
 import features.mihomo.provider.KeyedMihomoProviderUsageState
 import features.mihomo.provider.MihomoProviderNamesLoadPlan
 import features.mihomo.provider.MihomoProviderNamesMetadata
+import features.mihomo.provider.MihomoProviderUsageLoadKey
 import features.mihomo.provider.MihomoProviderUsageLoadState
 import features.mihomo.provider.MihomoProviderUsageSection
-import features.mihomo.provider.loadMihomoProviderUsage
 import features.mihomo.provider.nextMihomoProviderUsageReloadToken
 import features.mihomo.provider.planMihomoProviderNamesLoad
+import features.mihomo.provider.providerMetadataContentKey
+import features.mihomo.provider.resolveMihomoProviderUsageState
 import features.mihomo.provider.resolveMihomoProviderUsagePreflightState
-import features.mihomo.provider.toMihomoProviderUsageLoadState
+import features.mihomo.provider.toMihomoProviderUsageLoadKey
 import features.mihomo.provider.withDelayedMihomoProviderUsageLoading
 import features.subscription.SubscriptionInstallConfig
 import features.subscription.runtime.AndroidSubscriptionFetchOptions
@@ -245,22 +247,7 @@ fun MihomoProfileListPage(
         profile.id == appState.selectedMihomoProfileId
     }
     val providerUsageLoadKey = selectedProfile?.let { profile ->
-        MihomoProviderUsageLoadKey(
-            profileId = profile.id,
-            contentPath = profile.contentPath,
-            contentSha256 = profile.contentSha256,
-            contentSizeBytes = profile.contentSizeBytes,
-            disableOverrides = profile.disableOverrides,
-            ageSecretKey = profile.ageSecretKey,
-            overrideScriptId = profile.overrideScriptId,
-            overrideScript = appState.mihomoOverrideScripts
-                .firstOrNull { script -> script.id == profile.overrideScriptId },
-            proxyRunning = appState.proxyRunning,
-            runMode = appState.runMode,
-            controlPort = appState.mihomoControlPort,
-            controlSecret = appState.mihomoControlSecret,
-            reloadToken = providerUsageReloadToken,
-        )
+        profile.toMihomoProviderUsageLoadKey(appState, providerUsageReloadToken)
     }
     val providerNamesLoadPlan = planMihomoProviderNamesLoad(
         currentContentKey = selectedProfile?.providerMetadataContentKey(),
@@ -324,14 +311,18 @@ fun MihomoProfileListPage(
                     }
 
                     providerUsageWaitingForProfileStop -> awaitCancellation()
-                    else -> loadMihomoProviderUsage(providerNames) { providerName ->
+                    else -> resolveMihomoProviderUsageState(
+                        providerNames = providerNames,
+                        rawConfiguration = appState.usesRawMihomoConfig(),
+                        proxyRunning = appState.proxyRunning,
+                    ) { providerName ->
                         services.mihomoRuntime
                             .getProxyProviderDetail(appState, providerName)
                             .also { result ->
                                 val error = result.exceptionOrNull()
                                 if (error is CancellationException) throw error
                             }
-                    }.toMihomoProviderUsageLoadState()
+                    }
                 }
             }
             publish(finalState)
@@ -1093,29 +1084,6 @@ private data class MihomoProfileContentSignature(
     val contentPath: String,
     val contentSha256: String,
     val contentSizeBytes: Long,
-)
-
-private fun MihomoProfileState.providerMetadataContentKey(): String {
-    return contentSha256
-        .takeIf(String::isNotBlank)
-        ?.let { sha256 -> "profile:$sha256" }
-        ?: "profile-path:$contentPath:$contentSizeBytes"
-}
-
-private data class MihomoProviderUsageLoadKey(
-    val profileId: Int,
-    val contentPath: String,
-    val contentSha256: String,
-    val contentSizeBytes: Long,
-    val disableOverrides: Boolean,
-    val ageSecretKey: String,
-    val overrideScriptId: Int,
-    val overrideScript: MihomoOverrideScriptState?,
-    val proxyRunning: Boolean,
-    val runMode: Int,
-    val controlPort: String,
-    val controlSecret: String,
-    val reloadToken: Int,
 )
 
 private data class MihomoProfileBatchSyncProgress(

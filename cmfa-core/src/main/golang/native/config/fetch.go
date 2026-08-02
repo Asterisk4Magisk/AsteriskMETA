@@ -21,6 +21,7 @@ import (
 	"github.com/metacubex/mihomo/adapter/provider"
 	"github.com/metacubex/mihomo/component/dialer"
 	clashHttp "github.com/metacubex/mihomo/component/http"
+	"github.com/metacubex/mihomo/component/profile/cachefile"
 	"github.com/metacubex/mihomo/component/proxydialer"
 	C "github.com/metacubex/mihomo/constant"
 	RB "github.com/metacubex/mihomo/rules/bundle"
@@ -108,6 +109,22 @@ func fetch(ctx context.Context, url *U.URL, file string, userAgent string, reque
 	defer reader.Close()
 
 	return header, writeFile(file, reader)
+}
+
+func fetchProvider(
+	prefix string,
+	name string,
+	download func() (fetchHeader, error),
+	store func(string, string),
+) error {
+	header, err := download()
+	if err != nil {
+		return err
+	}
+	if prefix == PROXIES && header.SubscriptionUserInfo != "" {
+		store(name, header.SubscriptionUserInfo)
+	}
+	return nil
 }
 
 func writeFile(file string, reader io.Reader) error {
@@ -304,7 +321,16 @@ func FetchAndValid(
 			return
 		}
 
-		if _, err := fetch(ctx, url, ps, defaultUserAgent, requestDialer); err != nil {
+		if err := fetchProvider(
+			prefix,
+			name,
+			func() (fetchHeader, error) {
+				return fetch(ctx, url, ps, defaultUserAgent, requestDialer)
+			},
+			func(name string, value string) {
+				cachefile.Cache().SetSubscriptionInfo(name, value)
+			},
+		); err != nil {
 			providerErrors = append(providerErrors, fmt.Errorf("fetch provider %s: %w", name, err))
 		}
 	})

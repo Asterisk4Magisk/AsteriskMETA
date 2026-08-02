@@ -12,6 +12,9 @@ import engine.mihomo.runtime.MihomoRuntimeState
 import engine.mihomo.runtime.MihomoTrafficSample
 import engine.mihomo.runtime.MihomoTrafficState
 import engine.mihomo.selectedMihomoProfileOrNull
+import features.mihomo.provider.MihomoProviderUsageItem
+import features.mihomo.provider.MihomoProviderUsageKind
+import features.mihomo.provider.MihomoProviderUsageLoadState
 import features.monitoring.MonitoringState
 import ui.theme.FocusTone
 import utils.toReadableBytes
@@ -54,6 +57,42 @@ internal data class HomeSubscriptionSummary(
     val remainingBytes: Long,
     val expireAtSeconds: Long,
 )
+
+internal data class HomeSubscriptionContent(
+    val showPrimary: Boolean,
+    val showProviders: Boolean,
+    val providersPending: Boolean = false,
+    val providerItems: List<MihomoProviderUsageItem> = emptyList(),
+) {
+    val showProviderDivider: Boolean
+        get() = showPrimary && showProviders
+
+    val showEmpty: Boolean
+        get() = !showPrimary && !showProviders && !providersPending
+}
+
+internal fun buildHomeSubscriptionContent(
+    primary: HomeSubscriptionSummary?,
+    providers: MihomoProviderUsageLoadState,
+    providersPending: Boolean = false,
+): HomeSubscriptionContent = HomeSubscriptionContent(
+    showPrimary = primary != null,
+    showProviders = providers != MihomoProviderUsageLoadState.Hidden,
+    providersPending = providersPending,
+    providerItems = (providers as? MihomoProviderUsageLoadState.Ready)?.summary?.items.orEmpty(),
+)
+
+internal fun MihomoProviderUsageItem.toHomeSubscriptionSummaryOrNull(): HomeSubscriptionSummary? {
+    if (kind != MihomoProviderUsageKind.Metered) return null
+    val used = usedBytes.coerceAtLeast(0L)
+    val total = totalBytes.coerceAtLeast(0L)
+    return HomeSubscriptionSummary(
+        usedBytes = used,
+        totalBytes = total,
+        remainingBytes = (total - used).coerceAtLeast(0L),
+        expireAtSeconds = expireAtSeconds.coerceAtLeast(0L),
+    )
+}
 
 internal data class HomeControllerRuntimeState(
     val mihomoMode: Int?,

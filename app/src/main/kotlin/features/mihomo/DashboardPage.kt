@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -37,8 +38,10 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -53,6 +56,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -79,9 +83,13 @@ import app.modes.RunModeTun2Socks
 import app.navigation.MainDestination
 import app.withMihomoRestartApplied
 import engine.mihomo.MihomoProfileEmptyErrorMessage
+import engine.mihomo.MihomoProfileFactory
 import engine.mihomo.MihomoProfileMissingErrorMessage
+import engine.mihomo.MihomoProviderMetadataCache
 import engine.mihomo.mihomoModeName
+import engine.mihomo.parseMihomoProxyProviderNames
 import engine.mihomo.raw.MihomoRawConfigParser
+import engine.mihomo.raw.usesRawMihomoConfig
 import engine.mihomo.runtime.MihomoTrafficSample
 import engine.mihomo.runtime.MihomoTrafficState
 import engine.mihomo.selectedMihomoProfileOrNull
@@ -93,6 +101,7 @@ import features.home.HomeNetworkRowKind
 import features.home.HomePrimaryRowKind
 import features.home.HomeServiceStatus
 import features.home.HomeSubscriptionSummary
+import features.home.buildHomeSubscriptionContent
 import features.home.buildHomeControllerState
 import features.home.buildHomeControllerRuntimeState
 import features.home.buildHomeModeChange
@@ -101,14 +110,28 @@ import features.home.buildHomeNetworkActivityState
 import features.home.formatHomeRuntimeBytes
 import features.home.homeFocusTone
 import features.home.toMihomoModeOrNull
+import features.home.toHomeSubscriptionSummaryOrNull
 import features.monitoring.MonitoringIntent
 import features.monitoring.ObserveMonitoring
+import features.mihomo.provider.KeyedMihomoProviderUsageState
+import features.mihomo.provider.MihomoProviderUsageItem
+import features.mihomo.provider.MihomoProviderUsageKind
+import features.mihomo.provider.MihomoProviderUsageLoadKey
+import features.mihomo.provider.MihomoProviderUsageLoadState
+import features.mihomo.provider.loadMihomoProviderUsageStateCatching
+import features.mihomo.provider.loadSelectedMihomoProviderNames
+import features.mihomo.provider.nextMihomoProviderUsageReloadToken
+import features.mihomo.provider.providerMetadataContentKey
+import features.mihomo.provider.resolveMihomoProviderUsageState
+import features.mihomo.provider.toMihomoProviderUsageLoadKey
+import features.mihomo.provider.withDelayedMihomoProviderUsageLoading
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.coroutines.cancellation.CancellationException
 import ui.components.AsteriskExpressiveCard
 import ui.components.AsteriskFocusSurface
 import ui.components.AsteriskPageCard
@@ -150,6 +173,7 @@ private fun AppServices.homeMonitoringOverviewSnapshot() =
 fun MihomoDashboardPage(
     padding: PaddingValues,
 ) {
+    val context = LocalContext.current
     val appState by LocalAppStateStore.current.collectAppState()
     val updateAppState = LocalUpdateAppState.current
     val services = LocalAppServices.current
@@ -183,7 +207,70 @@ fun MihomoDashboardPage(
     val listState = rememberLazyListState()
     ObserveMonitoring(MonitoringIntent.Home)
     var operationInProgress by rememberSaveable { mutableStateOf(false) }
+    var providerUsageReloadToken by remember { mutableIntStateOf(0) }
+    var keyedProviderUsageState by remember {
+        mutableStateOf(KeyedMihomoProviderUsageState<MihomoProviderUsageLoadKey>())
+    }
     val selectedProfile = appState.selectedMihomoProfileOrNull()
+    val providerUsageLoadKey = selectedProfile
+        ?.takeIf { profile -> profile.hasContent }
+        ?.toMihomoProviderUsageLoadKey(appState, providerUsageReloadToken)
+    LaunchedEffect(providerUsageLoadKey) {
+        fun publish(state: MihomoProviderUsageLoadState) {
+            keyedProviderUsageState = KeyedMihomoProviderUsageState(
+                loadKey = providerUsageLoadKey,
+                state = state,
+            )
+        }
+        val profile = selectedProfile
+        if (profile == null || providerUsageLoadKey == null) {
+            publish(MihomoProviderUsageLoadState.Hidden)
+            return@LaunchedEffect
+        }
+
+        val finalState = loadMihomoProviderUsageStateCatching {
+            withDelayedMihomoProviderUsageLoading(
+                onLoading = { publish(MihomoProviderUsageLoadState.Loading) },
+            ) {
+                val providerNames = loadSelectedMihomoProviderNames(
+                    profile = profile,
+                    loadSource = {
+                        withContext(Dispatchers.IO) {
+                            MihomoProviderMetadataCache.getProxyProviderNames(
+                                profile.providerMetadataContentKey(),
+                            ) {
+                                services.mihomoProfileContentStore.useReader(profile) { reader ->
+                                    reader.parseMihomoProxyProviderNames()
+                                }
+                            }
+                        }
+                    },
+                    loadEffective = {
+                        withContext(Dispatchers.IO) {
+                            MihomoProfileFactory.buildProfile(context.applicationContext, appState)
+                                .parseMihomoProxyProviderNames()
+                        }
+                    },
+                )
+                resolveMihomoProviderUsageState(
+                    providerNames = providerNames,
+                    rawConfiguration = appState.usesRawMihomoConfig(),
+                    proxyRunning = appState.proxyRunning,
+                ) { providerName ->
+                    services.mihomoRuntime
+                        .getProxyProviderDetail(appState, providerName)
+                        .also { result ->
+                            val error = result.exceptionOrNull()
+                            if (error is CancellationException) throw error
+                        }
+                }
+            }
+        }
+        publish(finalState)
+    }
+    val providerUsageState = keyedProviderUsageState.stateFor(providerUsageLoadKey)
+    val providerUsagePending = providerUsageLoadKey != null &&
+        keyedProviderUsageState.loadKey != providerUsageLoadKey
     val rawMihomoMode by produceState<Int?>(
         initialValue = null,
         key1 = selectedProfile?.id,
@@ -390,7 +477,16 @@ fun MihomoDashboardPage(
                 }
             }
             item("subscription") {
-                SubscriptionSummaryCard(controllerState.subscription)
+                SubscriptionSummaryCard(
+                    summary = controllerState.subscription,
+                    providerUsageState = providerUsageState,
+                    providerUsagePending = providerUsagePending,
+                    onProviderUsageRetry = {
+                        providerUsageReloadToken = nextMihomoProviderUsageReloadToken(
+                            providerUsageReloadToken,
+                        )
+                    },
+                )
             }
         }
     }
@@ -721,7 +817,17 @@ private fun NetworkActivityChart(
 }
 
 @Composable
-private fun SubscriptionSummaryCard(summary: HomeSubscriptionSummary?) {
+private fun SubscriptionSummaryCard(
+    summary: HomeSubscriptionSummary?,
+    providerUsageState: MihomoProviderUsageLoadState,
+    providerUsagePending: Boolean,
+    onProviderUsageRetry: () -> Unit,
+) {
+    val content = buildHomeSubscriptionContent(
+        primary = summary,
+        providers = providerUsageState,
+        providersPending = providerUsagePending,
+    )
     AsteriskPageCard(modifier = HomeContentModifier) {
         Column(
             modifier = Modifier.padding(20.dp),
@@ -733,32 +839,196 @@ private fun SubscriptionSummaryCard(summary: HomeSubscriptionSummary?) {
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface,
             )
-            if (summary == null) {
+            if (content.showEmpty) {
                 Text(
                     text = stringResource(R.string.home_no_subscription),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-            } else {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    SubscriptionMetric(stringResource(R.string.home_subscription_used), summary.usedBytes.toReadableBytes())
-                    SubscriptionMetric(stringResource(R.string.home_subscription_total), summary.totalBytes.toReadableBytes())
-                    SubscriptionMetric(stringResource(R.string.home_subscription_remaining), summary.remainingBytes.toReadableBytes())
+            }
+            if (content.showPrimary) {
+                requireNotNull(summary)
+                SubscriptionUsage(summary)
+            }
+            if (content.showProviders) {
+                if (content.showProviderDivider) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 }
-                Text(
-                    text = stringResource(
-                        R.string.home_subscription_expiry,
-                        formatExpiry(summary.expireAtSeconds),
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                HomeProviderUsageSummary(
+                    state = providerUsageState,
+                    providerItems = content.providerItems,
+                    onRetry = onProviderUsageRetry,
                 )
             }
         }
     }
+}
+
+@Composable
+private fun HomeProviderUsageSummary(
+    state: MihomoProviderUsageLoadState,
+    providerItems: List<MihomoProviderUsageItem>,
+    onRetry: () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(
+            text = stringResource(R.string.mihomo_configuration_provider_usage_title),
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        when (state) {
+            MihomoProviderUsageLoadState.Hidden -> Unit
+            MihomoProviderUsageLoadState.Loading -> Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                Text(
+                    text = stringResource(R.string.mihomo_configuration_provider_usage_loading),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            MihomoProviderUsageLoadState.RequiresProxyRunning -> Text(
+                text = stringResource(R.string.mihomo_configuration_provider_usage_requires_proxy),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            MihomoProviderUsageLoadState.Failed -> Surface(
+                onClick = onRetry,
+                color = Color.Transparent,
+                shape = MaterialTheme.shapes.medium,
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.mihomo_configuration_provider_usage_failed),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = stringResource(R.string.mihomo_configuration_provider_usage_retry),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
+
+            is MihomoProviderUsageLoadState.Ready -> HomeProviderUsageReady(providerItems)
+        }
+    }
+}
+
+@Composable
+private fun HomeProviderUsageReady(items: List<MihomoProviderUsageItem>) {
+    if (items.isEmpty()) {
+        Text(
+            text = stringResource(R.string.mihomo_proxy_providers_empty),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        return
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        items.forEachIndexed { index, item ->
+            if (index > 0) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            }
+            HomeProviderUsageItemRow(item)
+        }
+    }
+}
+
+@Composable
+private fun HomeProviderUsageItemRow(item: MihomoProviderUsageItem) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(
+            text = item.name,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        when (item.kind) {
+            MihomoProviderUsageKind.Metered -> {
+                SubscriptionUsage(requireNotNull(item.toHomeSubscriptionSummaryOrNull()))
+            }
+
+            MihomoProviderUsageKind.Unlimited -> {
+                Text(
+                    text = stringResource(R.string.mihomo_provider_traffic_unlimited),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                SubscriptionExpiry(item.expireAtSeconds)
+            }
+
+            MihomoProviderUsageKind.Missing -> ProviderUsageStatus(
+                text = stringResource(R.string.mihomo_configuration_provider_usage_missing),
+            )
+
+            MihomoProviderUsageKind.Unavailable -> ProviderUsageStatus(
+                text = stringResource(R.string.mihomo_configuration_provider_usage_unavailable),
+                error = true,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ProviderUsageStatus(
+    text: String,
+    error: Boolean = false,
+) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodyMedium,
+        color = if (error) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+@Composable
+private fun SubscriptionUsage(summary: HomeSubscriptionSummary) {
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            SubscriptionMetric(
+                stringResource(R.string.home_subscription_used),
+                summary.usedBytes.toReadableBytes(),
+            )
+            SubscriptionMetric(
+                stringResource(R.string.home_subscription_total),
+                summary.totalBytes.toReadableBytes(),
+            )
+            SubscriptionMetric(
+                stringResource(R.string.home_subscription_remaining),
+                summary.remainingBytes.toReadableBytes(),
+            )
+        }
+        SubscriptionExpiry(summary.expireAtSeconds)
+    }
+}
+
+@Composable
+private fun SubscriptionExpiry(expireAtSeconds: Long) {
+    Text(
+        text = stringResource(
+            R.string.home_subscription_expiry,
+            formatExpiry(expireAtSeconds),
+        ),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 }
 
 @Composable
