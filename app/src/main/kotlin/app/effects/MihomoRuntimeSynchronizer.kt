@@ -10,24 +10,50 @@ import app.withMihomoRestartApplied
 import app.modes.isRootRunMode
 import data.AndroidAppStateStore
 import engine.proxy.AndroidProxyEngine
+import features.mihomo.provider.MihomoProviderUsageStateHolder
+
+internal suspend fun runMihomoRuntimeSynchronization(
+    initialState: AppState,
+    updateRuntime: (AppState) -> Unit,
+    updateProviderUsage: (AppState) -> Unit,
+    synchronizeStatus: suspend () -> Unit,
+    collectStates: suspend ((AppState) -> Unit) -> Unit,
+) {
+    updateRuntime(initialState)
+    updateProviderUsage(initialState)
+    synchronizeStatus()
+    collectStates { appState ->
+        updateRuntime(appState)
+        updateProviderUsage(appState)
+    }
+}
 
 @Composable
 internal fun MihomoRuntimeSynchronizer(
     stateStore: AndroidAppStateStore,
     proxyEngine: AndroidProxyEngine,
     mihomoRuntimeLifecycle: MihomoRuntimeLifecycleCoordinator,
+    mihomoProviderUsage: MihomoProviderUsageStateHolder,
     updateAppState: ((AppState) -> AppState) -> Unit,
 ) {
-    LaunchedEffect(stateStore, proxyEngine, mihomoRuntimeLifecycle) {
-        syncStartupProxyStatus(
-            stateStore = stateStore,
-            proxyEngine = proxyEngine,
-            updateAppState = updateAppState,
+    LaunchedEffect(stateStore, proxyEngine, mihomoRuntimeLifecycle, mihomoProviderUsage) {
+        runMihomoRuntimeSynchronization(
+            initialState = stateStore.state.value,
+            updateRuntime = mihomoRuntimeLifecycle::updateAppState,
+            updateProviderUsage = mihomoProviderUsage::initialize,
+            synchronizeStatus = {
+                syncStartupProxyStatus(
+                    stateStore = stateStore,
+                    proxyEngine = proxyEngine,
+                    updateAppState = updateAppState,
+                )
+            },
+            collectStates = { onState ->
+                stateStore.state.collect { appState ->
+                    onState(appState)
+                }
+            },
         )
-        stateStore.state
-            .collect { appState ->
-                mihomoRuntimeLifecycle.updateAppState(appState)
-            }
     }
 }
 

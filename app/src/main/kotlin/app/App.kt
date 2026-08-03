@@ -23,7 +23,6 @@ import features.logs.AndroidCoreLogRepository
 import features.logs.AndroidLogcatRepository
 import features.monitoring.MonitoringRepository
 import data.AndroidAppStateStore
-import engine.mihomo.MihomoProfileContentStore
 import engine.proxy.AndroidProxyEngine
 import engine.proxy.ProxyServiceUseCase
 import features.resources.ResourceFileUpdateCoordinator
@@ -108,15 +107,14 @@ fun App(
         )
     }
     val mihomoProfilePreparer = remember(appContext) { AndroidMihomoProfilePreparer(appContext) }
-    val mihomoProfileContentStore = remember(appContext) {
-        MihomoProfileContentStore(appContext)
-    }
+    val mihomoProfileContentStore = application.mihomoProfileContentStore
     val mihomoProviderFetcher = remember(appContext) {
         AndroidMihomoProviderFetcher(
             context = appContext,
         )
     }
     val mihomoRuntime = application.mihomoRuntime
+    val mihomoProviderUsage = application.mihomoProviderUsage
     val monitoring = remember(appScope, appContext, rootAccess, stateStore, mihomoRuntime) {
         MonitoringRepository(appScope, appContext, rootAccess, stateStore, mihomoRuntime)
     }
@@ -166,6 +164,7 @@ fun App(
         qrCodeScanner,
         mihomoProfileFilePicker,
         mihomoRuntime,
+        mihomoProviderUsage,
         monitoring,
         proxyServiceUseCase,
         switchRunModeUseCase,
@@ -189,6 +188,7 @@ fun App(
             qrCodeScanner = qrCodeScanner,
             mihomoProfileFilePicker = mihomoProfileFilePicker,
             mihomoRuntime = mihomoRuntime,
+            mihomoProviderUsage = mihomoProviderUsage,
             monitoring = monitoring,
             proxyServiceUseCase = proxyServiceUseCase,
             switchRunModeUseCase = switchRunModeUseCase,
@@ -205,15 +205,17 @@ fun App(
         { transform -> stateStore.update(transform) }
     }
     val keyColor = keyColorFor(chromeState.seedIndex)
-    ProxyStatusSynchronizer(
-        stateStore = stateStore,
-        proxyEngine = proxyEngine,
-        updateAppState = updateAppState,
-    )
+    // Start process-level runtime data preloading before any startup status reconciliation.
     MihomoRuntimeSynchronizer(
         stateStore = stateStore,
         proxyEngine = proxyEngine,
         mihomoRuntimeLifecycle = application.mihomoRuntimeLifecycle,
+        mihomoProviderUsage = mihomoProviderUsage,
+        updateAppState = updateAppState,
+    )
+    ProxyStatusSynchronizer(
+        stateStore = stateStore,
+        proxyEngine = proxyEngine,
         updateAppState = updateAppState,
     )
     ResourceFileSynchronizer(

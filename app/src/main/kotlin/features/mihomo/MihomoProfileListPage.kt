@@ -46,7 +46,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -86,19 +85,13 @@ import engine.mihomo.MihomoProfileFactory
 import engine.mihomo.parseMihomoProxyProviderNames
 import engine.mihomo.raw.usesRawMihomoConfig
 import engine.proxy.ProxyServiceResult
-import features.mihomo.provider.KeyedMihomoProviderUsageState
-import features.mihomo.provider.MihomoProviderNamesLoadPlan
 import features.mihomo.provider.MihomoProviderNamesMetadata
-import features.mihomo.provider.MihomoProviderUsageLoadKey
 import features.mihomo.provider.MihomoProviderUsageLoadState
 import features.mihomo.provider.MihomoProviderUsageSection
-import features.mihomo.provider.nextMihomoProviderUsageReloadToken
-import features.mihomo.provider.planMihomoProviderNamesLoad
 import features.mihomo.provider.providerMetadataContentKey
-import features.mihomo.provider.resolveMihomoProviderUsageState
-import features.mihomo.provider.resolveMihomoProviderUsagePreflightState
-import features.mihomo.provider.toMihomoProviderUsageLoadKey
-import features.mihomo.provider.withDelayedMihomoProviderUsageLoading
+import features.mihomo.provider.refreshMihomoProviderUsageAfterSync
+import features.mihomo.provider.resolveSharedMihomoProviderUsageState
+import features.mihomo.provider.selectedMihomoProviderUsageLoadKeyOrNull
 import features.subscription.SubscriptionInstallConfig
 import features.subscription.runtime.AndroidSubscriptionFetchOptions
 import features.subscription.toSubscriptionInstallConfigOrNull
@@ -115,7 +108,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import ui.layout.pageContentPaddingWithCutout
@@ -169,11 +161,7 @@ fun MihomoProfileListPage(
     var proxyProviderNamesByProfileId by remember {
         mutableStateOf<Map<Int, MihomoProviderNamesMetadata>>(emptyMap())
     }
-    var keyedProviderUsageState by remember {
-        mutableStateOf(KeyedMihomoProviderUsageState<MihomoProviderUsageLoadKey>())
-    }
     var providerUsageExpandedProfileId by remember { mutableStateOf<Int?>(null) }
-    var providerUsageReloadToken by remember { mutableIntStateOf(0) }
     var providerUsageWaitingForProfileStop by remember { mutableStateOf(false) }
     var providerUsageProfileStopFailed by remember { mutableStateOf(false) }
     var showRestartRequired by remember { mutableStateOf(false) }
@@ -243,19 +231,8 @@ fun MihomoProfileListPage(
         }
     }
 
-    val selectedProfile = appState.mihomoProfiles.firstOrNull { profile ->
-        profile.id == appState.selectedMihomoProfileId
-    }
-    val providerUsageLoadKey = selectedProfile?.let { profile ->
-        profile.toMihomoProviderUsageLoadKey(appState, providerUsageReloadToken)
-    }
-    val providerNamesLoadPlan = planMihomoProviderNamesLoad(
-        currentContentKey = selectedProfile?.providerMetadataContentKey(),
-        metadata = selectedProfile?.let { profile -> proxyProviderNamesByProfileId[profile.id] },
-        customOverrideEnabled = selectedProfile?.let { profile ->
-            !profile.disableOverrides && profile.overrideScriptId != DefaultMihomoOverrideScriptId
-        } == true,
-    )
+    val keyedProviderUsageState by services.mihomoProviderUsage.state.collectAsState()
+    val providerUsageLoadKey = appState.selectedMihomoProviderUsageLoadKeyOrNull()
 
     LaunchedEffect(appState.proxyRunning) {
         if (!appState.proxyRunning) {
@@ -263,76 +240,6 @@ fun MihomoProfileListPage(
             providerUsageProfileStopFailed = false
         }
     }
-    LaunchedEffect(
-        providerUsageLoadKey,
-        providerNamesLoadPlan,
-        providerUsageWaitingForProfileStop,
-        providerUsageProfileStopFailed,
-    ) {
-        fun publish(state: MihomoProviderUsageLoadState) {
-            keyedProviderUsageState = KeyedMihomoProviderUsageState(
-                loadKey = providerUsageLoadKey,
-                state = state,
-            )
-        }
-        if (selectedProfile?.hasContent != true || providerUsageLoadKey == null) {
-            publish(MihomoProviderUsageLoadState.Hidden)
-            return@LaunchedEffect
-        }
-        if (providerNamesLoadPlan == MihomoProviderNamesLoadPlan.AwaitMetadata) {
-            publish(MihomoProviderUsageLoadState.Hidden)
-            return@LaunchedEffect
-        }
-
-        try {
-            val finalState = withDelayedMihomoProviderUsageLoading(
-                onLoading = { publish(MihomoProviderUsageLoadState.Loading) },
-            ) {
-                val providerNames = when (providerNamesLoadPlan) {
-                    MihomoProviderNamesLoadPlan.AwaitMetadata -> emptyList()
-                    MihomoProviderNamesLoadPlan.BuildEffectiveProfile -> {
-                        withContext(Dispatchers.IO) {
-                            MihomoProfileFactory.buildProfile(context.applicationContext, appState)
-                                .parseMihomoProxyProviderNames()
-                        }
-                    }
-
-                    is MihomoProviderNamesLoadPlan.UseCached -> providerNamesLoadPlan.names
-                }
-                val preflightState = resolveMihomoProviderUsagePreflightState(
-                    providerCount = providerNames.size,
-                    rawConfiguration = appState.usesRawMihomoConfig(),
-                    proxyRunning = appState.proxyRunning,
-                )
-                when {
-                    preflightState != null -> preflightState
-                    providerUsageWaitingForProfileStop && providerUsageProfileStopFailed -> {
-                        MihomoProviderUsageLoadState.Failed
-                    }
-
-                    providerUsageWaitingForProfileStop -> awaitCancellation()
-                    else -> resolveMihomoProviderUsageState(
-                        providerNames = providerNames,
-                        rawConfiguration = appState.usesRawMihomoConfig(),
-                        proxyRunning = appState.proxyRunning,
-                    ) { providerName ->
-                        services.mihomoRuntime
-                            .getProxyProviderDetail(appState, providerName)
-                            .also { result ->
-                                val error = result.exceptionOrNull()
-                                if (error is CancellationException) throw error
-                            }
-                    }
-                }
-            }
-            publish(finalState)
-        } catch (error: CancellationException) {
-            throw error
-        } catch (_: Throwable) {
-            publish(MihomoProviderUsageLoadState.Failed)
-        }
-    }
-
     fun saveProfile(profile: MihomoProfileState, isNew: Boolean): MihomoProfileState {
         var savedProfile = profile
         updateAppState { state ->
@@ -367,7 +274,8 @@ fun MihomoProfileListPage(
     fun observeProviderUsageProfileStop(stopJob: Job) {
         scope.launch {
             stopJob.join()
-            val stopFailed = stateStore.state.value.proxyRunning
+            val currentState = stateStore.state.value
+            val stopFailed = currentState.proxyRunning
             providerUsageWaitingForProfileStop = stopFailed
             providerUsageProfileStopFailed = stopFailed
         }
@@ -375,23 +283,16 @@ fun MihomoProfileListPage(
 
     fun retryProviderUsage() {
         if (!providerUsageWaitingForProfileStop) {
-            providerUsageReloadToken = nextMihomoProviderUsageReloadToken(
-                providerUsageReloadToken,
-            )
+            services.mihomoProviderUsage.refresh(stateStore.state.value)
             return
         }
         val currentState = stateStore.state.value
         if (!currentState.proxyRunning) {
             providerUsageWaitingForProfileStop = false
             providerUsageProfileStopFailed = false
-            providerUsageReloadToken = nextMihomoProviderUsageReloadToken(
-                providerUsageReloadToken,
-            )
+            services.mihomoProviderUsage.refresh(currentState)
             return
         }
-        providerUsageReloadToken = nextMihomoProviderUsageReloadToken(
-            providerUsageReloadToken,
-        )
         providerUsageProfileStopFailed = false
         val stopJob = services.appScope.launch {
             stopProxyServiceAfterProfileChange(
@@ -667,7 +568,6 @@ fun MihomoProfileListPage(
             return
         }
         syncingProfileIds = syncingProfileIds + profile.id
-        val shouldReloadUsage = CompletableDeferred<Boolean>()
         val syncJob = services.appScope.launch {
             var reloadUsage = false
             try {
@@ -736,24 +636,19 @@ fun MihomoProfileListPage(
                 if (error is CancellationException) throw error
                 services.tipNotifier.showError(error, providerSyncFailedMessage)
             } finally {
-                shouldReloadUsage.complete(reloadUsage)
+                refreshMihomoProviderUsageAfterSync(
+                    refreshRequired = reloadUsage,
+                    syncedProfileId = profile.id,
+                    appState = stateStore.state.value,
+                    refresh = services.mihomoProviderUsage::refresh,
+                )
             }
         }
-        syncJob.invokeOnCompletion {
-            shouldReloadUsage.complete(false)
-        }
         scope.launch {
-            val reloadUsage = shouldReloadUsage.await()
             try {
                 syncJob.join()
             } finally {
                 syncingProfileIds = syncingProfileIds - profile.id
-                if (
-                    reloadUsage &&
-                    stateStore.state.value.selectedMihomoProfileId == profile.id
-                ) {
-                    providerUsageReloadToken += 1
-                }
             }
         }
     }
@@ -961,7 +856,12 @@ fun MihomoProfileListPage(
                             ?.names
                             ?.isNotEmpty() == true,
                         providerUsageState = if (selected) {
-                            keyedProviderUsageState.stateFor(providerUsageLoadKey)
+                            resolveSharedMihomoProviderUsageState(
+                                keyedState = keyedProviderUsageState,
+                                expectedKey = providerUsageLoadKey,
+                                waitingForStop = providerUsageWaitingForProfileStop,
+                                stopFailed = providerUsageProfileStopFailed,
+                            )
                         } else {
                             MihomoProviderUsageLoadState.Hidden
                         },

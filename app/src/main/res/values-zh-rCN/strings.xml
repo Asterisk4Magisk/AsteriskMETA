@@ -106,7 +106,7 @@
     <string name="monitor_data_stale">数据可能已过期</string>
     <string name="monitor_value_unknown">未知</string>
     <string name="monitor_no_samples">暂无采样；暂停期间会保留断点。</string>
-    <string name="monitor_milliseconds">%1$d 毫秒</string>
+    <string name="monitor_milliseconds">%1$d ms</string>
     <string name="monitor_refresh">刷新</string>
     <string name="monitor_retry">重试</string>
     <string name="monitor_copy_value">复制数值</string>
@@ -178,7 +178,7 @@
     <string name="monitor_traffic_local_notice">流量历史仅记录在应用私有本地存储中，不会发送到探测服务或订阅源。</string>
 
     <string name="monitor_network_title">网络状态</string>
-    <string name="monitor_network_request_duration_value">请求耗时 %1$d 毫秒</string>
+    <string name="monitor_network_request_duration_value">请求耗时 %1$d ms</string>
     <string name="monitor_network_public">公网地址</string>
     <string name="monitor_network_probe_source">由探测服务返回</string>
     <string name="monitor_network_local">本地网络</string>
@@ -269,7 +269,7 @@
     <string name="mihomo_provider_filter_available">可用</string>
     <string name="mihomo_provider_filter_timeout">超时</string>
     <string name="mihomo_provider_delay_timeout">超时</string>
-    <string name="mihomo_provider_delay_value">%1$d 毫秒</string>
+    <string name="mihomo_provider_delay_value">%1$d ms</string>
     <string name="mihomo_provider_missing">当前配置中不存在该 Provider</string>
     <string name="mihomo_configurations_title">配置管理</string>
     <string name="mihomo_configuration_add">添加配置</string>

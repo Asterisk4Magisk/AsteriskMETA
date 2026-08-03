@@ -1054,7 +1054,7 @@ internal class MihomoRuntimeRepository(
 
     private companion object {
         const val LogTag = "MihomoRuntime"
-        const val ProxyFallbackPollIntervalMillis = 10_000L
+        const val ProxyFallbackPollIntervalMillis = 30_000L
         const val MaxTrafficHistorySize = 48
     }
 }

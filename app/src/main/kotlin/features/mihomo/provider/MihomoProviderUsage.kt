@@ -4,24 +4,14 @@
 package features.mihomo.provider
 
 import engine.mihomo.runtime.MihomoProxyProviderRuntimeDetail
-import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
-import kotlinx.coroutines.withContext
 import java.math.BigInteger
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.roundToInt
-import kotlin.time.Duration.Companion.milliseconds
-
-internal const val MihomoProviderUsageLoadingDelayMillis = 500L
-
-internal fun nextMihomoProviderUsageReloadToken(current: Int): Int = current + 1
 
 internal enum class MihomoProviderUsageKind {
     Metered,
@@ -81,49 +71,21 @@ internal data class KeyedMihomoProviderUsageState<K>(
     }
 }
 
-internal sealed interface MihomoProviderNamesLoadPlan {
-    data object AwaitMetadata : MihomoProviderNamesLoadPlan
-    data object BuildEffectiveProfile : MihomoProviderNamesLoadPlan
-    data class UseCached(val names: List<String>) : MihomoProviderNamesLoadPlan
+internal fun resolveSharedMihomoProviderUsageState(
+    keyedState: KeyedMihomoProviderUsageState<MihomoProviderUsageLoadKey>,
+    expectedKey: MihomoProviderUsageLoadKey?,
+    waitingForStop: Boolean = false,
+    stopFailed: Boolean = false,
+): MihomoProviderUsageLoadState = when {
+    stopFailed -> MihomoProviderUsageLoadState.Failed
+    waitingForStop -> MihomoProviderUsageLoadState.Loading
+    else -> keyedState.stateFor(expectedKey)
 }
 
 internal data class MihomoProviderNamesMetadata(
     val contentKey: String,
     val names: List<String>,
 )
-
-internal fun planMihomoProviderNamesLoad(
-    currentContentKey: String?,
-    metadata: MihomoProviderNamesMetadata?,
-    customOverrideEnabled: Boolean,
-): MihomoProviderNamesLoadPlan {
-    return when {
-        currentContentKey == null || metadata?.contentKey != currentContentKey -> {
-            MihomoProviderNamesLoadPlan.AwaitMetadata
-        }
-
-        customOverrideEnabled -> MihomoProviderNamesLoadPlan.BuildEffectiveProfile
-        else -> MihomoProviderNamesLoadPlan.UseCached(metadata.names)
-    }
-}
-
-internal suspend fun <T> withDelayedMihomoProviderUsageLoading(
-    delayMillis: Long = MihomoProviderUsageLoadingDelayMillis,
-    onLoading: () -> Unit,
-    load: suspend () -> T,
-): T = coroutineScope {
-    val loadingJob = launch {
-        delay(delayMillis.milliseconds)
-        onLoading()
-    }
-    try {
-        load()
-    } finally {
-        withContext(NonCancellable) {
-            loadingJob.cancelAndJoin()
-        }
-    }
-}
 
 internal fun MihomoProviderUsageSummary.toMihomoProviderUsageLoadState(): MihomoProviderUsageLoadState {
     return if (providerCount > 0 && unavailableCount == providerCount) {

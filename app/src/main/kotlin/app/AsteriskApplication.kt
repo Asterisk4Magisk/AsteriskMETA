@@ -16,11 +16,27 @@ import kotlinx.coroutines.SupervisorJob
 import system.AndroidAppIconFetcher
 import app.effects.AppActivityForegroundTracker
 import app.effects.MihomoRuntimeLifecycleCoordinator
+import engine.mihomo.MihomoProfileContentStore
 import engine.mihomo.runtime.MihomoRuntimeRepository
+import features.mihomo.provider.MihomoProviderUsageStateHolder
+import features.mihomo.provider.loadSelectedMihomoProviderUsageState
 
 class AsteriskApplication : Application(), SingletonImageLoader.Factory {
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     internal val mihomoRuntime: MihomoRuntimeRepository by lazy { MihomoRuntimeRepository(appScope, this) }
+    internal val mihomoProfileContentStore: MihomoProfileContentStore by lazy {
+        MihomoProfileContentStore(this)
+    }
+    internal val mihomoProviderUsage: MihomoProviderUsageStateHolder by lazy {
+        MihomoProviderUsageStateHolder(appScope) { appState ->
+            loadSelectedMihomoProviderUsageState(
+                context = this,
+                contentStore = mihomoProfileContentStore,
+                runtime = mihomoRuntime,
+                appState = appState,
+            )
+        }
+    }
     internal val mihomoRuntimeLifecycle: MihomoRuntimeLifecycleCoordinator by lazy {
         MihomoRuntimeLifecycleCoordinator(appScope, mihomoRuntime)
     }

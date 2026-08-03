@@ -44,6 +44,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
@@ -134,14 +135,12 @@ import ui.theme.AsteriskMotion
 
 private data class MihomoProxyPageRuntimeState(
     val proxies: MihomoProxiesState,
-    val proxiesRefreshing: Boolean,
     val delayTestingTarget: MihomoDelayTarget?,
     val lastError: String,
 )
 
 private fun MihomoRuntimeState.toProxyPageRuntimeState() = MihomoProxyPageRuntimeState(
     proxies = proxies,
-    proxiesRefreshing = proxiesRefreshing,
     delayTestingTarget = delayTestingTarget,
     lastError = lastError,
 )
@@ -186,6 +185,8 @@ fun MihomoProxyPage(
     val hasProfiles = appState.mihomoProfiles.isNotEmpty()
     val hasUsableProfile = appState.hasUsableMihomoProfile()
     val selectedProfile = appState.selectedMihomoProfileOrNull()
+    var pageRefreshInProgress by remember { mutableStateOf(false) }
+    val pageRefreshOwnership = remember { MihomoProxyPageRefreshOwnership() }
     LaunchedEffect(
         services.mihomoRuntime,
         hasUsableProfile,
@@ -198,8 +199,18 @@ fun MihomoProxyPage(
         appState.runMode,
         appState.mihomoMode,
     ) {
+        val refreshId = pageRefreshOwnership.beginRefresh()
         if (hasUsableProfile) {
-            services.mihomoRuntime.refreshProxies(appState)
+            pageRefreshInProgress = true
+            try {
+                services.mihomoRuntime.refreshProxies(appState)
+            } finally {
+                if (pageRefreshOwnership.isCurrent(refreshId)) {
+                    pageRefreshInProgress = false
+                }
+            }
+        } else {
+            pageRefreshInProgress = false
         }
     }
     var hasProviders by remember { mutableStateOf(false) }
@@ -240,6 +251,10 @@ fun MihomoProxyPage(
     }
     val runtimeProxies = runtimeState.proxies
     val runtimeHasProxySnapshot = runtimeProxies.groups.isNotEmpty()
+    val loadingPresentation = resolveMihomoProxyLoadingPresentation(
+        pageRefreshInProgress = pageRefreshInProgress,
+        hasProxySnapshot = runtimeHasProxySnapshot,
+    )
     val proxies = when {
         !hasProfiles -> MihomoProxiesState()
         else -> runtimeProxies
@@ -459,7 +474,10 @@ fun MihomoProxyPage(
                                 key = "empty",
                                 span = { GridItemSpan(maxLineSpan) },
                             ) {
-                                if (runtimeState.proxiesRefreshing && hasUsableProfile) {
+                                if (
+                                    loadingPresentation == MihomoProxyLoadingPresentation.Initial &&
+                                    hasUsableProfile
+                                ) {
                                     MihomoProxyLoadingCard()
                                 } else if (hasProfiles) {
                                     MihomoProxyEmptyCard()
@@ -511,6 +529,14 @@ fun MihomoProxyPage(
                         }
                     }
                 }
+            }
+            if (loadingPresentation == MihomoProxyLoadingPresentation.ContentRefresh) {
+                LinearProgressIndicator(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .fillMaxWidth()
+                        .padding(top = contentPadding.calculateTopPadding()),
+                )
             }
             selectedGroup?.let { group ->
                 MihomoDelayToolbar(

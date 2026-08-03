@@ -38,10 +38,8 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -56,7 +54,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -83,13 +80,9 @@ import app.modes.RunModeTun2Socks
 import app.navigation.MainDestination
 import app.withMihomoRestartApplied
 import engine.mihomo.MihomoProfileEmptyErrorMessage
-import engine.mihomo.MihomoProfileFactory
 import engine.mihomo.MihomoProfileMissingErrorMessage
-import engine.mihomo.MihomoProviderMetadataCache
 import engine.mihomo.mihomoModeName
-import engine.mihomo.parseMihomoProxyProviderNames
 import engine.mihomo.raw.MihomoRawConfigParser
-import engine.mihomo.raw.usesRawMihomoConfig
 import engine.mihomo.runtime.MihomoTrafficSample
 import engine.mihomo.runtime.MihomoTrafficState
 import engine.mihomo.selectedMihomoProfileOrNull
@@ -101,37 +94,29 @@ import features.home.HomeNetworkRowKind
 import features.home.HomePrimaryRowKind
 import features.home.HomeServiceStatus
 import features.home.HomeSubscriptionSummary
-import features.home.buildHomeSubscriptionContent
-import features.home.buildHomeControllerState
 import features.home.buildHomeControllerRuntimeState
+import features.home.buildHomeControllerState
 import features.home.buildHomeModeChange
 import features.home.buildHomeMonitoringOverviewState
 import features.home.buildHomeNetworkActivityState
+import features.home.buildHomeSubscriptionContent
 import features.home.formatHomeRuntimeBytes
 import features.home.homeFocusTone
-import features.home.toMihomoModeOrNull
 import features.home.toHomeSubscriptionSummaryOrNull
-import features.monitoring.MonitoringIntent
-import features.monitoring.ObserveMonitoring
-import features.mihomo.provider.KeyedMihomoProviderUsageState
+import features.home.toMihomoModeOrNull
 import features.mihomo.provider.MihomoProviderUsageItem
 import features.mihomo.provider.MihomoProviderUsageKind
-import features.mihomo.provider.MihomoProviderUsageLoadKey
 import features.mihomo.provider.MihomoProviderUsageLoadState
-import features.mihomo.provider.loadMihomoProviderUsageStateCatching
-import features.mihomo.provider.loadSelectedMihomoProviderNames
-import features.mihomo.provider.nextMihomoProviderUsageReloadToken
-import features.mihomo.provider.providerMetadataContentKey
-import features.mihomo.provider.resolveMihomoProviderUsageState
-import features.mihomo.provider.toMihomoProviderUsageLoadKey
-import features.mihomo.provider.withDelayedMihomoProviderUsageLoading
+import features.mihomo.provider.resolveSharedMihomoProviderUsageState
+import features.mihomo.provider.selectedMihomoProviderUsageLoadKeyOrNull
+import features.monitoring.MonitoringIntent
+import features.monitoring.ObserveMonitoring
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlin.coroutines.cancellation.CancellationException
 import ui.components.AsteriskExpressiveCard
 import ui.components.AsteriskFocusSurface
 import ui.components.AsteriskPageCard
@@ -173,7 +158,6 @@ private fun AppServices.homeMonitoringOverviewSnapshot() =
 fun MihomoDashboardPage(
     padding: PaddingValues,
 ) {
-    val context = LocalContext.current
     val appState by LocalAppStateStore.current.collectAppState()
     val updateAppState = LocalUpdateAppState.current
     val services = LocalAppServices.current
@@ -207,68 +191,13 @@ fun MihomoDashboardPage(
     val listState = rememberLazyListState()
     ObserveMonitoring(MonitoringIntent.Home)
     var operationInProgress by rememberSaveable { mutableStateOf(false) }
-    var providerUsageReloadToken by remember { mutableIntStateOf(0) }
-    var keyedProviderUsageState by remember {
-        mutableStateOf(KeyedMihomoProviderUsageState<MihomoProviderUsageLoadKey>())
-    }
     val selectedProfile = appState.selectedMihomoProfileOrNull()
-    val providerUsageLoadKey = selectedProfile
-        ?.takeIf { profile -> profile.hasContent }
-        ?.toMihomoProviderUsageLoadKey(appState, providerUsageReloadToken)
-    LaunchedEffect(providerUsageLoadKey) {
-        fun publish(state: MihomoProviderUsageLoadState) {
-            keyedProviderUsageState = KeyedMihomoProviderUsageState(
-                loadKey = providerUsageLoadKey,
-                state = state,
-            )
-        }
-        val profile = selectedProfile
-        if (profile == null || providerUsageLoadKey == null) {
-            publish(MihomoProviderUsageLoadState.Hidden)
-            return@LaunchedEffect
-        }
-
-        val finalState = loadMihomoProviderUsageStateCatching {
-            withDelayedMihomoProviderUsageLoading(
-                onLoading = { publish(MihomoProviderUsageLoadState.Loading) },
-            ) {
-                val providerNames = loadSelectedMihomoProviderNames(
-                    profile = profile,
-                    loadSource = {
-                        withContext(Dispatchers.IO) {
-                            MihomoProviderMetadataCache.getProxyProviderNames(
-                                profile.providerMetadataContentKey(),
-                            ) {
-                                services.mihomoProfileContentStore.useReader(profile) { reader ->
-                                    reader.parseMihomoProxyProviderNames()
-                                }
-                            }
-                        }
-                    },
-                    loadEffective = {
-                        withContext(Dispatchers.IO) {
-                            MihomoProfileFactory.buildProfile(context.applicationContext, appState)
-                                .parseMihomoProxyProviderNames()
-                        }
-                    },
-                )
-                resolveMihomoProviderUsageState(
-                    providerNames = providerNames,
-                    rawConfiguration = appState.usesRawMihomoConfig(),
-                    proxyRunning = appState.proxyRunning,
-                ) { providerName ->
-                    services.mihomoRuntime
-                        .getProxyProviderDetail(appState, providerName)
-                        .also { result ->
-                            val error = result.exceptionOrNull()
-                            if (error is CancellationException) throw error
-                        }
-                }
-            }
-        }
-        publish(finalState)
-    }
-    val providerUsageState = keyedProviderUsageState.stateFor(providerUsageLoadKey)
+    val keyedProviderUsageState by services.mihomoProviderUsage.state.collectAsState()
+    val providerUsageLoadKey = appState.selectedMihomoProviderUsageLoadKeyOrNull()
+    val providerUsageState = resolveSharedMihomoProviderUsageState(
+        keyedState = keyedProviderUsageState,
+        expectedKey = providerUsageLoadKey,
+    )
     val providerUsagePending = providerUsageLoadKey != null &&
         keyedProviderUsageState.loadKey != providerUsageLoadKey
     val rawMihomoMode by produceState<Int?>(
@@ -482,9 +411,7 @@ fun MihomoDashboardPage(
                     providerUsageState = providerUsageState,
                     providerUsagePending = providerUsagePending,
                     onProviderUsageRetry = {
-                        providerUsageReloadToken = nextMihomoProviderUsageReloadToken(
-                            providerUsageReloadToken,
-                        )
+                        services.mihomoProviderUsage.refresh(appState)
                     },
                 )
             }
