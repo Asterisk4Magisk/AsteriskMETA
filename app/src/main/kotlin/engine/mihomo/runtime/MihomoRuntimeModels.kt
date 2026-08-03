@@ -103,6 +103,7 @@ internal data class MihomoProxiesState(
     val groups: List<MihomoProxyGroup> = emptyList(),
     val nodes: List<MihomoProxyNode> = emptyList(),
     val nodeById: Map<MihomoProxyNodeId, MihomoProxyNode> = nodes.associateBy(MihomoProxyNode::id),
+    val topLevelProxyIds: Set<MihomoProxyNodeId> = nodes.mapTo(linkedSetOf(), MihomoProxyNode::id),
     val updatedAtMillis: Long = 0L,
 ) {
     fun node(id: MihomoProxyNodeId): MihomoProxyNode {

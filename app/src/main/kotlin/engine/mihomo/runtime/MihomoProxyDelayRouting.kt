@@ -4,7 +4,7 @@
 package engine.mihomo.runtime
 
 internal fun MihomoProxiesState.groupFallbackFor(proxyId: MihomoProxyNodeId): String? {
-    if (!proxyId.providerName.isNullOrBlank() || nodeById.containsKey(proxyId)) return null
+    if (!proxyId.providerName.isNullOrBlank() || proxyId in topLevelProxyIds) return null
 
     return groups.firstOrNull { group ->
         group.all.any { memberId -> memberId.name == proxyId.name }

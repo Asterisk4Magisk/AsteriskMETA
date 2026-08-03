@@ -44,10 +44,20 @@ internal fun parseMihomoOfficialProxySnapshot(json: String): MihomoProxiesState 
             delay = item.latestPositiveDelay(),
         )
     }
+    val topLevelProxyIds = nodes.keys.toSet()
+    groups.asSequence()
+        .flatMap(MihomoProxyGroup::all)
+        .forEach { id ->
+            nodes.putIfAbsent(
+                id,
+                MihomoProxyNode(id = id, type = "Proxy"),
+            )
+        }
     return MihomoProxiesState(
         groups = groups,
         nodes = nodes.values.toList(),
         nodeById = nodes,
+        topLevelProxyIds = topLevelProxyIds,
         updatedAtMillis = System.currentTimeMillis(),
     )
 }
