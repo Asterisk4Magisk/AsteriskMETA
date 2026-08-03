@@ -169,6 +169,10 @@ object Clash {
             ?: ProxyGroup("Unknown", emptyList(), "")
     }
 
+    fun queryProxies(): String {
+        return Bridge.nativeQueryProxies()
+    }
+
     fun healthCheck(name: String): CompletableDeferred<Unit> {
         return CompletableDeferred<Unit>().apply {
             Bridge.nativeHealthCheck(this, name)
@@ -179,10 +183,15 @@ object Clash {
         Bridge.nativeHealthCheckAll()
     }
 
-    fun queryProxyDelay(name: String, url: String, timeoutMillis: Int): Int {
+    fun queryProxyDelay(
+        name: String,
+        url: String,
+        timeoutMillis: Int,
+        expectedStatus: String = "",
+    ): Int {
         val response = Json.Default.decodeFromString(
             JsonObject.serializer(),
-            Bridge.nativeQueryProxyDelay(name, url, timeoutMillis)
+            Bridge.nativeQueryProxyDelay(name, url, timeoutMillis, expectedStatus),
         )
         response.errorOrNull()?.let { throw ClashException(it) }
 
@@ -190,10 +199,38 @@ object Clash {
             ?: throw ClashException("Invalid proxy delay response")
     }
 
-    fun queryGroupDelay(name: String, url: String, timeoutMillis: Int): Map<String, Int> {
+    fun queryProviderProxyDelay(
+        providerName: String,
+        name: String,
+        url: String,
+        timeoutMillis: Int,
+        expectedStatus: String,
+    ): Int {
         val response = Json.Default.decodeFromString(
             JsonObject.serializer(),
-            Bridge.nativeQueryGroupDelay(name, url, timeoutMillis)
+            Bridge.nativeQueryProviderProxyDelay(
+                providerName,
+                name,
+                url,
+                timeoutMillis,
+                expectedStatus,
+            ),
+        )
+        response.errorOrNull()?.let { throw ClashException(it) }
+
+        return response["delay"]?.jsonPrimitive?.intOrNull
+            ?: throw ClashException("Invalid provider proxy delay response")
+    }
+
+    fun queryGroupDelay(
+        name: String,
+        url: String,
+        timeoutMillis: Int,
+        expectedStatus: String = "",
+    ): Map<String, Int> {
+        val response = Json.Default.decodeFromString(
+            JsonObject.serializer(),
+            Bridge.nativeQueryGroupDelay(name, url, timeoutMillis, expectedStatus),
         )
         response.errorOrNull()?.let { throw ClashException(it) }
 

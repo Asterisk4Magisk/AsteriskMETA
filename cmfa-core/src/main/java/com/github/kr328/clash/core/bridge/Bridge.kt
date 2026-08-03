@@ -32,29 +32,27 @@ object Bridge {
     external fun nativeStopHttp()
     external fun nativeQueryGroupNames(excludeNotSelectable: Boolean): String
     external fun nativeQueryGroup(name: String, sort: String): String?
+    external fun nativeQueryProxies(): String
     external fun nativeHealthCheck(completable: CompletableDeferred<Unit>, name: String)
     external fun nativeHealthCheckAll()
-    external fun nativeQueryProxyDelay(name: String, url: String, timeoutMillis: Int): String
-    external fun nativeQueryGroupDelay(name: String, url: String, timeoutMillis: Int): String
-    external fun nativeQueryRuntimeProxies(): String
-    external fun nativeQueryRuntimeNodeDelay(
+    external fun nativeQueryProxyDelay(
         name: String,
-        provider: String,
         url: String,
-        expected: String,
         timeoutMillis: Int,
+        expectedStatus: String,
     ): String
-    external fun nativeQueryRuntimeGroupDelay(
+    external fun nativeQueryProviderProxyDelay(
+        providerName: String,
         name: String,
         url: String,
-        expected: String,
         timeoutMillis: Int,
+        expectedStatus: String,
     ): String
-    external fun nativeQueryRuntimeProviderDelay(
+    external fun nativeQueryGroupDelay(
         name: String,
         url: String,
-        expected: String,
         timeoutMillis: Int,
+        expectedStatus: String,
     ): String
     external fun nativePatchSelector(selector: String, name: String): Boolean
     external fun nativeFetchAndValid(

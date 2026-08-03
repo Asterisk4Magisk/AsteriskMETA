@@ -54,13 +54,32 @@ func HealthCheckAll() {
 	}
 }
 
-func QueryProxyDelay(name string, url string, timeoutMillis int) (uint16, error) {
+func QueryProxyDelay(name string, url string, timeoutMillis int, expectedStatus string) (uint16, error) {
 	p := tunnel.Proxies()[name]
 	if p == nil {
 		return 0, fmt.Errorf("proxy `%s` not found", name)
 	}
 
-	expectedStatus, err := utils.NewUnsignedRanges[uint16]("")
+	return queryProxyDelay(p, url, timeoutMillis, expectedStatus)
+}
+
+func QueryProviderProxyDelay(providerName string, proxyName string, url string, timeoutMillis int, expectedStatus string) (uint16, error) {
+	p := tunnel.Providers()[providerName]
+	if p == nil {
+		return 0, fmt.Errorf("provider `%s` not found", providerName)
+	}
+
+	for _, proxy := range p.Proxies() {
+		if proxy.Name() == proxyName {
+			return queryProxyDelay(proxy, url, timeoutMillis, expectedStatus)
+		}
+	}
+
+	return 0, fmt.Errorf("proxy `%s` not found in provider `%s`", proxyName, providerName)
+}
+
+func queryProxyDelay(proxy C.Proxy, url string, timeoutMillis int, expectedStatusText string) (uint16, error) {
+	expectedStatus, err := utils.NewUnsignedRanges[uint16](expectedStatusText)
 	if err != nil {
 		return 0, err
 	}
@@ -68,7 +87,7 @@ func QueryProxyDelay(name string, url string, timeoutMillis int) (uint16, error)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*time.Duration(timeoutMillis))
 	defer cancel()
 
-	delay, err := p.URLTest(ctx, url, expectedStatus)
+	delay, err := proxy.URLTest(ctx, url, expectedStatus)
 	if ctx.Err() != nil {
 		return 0, ctx.Err()
 	}
@@ -76,13 +95,13 @@ func QueryProxyDelay(name string, url string, timeoutMillis int) (uint16, error)
 		return delay, err
 	}
 	if delay == 0 {
-		return 0, fmt.Errorf("proxy `%s` delay test returned zero", name)
+		return 0, fmt.Errorf("proxy `%s` delay test returned zero", proxy.Name())
 	}
 
 	return delay, nil
 }
 
-func QueryGroupDelay(name string, url string, timeoutMillis int) (map[string]int, error) {
+func QueryGroupDelay(name string, url string, timeoutMillis int, expectedStatusText string) (map[string]int, error) {
 	p := tunnel.Proxies()[name]
 	if p == nil {
 		return nil, fmt.Errorf("group `%s` not found", name)
@@ -98,7 +117,7 @@ func QueryGroupDelay(name string, url string, timeoutMillis int) (map[string]int
 		cachefile.Cache().SetSelected(p.Name(), "")
 	}
 
-	expectedStatus, err := utils.NewUnsignedRanges[uint16]("")
+	expectedStatus, err := utils.NewUnsignedRanges[uint16](expectedStatusText)
 	if err != nil {
 		return nil, err
 	}

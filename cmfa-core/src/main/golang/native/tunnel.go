@@ -8,10 +8,6 @@ import (
 	"cfa/native/tunnel"
 )
 
-func init() {
-	tunnel.ApplyRuntimeSubtitlePatternProvider(app.SubtitlePattern)
-}
-
 //export queryTunnelState
 func queryTunnelState() *C.char {
 	mode := tunnel.QueryMode()
@@ -95,6 +91,11 @@ func queryGroup(name C.c_string, sortMode C.c_string) *C.char {
 	return marshalJson(response)
 }
 
+//export queryProxies
+func queryProxies() *C.char {
+	return marshalJson(map[string]any{"proxies": tunnel.QueryProxies()})
+}
+
 //export healthCheck
 func healthCheck(completable C.c_object, name C.c_string) {
 	go func(name string) {
@@ -110,11 +111,30 @@ func healthCheckAll() {
 }
 
 //export queryProxyDelay
-func queryProxyDelay(name C.c_string, url C.c_string, timeoutMillis C.int) *C.char {
+func queryProxyDelay(name C.c_string, url C.c_string, timeoutMillis C.int, expectedStatus C.c_string) *C.char {
 	delay, err := tunnel.QueryProxyDelay(
 		C.GoString(name),
 		C.GoString(url),
 		int(timeoutMillis),
+		C.GoString(expectedStatus),
+	)
+	if err != nil {
+		return marshalJson(errorResponse(err))
+	}
+
+	return marshalJson(&struct {
+		Delay int `json:"delay"`
+	}{Delay: int(delay)})
+}
+
+//export queryProviderProxyDelay
+func queryProviderProxyDelay(providerName C.c_string, name C.c_string, url C.c_string, timeoutMillis C.int, expectedStatus C.c_string) *C.char {
+	delay, err := tunnel.QueryProviderProxyDelay(
+		C.GoString(providerName),
+		C.GoString(name),
+		C.GoString(url),
+		int(timeoutMillis),
+		C.GoString(expectedStatus),
 	)
 	if err != nil {
 		return marshalJson(errorResponse(err))
@@ -126,91 +146,18 @@ func queryProxyDelay(name C.c_string, url C.c_string, timeoutMillis C.int) *C.ch
 }
 
 //export queryGroupDelay
-func queryGroupDelay(name C.c_string, url C.c_string, timeoutMillis C.int) *C.char {
+func queryGroupDelay(name C.c_string, url C.c_string, timeoutMillis C.int, expectedStatus C.c_string) *C.char {
 	delays, err := tunnel.QueryGroupDelay(
 		C.GoString(name),
 		C.GoString(url),
 		int(timeoutMillis),
+		C.GoString(expectedStatus),
 	)
 	if err != nil {
 		return marshalJson(errorResponse(err))
 	}
 
 	return marshalJson(delays)
-}
-
-//export queryRuntimeProxies
-func queryRuntimeProxies() *C.char {
-	response, err := tunnel.QueryRuntimeProxySnapshot(app.SubtitlePattern())
-	if err != nil {
-		return marshalJson(errorResponse(err))
-	}
-
-	return marshalJson(response)
-}
-
-//export queryRuntimeNodeDelay
-func queryRuntimeNodeDelay(
-	name C.c_string,
-	provider C.c_string,
-	url C.c_string,
-	expected C.c_string,
-	timeoutMillis C.int,
-) *C.char {
-	response, err := tunnel.QueryNodeDelay(
-		tunnel.RuntimeProxyID{
-			Name:         C.GoString(name),
-			ProviderName: C.GoString(provider),
-		},
-		C.GoString(url),
-		C.GoString(expected),
-		int(timeoutMillis),
-	)
-	if err != nil {
-		return marshalJson(errorResponse(err))
-	}
-
-	return marshalJson(response)
-}
-
-//export queryRuntimeGroupDelay
-func queryRuntimeGroupDelay(
-	name C.c_string,
-	url C.c_string,
-	expected C.c_string,
-	timeoutMillis C.int,
-) *C.char {
-	response, err := tunnel.QueryRuntimeGroupDelay(
-		C.GoString(name),
-		C.GoString(url),
-		C.GoString(expected),
-		int(timeoutMillis),
-	)
-	if err != nil {
-		return marshalJson(errorResponse(err))
-	}
-
-	return marshalJson(response)
-}
-
-//export queryRuntimeProviderDelay
-func queryRuntimeProviderDelay(
-	name C.c_string,
-	url C.c_string,
-	expected C.c_string,
-	timeoutMillis C.int,
-) *C.char {
-	response, err := tunnel.QueryRuntimeProviderDelay(
-		C.GoString(name),
-		C.GoString(url),
-		C.GoString(expected),
-		int(timeoutMillis),
-	)
-	if err != nil {
-		return marshalJson(errorResponse(err))
-	}
-
-	return marshalJson(response)
 }
 
 //export patchSelector

@@ -14,6 +14,10 @@ import engine.mihomo.DefaultMihomoDelayTimeoutMillis
 import engine.mihomo.MihomoControlConfig
 import engine.vpn.AndroidMihomoRuntime
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -40,7 +44,27 @@ import java.net.URI
 import java.net.URLEncoder
 import kotlin.time.Duration.Companion.milliseconds
 
-internal class MihomoControlClient {
+internal typealias MihomoBridgeProviderProxyDelay = (
+    providerName: String,
+    proxyName: String,
+    url: String,
+    timeoutMillis: Int,
+    expectedStatus: String,
+) -> Int
+
+internal typealias MihomoBridgeGroupDelay = (
+    groupName: String,
+    url: String,
+    timeoutMillis: Int,
+    expectedStatus: String,
+) -> Map<String, Int>
+
+internal class MihomoControlClient(
+    private val bridgeProviderProxyDelay: MihomoBridgeProviderProxyDelay =
+        Clash::queryProviderProxyDelay,
+    private val bridgeProxySnapshot: () -> String = Clash::queryProxies,
+    private val bridgeGroupDelay: MihomoBridgeGroupDelay = Clash::queryGroupDelay,
+) {
     fun isApiAvailable(config: MihomoControlConfig): Boolean {
         return runCatching {
             request(
@@ -146,11 +170,11 @@ internal class MihomoControlClient {
         mode: String,
     ): MihomoProxiesState {
         val response = if (useBridge) {
-            Bridge.nativeQueryRuntimeProxies()
+            bridgeProxySnapshot()
         } else {
-            request(config, "/asterisk/runtime/proxies")
+            request(config, "/proxies")
         }
-        val snapshot = parseMihomoRuntimeProxySnapshot(response)
+        val snapshot = parseMihomoOfficialProxySnapshot(response)
         val globalProxyNames = snapshot.groups
             .firstOrNull { group -> group.name == MihomoGlobalGroupName }
             ?.all
@@ -294,28 +318,76 @@ internal class MihomoControlClient {
         url: String = DefaultMihomoDelayTestUrl,
         timeoutMillis: Int = DefaultMihomoDelayTimeoutMillis,
         expectedStatus: String = "",
+        groupFallbackName: String? = null,
         useBridge: Boolean,
     ): MihomoDelayResult {
-        val response = if (useBridge) {
-            Bridge.nativeQueryRuntimeNodeDelay(
-                name = proxyId.name,
-                provider = proxyId.providerName.orEmpty(),
+        if (proxyId.providerName.isNullOrBlank() && !groupFallbackName.isNullOrBlank()) {
+            return testGroupDelay(
+                config = config,
+                groupName = groupFallbackName,
                 url = url,
-                expected = expectedStatus,
                 timeoutMillis = timeoutMillis,
-            )
-        } else {
-            request(
-                config,
-                "/asterisk/runtime/delay/node" +
-                    "?name=${proxyId.name.urlEncode()}" +
-                    "&provider=${proxyId.providerName.orEmpty().urlEncode()}" +
-                    "&url=${url.urlEncode()}" +
-                    "&expected=${expectedStatus.urlEncode()}" +
-                    "&timeout=$timeoutMillis",
+                expectedStatus = expectedStatus,
+                expectedProxyIds = listOf(proxyId),
+                useBridge = useBridge,
             )
         }
-        return parseMihomoDelayResult(response)
+        if (useBridge) {
+            proxyId.providerName?.takeIf(String::isNotBlank)?.let { providerName ->
+                return runCatching {
+                    bridgeProviderProxyDelay(
+                        providerName,
+                        proxyId.name,
+                        url,
+                        timeoutMillis,
+                        expectedStatus,
+                    )
+                }.fold(
+                    onSuccess = { delay ->
+                        mihomoBridgeNodeDelayResult(proxyId, delay, timeoutMillis)
+                    },
+                    onFailure = { error ->
+                        if (error is CancellationException) throw error
+                        mihomoDelayFailureResult(
+                            ids = listOf(proxyId),
+                            status = MihomoDelayStatus.Timeout,
+                            error = error.message.orEmpty(),
+                        )
+                    },
+                )
+            }
+            return runCatching {
+                Clash.queryProxyDelay(proxyId.name, url, timeoutMillis, expectedStatus)
+            }.fold(
+                onSuccess = { delay ->
+                    mihomoBridgeNodeDelayResult(proxyId, delay, timeoutMillis)
+                },
+                onFailure = { error ->
+                    if (error is CancellationException) throw error
+                    mihomoDelayFailureResult(
+                        ids = listOf(proxyId),
+                        status = MihomoDelayStatus.Timeout,
+                        error = error.message.orEmpty(),
+                    )
+                },
+            )
+        }
+        val basePath = proxyId.providerName?.takeIf(String::isNotBlank)?.let { provider ->
+            "/providers/proxies/${provider.urlEncode()}/${proxyId.name.urlEncode()}/healthcheck"
+        } ?: "/proxies/${proxyId.name.urlEncode()}/delay"
+        val path = "$basePath?url=${url.urlEncode()}" +
+            "&timeout=$timeoutMillis" +
+            "&expected=${expectedStatus.urlEncode()}"
+        return runCatching {
+            parseMihomoOfficialNodeDelay(request(config, path), proxyId)
+        }.getOrElse { error ->
+            if (error is CancellationException) throw error
+            mihomoDelayFailureResult(
+                ids = listOf(proxyId),
+                status = error.mihomoDelayFailureStatus(),
+                error = error.message.orEmpty(),
+            )
+        }
     }
 
     suspend fun testGroupDelay(
@@ -324,25 +396,39 @@ internal class MihomoControlClient {
         url: String = DefaultMihomoDelayTestUrl,
         timeoutMillis: Int = DefaultMihomoDelayTimeoutMillis,
         expectedStatus: String = "",
+        expectedProxyIds: List<MihomoProxyNodeId> = emptyList(),
         useBridge: Boolean,
     ): MihomoDelayResult {
-        val response = if (useBridge) {
-            Bridge.nativeQueryRuntimeGroupDelay(
-                name = groupName,
-                url = url,
-                expected = expectedStatus,
+        if (useBridge) {
+            val delays = runCatching {
+                bridgeGroupDelay(groupName, url, timeoutMillis, expectedStatus)
+            }.getOrElse { error ->
+                if (error is CancellationException) throw error
+                emptyMap()
+            }
+            return mihomoBridgeGroupDelayResult(
+                delays = delays,
+                expectedIds = expectedProxyIds,
                 timeoutMillis = timeoutMillis,
             )
-        } else {
-            request(
-                config,
-                "/asterisk/runtime/delay/group/${groupName.urlEncode()}" +
-                    "?url=${url.urlEncode()}" +
-                    "&expected=${expectedStatus.urlEncode()}" +
-                    "&timeout=$timeoutMillis",
+        }
+        val path = "/group/${groupName.urlEncode()}/delay" +
+            "?url=${url.urlEncode()}" +
+            "&timeout=$timeoutMillis" +
+            "&expected=${expectedStatus.urlEncode()}"
+        return runCatching {
+            parseMihomoOfficialGroupDelay(
+                json = request(config, path),
+                expectedIds = expectedProxyIds,
+            )
+        }.getOrElse { error ->
+            if (error is CancellationException) throw error
+            mihomoDelayFailureResult(
+                ids = expectedProxyIds,
+                status = error.mihomoDelayFailureStatus(),
+                error = error.message.orEmpty(),
             )
         }
-        return parseMihomoDelayResult(response)
     }
 
     suspend fun testProviderDelay(
@@ -353,23 +439,66 @@ internal class MihomoControlClient {
         expectedStatus: String = "",
         useBridge: Boolean,
     ): MihomoDelayResult {
-        val response = if (useBridge) {
-            Bridge.nativeQueryRuntimeProviderDelay(
-                name = providerName,
-                url = url,
-                expected = expectedStatus,
-                timeoutMillis = timeoutMillis,
-            )
-        } else {
-            request(
-                config,
-                "/asterisk/runtime/delay/provider/${providerName.urlEncode()}" +
-                    "?url=${url.urlEncode()}" +
-                    "&expected=${expectedStatus.urlEncode()}" +
-                    "&timeout=$timeoutMillis",
-            )
+        if (useBridge) {
+            val proxyIds = getProxyProvider(
+                config = config,
+                providerName = providerName,
+                useBridge = true,
+            ).nodes
+                .asSequence()
+                .map(MihomoProxyProviderNode::name)
+                .filter(String::isNotBlank)
+                .map { name -> MihomoProxyNodeId(name, providerName) }
+                .distinct()
+                .toList()
+            val results = coroutineScope {
+                proxyIds.map { proxyId ->
+                    async(Dispatchers.IO) {
+                        testProxyDelay(
+                            config = config,
+                            proxyId = proxyId,
+                            url = url,
+                            timeoutMillis = timeoutMillis,
+                            expectedStatus = expectedStatus,
+                            useBridge = true,
+                        )
+                    }
+                }.awaitAll()
+            }
+            return MihomoDelayResult(
+                results.flatMap { result -> result.measurements.entries }
+                    .associate { entry -> entry.key to entry.value },
+            ).withMissingMeasurements(proxyIds)
         }
-        return parseMihomoDelayResult(response)
+        val proxyIds = getProxyProvider(
+            config = config,
+            providerName = providerName,
+            useBridge = false,
+        ).nodes
+            .asSequence()
+            .map(MihomoProxyProviderNode::name)
+            .filter(String::isNotBlank)
+            .map { name -> MihomoProxyNodeId(name, providerName) }
+            .distinct()
+            .toList()
+        val results = coroutineScope {
+            proxyIds.map { proxyId ->
+                async(Dispatchers.IO) {
+                    testProxyDelay(
+                        config = config,
+                        proxyId = proxyId,
+                        url = url,
+                        timeoutMillis = timeoutMillis,
+                        expectedStatus = expectedStatus,
+                        useBridge = false,
+                    )
+                }
+            }.awaitAll()
+        }
+        return MihomoDelayResult(
+            results.flatMap { result -> result.measurements.entries }
+                .associate { entry -> entry.key to entry.value },
+        ).withMissingMeasurements(proxyIds)
     }
 
     fun traffic(config: MihomoControlConfig, useBridge: Boolean): Flow<MihomoTrafficSample> = flow {
@@ -821,6 +950,17 @@ private class MihomoApiException(
     val status: Int,
     response: String,
 ) : IllegalStateException("Mihomo API $method $path failed with HTTP $status: $response")
+
+private fun Throwable.mihomoDelayFailureStatus(): MihomoDelayStatus {
+    return if (
+        this is SocketTimeoutException ||
+        this is MihomoApiException && status == HttpURLConnection.HTTP_GATEWAY_TIMEOUT
+    ) {
+        MihomoDelayStatus.Timeout
+    } else {
+        MihomoDelayStatus.Failed
+    }
+}
 
 private const val MihomoUntestedDelay = 65_535
 private const val MihomoTimeoutDelay = -1

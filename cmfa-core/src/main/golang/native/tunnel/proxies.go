@@ -54,6 +54,10 @@ func (s *sortableProxyList) Swap(i, j int) {
 	s.list[i], s.list[j] = s.list[j], s.list[i]
 }
 
+func QueryProxies() map[string]C.Proxy {
+	return tunnel.Proxies()
+}
+
 func QueryProxyGroupNames(excludeNotSelectable bool) []string {
 	mode := tunnel.Mode()
 

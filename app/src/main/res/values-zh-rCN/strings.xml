@@ -212,8 +212,8 @@
     <string name="mihomo_proxies_group_test">整组测试</string>
     <string name="mihomo_proxies_delay_timeout">超时</string>
     <string name="mihomo_proxies_delay_not_tested">未测试</string>
-    <string name="mihomo_proxies_delay_failed">延迟测试失败</string>
-    <string name="mihomo_proxies_delay_done">延迟测试完成</string>
+    <string name="mihomo_proxies_delay_failed">失败</string>
+    <string name="mihomo_proxies_delay_done">完成</string>
     <string name="mihomo_proxies_select_failed">切换代理失败</string>
     <string name="mihomo_proxies_options">代理显示选项</string>
     <string name="mihomo_proxies_option_filter_not_selectable">不可选择</string>

@@ -241,6 +241,15 @@ Java_com_github_kr328_clash_core_bridge_Bridge_nativeQueryGroup(JNIEnv *env, job
     return new_string(response);
 }
 
+JNIEXPORT jstring JNICALL
+Java_com_github_kr328_clash_core_bridge_Bridge_nativeQueryProxies(JNIEnv *env, jobject thiz) {
+    TRACE_METHOD();
+
+    scoped_string response = queryProxies();
+
+    return new_string(response);
+}
+
 JNIEXPORT void JNICALL
 Java_com_github_kr328_clash_core_bridge_Bridge_nativeHealthCheck(JNIEnv *env, jobject thiz,
                                                                  jobject completable,
@@ -263,13 +272,32 @@ Java_com_github_kr328_clash_core_bridge_Bridge_nativeHealthCheckAll(JNIEnv *env,
 JNIEXPORT jstring JNICALL
 Java_com_github_kr328_clash_core_bridge_Bridge_nativeQueryProxyDelay(JNIEnv *env, jobject thiz,
                                                                      jstring name, jstring url,
-                                                                     jint timeout_millis) {
+                                                                     jint timeout_millis,
+                                                                     jstring expected_status) {
     TRACE_METHOD();
 
     scoped_string _name = get_string(name);
     scoped_string _url = get_string(url);
+    scoped_string _expected_status = get_string(expected_status);
 
-    scoped_string response = queryProxyDelay(_name, _url, timeout_millis);
+    scoped_string response = queryProxyDelay(_name, _url, timeout_millis, _expected_status);
+
+    return new_string(response);
+}
+
+JNIEXPORT jstring JNICALL
+Java_com_github_kr328_clash_core_bridge_Bridge_nativeQueryProviderProxyDelay(
+        JNIEnv *env, jobject thiz, jstring provider_name, jstring name, jstring url,
+        jint timeout_millis, jstring expected_status) {
+    TRACE_METHOD();
+
+    scoped_string _provider_name = get_string(provider_name);
+    scoped_string _name = get_string(name);
+    scoped_string _url = get_string(url);
+    scoped_string _expected_status = get_string(expected_status);
+
+    scoped_string response = queryProviderProxyDelay(
+            _provider_name, _name, _url, timeout_millis, _expected_status);
 
     return new_string(response);
 }
@@ -277,82 +305,15 @@ Java_com_github_kr328_clash_core_bridge_Bridge_nativeQueryProxyDelay(JNIEnv *env
 JNIEXPORT jstring JNICALL
 Java_com_github_kr328_clash_core_bridge_Bridge_nativeQueryGroupDelay(JNIEnv *env, jobject thiz,
                                                                      jstring name, jstring url,
-                                                                     jint timeout_millis) {
+                                                                     jint timeout_millis,
+                                                                     jstring expected_status) {
     TRACE_METHOD();
 
     scoped_string _name = get_string(name);
     scoped_string _url = get_string(url);
+    scoped_string _expected_status = get_string(expected_status);
 
-    scoped_string response = queryGroupDelay(_name, _url, timeout_millis);
-
-    return new_string(response);
-}
-
-JNIEXPORT jstring JNICALL
-Java_com_github_kr328_clash_core_bridge_Bridge_nativeQueryRuntimeProxies(JNIEnv *env,
-                                                                         jobject thiz) {
-    TRACE_METHOD();
-
-    scoped_string response = queryRuntimeProxies();
-
-    return new_string(response);
-}
-
-JNIEXPORT jstring JNICALL
-Java_com_github_kr328_clash_core_bridge_Bridge_nativeQueryRuntimeNodeDelay(JNIEnv *env,
-                                                                           jobject thiz,
-                                                                           jstring name,
-                                                                           jstring provider,
-                                                                           jstring url,
-                                                                           jstring expected,
-                                                                           jint timeout_millis) {
-    TRACE_METHOD();
-
-    scoped_string _name = get_string(name);
-    scoped_string _provider = get_string(provider);
-    scoped_string _url = get_string(url);
-    scoped_string _expected = get_string(expected);
-
-    scoped_string response = queryRuntimeNodeDelay(
-            _name, _provider, _url, _expected, timeout_millis);
-
-    return new_string(response);
-}
-
-JNIEXPORT jstring JNICALL
-Java_com_github_kr328_clash_core_bridge_Bridge_nativeQueryRuntimeGroupDelay(JNIEnv *env,
-                                                                            jobject thiz,
-                                                                            jstring name,
-                                                                            jstring url,
-                                                                            jstring expected,
-                                                                            jint timeout_millis) {
-    TRACE_METHOD();
-
-    scoped_string _name = get_string(name);
-    scoped_string _url = get_string(url);
-    scoped_string _expected = get_string(expected);
-
-    scoped_string response = queryRuntimeGroupDelay(
-            _name, _url, _expected, timeout_millis);
-
-    return new_string(response);
-}
-
-JNIEXPORT jstring JNICALL
-Java_com_github_kr328_clash_core_bridge_Bridge_nativeQueryRuntimeProviderDelay(JNIEnv *env,
-                                                                               jobject thiz,
-                                                                               jstring name,
-                                                                               jstring url,
-                                                                               jstring expected,
-                                                                               jint timeout_millis) {
-    TRACE_METHOD();
-
-    scoped_string _name = get_string(name);
-    scoped_string _url = get_string(url);
-    scoped_string _expected = get_string(expected);
-
-    scoped_string response = queryRuntimeProviderDelay(
-            _name, _url, _expected, timeout_millis);
+    scoped_string response = queryGroupDelay(_name, _url, timeout_millis, _expected_status);
 
     return new_string(response);
 }

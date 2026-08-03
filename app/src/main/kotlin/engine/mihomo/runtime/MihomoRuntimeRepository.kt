@@ -570,11 +570,13 @@ internal class MihomoRuntimeRepository(
         val configKey = appState.mihomoRuntimeConfigKey(appState.mihomoRuntimeBackend())
         return withContext(Dispatchers.IO) {
             ensureInteractiveRuntime(appState, backend)
+            val groupFallbackName = state.value.proxies.groupFallbackFor(proxyId)
             client.testProxyDelay(
                 config = control,
                 proxyId = proxyId,
                 url = testUrl.ifBlank { engine.mihomo.DefaultMihomoDelayTestUrl },
                 expectedStatus = expectedStatus,
+                groupFallbackName = groupFallbackName,
                 useBridge = backend.useBridge(),
             ).also { result ->
                 applyDelays(result, generation, configKey)
@@ -603,6 +605,7 @@ internal class MihomoRuntimeRepository(
                 config = control,
                 groupName = groupName,
                 url = testUrl.ifBlank { engine.mihomo.DefaultMihomoDelayTestUrl },
+                expectedProxyIds = expectedProxyIds,
                 useBridge = backend.useBridge(),
             ).also { result ->
                 applyDelays(result, generation, configKey)

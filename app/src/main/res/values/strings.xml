@@ -214,8 +214,8 @@
     <string name="mihomo_proxies_group_test">Test group</string>
     <string name="mihomo_proxies_delay_timeout">Timeout</string>
     <string name="mihomo_proxies_delay_not_tested">Not tested</string>
-    <string name="mihomo_proxies_delay_failed">Delay test failed</string>
-    <string name="mihomo_proxies_delay_done">Delay test complete</string>
+    <string name="mihomo_proxies_delay_failed">failed</string>
+    <string name="mihomo_proxies_delay_done">complete</string>
     <string name="mihomo_proxies_select_failed">Failed to switch proxy</string>
     <string name="mihomo_proxies_options">Proxy display options</string>
     <string name="mihomo_proxies_option_filter_not_selectable">Not selectable</string>
