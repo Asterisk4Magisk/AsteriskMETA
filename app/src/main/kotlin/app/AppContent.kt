@@ -4,11 +4,6 @@
 package app
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -45,7 +40,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
@@ -227,33 +221,12 @@ fun AppContent(
                 entryDecorators = listOf(rememberSaveableStateHolderNavEntryDecorator()),
                 entryProvider = entryProvider,
             )
-            val detailSpatialMotion = AsteriskMotion.spatial<IntOffset>()
-
             NavDisplay(
                 entries = entries,
                 onBack = { navigator.pop() },
-                transitionSpec = {
-                    slideInHorizontally(
-                        animationSpec = detailSpatialMotion,
-                        initialOffsetX = { width -> width },
-                    ).togetherWith(
-                        slideOutHorizontally(
-                            animationSpec = detailSpatialMotion,
-                            targetOffsetX = { width -> -width / 3 },
-                        ),
-                    )
-                },
-                popTransitionSpec = {
-                    slideInHorizontally(
-                        animationSpec = detailSpatialMotion,
-                        initialOffsetX = { width -> -width / 3 },
-                    ).togetherWith(
-                        slideOutHorizontally(
-                            animationSpec = detailSpatialMotion,
-                            targetOffsetX = { width -> width },
-                        ),
-                    )
-                },
+                transitionSpec = AsteriskMotion.navigationForward(),
+                popTransitionSpec = AsteriskMotion.navigationBack(),
+                predictivePopTransitionSpec = AsteriskMotion.predictiveNavigationBack(),
             )
         }
     }
@@ -371,29 +344,10 @@ private fun MainDestinationContent(
     modifier: Modifier = Modifier,
 ) {
     val stateHolder = rememberSaveableStateHolder()
-    val spatialMotion = AsteriskMotion.spatial<IntOffset>()
-    val effectsMotion = AsteriskMotion.fastEffects<Float>()
     AnimatedContent(
         targetState = mainDestinationState.current,
         modifier = modifier,
-        transitionSpec = {
-            val direction = when {
-                targetState.index > initialState.index -> 1
-                targetState.index < initialState.index -> -1
-                else -> 0
-            }
-            (
-                slideInHorizontally(
-                    animationSpec = spatialMotion,
-                    initialOffsetX = { width -> direction * width / 8 },
-                ) + fadeIn(animationSpec = effectsMotion)
-                ).togetherWith(
-                slideOutHorizontally(
-                    animationSpec = spatialMotion,
-                    targetOffsetX = { width -> -direction * width / 8 },
-                ) + fadeOut(animationSpec = effectsMotion),
-            )
-        },
+        transitionSpec = AsteriskMotion.destinationChange { it.index },
         label = "main-destination",
     ) { destination ->
         stateHolder.SaveableStateProvider(destination.id) {

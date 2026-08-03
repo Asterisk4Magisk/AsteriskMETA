@@ -5,11 +5,7 @@ package features.mihomo.provider
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.FiniteAnimationSpec
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -108,14 +104,10 @@ private fun MihomoProviderUsageVisibleContent(
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         AnimatedContent(
             targetState = state,
-            transitionSpec = {
-                (
-                    fadeIn(animationSpec = effectsMotion) togetherWith
-                        fadeOut(animationSpec = effectsMotion)
-                    ).using(
-                    SizeTransform(sizeAnimationSpec = { _, _ -> sizeMotion }),
-                )
-            },
+            transitionSpec = AsteriskMotion.fadeThrough(
+                effectsSpec = effectsMotion,
+                sizeSpec = sizeMotion,
+            ),
             contentKey = { target -> target::class },
             contentAlignment = Alignment.TopStart,
             label = "provider-usage-state",

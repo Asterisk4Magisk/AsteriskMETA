@@ -6,10 +6,6 @@
 package features.mihomo
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.SizeTransform
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -734,14 +730,10 @@ private fun MihomoOverrideScriptDebugDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 8.dp),
-                transitionSpec = {
-                    (
-                        fadeIn(animationSpec = outputEffectsMotion) togetherWith
-                            fadeOut(animationSpec = outputEffectsMotion)
-                        ).using(
-                        SizeTransform(sizeAnimationSpec = { _, _ -> outputSizeMotion }),
-                    )
-                },
+                transitionSpec = AsteriskMotion.fadeThrough(
+                    effectsSpec = outputEffectsMotion,
+                    sizeSpec = outputSizeMotion,
+                ),
                 contentAlignment = Alignment.TopStart,
                 label = "script-debug-output",
             ) { showingOutput ->

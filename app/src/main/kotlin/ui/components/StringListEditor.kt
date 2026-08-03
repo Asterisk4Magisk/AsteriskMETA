@@ -5,9 +5,6 @@ package ui.components
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -171,17 +168,7 @@ internal fun StringListEditor(
                                 AnimatedContent(
                                     targetState = editing,
                                     modifier = Modifier.width(96.dp),
-                                    transitionSpec = {
-                                        scaleIn(
-                                            initialScale = 0.92f,
-                                            animationSpec = actionMotion,
-                                        ).togetherWith(
-                                            scaleOut(
-                                                targetScale = 0.92f,
-                                                animationSpec = actionMotion,
-                                            ),
-                                        )
-                                    },
+                                    transitionSpec = AsteriskMotion.scaleSwap(actionMotion),
                                     contentAlignment = Alignment.CenterEnd,
                                     label = "string-list-actions",
                                 ) { isEditing ->

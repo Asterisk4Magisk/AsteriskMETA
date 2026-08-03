@@ -10,8 +10,6 @@ package features.mihomo
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -474,8 +472,8 @@ private fun HomeControllerCard(
                 )
                 AnimatedVisibility(
                     visible = operationInProgress,
-                    enter = fadeIn(animationSpec = serviceMotion),
-                    exit = fadeOut(animationSpec = serviceMotion),
+                    enter = AsteriskMotion.fadeEnter(serviceMotion),
+                    exit = AsteriskMotion.fadeExit(serviceMotion),
                     label = "home-service-loading",
                 ) {
                     CircularProgressIndicator(modifier = Modifier.size(28.dp), strokeWidth = 3.dp)

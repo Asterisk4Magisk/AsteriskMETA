@@ -6,12 +6,6 @@
 package features.mihomo
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.SizeTransform
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -671,21 +665,12 @@ private fun MihomoProxyOptionsMenu(
             AnimatedContent(
                 targetState = level,
                 modifier = Modifier.fillMaxWidth(),
-                transitionSpec = {
-                    val direction = if (targetState == ProxyOptionsLevel.Main) -1 else 1
-                    (
-                        slideInHorizontally(
-                            animationSpec = menuSpatialMotion,
-                            initialOffsetX = { width -> direction * width / 5 },
-                        ) + fadeIn(animationSpec = menuEffectsMotion)
-                        ).togetherWith(
-                        slideOutHorizontally(
-                            animationSpec = menuSpatialMotion,
-                            targetOffsetX = { width -> -direction * width / 5 },
-                        ) + fadeOut(animationSpec = menuEffectsMotion),
-                    ).using(
-                        SizeTransform(sizeAnimationSpec = { _, _ -> menuSizeMotion }),
-                    )
+                transitionSpec = AsteriskMotion.horizontalSlideFade(
+                    spatialSpec = menuSpatialMotion,
+                    effectsSpec = menuEffectsMotion,
+                    sizeSpec = menuSizeMotion,
+                ) {
+                    if (targetState == ProxyOptionsLevel.Main) -1 else 1
                 },
                 contentAlignment = Alignment.TopStart,
                 label = "proxy-options-level",
