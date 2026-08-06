@@ -17,8 +17,8 @@ internal data class EscapedYamlContent(
 ) {
     fun restore(text: String): String {
         if (replacements.isEmpty()) return text
-        return replacements.entries.fold(text) { result, (token, original) ->
-            result.replace(token, original)
+        return SupplementaryTokenPattern.replace(text) { match ->
+            replacements[match.value] ?: match.value
         }
     }
 
@@ -44,6 +44,10 @@ internal fun String.escapeSupplementaryYamlCodePoints(): EscapedYamlContent {
     }
 
     val replacements = linkedMapOf<String, String>()
+    val tokenByOriginal = linkedMapOf<String, String>()
+    val literalTokens = SupplementaryTokenPattern.findAll(this)
+        .mapTo(hashSetOf()) { it.value }
+    var nextTokenIndex = 0
     val escaped = buildString(length) {
         append(this@escapeSupplementaryYamlCodePoints, 0, firstSupplementaryIndex)
         var index = firstSupplementaryIndex
@@ -59,8 +63,16 @@ internal fun String.escapeSupplementaryYamlCodePoints(): EscapedYamlContent {
                     this@escapeSupplementaryYamlCodePoints[index + 1],
                 )
                 val original = String(Character.toChars(codePoint))
-                val token = "__ASTERISKMETA_SUPPLEMENTARY_${replacements.size}_${codePoint.toString(16)}__"
-                replacements[token] = original
+                val token = tokenByOriginal.getOrPut(original) {
+                    var generated: String
+                    do {
+                        generated =
+                            "__ASTERISKMETA_SUPPLEMENTARY_${nextTokenIndex}_${codePoint.toString(16)}__"
+                        nextTokenIndex += 1
+                    } while (generated in literalTokens)
+                    replacements[generated] = original
+                    generated
+                }
                 append(token)
                 index += 2
             } else {
@@ -80,3 +92,6 @@ private fun String.findFirstSupplementaryIndex(): Int {
     }
     return -1
 }
+
+private val SupplementaryTokenPattern =
+    Regex("__ASTERISKMETA_SUPPLEMENTARY_[0-9]+_[0-9a-f]+__")

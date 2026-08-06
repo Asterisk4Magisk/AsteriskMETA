@@ -197,7 +197,7 @@
         },
         {
             "uniqueId": "github:heiher/hev-socks5-tunnel",
-            "artifactVersion": "2.16.0",
+            "artifactVersion": "2.17.0",
             "name": "hev-socks5-tunnel",
             "description": "A tun2socks tunnel that forwards TUN traffic to a SOCKS5 server.",
             "website": "https://github.com/heiher/hev-socks5-tunnel",
@@ -249,7 +249,7 @@
         },
         {
             "uniqueId": "io.ktor:ktor-http",
-            "artifactVersion": "3.5.1",
+            "artifactVersion": "3.5.2",
             "name": "ktor-http",
             "description": "Ktor is a framework for quickly creating web applications in Kotlin with minimal effort.",
             "website": "https://github.com/ktorio/ktor",
@@ -314,7 +314,7 @@
         },
         {
             "uniqueId": "io.github.dokar3:quickjs-kt-android",
-            "artifactVersion": "1.0.8",
+            "artifactVersion": "1.0.11",
             "name": "quickjs-kt",
             "description": "A QuickJS binding for idiomatic Kotlin, with Async/DSL/ES Modules support.",
             "website": "https://github.com/dokar3/quickjs-kt",
@@ -353,12 +353,12 @@
         },
         {
             "uniqueId": "org.snakeyaml:snakeyaml-engine",
-            "artifactVersion": "3.0.1",
+            "artifactVersion": "3.1",
             "name": "SnakeYAML Engine",
             "description": "Core YAML 1.2 parser and emitter for Java",
-            "website": "https://bitbucket.org/snakeyaml/snakeyaml-engine",
+            "website": "https://codeberg.org/snakeyaml/snakeyaml-engine",
             "scm": {
-                "url": "https://bitbucket.org/snakeyaml/snakeyaml-engine/src"
+                "url": "https://codeberg.org/snakeyaml/snakeyaml-engine/src"
             },
             "licenses": [
                 "Apache-2.0"
