@@ -17,9 +17,31 @@ internal data class EscapedYamlContent(
 ) {
     fun restore(text: String): String {
         if (replacements.isEmpty()) return text
-        return SupplementaryTokenPattern.replace(text) { match ->
-            replacements[match.value] ?: match.value
+
+        var searchIndex = 0
+        var copyIndex = 0
+        var restored: StringBuilder? = null
+        while (searchIndex < text.length) {
+            val tokenStart = text.indexOf(SupplementaryTokenPrefix, searchIndex)
+            if (tokenStart < 0) break
+
+            val tokenEnd = text.indexOf("__", tokenStart + SupplementaryTokenPrefix.length)
+            if (tokenEnd < 0) break
+
+            val endExclusive = tokenEnd + 2
+            val original = replacements[text.substring(tokenStart, endExclusive)]
+            if (original == null) {
+                searchIndex = tokenStart + SupplementaryTokenPrefix.length
+                continue
+            }
+
+            val output = restored ?: StringBuilder(text.length).also { restored = it }
+            output.append(text, copyIndex, tokenStart)
+            output.append(original)
+            copyIndex = endExclusive
+            searchIndex = endExclusive
         }
+        return restored?.append(text, copyIndex, text.length)?.toString() ?: text
     }
 
     fun restoreParsedValue(value: Any?): Any? {
@@ -66,8 +88,7 @@ internal fun String.escapeSupplementaryYamlCodePoints(): EscapedYamlContent {
                 val token = tokenByOriginal.getOrPut(original) {
                     var generated: String
                     do {
-                        generated =
-                            "__ASTERISKMETA_SUPPLEMENTARY_${nextTokenIndex}_${codePoint.toString(16)}__"
+                        generated = "$SupplementaryTokenPrefix${nextTokenIndex}_${codePoint.toString(16)}__"
                         nextTokenIndex += 1
                     } while (generated in literalTokens)
                     replacements[generated] = original
@@ -93,5 +114,6 @@ private fun String.findFirstSupplementaryIndex(): Int {
     return -1
 }
 
-private val SupplementaryTokenPattern =
-    Regex("__ASTERISKMETA_SUPPLEMENTARY_[0-9]+_[0-9a-f]+__")
+private const val SupplementaryTokenPrefix = "__ASTERISKMETA_SUPPLEMENTARY_"
+
+private val SupplementaryTokenPattern = Regex("$SupplementaryTokenPrefix[0-9]+_[0-9a-f]+__")

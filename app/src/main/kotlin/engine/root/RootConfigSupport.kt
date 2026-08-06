@@ -27,10 +27,12 @@ internal class RootConfigBuildContext(
     val resourceFilePaths: MihomoResourceFilePaths,
     private val coreLogPaths: MihomoCoreLogPaths,
     val rawConfig: MihomoRawConfigSnapshot? = null,
+    private val preparedMihomoProfileBytes: ByteArray? = null,
 ) {
     fun buildRootStartConfig(): RootStartConfig {
         return appState.toRootStartConfig(
-            mihomoProfileBytes = MihomoProfileFactory.buildProfileBytes(androidContext, appState),
+            mihomoProfileBytes = preparedMihomoProfileBytes
+                ?: MihomoProfileFactory.buildProfileBytes(androidContext, appState),
             resourceFilePaths = resourceFilePaths,
             runtimeLayout = resourceFilePaths.toRootRuntimeLayout(),
             coreLogPaths = coreLogPaths,
@@ -79,6 +81,7 @@ internal fun Context.prepareRootConfigBuildContext(request: ProxyEngineStartRequ
         resourceFilePaths = resourceFilePaths,
         coreLogPaths = coreLogPaths,
         rawConfig = request.rawConfig,
+        preparedMihomoProfileBytes = request.preparedMihomoProfileBytes,
     )
 }
 

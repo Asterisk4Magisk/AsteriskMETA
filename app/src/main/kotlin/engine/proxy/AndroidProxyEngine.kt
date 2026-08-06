@@ -114,26 +114,23 @@ internal class AndroidProxyEngine(
 
     private suspend fun startUnlocked(request: ProxyEngineStartRequest): ProxyEngineStatus = withContext(Dispatchers.Default) {
         val raw = appContext.requireStartableRawConfig(request.appState)
-        if (raw == null) {
-            // Build once before any notification, engine replacement, VPN permission,
-            // Root command, or routing change. This makes an explicit restart atomic
-            // with respect to invalid YAML and override-script failures.
-            MihomoProfileFactory.buildProfileBytes(appContext, request.appState)
-        }
         val validatedRequest = request.copy(
             rawConfig = raw?.first,
             rawConfigCheck = raw?.second,
         )
-        MihomoTrafficStatsNotificationService.reconcile(appContext, null)
-        val resolvedRequest = validatedRequest.copy(
-            appState = if (validatedRequest.appState.usesRawMihomoConfig()) {
-                validatedRequest.appState
-            } else {
-                validatedRequest.appState
+        // Resolve runtime ports, build, and validate the exact final profile before
+        // notifications, engine replacement, VPN permission, Root commands, or routing changes.
+        val resolvedRequest = validatedRequest.prepareNormalMihomoProfile(
+            resolveAppState = { appState ->
+                appState
                     .withResolvedDynamicLocalProxyPort()
                     .withResolvedMihomoControlPort()
             },
+            buildProfileBytes = { appState ->
+                MihomoProfileFactory.buildProfileBytes(appContext, appState)
+            },
         )
+        MihomoTrafficStatsNotificationService.reconcile(appContext, null)
         val nextEngine = when (resolvedRequest.appState.runMode) {
             RunModeTproxy -> tproxyEngine
             RunModeTun -> tunEngine
