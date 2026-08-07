@@ -107,6 +107,7 @@ private fun StringBuilder.appendIptablesVariantSetupRules(
         if (enableLocalDns) {
             appendPreroutingDnsTproxyRules(variant, port, config.mark)
         }
+        appendAsteriskdBypassBoundary(variant.command, variant.preroutingChain, ipv6 = variant.tproxyOnIp == "::")
         appendPreroutingPrivateDestinationInterfaceTproxyRules(
             variant = variant,
             interfacePrefixes = config.externalInterfacePrefixes,
@@ -121,14 +122,21 @@ private fun StringBuilder.appendIptablesVariantSetupRules(
             interfaces = emptyList(),
             input = true,
         )
-        appendAsteriskdBypassBoundary(variant.command, variant.preroutingChain, ipv6 = variant.tproxyOnIp == "::")
         appendPreroutingMarkedTproxyRules(variant, port, config.mark)
         appendEbpfPreroutingRules(config, variant, port)
         appendOutputUidReturnRules(variant.command, variant.outputChain, config.forcedBypassUids)
         if (enableLocalDns) {
             appendUdpDnsMarkRule(variant.command, variant.outputChain, config.mark, ownerBypassGid = RootMihomoGid)
         }
+        appendAsteriskdBypassBoundary(variant.command, variant.outputChain, ipv6 = variant.tproxyOnIp == "::")
         appendDestinationMarkRules(variant.command, variant.outputChain, variant.proxyPrivateCidrs, config.mark)
+        appendBypassReturnRules(
+            command = variant.command,
+            chain = variant.outputChain,
+            cidrs = variant.bypassPrivateCidrs,
+            interfaces = emptyList(),
+            input = false,
+        )
         variant.dummyInterface?.let { dummyInterface ->
             appendScript("${variant.command} -t mangle -A ${variant.outputChain} -o ${dummyInterface.device.shellQuote()} -j RETURN")
         }
@@ -139,14 +147,6 @@ private fun StringBuilder.appendIptablesVariantSetupRules(
             interfaces = config.ignoredInterfaces,
             input = false,
         )
-        appendBypassReturnRules(
-            command = variant.command,
-            chain = variant.outputChain,
-            cidrs = variant.bypassPrivateCidrs,
-            interfaces = emptyList(),
-            input = false,
-        )
-        appendAsteriskdBypassBoundary(variant.command, variant.outputChain, ipv6 = variant.tproxyOnIp == "::")
         appendRootEbpfXtbpfMarkRules(
             command = variant.command,
             chain = variant.outputChain,
@@ -158,6 +158,7 @@ private fun StringBuilder.appendIptablesVariantSetupRules(
     if (enableLocalDns) {
         appendPreroutingDnsTproxyRules(variant, port, config.mark)
     }
+    appendAsteriskdBypassBoundary(variant.command, variant.preroutingChain, ipv6 = variant.tproxyOnIp == "::")
     appendPreroutingPrivateDestinationInterfaceTproxyRules(
         variant = variant,
         interfacePrefixes = config.externalInterfacePrefixes,
@@ -172,7 +173,6 @@ private fun StringBuilder.appendIptablesVariantSetupRules(
         interfaces = emptyList(),
         input = true,
     )
-    appendAsteriskdBypassBoundary(variant.command, variant.preroutingChain, ipv6 = variant.tproxyOnIp == "::")
     appendPreroutingMarkedTproxyRules(variant, port, config.mark)
     config.externalInterfacePrefixes.forEach { prefix ->
         appendPreroutingInterfaceTproxyRules(variant, prefix, port, config.mark)
@@ -184,7 +184,15 @@ private fun StringBuilder.appendIptablesVariantSetupRules(
     if (enableLocalDns) {
         appendUdpDnsMarkRule(variant.command, variant.outputChain, config.mark, ownerBypassGid = RootMihomoGid)
     }
+    appendAsteriskdBypassBoundary(variant.command, variant.outputChain, ipv6 = variant.tproxyOnIp == "::")
     appendDestinationMarkRules(variant.command, variant.outputChain, variant.proxyPrivateCidrs, config.mark)
+    appendBypassReturnRules(
+        command = variant.command,
+        chain = variant.outputChain,
+        cidrs = variant.bypassPrivateCidrs,
+        interfaces = emptyList(),
+        input = false,
+    )
     appendOutputApplicationBypassRules(
         command = variant.command,
         chain = variant.outputChain,
@@ -201,14 +209,6 @@ private fun StringBuilder.appendIptablesVariantSetupRules(
         interfaces = config.ignoredInterfaces,
         input = false,
     )
-    appendBypassReturnRules(
-        command = variant.command,
-        chain = variant.outputChain,
-        cidrs = variant.bypassPrivateCidrs,
-        interfaces = emptyList(),
-        input = false,
-    )
-    appendAsteriskdBypassBoundary(variant.command, variant.outputChain, ipv6 = variant.tproxyOnIp == "::")
     appendScript("${variant.command} -t mangle -A ${variant.outputChain} -m owner --gid-owner $RootMihomoGid -j RETURN")
     appendOutputApplicationMarkRules(
         command = variant.command,
