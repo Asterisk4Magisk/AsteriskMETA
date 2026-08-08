@@ -185,7 +185,14 @@ internal class MihomoRuntimeRepository(
                     return@launch
                 }
             if (trafficEnabled) {
-                launch { collectTraffic(control, backend.useBridge()) }
+                launch {
+                    collectTraffic(
+                        control = control,
+                        useBridge = backend.useBridge(),
+                        generation = generation,
+                        configKey = signature.runtimeConfigKey,
+                    )
+                }
             }
             launch {
                 pollRuntime(
@@ -767,25 +774,31 @@ internal class MihomoRuntimeRepository(
     private suspend fun collectTraffic(
         control: MihomoControlConfig,
         useBridge: Boolean,
+        generation: Long,
+        configKey: Int,
     ) {
         runCatching {
             client.traffic(control, useBridge).collect { sample ->
+                if (!isRuntimeRequestCurrent(generation, configKey)) {
+                    throw CancellationException("Stale Mihomo traffic collector")
+                }
                 synchronized(trafficHistoryLock) { trafficHistory.append(sample) }
-                mutableState.update { current ->
+                val updated = updateRuntimeStateIfCurrent(generation, configKey) { current ->
                     current.copy(
                         traffic = current.traffic.copy(
                             latest = sample,
-                            totalUp = sample.totalUp ?: (current.traffic.totalUp + sample.up),
-                            totalDown = sample.totalDown ?: (current.traffic.totalDown + sample.down),
+                            totalUp = sample.totalUp ?: saturatedTrafficAdd(current.traffic.totalUp, sample.up),
+                            totalDown = sample.totalDown ?: saturatedTrafficAdd(current.traffic.totalDown, sample.down),
                             connected = true,
                         ),
                     )
                 }
+                if (!updated) throw CancellationException("Stale Mihomo traffic collector")
             }
         }.onFailure { error ->
             if (error is CancellationException) throw error
             reportRuntimeError("Mihomo API /traffic", error)
-            mutableState.update { current ->
+            updateRuntimeStateIfCurrent(generation, configKey) { current ->
                 current.copy(
                     traffic = current.traffic.copy(connected = false),
                     lastError = error.message.orEmpty(),
@@ -1057,6 +1070,11 @@ internal class MihomoRuntimeRepository(
         const val ProxyFallbackPollIntervalMillis = 30_000L
         const val MaxTrafficHistorySize = 48
     }
+}
+
+private fun saturatedTrafficAdd(previous: Long, increment: Long): Long {
+    if (previous < 0L || increment <= 0L) return previous.coerceAtLeast(0L)
+    return if (Long.MAX_VALUE - previous < increment) Long.MAX_VALUE else previous + increment
 }
 
 private enum class MihomoRuntimeBackend {

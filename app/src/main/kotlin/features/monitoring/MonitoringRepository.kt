@@ -59,9 +59,6 @@ internal class MonitoringRepository(
     private val networkMonitor = AndroidNetworkMonitor(context)
     private val publicNetworkProbeClient = PublicNetworkProbeClient()
     private val trafficLedgerStore = TrafficLedgerStore(context)
-    private var trafficWasConnected = false
-    private var trafficSessionId = trafficLedgerStore.snapshot().baseline?.sessionId
-    private var trafficSessionSequence = 0L
     private var previousProcessSnapshot: ProcessTickSnapshot? = null
     private var previousProcessSource: ProcessStatsSourceKind? = null
     private var networkPageWasVisible = false
@@ -281,8 +278,6 @@ internal class MonitoringRepository(
                 val now = System.currentTimeMillis()
                 val today = localTrafficDay(now)
                 if (!connected) {
-                    trafficWasConnected = false
-                    trafficSessionId = null
                     updateTrafficSummary(
                         ledger = trafficLedgerStore.snapshot(),
                         today = today,
@@ -290,24 +285,20 @@ internal class MonitoringRepository(
                         recordHistory = recordHistory,
                     )
                 } else {
-                    if (!trafficWasConnected) {
-                        trafficSessionId = trafficSessionId ?: newTrafficSessionId(now)
-                    }
-                    trafficWasConnected = true
                     val runtimeTraffic = runtime.traffic
                     val observedAt = runtimeTraffic.latest.timestampMillis
+                    val sourceId = if (appState.runMode.isRootRunMode()) {
+                        "root"
+                    } else {
+                        "embedded"
+                    }
                     val reduction = trafficLedgerStore.update(
                         TrafficLedgerSample(
-                            sessionId = checkNotNull(trafficSessionId),
                             uploadTotalBytes = runtimeTraffic.totalUp,
                             downloadTotalBytes = runtimeTraffic.totalDown,
                             observedAtMillis = observedAt,
                             localDay = localTrafficDay(observedAt),
-                            sourceId = if (appState.runMode.isRootRunMode()) {
-                                "root:${appState.runMode}"
-                            } else {
-                                "embedded:${appState.runMode}"
-                            },
+                            sourceId = sourceId,
                         ),
                     )
                     updateTrafficSummary(
@@ -465,11 +456,6 @@ internal class MonitoringRepository(
                 ),
             )
         }
-    }
-
-    private fun newTrafficSessionId(now: Long): String {
-        trafficSessionSequence += 1L
-        return "$now-$trafficSessionSequence"
     }
 
     private fun updateNetworkPageVisibility(visible: Boolean) {
