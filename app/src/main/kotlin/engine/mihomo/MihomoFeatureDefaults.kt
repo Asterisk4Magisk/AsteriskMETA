@@ -26,7 +26,7 @@ val DefaultMihomoDnsNameserverPolicy = listOf(
     "geosite:cn=>https://dns.alidns.com/dns-query",
 )
 val DefaultMihomoDnsProxyServerNameserver = listOf("https://doh.pub/dns-query")
-val DefaultMihomoDnsFallback = listOf("tls://1.1.1.1#RULES")
+val DefaultMihomoDnsFallback = listOf("tls://8.8.8.8#RULES")
 val DefaultMihomoDnsFakeIpFilter = listOf("*.lan", "localhost.ptlogin2.qq.com")
 val DefaultMihomoDnsFallbackFilterIpcidr = listOf("240.0.0.0/4")
 val DefaultMihomoDnsFallbackFilterDomain = listOf("+.google.com", "+.facebook.com", "+.youtube.com")
