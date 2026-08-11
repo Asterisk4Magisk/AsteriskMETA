@@ -9,6 +9,7 @@ import app.modes.RunModeTun2Socks
 import app.modes.RunModeVpnService
 import app.modes.isRootRunMode
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.layout.Column
 import ui.icons.AsteriskIcons as Icons
 import androidx.compose.runtime.Composable
@@ -293,7 +294,7 @@ internal fun SettingsProxyModeSections(
     AnimatedVisibility(
         visible = runMode == RunModeVpnService,
         enter = AsteriskMotion.contentEnter(),
-        exit = AsteriskMotion.contentExit(),
+        exit = ExitTransition.None,
     ) {
         Column {
             SmallTitle(text = stringResource(R.string.settings_proxy_vpn_service))
@@ -348,7 +349,7 @@ internal fun SettingsProxyModeSections(
     AnimatedVisibility(
         visible = runMode.isRootRunMode(),
         enter = AsteriskMotion.contentEnter(),
-        exit = AsteriskMotion.contentExit(),
+        exit = ExitTransition.None,
     ) {
         Column {
             SmallTitle(
