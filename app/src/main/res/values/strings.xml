@@ -127,7 +127,7 @@
     <string name="monitor_connections_paused">Paused</string>
     <string name="monitor_connections_pause">Pause connection monitoring</string>
     <string name="monitor_connections_resume">Resume connection monitoring</string>
-    <string name="monitor_connections_search">Search target, process, rule, or chain</string>
+    <string name="monitor_connections_search">Search connections</string>
     <string name="monitor_connections_empty">No active connections</string>
     <string name="monitor_connections_no_match">No matching connections</string>
     <string name="monitor_connections_unknown_source">Unknown source</string>
