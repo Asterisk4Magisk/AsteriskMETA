@@ -480,6 +480,7 @@ private fun HomeControllerCard(
                 }
             }
         },
+        keepPrimaryActionInline = true,
     ) {
         Box(modifier = Modifier.offset(y = HomeControllerContentOffset)) {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {

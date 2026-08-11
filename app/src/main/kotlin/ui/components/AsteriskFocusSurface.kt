@@ -36,6 +36,13 @@ import ui.theme.FocusDensity
 import ui.theme.FocusTone
 import ui.theme.focusShapeRole
 
+private const val PrimaryActionStackFontScale = 1.3f
+
+internal fun shouldStackPrimaryAction(
+    fontScale: Float,
+    keepPrimaryActionInline: Boolean,
+): Boolean = !keepPrimaryActionInline && fontScale >= PrimaryActionStackFontScale
+
 @Composable
 internal fun focusAccentColor(tone: FocusTone): Color = when (tone) {
     FocusTone.Primary -> MaterialTheme.colorScheme.primary
@@ -83,6 +90,7 @@ internal fun AsteriskFocusSurface(
     stateIcon: ImageVector? = null,
     metrics: (@Composable RowScope.() -> Unit)? = null,
     primaryAction: (@Composable BoxScope.() -> Unit)? = null,
+    keepPrimaryActionInline: Boolean = false,
     content: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
     val shape = rememberExpressiveShape(
@@ -90,7 +98,10 @@ internal fun AsteriskFocusSurface(
         state = ExpressiveInteractionState.Rest,
     )
     val accentColor = focusAccentColor(tone)
-    val stackPrimaryAction = LocalDensity.current.fontScale >= 1.3f
+    val stackPrimaryAction = shouldStackPrimaryAction(
+        fontScale = LocalDensity.current.fontScale,
+        keepPrimaryActionInline = keepPrimaryActionInline,
+    )
     val horizontalPadding = when (density) {
         FocusDensity.Large -> 24.dp
         FocusDensity.Medium -> 20.dp
