@@ -69,6 +69,7 @@ internal class AndroidProxyEngine(
             rawConfigCheck = raw?.second,
         )
         val requestedEngine = validatedRequest.appState.runMode.engine()
+        var rootResumeChecked = false
         if (shouldResumeRootBeforeResolvingPorts(explicitRestart, activeEngine != null, requestedEngine is RootModeEngine)) {
             requestedEngine as RootModeEngine
             requestedEngine.resumeIfRunning(validatedRequest)?.let { status ->
@@ -83,6 +84,7 @@ internal class AndroidProxyEngine(
                 )
                 return@withContext resumed
             }
+            rootResumeChecked = true
         }
         // Resolve runtime ports, build, and validate the exact final profile before
         // notifications, engine replacement, VPN permission, Root commands, or routing changes.
@@ -106,10 +108,14 @@ internal class AndroidProxyEngine(
         }
         activeEngine = nextEngine
         try {
-            val status = if (explicitRestart && nextEngine is RootModeEngine) {
-                nextEngine.restart(resolvedRequest)
-            } else {
-                nextEngine.start(resolvedRequest)
+            val status = when {
+                explicitRestart && nextEngine is RootModeEngine -> nextEngine.restart(resolvedRequest)
+                shouldUsePreResolvedRootStart(
+                    explicitRestart = explicitRestart,
+                    resumeChecked = rootResumeChecked,
+                    nextEngineIsRoot = nextEngine is RootModeEngine,
+                ) -> (nextEngine as RootModeEngine).startAfterResumeCheck(resolvedRequest)
+                else -> nextEngine.start(resolvedRequest)
             }
                 .copy(
                     appState = if (request.appState.usesRawMihomoConfig()) {
@@ -277,3 +283,9 @@ internal fun shouldResumeRootBeforeResolvingPorts(
     hasActiveEngine: Boolean,
     requestedIsRoot: Boolean,
 ): Boolean = !explicitRestart && !hasActiveEngine && requestedIsRoot
+
+internal fun shouldUsePreResolvedRootStart(
+    explicitRestart: Boolean,
+    resumeChecked: Boolean,
+    nextEngineIsRoot: Boolean,
+): Boolean = !explicitRestart && resumeChecked && nextEngineIsRoot
