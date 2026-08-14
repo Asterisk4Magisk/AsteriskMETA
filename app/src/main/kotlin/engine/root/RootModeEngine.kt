@@ -8,102 +8,111 @@ import engine.proxy.LocalProxyRuntime
 import engine.proxy.ProxyEngineStartRequest
 import engine.proxy.ProxyEngineStatus
 import engine.proxy.mode.AndroidModeProxyEngine
-import engine.mihomo.clearCoreLogs
-import engine.mihomo.startCoreLogTailers
-import features.logs.AndroidAppLogger
-import features.logs.CoreLogFileTailer
+import engine.root.config.prepareRootConfigBuildContext
+import engine.root.config.RootModeStartConfig
+import engine.root.config.RootBpf2SocksDefaultBridgePort as ConfigRootBpf2SocksDefaultBridgePort
+import engine.root.mode.RootModeCatalog
+import engine.root.mode.RootModeDefinition
+import engine.root.mode.DefaultTproxyPort as ModeDefaultTproxyPort
+import engine.root.mode.DefaultTun2SocksProxyPort as ModeDefaultTun2SocksProxyPort
+import engine.root.runtime.RootRuntimeBusyException
+import engine.root.runtime.RootRuntimeConflictException
+import engine.root.runtime.RootSupervisorController
 import kotlin.coroutines.cancellation.CancellationException
-import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.withContext
-import system.AndroidRootShellGateway
-import java.io.File
+import system.RootShellGateway
 
-internal class RootModeEngine<Config : RootModeStartConfig>(
+internal class RootModeEngine(
     private val context: Context,
-    private val rootAccess: AndroidRootShellGateway,
-    private val runner: RootModeRunner<Config>,
-    override val runMode: Int,
-    private val rootRequiredErrorResId: Int,
-    private val startFailedErrorResId: Int,
-    private val modeName: String,
-    private val logTag: String,
-    private val buildConfig: (RootConfigBuildContext) -> Config,
+    private val rootAccess: RootShellGateway,
+    private val definition: RootModeDefinition,
 ) : AndroidModeProxyEngine {
-    private var logFileTailers: List<CoreLogFileTailer> = emptyList()
+    private val controller = RootSupervisorController(context, rootAccess)
+
+    override val runMode: Int
+        get() = definition.runMode
 
     override suspend fun start(request: ProxyEngineStartRequest): ProxyEngineStatus {
-        if (!rootAccess.hasRootAccess()) {
-            error(context.getString(rootRequiredErrorResId))
-        }
-        clearStartupRuntimeState()
+        return start(request, explicitRestart = false)
+    }
+
+    suspend fun restart(request: ProxyEngineStartRequest): ProxyEngineStatus {
+        return start(request, explicitRestart = true)
+    }
+
+    suspend fun resumeIfRunning(request: ProxyEngineStartRequest): ProxyEngineStatus? {
+        if (!rootAccess.hasRootAccess()) error(context.getString(definition.rootRequiredErrorResId))
+        controller.preflightStart(definition.daemonMode, explicitRestart = false) ?: return null
+        val restored = buildLocalProxyOptions(request)
+        val confirmed = controller.preflightStart(definition.daemonMode, explicitRestart = false) ?: return null
+        restored?.let(LocalProxyRuntime::update) ?: LocalProxyRuntime.clear()
+        return controller.proxyStatus(confirmed, runMode, definition.daemonMode)
+    }
+
+    private suspend fun start(
+        request: ProxyEngineStartRequest,
+        explicitRestart: Boolean,
+    ): ProxyEngineStatus {
+        if (!rootAccess.hasRootAccess()) error(context.getString(definition.rootRequiredErrorResId))
+        if (!explicitRestart) resumeIfRunning(request)?.let { return it }
+        else controller.preflightStart(definition.daemonMode, explicitRestart = true)
+
+        LocalProxyRuntime.clear()
         val rootContext = context.prepareRootConfigBuildContext(request)
-        val config = buildConfig(rootContext)
-        if (!File(config.root.runtimeLayout.mihomoCorePath).canExecute()) {
-            File(config.root.runtimeLayout.mihomoCorePath).setExecutable(true, false)
-        }
-        runner.prepareCoreLogFiles(config.root.coreLogPaths)
-        config.root.coreLogPaths.clearCoreLogs(logTag)
-        logFileTailers = config.root.coreLogPaths.startCoreLogTailers()
-        runCatching {
-            runner.start(config)
-            config.localProxyOptions?.let(LocalProxyRuntime::update) ?: LocalProxyRuntime.clear()
-            if (rootContext.appState.enableRootBootScript) {
-                runner.installBootScript(config)
+        val config = definition.buildConfig(rootContext)
+        require(config.asteriskdConfig.mode == definition.daemonMode)
+        return runCatching {
+            val snapshot = if (explicitRestart) {
+                controller.restart(config.root, config.asteriskdConfig)
             } else {
-                runner.uninstallBootScript(config.root)
+                controller.start(config.root, config.asteriskdConfig)
             }
-        }.onFailure { error ->
-            cleanUpAfterStartupFailure(config, error)
+            controller.requireRunning(snapshot, definition.daemonMode)
+            config.localProxyOptions?.let(LocalProxyRuntime::update) ?: LocalProxyRuntime.clear()
+            controller.proxyStatus(snapshot, runMode, definition.daemonMode)
+        }.onFailure {
+            LocalProxyRuntime.clear()
+        }.getOrElse { error ->
             if (error is CancellationException) throw error
-            AndroidAppLogger.error(logTag, "Failed to start $modeName mode", error)
+            if (error is RootRuntimeConflictException || error is RootRuntimeBusyException) throw error
             throw IllegalStateException(
-                context.getString(startFailedErrorResId, error.message.orEmpty()),
+                context.getString(definition.startFailedErrorResId, error.message.orEmpty()),
                 error,
             )
         }
-        return status()
     }
+
+    private fun buildLocalProxyOptions(request: ProxyEngineStartRequest) =
+        LocalProxyRuntime.current() ?: definition
+            .buildConfig(context.prepareRootConfigBuildContext(request))
+            .localProxyOptions
 
     override suspend fun stop(): ProxyEngineStatus {
-        logFileTailers.forEach { tailer -> tailer.stop() }
-        logFileTailers = emptyList()
-        runCatching {
-            runner.stop(context.prepareRootRuntimeLayout())
-        }.onFailure { error ->
-            if (error is CancellationException) throw error
-            AndroidAppLogger.warn(logTag, "Failed to stop $modeName mode", error)
-        }
+        controller.stopOwn()
         LocalProxyRuntime.clear()
         return status()
-    }
-
-    private suspend fun cleanUpAfterStartupFailure(config: Config, startupError: Throwable) {
-        withContext(NonCancellable) {
-            runCatching { runner.stop(config.root.runtimeLayout) }
-                .onFailure { stopError ->
-                    AndroidAppLogger.warn(logTag, "Failed to clean up $modeName after startup failure", stopError)
-                }
-            LocalProxyRuntime.clear()
-            logFileTailers.forEach { tailer -> tailer.stop() }
-            logFileTailers = emptyList()
-            if (startupError is CancellationException) {
-                AndroidAppLogger.info(logTag, "$modeName startup cancelled")
-            }
-        }
     }
 
     suspend fun ownsRuntime(): Boolean {
-        return runner.ownsRuntime(context.prepareRootRuntimeLayout())
+        return controller.ownsRuntime()
     }
 
     override suspend fun status(): ProxyEngineStatus {
-        val running = runner.isRunning(context.prepareRootRuntimeLayout())
-        return ProxyEngineStatus(running = running, runMode = runMode)
+        return controller.proxyStatus(runMode, definition.daemonMode)
     }
 
-    private fun clearStartupRuntimeState() {
-        logFileTailers.forEach { tailer -> tailer.stop() }
-        logFileTailers = emptyList()
-        LocalProxyRuntime.clear()
+    companion object {
+        const val DefaultTproxyPort = ModeDefaultTproxyPort
+        const val DefaultTun2SocksProxyPort = ModeDefaultTun2SocksProxyPort
+        const val DefaultBpf2SocksBridgePort = ConfigRootBpf2SocksDefaultBridgePort
+
+        fun createAll(context: Context, rootAccess: RootShellGateway): List<RootModeEngine> =
+            RootModeCatalog.definitions.map { definition -> RootModeEngine(context, rootAccess, definition) }
+
+        fun prepareConfig(context: Context, runMode: Int, request: ProxyEngineStartRequest): RootModeStartConfig {
+            val definition = RootModeCatalog.require(runMode)
+            return definition.buildConfig(context.prepareRootConfigBuildContext(request)).also { config ->
+                require(config.asteriskdConfig.mode == definition.daemonMode)
+            }
+        }
     }
 }

@@ -10,14 +10,13 @@ import android.system.Os
 import android.system.OsConstants
 import app.AppState
 import app.modes.isRootRunMode
-import engine.root.RootPidFileName
-import features.resources.runtime.mihomoResourceFilesDir
+import engine.root.runtime.RootSupervisorController
+import engine.root.runtime.runningCorePid
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import system.AndroidRootShellGateway
 import system.ShellExecOptions
 import utils.shellQuote
-import java.io.File
 
 internal enum class ProcessStatsSourceKind {
     CoreProcess,
@@ -34,7 +33,7 @@ internal class AndroidProcessStatsSource(
     context: Context,
     private val rootAccess: AndroidRootShellGateway,
 ) {
-    private val rootPidPath = File(context.applicationContext.mihomoResourceFilesDir(), RootPidFileName).absolutePath
+    private val rootSupervisor = RootSupervisorController(context, rootAccess)
 
     suspend fun read(appState: AppState): ProcessStatsReading? = withContext(Dispatchers.IO) {
         if (!appState.proxyRunning) return@withContext null
@@ -59,11 +58,9 @@ internal class AndroidProcessStatsSource(
     }
 
     private suspend fun readRootProcess(): ProcessStatsReading? {
+        val pid = runCatching { rootSupervisor.runningCorePid() }.getOrNull() ?: return null
         val command = """
-            pid_file=${rootPidPath.shellQuote()}
-            [ -r "${'$'}pid_file" ] || exit 2
-            pid=${'$'}(cat "${'$'}pid_file" 2>/dev/null)
-            case "${'$'}pid" in ''|*[!0-9]*) exit 3 ;; esac
+            pid=${pid.toString().shellQuote()}
             [ -r "/proc/${'$'}pid/stat" ] || exit 4
             IFS= read -r cpu_line < /proc/stat || exit 5
             printf '%s\n' "${'$'}cpu_line"

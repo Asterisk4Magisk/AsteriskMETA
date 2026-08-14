@@ -40,7 +40,6 @@ dependencyResolutionManagement {
 
 include(":app")
 include(":cmfa-core")
-include(":setuidgid")
 include(":asteriskd")
 include(":bpfmatcher")
 include(":bpf2socks")

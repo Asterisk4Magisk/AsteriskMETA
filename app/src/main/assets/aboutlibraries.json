@@ -41,7 +41,7 @@
         },
         {
             "uniqueId": "github:Asterisk4Magisk/asteriskd",
-            "artifactVersion": "v1.0.4",
+            "artifactVersion": "v2.0.0",
             "name": "asteriskd",
             "description": "A root Android daemon that synchronizes local-address bypass rules and pinned eBPF maps.",
             "website": "https://github.com/Asterisk4Magisk/asteriskd",
@@ -353,7 +353,7 @@
         },
         {
             "uniqueId": "org.snakeyaml:snakeyaml-engine",
-            "artifactVersion": "3.1",
+            "artifactVersion": "3.1.1",
             "name": "SnakeYAML Engine",
             "description": "Core YAML 1.2 parser and emitter for Java",
             "website": "https://codeberg.org/snakeyaml/snakeyaml-engine",

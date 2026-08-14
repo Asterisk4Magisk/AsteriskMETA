@@ -15,9 +15,9 @@ import engine.mihomo.MihomoControlConfig
 import engine.mihomo.raw.loadSelectedRawConfig
 import engine.mihomo.raw.usesRawMihomoConfig
 import engine.proxy.ProxyEngineStartRequest
-import engine.root.prepareRootRuntimeLayout
 import engine.vpn.AndroidMihomoRuntime
 import engine.vpn.VpnMihomoConfigFactory
+import features.resources.runtime.mihomoResourceFilePaths
 import features.logs.AndroidAppLogger
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -327,13 +327,16 @@ internal class MihomoRuntimeRepository(
     suspend fun reloadInteractiveProfileFromDisk(appState: AppState): Result<Unit> {
         return runCatching {
             require(appState.hasUsableMihomoProfile()) { "Mihomo profile is not configured" }
+            require(!appState.runMode.isRootRunMode()) {
+                "ROOT runtime configuration changes require a supervised restart"
+            }
             val control = resolveMihomoControlConfig(appState)
             val backend = resolveInteractiveBackend(appState, control)
             withContext(Dispatchers.IO) {
                 ensureInteractiveRuntime(appState, backend)
                 client.reloadProfile(
                     config = control,
-                    profilePath = appContext.prepareRootRuntimeLayout().configPath,
+                    profilePath = java.io.File(appContext.mihomoResourceFilePaths().dataDir, "config.yaml").absolutePath,
                     reloadLocally = backend.useBridge() || appState.runMode == RunModeVpnService,
                 )
             }
@@ -437,6 +440,9 @@ internal class MihomoRuntimeRepository(
         mode: String,
     ): Result<Unit> {
         return runCatching {
+            require(!appState.runMode.isRootRunMode()) {
+                "ROOT runtime configuration changes require a supervised restart"
+            }
             val control = resolveMihomoControlConfig(appState)
             val backend = resolveInteractiveBackend(appState, control)
             val generation = currentRuntimeGeneration()
@@ -454,6 +460,9 @@ internal class MihomoRuntimeRepository(
         return runCatching {
             if (!appState.hasUsableMihomoProfile()) {
                 return@runCatching
+            }
+            require(!appState.runMode.isRootRunMode()) {
+                "ROOT runtime configuration changes require a supervised restart"
             }
             require(!appState.usesRawMihomoConfig()) { "Log level is read-only because it comes from YAML" }
             val control = resolveMihomoControlConfig(appState)

@@ -6,6 +6,7 @@ package app
 import android.app.Application
 import com.github.kr328.clash.common.Global
 import features.logs.AndroidCoreLogRepository
+import features.logs.AndroidAsteriskdLogRepository
 import features.logs.AndroidLogcatRepository
 import coil3.ImageLoader
 import coil3.PlatformContext
@@ -48,6 +49,7 @@ class AsteriskApplication : Application(), SingletonImageLoader.Factory {
         Global.init(this)
         AndroidLogcatRepository.initialize(applicationContext)
         AndroidCoreLogRepository.initialize(applicationContext)
+        AndroidAsteriskdLogRepository.initialize(applicationContext)
         foregroundTracker = AppActivityForegroundTracker(mihomoRuntimeLifecycle)
         registerActivityLifecycleCallbacks(foregroundTracker)
     }

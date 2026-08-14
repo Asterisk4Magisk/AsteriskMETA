@@ -18,13 +18,19 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import features.resources.ResourceFileUpdateOptions
+import engine.root.runtime.RootCorePublicationCoordinator
+import system.AndroidRootShellGateway
+import system.RootShellGateway
+import java.io.File
 
 internal class AndroidResourceFileRepository(
     context: Context,
+    private val rootShell: RootShellGateway = AndroidRootShellGateway(),
 ) {
     private val appContext = context.applicationContext
     private val store = AndroidResourceFileStore(appContext)
     private val downloader = AndroidResourceFileDownloader()
+    private val corePublication = RootCorePublicationCoordinator(appContext, rootShell)
 
     suspend fun status(customResourceFiles: List<CustomResourceFileState> = emptyList()): ResourceFilesStatus =
         withContext(Dispatchers.IO) {
@@ -33,6 +39,9 @@ internal class AndroidResourceFileRepository(
 
     suspend fun restoreBundledDefaults(resourceFileSource: Int): ResourceFilesStatus = withContext(Dispatchers.IO) {
         store.restoreBundledDefaults(resourceFileSource)
+        if (store.shouldPublishBundledMihomoCore(resourceFileSource)) {
+            publishBundledCoreIfPossible()
+        }
         store.currentStatus()
     }
 
@@ -91,7 +100,7 @@ internal class AndroidResourceFileRepository(
         )
     }
 
-    private fun updateTargets(
+    private suspend fun updateTargets(
         downloads: List<ResourceFileDownloadTarget>,
         options: ResourceFileUpdateOptions,
         customResourceFiles: List<CustomResourceFileState>,
@@ -123,11 +132,20 @@ internal class AndroidResourceFileRepository(
                             ),
                         )
                     }
-                    download.applyPermissions()
+                    if (download.coreCandidate) {
+                        val normalized = store.normalizeMihomoCoreCandidate(download.targetFile)
+                        installOrPublishCoreCandidate(requireExistingRoot = true) {
+                            normalized
+                        }
+                    } else {
+                        download.applyPermissions()
+                    }
                 } catch (error: Throwable) {
                     if (error is CancellationException) throw error
                     if (error is AndroidResourceFileDownloadCancelledException) throw error
                     throw ResourceFileDownloadFailedException(download.displayName, error)
+                } finally {
+                    if (download.coreCandidate) download.targetFile.delete()
                 }
             }
             store.currentStatus(customResourceFiles)
@@ -173,11 +191,13 @@ internal class AndroidResourceFileRepository(
     private fun ResourceFileKind.toDownloadTargetOrNull(source: ResourceFileUpdateSource): ResourceFileDownloadTarget? {
         val updateUrl = source.urlFor(this)?.trim().orEmpty()
         if (updateUrl.isBlank()) return null
+        val coreCandidate = this == ResourceFileKind.MihomoCore
         return ResourceFileDownloadTarget(
             displayName = displayName,
             url = updateUrl,
-            targetFile = store.file(this),
-            applyPermissions = { store.applyPermissions(this) },
+            targetFile = if (coreCandidate) store.createMihomoCoreDownloadCandidate() else store.file(this),
+            applyPermissions = { if (!coreCandidate) store.applyPermissions(this) },
+            coreCandidate = coreCandidate,
         )
     }
 
@@ -195,7 +215,13 @@ internal class AndroidResourceFileRepository(
         uri: Uri,
         customResourceFiles: List<CustomResourceFileState> = emptyList(),
     ): ResourceFilesStatus = withContext(Dispatchers.IO) {
-        store.replace(kind, uri)
+        if (kind == ResourceFileKind.MihomoCore) {
+            installOrPublishCoreCandidate(requireExistingRoot = true) {
+                store.stageMihomoCoreCandidate(uri)
+            }
+        } else {
+            store.replace(kind, uri)
+        }
         store.currentStatus(customResourceFiles)
     }
 
@@ -203,8 +229,65 @@ internal class AndroidResourceFileRepository(
         kind: ResourceFileKind,
         customResourceFiles: List<CustomResourceFileState> = emptyList(),
     ): ResourceFilesStatus = withContext(Dispatchers.IO) {
-        store.restoreBundled(kind)
+        if (kind == ResourceFileKind.MihomoCore) {
+            installOrPublishCoreCandidate(requireExistingRoot = true) {
+                store.stageBundledMihomoCoreCandidate()
+            }
+        } else {
+            store.restoreBundled(kind)
+        }
         store.currentStatus(customResourceFiles)
+    }
+
+    private suspend fun publishBundledCoreIfPossible() {
+        when (chooseCoreCandidateInstallPath(rootShell.hasRootAccess(), File(corePublication.corePath).exists())) {
+            CoreCandidateInstallPath.AtomicPublication -> {
+                if (!corePublication.isAvailable()) return
+                corePublication.prepareDirectories()
+                publishCoreCandidate(store.stageBundledMihomoCoreCandidate())
+            }
+            CoreCandidateInstallPath.InitialNoReplace -> {
+                installInitialCoreCandidate(store.stageBundledMihomoCoreCandidate())
+            }
+            CoreCandidateInstallPath.Defer -> AndroidResourceFileLogger.info(
+                "Bundled Mihomo core replacement deferred because ROOT access is unavailable",
+            )
+        }
+    }
+
+    private suspend fun installOrPublishCoreCandidate(
+        requireExistingRoot: Boolean,
+        candidateFactory: () -> File,
+    ) {
+        when (chooseCoreCandidateInstallPath(rootShell.hasRootAccess(), File(corePublication.corePath).exists())) {
+            CoreCandidateInstallPath.AtomicPublication -> {
+                corePublication.requireAvailable()
+                corePublication.prepareDirectories()
+                publishCoreCandidate(candidateFactory())
+            }
+            CoreCandidateInstallPath.InitialNoReplace -> installInitialCoreCandidate(candidateFactory())
+            CoreCandidateInstallPath.Defer -> check(!requireExistingRoot) {
+                appContext.getString(R.string.settings_root_required)
+            }
+        }
+    }
+
+    private fun installInitialCoreCandidate(candidate: File) {
+        try {
+            corePublication.validate(candidate)
+            val installed = store.installInitialMihomoCoreCandidate(candidate)
+            require(installed || File(corePublication.corePath).isFile) { "Failed to install the initial Mihomo core" }
+        } finally {
+            candidate.delete()
+        }
+    }
+
+    private suspend fun publishCoreCandidate(candidate: File) {
+        try {
+            corePublication.publish(candidate)
+        } finally {
+            candidate.delete()
+        }
     }
 }
 
@@ -213,6 +296,7 @@ private data class ResourceFileDownloadTarget(
     val url: String,
     val targetFile: java.io.File,
     val applyPermissions: () -> Unit = {},
+    val coreCandidate: Boolean = false,
 )
 
 private class ResourceFileDownloadFailedException(

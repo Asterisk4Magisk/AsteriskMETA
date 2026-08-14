@@ -11,9 +11,7 @@ import app.modes.MihomoProxySortDefault
 import app.modes.MihomoTunStackGvisor
 import app.modes.ProxyAppListModeGlobal
 import app.modes.RunModeVpnService
-import engine.root.RootBpf2SocksDefaultBridgePort
-import engine.tun2socks.DefaultTun2SocksProxyPort
-import engine.tproxy.DefaultTproxyPort
+import engine.root.RootModeEngine
 import engine.vpn.VpnDefaults
 import engine.mihomo.DefaultMihomoDnsDefaultNameserver
 import engine.mihomo.DefaultMihomoDnsFakeIpFilter
@@ -122,13 +120,13 @@ data class AppState(
     val dnsFallbackFilterDomain: List<String> = DefaultMihomoDnsFallbackFilterDomain,
     val dnsHosts: List<String> = emptyList(),
 
-    val transparentProxyPort: String = DefaultTproxyPort.toString(),
+    val transparentProxyPort: String = RootModeEngine.DefaultTproxyPort.toString(),
     val enableRootBootScript: Boolean = false,
     val enableRootEbpfRules: Boolean = false,
     val enableRootEbpfDirectCidrBypass: Boolean = false,
     val enableRootIpv6Disabler: Boolean = false,
-    val socks5ProxyPort: String = DefaultTun2SocksProxyPort.toString(),
-    val bpf2SocksBridgePort: String = RootBpf2SocksDefaultBridgePort.toString(),
+    val socks5ProxyPort: String = RootModeEngine.DefaultTun2SocksProxyPort.toString(),
+    val bpf2SocksBridgePort: String = RootModeEngine.DefaultBpf2SocksBridgePort.toString(),
 
     val externalInterfaces: List<String> = emptyList(),
     val ignoredInterfaces: List<String> = emptyList(),

@@ -22,12 +22,7 @@ import app.resourceFileUpdateSource
 import engine.network.isIpv4CidrAddress
 import engine.network.toPortOrNull
 import engine.proxy.LocalProxyLoopbackAddress
-import engine.bpf2socks.Bpf2SocksRuntimeMarkerKey
-import engine.tun.MihomoTunDevice
-import engine.tun.MihomoTunInboundName
-import engine.tun.MihomoTunRuntimeMarkerKey
-import engine.tproxy.DefaultTproxyPort
-import engine.tun2socks.DefaultTun2SocksProxyPort
+import engine.root.RootModeEngine
 import engine.vpn.VpnDefaults
 import engine.vpn.toTunOptions
 import org.snakeyaml.engine.v2.api.Dump
@@ -41,6 +36,12 @@ import org.snakeyaml.engine.v2.nodes.ScalarNode
 import org.snakeyaml.engine.v2.nodes.Tag
 import org.snakeyaml.engine.v2.representer.StandardRepresenter
 import utils.toTrimmedNonEmptyDistinctList
+
+internal const val Bpf2SocksRuntimeMarkerKey = "x-asteriskmeta-root-bpf2socks"
+internal const val MihomoTunDevice = "asterisk0"
+internal const val MihomoTunInboundName = "asterisk-tun"
+internal const val MihomoTunRuntimeMarkerKey = "x-asteriskmeta-root-tun"
+internal const val MihomoTunRuntimeConfigTag = "x-asteriskmeta-root-tun:"
 
 internal object MihomoProfileFactory {
     fun buildProfileBytes(
@@ -147,8 +148,8 @@ private fun MutableMap<String, Any?>.putAsteriskRuntimeOverrides(
     exposePorts: Boolean = true,
 ) {
     val mixedPort = appState.localProxyPort.toPortOrNull() ?: VpnDefaults.LOCAL_PROXY_PORT
-    val tproxyPort = appState.transparentProxyPort.toPortOrNull() ?: DefaultTproxyPort
-    val socksPort = appState.socks5ProxyPort.toPortOrNull() ?: DefaultTun2SocksProxyPort
+    val tproxyPort = appState.transparentProxyPort.toPortOrNull() ?: RootModeEngine.DefaultTproxyPort
+    val socksPort = appState.socks5ProxyPort.toPortOrNull() ?: RootModeEngine.DefaultTun2SocksProxyPort
     val allowLan = appState.requiresMihomoLanAccess(runMode)
     val bindAddress = if (allowLan) "*" else LocalProxyLoopbackAddress
     val control = appState.mihomoControlConfig()

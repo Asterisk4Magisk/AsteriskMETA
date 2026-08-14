@@ -5,82 +5,96 @@ package features.settings.usecase
 
 import android.content.Context
 import app.AppState
-import app.modes.RunModeBpf2Socks
-import app.modes.RunModeTun
-import app.modes.RunModeTproxy
-import app.modes.RunModeTun2Socks
 import app.modes.isRootRunMode
 import engine.proxy.ProxyEngineStartRequest
-import engine.root.prepareRootConfigBuildContext
-import engine.root.prepareRootRuntimeLayout
-import engine.bpf2socks.Bpf2SocksRootRunner
-import engine.bpf2socks.buildBpf2SocksStartConfig
-import engine.root.removeRootBootScript
-import engine.mihomo.prepareMihomoCoreLogPaths
-import engine.tun.TunRootRunner
-import engine.tun.buildTunStartConfig
-import engine.tproxy.TproxyRootRunner
-import engine.tproxy.buildTproxyStartConfig
-import engine.tun2socks.Tun2SocksRootRunner
-import engine.tun2socks.buildTun2SocksStartConfig
+import engine.root.runtime.RootConflictStage
+import engine.root.runtime.RootFailureKind
+import engine.root.runtime.RootOperationBlockedException
+import engine.root.runtime.RootOperationResult
+import engine.root.runtime.RootRequestedAction
+import engine.root.runtime.toAppLogMessage
+import engine.root.runtime.model.RootRuntimeOwner
+import engine.root.runtime.RootRuntimeBusyException
+import engine.root.runtime.RootRuntimeConflictException
+import engine.root.runtime.RootSupervisorController
+import engine.root.RootModeEngine
+import features.logs.AndroidAppLogger
 import kotlin.coroutines.cancellation.CancellationException
 import system.AndroidRootShellGateway
 
 internal class RootBootScriptUseCase(
     context: Context,
     private val rootAccess: AndroidRootShellGateway,
+    private val operationGate: RootBootScriptOperationGate = RootBootScriptOperationGate(),
 ) {
     private val appContext = context.applicationContext
-    private val tproxyRootRunner = TproxyRootRunner(rootAccess)
-    private val tunRootRunner = TunRootRunner(rootAccess)
-    private val tun2SocksRootRunner = Tun2SocksRootRunner(rootAccess)
-    private val bpf2SocksRootRunner = Bpf2SocksRootRunner(rootAccess)
+    private val controller = RootSupervisorController(appContext, rootAccess)
 
     suspend fun setEnabled(
         state: AppState,
         enabled: Boolean,
-    ): RootBootScriptResult {
+    ): RootBootScriptResult = operationGate.exclusive {
         if (!rootAccess.hasRootAccess()) {
-            return RootBootScriptResult.RootUnavailable
+            return@exclusive RootBootScriptResult.RootUnavailable
         }
-        return if (enabled) {
+        if (enabled) {
             install(state)
         } else {
-            uninstall(rootAccessVerified = true)
+            uninstallUnlocked()
         }
     }
 
-    suspend fun refresh(state: AppState): RootBootScriptResult {
-        if (!state.enableRootBootScript) {
-            return RootBootScriptResult.Success
+    suspend fun refresh(
+        state: AppState,
+        isStillCurrent: () -> Boolean = { true },
+    ): RootBootScriptResult = operationGate.exclusive {
+        if (!isStillCurrent() || !state.enableRootBootScript) {
+            return@exclusive RootBootScriptResult.Success
         }
         if (!rootAccess.hasRootAccess()) {
-            return RootBootScriptResult.RootUnavailable
+            return@exclusive RootBootScriptResult.RootUnavailable
         }
-        return install(state)
+        install(state, deferIfRuntimeBound = true)
     }
 
-    suspend fun uninstall(rootAccessVerified: Boolean = false): RootBootScriptResult {
-        if (!rootAccessVerified && !rootAccess.hasRootAccess()) {
-            return RootBootScriptResult.RootUnavailable
+    suspend fun uninstall(rootAccessVerified: Boolean = false): RootBootScriptResult =
+        operationGate.exclusive {
+            if (!rootAccessVerified && !rootAccess.hasRootAccess()) {
+                return@exclusive RootBootScriptResult.RootUnavailable
+            }
+            uninstallUnlocked()
         }
-        return runCatching {
-            rootAccess.removeRootBootScript(
-                runtimeLayout = appContext.prepareRootRuntimeLayout(),
-                coreLogPaths = appContext.prepareMihomoCoreLogPaths(),
-                failureMessage = "Failed to remove ROOT boot script",
-            )
+
+    suspend fun uninstallAndThen(
+        rootAccessVerified: Boolean = false,
+        afterUninstall: suspend () -> Unit,
+    ): RootBootScriptResult = operationGate.exclusive {
+        if (!rootAccessVerified && !rootAccess.hasRootAccess()) {
+            return@exclusive RootBootScriptResult.RootUnavailable
+        }
+        val result = uninstallUnlocked()
+        if (result == RootBootScriptResult.Success) {
+            afterUninstall()
+        }
+        result
+    }
+
+    private suspend fun uninstallUnlocked(): RootBootScriptResult =
+        runCatching {
+            controller.removeBoot()
         }.fold(
             onSuccess = { RootBootScriptResult.Success },
             onFailure = { error -> error.toRootBootScriptFailure() },
         )
-    }
 
-    private suspend fun install(state: AppState): RootBootScriptResult {
+    private suspend fun install(
+        state: AppState,
+        deferIfRuntimeBound: Boolean = false,
+    ): RootBootScriptResult {
         return runCatching {
             val request = ProxyEngineStartRequest(state)
             if (state.runMode.isRootRunMode()) {
-                installRootBootScript(state.runMode, request)
+                installRootBootScript(state.runMode, request, deferIfRuntimeBound)
             }
         }.fold(
             onSuccess = { RootBootScriptResult.Success },
@@ -91,20 +105,37 @@ internal class RootBootScriptUseCase(
     private suspend fun installRootBootScript(
         runMode: Int,
         request: ProxyEngineStartRequest,
+        deferIfRuntimeBound: Boolean,
     ) {
-        val rootContext = appContext.prepareRootConfigBuildContext(request)
-        when (runMode) {
-            RunModeTproxy -> tproxyRootRunner.installBootScript(rootContext.buildTproxyStartConfig())
-            RunModeTun -> tunRootRunner.installBootScript(rootContext.buildTunStartConfig())
-            RunModeTun2Socks -> tun2SocksRootRunner.installBootScript(rootContext.buildTun2SocksStartConfig())
-            RunModeBpf2Socks -> bpf2SocksRootRunner.installBootScript(rootContext.buildBpf2SocksStartConfig())
-        }
+        if (!controller.canPublishBoot(deferIfRuntimeBound)) return
+        val config = RootModeEngine.prepareConfig(appContext, runMode, request)
+        controller.publishBoot(config.root, config.asteriskdConfig)
     }
 }
 
 private fun Throwable.toRootBootScriptFailure(): RootBootScriptResult.Failed {
     if (this is CancellationException) throw this
-    return RootBootScriptResult.Failed(this)
+    val operationResult = toRootBootOperationResult()
+    operationResult.toAppLogMessage(RootRequestedAction.BootRefresh)?.let { message ->
+        AndroidAppLogger.error(RootBootLogTag, message)
+    }
+    val reportedError = when (this) {
+        is RootRuntimeConflictException, is RootRuntimeBusyException -> RootOperationBlockedException(operationResult)
+        else -> this
+    }
+    return RootBootScriptResult.Failed(reportedError)
+}
+
+private fun Throwable.toRootBootOperationResult(): RootOperationResult = when (this) {
+    is RootRuntimeConflictException -> RootOperationResult.ForeignOwnerConflict(
+        owner = RootRuntimeOwner.entries.single { owner -> owner.wireValue == snapshot.owner.wireValue },
+        action = RootRequestedAction.BootRefresh,
+        stage = RootConflictStage.PublicationRecheck,
+    )
+    is RootRuntimeBusyException -> RootOperationResult.Busy(
+        RootRuntimeOwner.entries.single { owner -> owner.wireValue == snapshot.owner.wireValue },
+    )
+    else -> RootOperationResult.Failure(RootFailureKind.InternalFailure, this)
 }
 
 internal sealed interface RootBootScriptResult {
@@ -114,3 +145,5 @@ internal sealed interface RootBootScriptResult {
 
     data class Failed(val error: Throwable) : RootBootScriptResult
 }
+
+private const val RootBootLogTag = "RootBootScript"

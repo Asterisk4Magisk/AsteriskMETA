@@ -50,6 +50,7 @@ internal data class AppServices(
     val tipNotifier: AndroidToastTipNotifier,
     val logFileCreator: suspend (String) -> Uri?,
     val coreLogRepository: CoreLogRepository,
+    val rootLogRepository: CoreLogRepository,
     val logcatRepository: CoreLogRepository,
 )
 

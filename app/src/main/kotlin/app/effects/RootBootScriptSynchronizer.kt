@@ -44,11 +44,7 @@ internal fun RootBootScriptSynchronizer(
                         LogTag,
                         "Skipped ROOT boot script refresh because root access is unavailable",
                     )
-                    is RootBootScriptResult.Failed -> AndroidAppLogger.warn(
-                        LogTag,
-                        "Failed to refresh ROOT boot script",
-                        result.error,
-                    )
+                    is RootBootScriptResult.Failed -> Unit
                 }
             }
     }

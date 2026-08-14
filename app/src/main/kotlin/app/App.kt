@@ -17,9 +17,9 @@ import app.effects.MihomoRuntimeSynchronizer
 import app.effects.ResourceFileSynchronizer
 import app.effects.SubscriptionAutoUpdater
 import app.effects.RootBootScriptSynchronizer
-import app.effects.Tun2SocksRuntimeFileSynchronizer
 import app.effects.TrafficStatsNotificationSynchronizer
 import features.logs.AndroidCoreLogRepository
+import features.logs.AndroidAsteriskdLogRepository
 import features.logs.AndroidLogcatRepository
 import features.monitoring.MonitoringRepository
 import data.AndroidAppStateStore
@@ -197,6 +197,7 @@ fun App(
             tipNotifier = tipNotifier,
             logFileCreator = logFileCreator,
             coreLogRepository = AndroidCoreLogRepository,
+            rootLogRepository = AndroidAsteriskdLogRepository,
             logcatRepository = AndroidLogcatRepository,
         )
     }
@@ -231,10 +232,6 @@ fun App(
     RootBootScriptSynchronizer(
         stateStore = stateStore,
         rootBootScriptUseCase = rootBootScriptUseCase,
-    )
-    Tun2SocksRuntimeFileSynchronizer(
-        context = appContext,
-        stateStore = stateStore,
     )
     TrafficStatsNotificationSynchronizer(
         stateStore = stateStore,

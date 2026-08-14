@@ -7,6 +7,9 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.system.ErrnoException
+import android.system.Os
+import android.system.OsConstants
 import app.CustomResourceFileState
 import app.CustomResourceFileStatus
 import app.ResourceFileKind
@@ -59,6 +62,7 @@ internal class AndroidResourceFileStore(
     fun restoreBundledDefaults(resourceFileSource: Int = ResourceFileSourceMetaCubeXGithub) {
         val bundledUpdatedAtMillis = appContext.packageUpdatedAtMillis()
         ResourceFileKind.entries.forEach { kind ->
+            if (kind == ResourceFileKind.MihomoCore) return@forEach
             val target = file(kind)
             if (!target.needsBundledRestore(kind, resourceFileSource, bundledUpdatedAtMillis)) return@forEach
             if (!hasBundledFile(kind)) return@forEach
@@ -86,10 +90,8 @@ internal class AndroidResourceFileStore(
     }
 
     fun restoreBundled(kind: ResourceFileKind) {
-        when (kind) {
-            ResourceFileKind.MihomoCore -> restoreBundledMihomoCore()
-            else -> restoreBundledResourceFile(kind)
-        }
+        require(kind != ResourceFileKind.MihomoCore) { "Mihomo core must be restored through the locked publisher" }
+        restoreBundledResourceFile(kind)
     }
 
     private fun restoreBundledResourceFile(kind: ResourceFileKind) {
@@ -100,14 +102,18 @@ internal class AndroidResourceFileStore(
         kind.applyPermissions(file(kind))
     }
 
-    private fun restoreBundledMihomoCore() {
+    fun stageBundledMihomoCoreCandidate(): File {
         val source = bundledMihomoCoreFileOrNull()
             ?: error("Bundled ${ResourceFileKind.MihomoCore.fileName} is not available for ${currentRuntimeAbi()}")
-        dataDir.mkdirs()
-        source.inputStream().use { input ->
-            writeAtomically(file(ResourceFileKind.MihomoCore)) { output -> input.copyTo(output) }
-        }
-        ResourceFileKind.MihomoCore.applyPermissions(file(ResourceFileKind.MihomoCore))
+        return source.inputStream().use(::writeMihomoCoreCandidate)
+    }
+
+    fun shouldPublishBundledMihomoCore(resourceFileSource: Int): Boolean {
+        return bundledMihomoCoreFileOrNull() != null && file(ResourceFileKind.MihomoCore).needsBundledRestore(
+            ResourceFileKind.MihomoCore,
+            resourceFileSource,
+            appContext.packageUpdatedAtMillis(),
+        )
     }
 
     private fun bundledMihomoCoreFileOrNull(): File? {
@@ -116,24 +122,93 @@ internal class AndroidResourceFileStore(
     }
 
     fun replace(kind: ResourceFileKind, uri: Uri) {
+        require(kind != ResourceFileKind.MihomoCore) { "Mihomo core must be replaced through the locked publisher" }
         dataDir.mkdirs()
         val replaceTempFile = file(kind).resolveSibling("${kind.fileName}.replace.tmp")
         appContext.contentResolver.openInputStream(uri)?.use { input ->
             replaceTempFile.outputStream().use { output -> input.copyTo(output) }
         } ?: throw FileNotFoundException(uri.toString())
 
-        when {
-            kind == ResourceFileKind.MihomoCore && replaceTempFile.extractZipEntry("mihomo", file(kind)) -> {
-                replaceTempFile.delete()
-            }
-
-            kind == ResourceFileKind.MihomoCore && replaceTempFile.extractGzip(file(kind)) -> {
-                replaceTempFile.delete()
-            }
-
-            else -> replaceFile(replaceTempFile, file(kind))
-        }
+        replaceFile(replaceTempFile, file(kind))
         kind.applyPermissions(file(kind))
+    }
+
+    fun stageMihomoCoreCandidate(uri: Uri): File {
+        val uploaded = appContext.contentResolver.openInputStream(uri)?.use(::writeMihomoCoreCandidate)
+            ?: throw FileNotFoundException(uri.toString())
+        return normalizeMihomoCoreCandidate(uploaded)
+    }
+
+    fun createMihomoCoreDownloadCandidate(): File = createMihomoCoreCandidateFile("mihomo-download-")
+
+    fun normalizeMihomoCoreCandidate(uploaded: File): File {
+        val extracted = createMihomoCoreCandidateFile("mihomo-extracted-")
+        try {
+            val found = uploaded.extractZipEntry("mihomo", extracted) || uploaded.extractGzip(extracted)
+            return if (found) {
+                uploaded.delete()
+                extracted
+            } else {
+                extracted.delete()
+                uploaded
+            }
+        } catch (error: Throwable) {
+            extracted.delete()
+            uploaded.delete()
+            throw error
+        }
+    }
+
+    fun installInitialMihomoCoreCandidate(candidate: File): Boolean {
+        require(candidate.isFile && candidate.length() > 0) { "Mihomo core candidate is empty" }
+        require(dataDir.exists() || dataDir.mkdirs())
+        val target = file(ResourceFileKind.MihomoCore)
+        return synchronized(writeLockFor(target)) {
+            if (target.exists()) return@synchronized false
+            val temp = File.createTempFile(".mihomo-initial-", ".tmp", dataDir)
+            try {
+                candidate.inputStream().use { input ->
+                    temp.outputStream().use { output ->
+                        input.copyTo(output)
+                        output.flush()
+                        output.fd.sync()
+                    }
+                }
+                require(temp.length() > 0)
+                Os.chmod(temp.absolutePath, MihomoExecutableMode)
+                try {
+                    Os.link(temp.absolutePath, target.absolutePath)
+                } catch (error: ErrnoException) {
+                    if (error.errno == OsConstants.EEXIST) return@synchronized false
+                    throw error
+                }
+                syncDirectory(dataDir)
+                true
+            } finally {
+                temp.delete()
+            }
+        }
+    }
+
+    private fun writeMihomoCoreCandidate(input: java.io.InputStream): File {
+        val candidate = createMihomoCoreCandidateFile("mihomo-core-")
+        try {
+            candidate.outputStream().use { output ->
+                input.copyTo(output)
+                output.flush()
+                output.fd.sync()
+            }
+            require(candidate.length() > 0) { "Mihomo core candidate is empty" }
+            return candidate
+        } catch (error: Throwable) {
+            candidate.delete()
+            throw error
+        }
+    }
+
+    private fun createMihomoCoreCandidateFile(prefix: String): File {
+        require(appContext.cacheDir.exists() || appContext.cacheDir.mkdirs())
+        return File.createTempFile(prefix, ".candidate", appContext.cacheDir)
     }
 
     fun replaceCustom(customFile: CustomResourceFileState, uri: Uri) {
@@ -179,9 +254,12 @@ internal class AndroidResourceFileStore(
 
     fun preparePaths(): MihomoResourceFilePaths {
         dataDir.mkdirs()
+        return currentPaths()
+    }
+
+    fun currentPaths(): MihomoResourceFilePaths {
         return MihomoResourceFilePaths(
             dataDir = dataDir.absolutePath,
-            setuidgidPath = File(appContext.applicationInfo.nativeLibraryDir, SetuidgidLibraryName).absolutePath,
             asteriskdPath = File(appContext.applicationInfo.nativeLibraryDir, AsteriskdLibraryName).absolutePath,
             bpfMatcherPath = File(appContext.applicationInfo.nativeLibraryDir, BpfMatcherLibraryName).absolutePath,
             bpf2socksPath = File(appContext.applicationInfo.nativeLibraryDir, Bpf2SocksLibraryName).absolutePath,
@@ -207,7 +285,6 @@ private fun File.needsBundledRestore(
 
 internal data class MihomoResourceFilePaths(
     val dataDir: String,
-    val setuidgidPath: String,
     val asteriskdPath: String,
     val bpfMatcherPath: String,
     val bpf2socksPath: String,
@@ -223,6 +300,10 @@ internal fun Context.mihomoResourceFilesDir(): File {
 
 internal fun Context.prepareMihomoResourceFilePaths(): MihomoResourceFilePaths {
     return AndroidResourceFileStore(this).preparePaths()
+}
+
+internal fun Context.mihomoResourceFilePaths(): MihomoResourceFilePaths {
+    return AndroidResourceFileStore(this).currentPaths()
 }
 
 private fun currentRuntimeAbi(): String {
@@ -243,15 +324,45 @@ private fun Context.packageUpdatedAtMillis(): Long {
     }.getOrDefault(0L)
 }
 
-private const val SetuidgidLibraryName = "libsetuidgid.so"
 private const val AsteriskdLibraryName = "libasteriskd.so"
 private const val BpfMatcherLibraryName = "libbpf-matcher.so"
 private const val Bpf2SocksLibraryName = "libbpf2socks.so"
 private const val MihomoCoreLibraryName = "libmihomo.so"
 private const val HevSocks5TunnelLibraryName = "libhev-socks5-tunnel-cli.so"
 private const val MihomoHomeDirName = "clash"
+private const val MihomoExecutableMode = 493
 
 private val SupportedAndroidAbis = setOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
+
+internal enum class CoreCandidateInstallPath {
+    AtomicPublication,
+    InitialNoReplace,
+    Defer,
+}
+
+internal fun chooseCoreCandidateInstallPath(
+    hasRootAccess: Boolean,
+    targetExists: Boolean,
+): CoreCandidateInstallPath = when {
+    hasRootAccess -> CoreCandidateInstallPath.AtomicPublication
+    !targetExists -> CoreCandidateInstallPath.InitialNoReplace
+    else -> CoreCandidateInstallPath.Defer
+}
+
+private fun syncDirectory(directory: File) {
+    val descriptor = Os.open(directory.absolutePath, OsConstants.O_RDONLY, 0)
+    try {
+        Os.fsync(descriptor)
+    } finally {
+        Os.close(descriptor)
+    }
+}
+
+private val WriteLocks = mutableMapOf<String, Any>()
+
+private fun writeLockFor(target: File): Any = synchronized(WriteLocks) {
+    WriteLocks.getOrPut(target.absolutePath) { Any() }
+}
 
 private fun File.toStatus(): ResourceFileStatus {
     return ResourceFileStatus(

@@ -116,7 +116,6 @@ dependencies {
     implementation(libs.coil)
     implementation(libs.coil.compose)
     implementation(dependencies.project(":cmfa-core"))
-    implementation(dependencies.project(":setuidgid"))
     implementation(dependencies.project(":asteriskd"))
     implementation(dependencies.project(":bpfmatcher"))
     implementation(dependencies.project(":bpf2socks"))
