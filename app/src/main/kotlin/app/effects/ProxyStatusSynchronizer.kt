@@ -19,6 +19,8 @@ import app.modes.isRootRunMode
 import data.AndroidAppStateStore
 import engine.proxy.AndroidProxyEngine
 import engine.proxy.ProxyEngineStatus
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChangedBy
 
 @Composable
 internal fun ProxyStatusSynchronizer(
@@ -40,14 +42,32 @@ internal fun ProxyStatusSynchronizer(
     }
 
     LaunchedEffect(stateStore, proxyEngine, foregroundSyncGeneration) {
-        synchronizeProxyStatus(
-            currentState = { stateStore.state.value },
+        observeProxyStatus(
+            states = stateStore.state,
             readStatus = { snapshot ->
                 runCatching { proxyEngine.status(snapshot.runMode, snapshot) }.getOrNull()
             },
             updateAppState = updateAppState,
         )
     }
+}
+
+internal suspend fun observeProxyStatus(
+    states: Flow<AppState>,
+    readStatus: suspend (AppState) -> ProxyEngineStatus?,
+    updateAppState: (((AppState) -> AppState) -> Unit),
+) {
+    states
+        .distinctUntilChangedBy { state ->
+            Triple(state.runMode, state.proxyRunning, state.pendingMihomoRestartProfileId)
+        }
+        .collect { snapshot ->
+            synchronizeProxyStatus(
+                currentState = { snapshot },
+                readStatus = readStatus,
+                updateAppState = updateAppState,
+            )
+        }
 }
 
 internal suspend fun synchronizeProxyStatus(
@@ -63,9 +83,28 @@ internal suspend fun synchronizeProxyStatus(
 
     val status = readStatus(snapshot) ?: return false
     updateAppState { state ->
-        state.copy(proxyRunning = status.running).let { updated ->
-            if (status.running) updated else updated.withMihomoRestartApplied()
+        if (
+            state.runMode != snapshot.runMode ||
+            state.proxyRunning != snapshot.proxyRunning ||
+            state.pendingMihomoRestartProfileId != snapshot.pendingMihomoRestartProfileId
+        ) {
+            return@updateAppState state
         }
+        val synchronizedRunMode = status.runMode
+            ?.takeIf { status.running && it.isRootRunMode() }
+            ?: state.runMode
+        val updated = if (
+            state.proxyRunning == status.running &&
+            state.runMode == synchronizedRunMode
+        ) {
+            state
+        } else {
+            state.copy(
+                runMode = synchronizedRunMode,
+                proxyRunning = status.running,
+            )
+        }
+        if (status.running) updated else updated.withMihomoRestartApplied()
     }
     return true
 }

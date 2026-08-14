@@ -7,6 +7,7 @@ package engine.root.runtime
 import android.content.Context
 import android.os.Build
 import engine.proxy.ProxyEngineStatus
+import engine.root.config.RootStartConfig
 import engine.root.daemon.AsteriskdClient
 import engine.root.daemon.config.AsteriskdConfig
 import engine.root.daemon.config.AsteriskdConfigEncoder
@@ -17,16 +18,13 @@ import engine.root.daemon.control.AsteriskdControlResponse
 import engine.root.daemon.control.AsteriskdPhase
 import engine.root.daemon.control.AsteriskdResultCode
 import engine.root.daemon.control.AsteriskdSnapshot
-import engine.root.config.RootStartConfig
 import engine.root.publication.RootBootPublicationCommand
 import engine.root.publication.RootPublicationBundle
 import engine.root.publication.RootPublicationCommand
 import engine.root.publication.RootPublicationStager
-import engine.root.publication.RootRuntimeLayout
 import engine.root.publication.prepareRootPublicationDirectories
 import engine.root.publication.rootRuntimeLayout
 import engine.root.publication.validateElfFile
-import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.delay
 import system.RootShellGateway
 import system.ShellExecOptions
@@ -40,8 +38,6 @@ internal class RootSupervisorController(
     private val appContext = context.applicationContext
     private val runtimeLayout = appContext.rootRuntimeLayout()
     private val client = AsteriskdClient(shell)
-    private var foreground: Deferred<ShellExecResult>? = null
-
     suspend fun status(): AsteriskdControlResponse = client.status(runtimeLayout.asteriskdPath)
 
     suspend fun preflightStart(expectedMode: AsteriskdMode, explicitRestart: Boolean): AsteriskdSnapshot? {
@@ -123,8 +119,10 @@ internal class RootSupervisorController(
                     restartExpectedOwner = restartExpectedOwner?.wireValue,
                 ),
             )
-            val launched = shell.launch(publication, ShellExecOptions(logFailure = false))
-            foreground = launched
+            val launchResult = shell.exec(publication, ShellExecOptions(logFailure = false))
+            if (launchResult.errno != 0 || launchResult.stdout.isNotBlank()) {
+                throw launchFailure(launchResult)
+            }
             val deadline = System.nanoTime() + StartTimeoutMilliseconds * 1_000_000L
             while (System.nanoTime() < deadline) {
                 val response = runCatching { status() }.getOrNull()
@@ -139,7 +137,6 @@ internal class RootSupervisorController(
                         return snapshot
                     }
                 }
-                if (launched.isCompleted) throw launchFailure(launched.await())
                 delay(StatusPollIntervalMilliseconds.milliseconds)
             }
             throw IllegalStateException("asteriskd did not reach running phase before timeout")
@@ -164,7 +161,6 @@ internal class RootSupervisorController(
             else -> error("Unexpected stop-own response id")
         }
         if (response.result.code == AsteriskdResultCode.Ok || response.result.code == AsteriskdResultCode.NotRunning) {
-            foreground = null
             return response
         }
         error(response.result.message ?: "Failed to stop asteriskd")
@@ -226,7 +222,8 @@ internal class RootSupervisorController(
             } else {
                 controlResponse?.result?.message
             }
-        }.getOrNull() ?: result.stderr.ifBlank { "asteriskd launcher exited with ${result.errno}" }
+        }.getOrNull() ?: sanitizeLauncherStderr(result.stderr)
+            .ifBlank { "asteriskd launcher exited with ${result.errno}" }
         return IllegalStateException(message)
     }
 
@@ -235,6 +232,29 @@ internal class RootSupervisorController(
         validateElfFile(config.coreExecutablePath, Build.SUPPORTED_ABIS.toList())
     }
 
+}
+
+internal fun sanitizeLauncherStderr(stderr: String): String {
+    val retained = mutableListOf<String>()
+    var readingFileContexts = false
+    stderr.lineSequence().forEach { line ->
+        if (line.trim() == "SELinux: Loaded file context from:") {
+            readingFileContexts = true
+            return@forEach
+        }
+        val trimmed = line.trim()
+        if (
+            readingFileContexts &&
+            trimmed.startsWith('/') &&
+            "/selinux/" in trimmed &&
+            trimmed.endsWith("_file_contexts")
+        ) {
+            return@forEach
+        }
+        readingFileContexts = false
+        retained += line
+    }
+    return retained.joinToString("\n").trim().ifBlank { stderr.trim() }
 }
 
 private const val StartTimeoutMilliseconds = 15_000L

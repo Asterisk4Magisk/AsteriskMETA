@@ -206,13 +206,10 @@ fun App(
         { transform -> stateStore.update(transform) }
     }
     val keyColor = keyColorFor(chromeState.seedIndex)
-    // Start process-level runtime data preloading before any startup status reconciliation.
     MihomoRuntimeSynchronizer(
         stateStore = stateStore,
-        proxyEngine = proxyEngine,
         mihomoRuntimeLifecycle = application.mihomoRuntimeLifecycle,
         mihomoProviderUsage = mihomoProviderUsage,
-        updateAppState = updateAppState,
     )
     ProxyStatusSynchronizer(
         stateStore = stateStore,
