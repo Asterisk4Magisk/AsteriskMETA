@@ -7,7 +7,6 @@ import android.content.Context
 import app.AppState
 import app.modes.isRootRunMode
 import engine.proxy.ProxyEngineStartRequest
-import engine.root.runtime.RootConflictStage
 import engine.root.runtime.RootFailureKind
 import engine.root.runtime.RootOperationBlockedException
 import engine.root.runtime.RootOperationResult
@@ -116,11 +115,12 @@ internal class RootBootScriptUseCase(
 private fun Throwable.toRootBootScriptFailure(): RootBootScriptResult.Failed {
     if (this is CancellationException) throw this
     val operationResult = toRootBootOperationResult()
-    operationResult.toAppLogMessage(RootRequestedAction.BootRefresh)?.let { message ->
-        AndroidAppLogger.error(RootBootLogTag, message)
-    }
+    AndroidAppLogger.error(
+        RootBootLogTag,
+        operationResult.toAppLogMessage(RootRequestedAction.BootRefresh),
+    )
     val reportedError = when (this) {
-        is RootRuntimeConflictException, is RootRuntimeBusyException -> RootOperationBlockedException(operationResult)
+        is RootRuntimeConflictException, is RootRuntimeBusyException -> RootOperationBlockedException()
         else -> this
     }
     return RootBootScriptResult.Failed(reportedError)
@@ -129,13 +129,11 @@ private fun Throwable.toRootBootScriptFailure(): RootBootScriptResult.Failed {
 private fun Throwable.toRootBootOperationResult(): RootOperationResult = when (this) {
     is RootRuntimeConflictException -> RootOperationResult.ForeignOwnerConflict(
         owner = RootRuntimeOwner.entries.single { owner -> owner.wireValue == snapshot.owner.wireValue },
-        action = RootRequestedAction.BootRefresh,
-        stage = RootConflictStage.PublicationRecheck,
     )
     is RootRuntimeBusyException -> RootOperationResult.Busy(
         RootRuntimeOwner.entries.single { owner -> owner.wireValue == snapshot.owner.wireValue },
     )
-    else -> RootOperationResult.Failure(RootFailureKind.InternalFailure, this)
+    else -> RootOperationResult.Failure(RootFailureKind.InternalFailure)
 }
 
 internal sealed interface RootBootScriptResult {

@@ -32,8 +32,6 @@ internal data class RootRuntimeLayout(
         get() = dataDir.posixChild("logs").posixChild("asteriskd.log")
 }
 
-internal fun Context.prepareRootRuntimeLayout(): RootRuntimeLayout = rootRuntimeLayout()
-
 internal fun Context.rootRuntimeLayout(): RootRuntimeLayout = mihomoResourceFilePaths().toRootRuntimeLayout()
 
 internal fun Context.prepareRootPublicationDirectories(): RootRuntimeLayout {
