@@ -4,6 +4,7 @@
 package ui.components
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -35,6 +36,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -62,6 +64,7 @@ internal fun StringListEditor(
     modifier: Modifier = Modifier,
     description: String? = null,
     validateInput: (String) -> String? = { null },
+    onPendingChange: ((Boolean) -> Unit)? = null,
 ) {
     var input by remember(editorKey, title) { mutableStateOf("") }
     var editingIndex by remember(editorKey, title) { mutableIntStateOf(-1) }
@@ -72,12 +75,18 @@ internal fun StringListEditor(
     val sanitizedValues = values.toTrimmedNonEmptyList()
     val inputError = input.trim().takeIf(String::isNotEmpty)?.let(validateInput)
     val canAdd = input.trim().isNotEmpty() && inputError == null
+    val hasPendingInput = hasPendingStringListEdit(input, editingIndex)
+    val currentOnPendingChange by rememberUpdatedState(onPendingChange)
 
     LaunchedEffect(editorKey, title) {
         input = ""
         editingIndex = -1
         editInput = ""
         showBulkEditor = false
+    }
+
+    LaunchedEffect(hasPendingInput) {
+        currentOnPendingChange?.invoke(hasPendingInput)
     }
 
     Card(
@@ -124,6 +133,14 @@ internal fun StringListEditor(
                 ) {
                     Icon(Icons.Rounded.Add, stringResource(R.string.common_add))
                 }
+            }
+            AnimatedVisibility(
+                visible = hasPendingInput && onPendingChange != null,
+                enter = AsteriskMotion.contentEnter(),
+                exit = AsteriskMotion.contentExit(),
+                label = "string-list-pending-value",
+            ) {
+                StringListStatusText(stringResource(R.string.string_list_pending_value))
             }
             if (sanitizedValues.isEmpty()) StringListStatusText(emptyText)
             sanitizedValues.forEachIndexed { index, value ->

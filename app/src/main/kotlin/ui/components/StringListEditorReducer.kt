@@ -3,6 +3,9 @@
 
 package ui.components
 
+internal fun hasPendingStringListEdit(input: String, editingIndex: Int): Boolean =
+    input.isNotBlank() || editingIndex >= 0
+
 internal fun stringListItemKey(index: Int): String = "string-list-item-$index"
 
 internal data class StringListEditResult(
