@@ -13,9 +13,9 @@ import data.AndroidAppStateStore
 import engine.mihomo.MihomoProfileContentStore
 import features.subscription.runtime.AndroidMihomoProfilePreparer
 import features.subscription.usecase.MihomoProfileSubscriptionUpdateResult
+import features.subscription.usecase.commitMihomoProfileSubscriptionUpdates
 import features.subscription.usecase.toSubscriptionFetchOptions
 import features.subscription.usecase.updateSubscriptions
-import features.subscription.usecase.withUpdatedMihomoProfiles
 import io.ktor.http.Url
 import utils.decodeUrlComponentPreservingPlus
 
@@ -46,12 +46,12 @@ internal class SubscriptionInstallConfigUseCase(
             fetchOptions = { stateStore.state.value.toSubscriptionFetchOptions(it) },
             onProfileCompleted = { _, profileResult, completedAtMillis ->
                 profileResult.getOrNull()?.let { update ->
-                    stateStore.update { state ->
-                        state.withUpdatedMihomoProfiles(
-                            updates = listOf(update),
-                            updatedAtMillis = completedAtMillis,
-                        )
-                    }
+                    commitMihomoProfileSubscriptionUpdates(
+                        updates = listOf(update),
+                        updatedAtMillis = completedAtMillis,
+                        contentStore = contentStore,
+                        updateAppState = { transform -> stateStore.update(transform) },
+                    )
                 }
             },
         )

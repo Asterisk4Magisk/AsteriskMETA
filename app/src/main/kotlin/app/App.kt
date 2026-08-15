@@ -12,29 +12,26 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import app.effects.ProxyStatusSynchronizer
 import app.effects.MihomoRuntimeSynchronizer
+import app.effects.ProxyStatusSynchronizer
 import app.effects.ResourceFileSynchronizer
-import app.effects.SubscriptionAutoUpdater
 import app.effects.RootBootScriptSynchronizer
 import app.effects.TrafficStatsNotificationSynchronizer
-import features.logs.AndroidCoreLogRepository
-import features.logs.AndroidAsteriskdLogRepository
-import features.logs.AndroidLogcatRepository
-import features.monitoring.MonitoringRepository
-import data.AndroidAppStateStore
 import engine.proxy.AndroidProxyEngine
 import engine.proxy.ProxyServiceUseCase
+import features.logs.AndroidAsteriskdLogRepository
+import features.logs.AndroidCoreLogRepository
+import features.logs.AndroidLogcatRepository
+import features.monitoring.MonitoringRepository
 import features.resources.ResourceFileUpdateCoordinator
 import features.resources.ResourceFileUpdateRequest
 import features.resources.ResourceFileUseCase
 import features.resources.runtime.AndroidResourceFileDownloadCancellation
 import features.settings.locale.ProvideAppLanguage
-import features.settings.usecase.SwitchRunModeUseCase
 import features.settings.usecase.RootBootScriptUseCase
 import features.settings.usecase.RootEbpfProbeUseCase
+import features.settings.usecase.SwitchRunModeUseCase
 import features.subscription.runtime.AndroidMihomoProviderFetcher
-import features.subscription.runtime.AndroidMihomoProfilePreparer
 import system.AndroidNetworkInterfaceProvider
 import system.AndroidPackageProvider
 import system.AndroidRootShellGateway
@@ -57,7 +54,7 @@ fun App(
     val application = appContext as AsteriskApplication
     val appScope = application.appScope
     val rootAccess = remember { AndroidRootShellGateway() }
-    val stateStore = remember(appContext) { AndroidAppStateStore.get(appContext) }
+    val stateStore = application.stateStore
     val userSpaces = remember(appContext, rootAccess) {
         AndroidUserSpaceProvider(
             context = appContext,
@@ -106,7 +103,7 @@ fun App(
             cancelRunning = AndroidResourceFileDownloadCancellation::cancel,
         )
     }
-    val mihomoProfilePreparer = remember(appContext) { AndroidMihomoProfilePreparer(appContext) }
+    val mihomoProfilePreparer = application.mihomoProfilePreparer
     val mihomoProfileContentStore = application.mihomoProfileContentStore
     val mihomoProviderFetcher = remember(appContext) {
         AndroidMihomoProviderFetcher(
@@ -219,12 +216,6 @@ fun App(
     ResourceFileSynchronizer(
         resourceFileUseCase = resourceFileUseCase,
         stateStore = stateStore,
-    )
-    SubscriptionAutoUpdater(
-        stateStore = stateStore,
-        profilePreparer = mihomoProfilePreparer,
-        contentStore = mihomoProfileContentStore,
-        updateAppState = updateAppState,
     )
     RootBootScriptSynchronizer(
         stateStore = stateStore,

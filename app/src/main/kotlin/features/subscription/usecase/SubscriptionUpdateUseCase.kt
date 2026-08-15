@@ -5,14 +5,17 @@ package features.subscription.usecase
 
 import app.AppState
 import app.MihomoProfileState
+import app.MihomoProfileType
 import app.withMihomoRestartRequired
 import engine.mihomo.MihomoProfileContentRef
 import engine.mihomo.MihomoProfileContentStore
-import engine.network.toPortOrNull
 import features.logs.AndroidAppLogger
 import features.subscription.runtime.AndroidMihomoProfilePreparer
 import features.subscription.runtime.AndroidSubscriptionFetchOptions
+import features.subscription.SubscriptionSchedule
+import features.subscription.parseSubscriptionSchedule
 import java.net.URI
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Clock
 import kotlinx.coroutines.CoroutineScope
@@ -32,7 +35,7 @@ import kotlinx.coroutines.withContext
 import ui.text.formatTemplate
 
 private const val LogTag = "SubscriptionUpdateUseCase"
-private val subscriptionUpdateMutex = Mutex()
+private val subscriptionUpdateCoordinator = SubscriptionUpdateCoordinator()
 private val mutableSubscriptionUpdateRequestCount = MutableStateFlow(0)
 
 internal val subscriptionUpdateRequestCount: StateFlow<Int> =
@@ -40,13 +43,25 @@ internal val subscriptionUpdateRequestCount: StateFlow<Int> =
 
 internal data class MihomoProfileSubscriptionUpdate(
     val profileId: Int,
+    val sourceIdentity: MihomoProfileSubscriptionFetchIdentity,
     val contentRef: MihomoProfileContentRef,
     val subscriptionInfo: app.MihomoSubscriptionInfo,
     val updateInterval: String? = null,
 )
 
+internal data class MihomoProfileSubscriptionFetchIdentity(
+    val type: MihomoProfileType,
+    val url: String,
+    val userAgent: String,
+    val updateInterval: String,
+    val ageSecretKey: String,
+    val updateViaProxy: Boolean,
+    val enabled: Boolean,
+)
+
 internal data class MihomoProfileSubscriptionFailure(
     val profileId: Int,
+    val stage: MihomoProfileSyncStage?,
     val error: Throwable,
 )
 
@@ -76,17 +91,16 @@ internal suspend fun updateSubscriptions(
 ): MihomoProfileSubscriptionUpdateResult {
     registerSubscriptionUpdateRequest()
     return try {
-        subscriptionUpdateMutex.withLock {
-            performSubscriptionUpdates(
-                profiles = profiles,
-                profilePreparer = profilePreparer,
-                contentStore = contentStore,
-                fetchOptions = fetchOptions,
-                sequential = false,
-                onStage = onStage,
-                onProfileCompleted = onProfileCompleted,
-            )
-        }
+        performSubscriptionUpdates(
+            profiles = profiles,
+            profilePreparer = profilePreparer,
+            contentStore = contentStore,
+            fetchOptions = fetchOptions,
+            sequential = false,
+            profilesAlreadyLocked = false,
+            onStage = onStage,
+            onProfileCompleted = onProfileCompleted,
+        )
     } finally {
         unregisterSubscriptionUpdateRequest()
     }
@@ -107,7 +121,8 @@ internal suspend fun tryUpdateSubscriptionsSequentially(
     ) -> Unit = { _, _, _ -> },
 ): MihomoProfileSubscriptionUpdateResult? {
     if (!tryRegisterExclusiveSubscriptionUpdateRequest()) return null
-    if (!subscriptionUpdateMutex.tryLock()) {
+    val lockedProfiles = subscriptionUpdateCoordinator.tryLockProfiles(profiles.map { it.id })
+    if (lockedProfiles == null) {
         unregisterSubscriptionUpdateRequest()
         return null
     }
@@ -119,12 +134,13 @@ internal suspend fun tryUpdateSubscriptionsSequentially(
             contentStore = contentStore,
             fetchOptions = fetchOptions,
             sequential = true,
+            profilesAlreadyLocked = true,
             onProfileStarted = onProfileStarted,
             onStage = onStage,
             onProfileCompleted = onProfileCompleted,
         )
     } finally {
-        subscriptionUpdateMutex.unlock()
+        subscriptionUpdateCoordinator.unlockProfiles(lockedProfiles)
         unregisterSubscriptionUpdateRequest()
     }
 }
@@ -135,6 +151,7 @@ private suspend fun performSubscriptionUpdates(
     contentStore: MihomoProfileContentStore,
     fetchOptions: (MihomoProfileState) -> AndroidSubscriptionFetchOptions,
     sequential: Boolean,
+    profilesAlreadyLocked: Boolean,
     onProfileStarted: (MihomoProfileState, Int, Int) -> Unit = { _, _, _ -> },
     onStage: (MihomoProfileState, MihomoProfileSyncStage) -> Unit,
     onProfileCompleted: (
@@ -145,18 +162,25 @@ private suspend fun performSubscriptionUpdates(
 ): MihomoProfileSubscriptionUpdateResult = supervisorScope {
     suspend fun updateProfile(index: Int, profile: MihomoProfileState): Result<MihomoProfileSubscriptionUpdate> {
         onProfileStarted(profile, index + 1, profiles.size)
-        val result = updateMihomoProfile(
-            profile = profile,
-            profilePreparer = profilePreparer,
-            contentStore = contentStore,
-            fetchOptions = fetchOptions(profile),
-            onStage = { stage -> onStage(profile, stage) },
-        )
-        val completedAtMillis = Clock.System.now().toEpochMilliseconds()
-        withContext(NonCancellable) {
-            onProfileCompleted(profile, result, completedAtMillis)
+        val update = suspend {
+            val result = updateMihomoProfile(
+                profile = profile,
+                profilePreparer = profilePreparer,
+                contentStore = contentStore,
+                fetchOptions = fetchOptions(profile),
+                onStage = { stage -> onStage(profile, stage) },
+            )
+            val completedAtMillis = Clock.System.now().toEpochMilliseconds()
+            withContext(NonCancellable) {
+                onProfileCompleted(profile, result, completedAtMillis)
+            }
+            result
         }
-        return result
+        return if (profilesAlreadyLocked) {
+            update()
+        } else {
+            subscriptionUpdateCoordinator.withProfile(profile.id, block = update)
+        }
     }
 
     val results = if (sequential) {
@@ -168,10 +192,12 @@ private suspend fun performSubscriptionUpdates(
     }
     val updates = results.mapNotNull { result -> result.getOrNull() }
     val failures = results.mapIndexedNotNull { index, result ->
-        result.exceptionOrNull()?.let { error ->
+        result.exceptionOrNull()?.let { wrappedError ->
+            val stagedError = wrappedError as? StagedMihomoProfileSubscriptionException
             MihomoProfileSubscriptionFailure(
                 profileId = profiles[index].id,
-                error = error,
+                stage = stagedError?.stage,
+                error = stagedError?.cause ?: wrappedError,
             )
         }
     }
@@ -180,6 +206,31 @@ private suspend fun performSubscriptionUpdates(
         failures = failures,
         updatedAtMillis = Clock.System.now().toEpochMilliseconds(),
     )
+}
+
+internal class SubscriptionUpdateCoordinator {
+    private val mutexes = ConcurrentHashMap<Int, Mutex>()
+
+    suspend fun <T> withProfile(profileId: Int, block: suspend () -> T): T {
+        return mutexes.computeIfAbsent(profileId) { Mutex() }.withLock { block() }
+    }
+
+    fun tryLockProfiles(profileIds: List<Int>): List<Mutex>? {
+        val acquired = mutableListOf<Mutex>()
+        profileIds.distinct().sorted().forEach { profileId ->
+            val mutex = mutexes.computeIfAbsent(profileId) { Mutex() }
+            if (!mutex.tryLock()) {
+                unlockProfiles(acquired)
+                return null
+            }
+            acquired += mutex
+        }
+        return acquired
+    }
+
+    fun unlockProfiles(mutexes: List<Mutex>) {
+        mutexes.asReversed().forEach { mutex -> mutex.unlock() }
+    }
 }
 
 private fun registerSubscriptionUpdateRequest() {
@@ -214,10 +265,11 @@ private suspend fun updateMihomoProfile(
             )
         ) {
             is MihomoProfilePreparation.Success -> {
-                val contentRef = contentStore.write(profile, prepared.content)
+                val contentRef = contentStore.writePendingSubscription(profile.id, prepared.content)
                 Result.success(
                     MihomoProfileSubscriptionUpdate(
                         profileId = profile.id,
+                        sourceIdentity = profile.subscriptionFetchIdentity(),
                         contentRef = contentRef,
                         subscriptionInfo = prepared.subscriptionInfo,
                         updateInterval = prepared.updateIntervalMillis?.toStoredUpdateInterval(),
@@ -225,7 +277,12 @@ private suspend fun updateMihomoProfile(
                 )
             }
 
-            is MihomoProfilePreparation.Failure -> Result.failure(prepared.error)
+            is MihomoProfilePreparation.Failure -> Result.failure(
+                StagedMihomoProfileSubscriptionException(
+                    stage = prepared.stage,
+                    cause = prepared.error,
+                ),
+            )
         }
     } catch (error: CancellationException) {
         throw error
@@ -241,6 +298,11 @@ private suspend fun updateMihomoProfile(
         }
     }
 }
+
+private class StagedMihomoProfileSubscriptionException(
+    val stage: MihomoProfileSyncStage,
+    override val cause: Throwable,
+) : RuntimeException(cause.message, cause)
 
 internal fun CoroutineScope.launchMihomoProfileSubscriptionUpdate(
     profiles: List<MihomoProfileState>,
@@ -259,12 +321,12 @@ internal fun CoroutineScope.launchMihomoProfileSubscriptionUpdate(
             fetchOptions = { profile -> appStateSnapshot.toSubscriptionFetchOptions(profile) },
             onProfileCompleted = { _, profileResult, completedAtMillis ->
                 profileResult.getOrNull()?.let { update ->
-                    updateAppState { state ->
-                        state.withUpdatedMihomoProfiles(
-                            updates = listOf(update),
-                            updatedAtMillis = completedAtMillis,
-                        )
-                    }
+                    commitMihomoProfileSubscriptionUpdates(
+                        updates = listOf(update),
+                        updatedAtMillis = completedAtMillis,
+                        contentStore = contentStore,
+                        updateAppState = updateAppState,
+                    )
                 }
             },
         )
@@ -279,10 +341,7 @@ internal fun CoroutineScope.launchMihomoProfileSubscriptionUpdate(
 
 internal fun AppState.toSubscriptionFetchOptions(profile: MihomoProfileState): AndroidSubscriptionFetchOptions {
     return AndroidSubscriptionFetchOptions(
-        useRunningProxy = profile.updateViaProxy,
-        fallbackProxyPort = localProxyPort.toPortOrNull(),
-        fallbackProxyUsername = localProxyUsername,
-        fallbackProxyPassword = localProxyPassword,
+        useRunningProxy = profile.updateViaProxy && proxyRunning,
     )
 }
 
@@ -291,7 +350,13 @@ internal fun AppState.withUpdatedMihomoProfiles(
     updatedAtMillis: Long,
 ): AppState {
     if (updates.isEmpty()) return this
-    val updatesById = updates.associateBy { update -> update.profileId }
+    val currentProfilesById = mihomoProfiles.associateBy { profile -> profile.id }
+    val updatesById = updates
+        .filter { update ->
+            currentProfilesById[update.profileId]?.isApplicableTo(update) == true
+        }
+        .associateBy { update -> update.profileId }
+    if (updatesById.isEmpty()) return this
     val changedSelectedProfile = updatesById[selectedMihomoProfileId]?.let { update ->
         mihomoProfiles.firstOrNull { profile -> profile.id == selectedMihomoProfileId }
             ?.contentSha256 != update.contentRef.sha256
@@ -312,14 +377,59 @@ internal fun AppState.withUpdatedMihomoProfiles(
     ).withMihomoRestartRequired(selectedMihomoProfileId, changedSelectedProfile)
 }
 
-internal fun List<MihomoProfileState>.dueSubscriptionProfiles(nowMillis: Long): List<MihomoProfileState> {
-    return filter { profile ->
-        profile.enabled &&
-            profile.url.isNotBlank() &&
-            profile.updateInterval.toLongOrNull()?.let { hours ->
-                hours > 0 && nowMillis - profile.lastUpdatedAtMillis >= hours * 60L * 60L * 1000L
-            } == true
+internal fun commitMihomoProfileSubscriptionUpdates(
+    updates: List<MihomoProfileSubscriptionUpdate>,
+    updatedAtMillis: Long,
+    contentStore: MihomoProfileContentStore,
+    updateAppState: ((AppState) -> AppState) -> Unit,
+): Set<Int> {
+    var acceptedUpdates = emptyList<MihomoProfileSubscriptionUpdate>()
+    var referencedPaths = emptySet<String>()
+    updateAppState { state ->
+        val profilesById = state.mihomoProfiles.associateBy(MihomoProfileState::id)
+        acceptedUpdates = updates.filter { update ->
+            profilesById[update.profileId]?.isApplicableTo(update) == true
+        }
+        state.withUpdatedMihomoProfiles(
+            updates = acceptedUpdates,
+            updatedAtMillis = updatedAtMillis,
+        ).also { updatedState ->
+            referencedPaths = updatedState.mihomoProfiles
+                .mapNotNullTo(mutableSetOf()) { profile -> profile.contentPath.takeIf(String::isNotBlank) }
+        }
     }
+    val acceptedPaths = acceptedUpdates.mapTo(mutableSetOf()) { update -> update.contentRef.path }
+    updates
+        .asSequence()
+        .filterNot { update -> update.contentRef.path in acceptedPaths }
+        .forEach { update -> contentStore.delete(update.contentRef) }
+    val acceptedProfileIds = acceptedUpdates.mapTo(mutableSetOf()) { update -> update.profileId }
+    acceptedProfileIds.forEach { profileId ->
+        contentStore.pruneSubscriptionHistory(
+            profileId = profileId,
+            referencedPaths = referencedPaths,
+        )
+    }
+    return acceptedProfileIds
+}
+
+internal fun MihomoProfileState.subscriptionFetchIdentity(): MihomoProfileSubscriptionFetchIdentity {
+    return MihomoProfileSubscriptionFetchIdentity(
+        type = type,
+        url = url,
+        userAgent = userAgent,
+        updateInterval = updateInterval,
+        ageSecretKey = ageSecretKey,
+        updateViaProxy = updateViaProxy,
+        enabled = enabled,
+    )
+}
+
+private fun MihomoProfileState.isApplicableTo(update: MihomoProfileSubscriptionUpdate): Boolean {
+    return type == MihomoProfileType.Url &&
+        enabled &&
+        parseSubscriptionSchedule(updateInterval) is SubscriptionSchedule.Enabled &&
+        subscriptionFetchIdentity() == update.sourceIdentity
 }
 
 internal fun subscriptionUpdateMessage(

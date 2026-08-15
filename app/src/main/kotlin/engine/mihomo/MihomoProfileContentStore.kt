@@ -17,11 +17,12 @@ internal data class MihomoProfileContentRef(
     val sizeBytes: Long,
 )
 
-internal class MihomoProfileContentStore(
-    context: Context,
+internal class MihomoProfileContentStore internal constructor(
+    private val profilesDir: File,
 ) {
-    private val appContext = context.applicationContext
-    private val profilesDir = File(appContext.filesDir, ProfilesDirName)
+    constructor(context: Context) : this(
+        File(context.applicationContext.filesDir, ProfilesDirName),
+    )
 
     fun read(profile: MihomoProfileState): String {
         return readBytes(profile).toString(Charsets.UTF_8)
@@ -60,6 +61,10 @@ internal class MihomoProfileContentStore(
         return writeTo(newProfileFile(), content)
     }
 
+    fun writePendingSubscription(profileId: Int, content: String): MihomoProfileContentRef {
+        return writeTo(newSubscriptionFile(profileId), content)
+    }
+
     fun write(profile: MihomoProfileState, content: String): MihomoProfileContentRef {
         val target = profile.contentPath
             .takeIf(String::isNotBlank)
@@ -70,6 +75,49 @@ internal class MihomoProfileContentStore(
 
     fun delete(profile: MihomoProfileState) {
         val path = profile.contentPath.takeIf(String::isNotBlank) ?: return
+        deletePath(path)
+    }
+
+    fun delete(contentRef: MihomoProfileContentRef) {
+        deletePath(contentRef.path)
+    }
+
+    fun pruneUnreferenced(referencedPaths: Set<String>) {
+        val retainedPaths = referencedPaths.mapTo(mutableSetOf()) { path -> File(path).absolutePath }
+        profilesDir.listFiles()
+            ?.asSequence()
+            ?.filter { file ->
+                file.isFile &&
+                    (
+                        file.name.startsWith(ProfileFilePrefix) ||
+                            file.name.startsWith(SubscriptionFilePrefix)
+                    ) &&
+                    file.extension == ProfileFileExtension &&
+                    file.absolutePath !in retainedPaths
+            }
+            ?.forEach { file -> runCatching { file.delete() } }
+    }
+
+    fun pruneSubscriptionHistory(
+        profileId: Int,
+        referencedPaths: Set<String>,
+    ) {
+        val retainedPaths = referencedPaths.mapTo(mutableSetOf()) { path -> File(path).absolutePath }
+        val prefix = subscriptionFilePrefix(profileId)
+        profilesDir.listFiles()
+            ?.asSequence()
+            ?.filter { file ->
+                file.isFile &&
+                    file.name.startsWith(prefix) &&
+                    file.extension == ProfileFileExtension &&
+                    file.absolutePath !in retainedPaths
+            }
+            ?.sortedWith(compareByDescending<File> { file -> file.lastModified() }.thenByDescending(File::getName))
+            ?.drop(RetainedSubscriptionHistoryCount)
+            ?.forEach { file -> runCatching { file.delete() } }
+    }
+
+    private fun deletePath(path: String) {
         runCatching { File(path).delete() }
     }
 
@@ -95,7 +143,18 @@ internal class MihomoProfileContentStore(
 
     private fun newProfileFile(): File {
         profilesDir.mkdirs()
-        return File(profilesDir, "profile-${System.currentTimeMillis()}-${UUID.randomUUID()}.yaml")
+        return File(
+            profilesDir,
+            "$ProfileFilePrefix${System.currentTimeMillis()}-${UUID.randomUUID()}.$ProfileFileExtension",
+        )
+    }
+
+    private fun newSubscriptionFile(profileId: Int): File {
+        profilesDir.mkdirs()
+        return File(
+            profilesDir,
+            "${subscriptionFilePrefix(profileId)}${System.currentTimeMillis()}-${UUID.randomUUID()}.$ProfileFileExtension",
+        )
     }
 }
 
@@ -113,3 +172,9 @@ internal fun ByteArray.sha256Hex(): String {
 }
 
 private const val ProfilesDirName = "mihomo-profiles"
+private const val ProfileFilePrefix = "profile-"
+private const val SubscriptionFilePrefix = "subscription-profile-"
+private const val ProfileFileExtension = "yaml"
+private const val RetainedSubscriptionHistoryCount = 2
+
+private fun subscriptionFilePrefix(profileId: Int): String = "$SubscriptionFilePrefix$profileId-"

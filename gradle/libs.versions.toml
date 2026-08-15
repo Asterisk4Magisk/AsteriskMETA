@@ -2,9 +2,10 @@
 agp = "9.3.1"
 androidx-activity-compose = "1.13.0"
 androidx-core = "1.19.0"
-androidx-navigation3 = "1.1.5"
+androidx-navigation3 = "1.1.6"
 androidx-navigationevent = "1.1.0"
 androidx-room = "2.8.4"
+androidx-work = "2.11.2"
 compose = "1.11.1"
 compose-material-icons = "1.7.3"
 compose-material3 = "1.12.0-alpha03"
@@ -16,7 +17,7 @@ ksp = "2.3.11"
 ktor = "3.5.2"
 libsu = "6.0.0"
 material-kolor = "5.0.0"
-quickjs-kt = "1.0.11"
+quickjs-kt = "1.0.13"
 snakeyaml-engine = "3.1.1"
 sora-editor = "0.24.6"
 zxing-android-embedded = "4.3.0"
@@ -28,6 +29,7 @@ androidx-navigation3-ui = { module = "androidx.navigation3:navigation3-ui", vers
 androidx-navigationevent = { module = "org.jetbrains.androidx.navigationevent:navigationevent-compose", version.ref = "androidx-navigationevent" }
 androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "androidx-room" }
 androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "androidx-room" }
+androidx-work-runtime = { module = "androidx.work:work-runtime", version.ref = "androidx-work" }
 androidx-core = { module = "androidx.core:core-ktx", version.ref = "androidx-core" }
 compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "compose" }
 compose-material-icons-extended = { module = "org.jetbrains.compose.material:material-icons-extended", version.ref = "compose-material-icons" }

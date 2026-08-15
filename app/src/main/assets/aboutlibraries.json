@@ -15,10 +15,10 @@
         },
         {
             "uniqueId": "androidx.navigation3:navigation3-runtime",
-            "artifactVersion": "1.1.5",
+            "artifactVersion": "1.1.6",
             "name": "Androidx Navigation 3 Runtime",
             "description": "Provides the building blocks for a Compose first Navigation solution that easily supports extensions.",
-            "website": "https://developer.android.com/jetpack/androidx/releases/navigation3#1.1.5",
+            "website": "https://developer.android.com/jetpack/androidx/releases/navigation3#1.1.6",
             "scm": {
                 "url": "https://cs.android.com/androidx/platform/frameworks/support"
             },
@@ -28,10 +28,10 @@
         },
         {
             "uniqueId": "androidx.navigation3:navigation3-ui",
-            "artifactVersion": "1.1.5",
+            "artifactVersion": "1.1.6",
             "name": "Androidx Navigation 3 UI",
             "description": "Provides a Navigation3 display that uses the building blocks from runtime to create a higher level solution.",
-            "website": "https://developer.android.com/jetpack/androidx/releases/navigation3#1.1.5",
+            "website": "https://developer.android.com/jetpack/androidx/releases/navigation3#1.1.6",
             "scm": {
                 "url": "https://cs.android.com/androidx/platform/frameworks/support"
             },
@@ -314,7 +314,7 @@
         },
         {
             "uniqueId": "io.github.dokar3:quickjs-kt-android",
-            "artifactVersion": "1.0.11",
+            "artifactVersion": "1.0.13",
             "name": "quickjs-kt",
             "description": "A QuickJS binding for idiomatic Kotlin, with Async/DSL/ES Modules support.",
             "website": "https://github.com/dokar3/quickjs-kt",
@@ -346,6 +346,19 @@
             "website": "https://codeberg.org/snakeyaml/snakeyaml-engine",
             "scm": {
                 "url": "https://codeberg.org/snakeyaml/snakeyaml-engine/src"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ]
+        },
+        {
+            "uniqueId": "androidx.work:work-runtime",
+            "artifactVersion": "2.11.2",
+            "name": "WorkManager Runtime",
+            "description": "Android WorkManager runtime library",
+            "website": "https://developer.android.com/jetpack/androidx/releases/work#2.11.2",
+            "scm": {
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
             },
             "licenses": [
                 "Apache-2.0"

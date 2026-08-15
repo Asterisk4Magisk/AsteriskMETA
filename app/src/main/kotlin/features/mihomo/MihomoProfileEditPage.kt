@@ -88,7 +88,9 @@ import engine.mihomo.sha256Hex
 import engine.proxy.ProxyServiceResult
 import features.settings.SettingsDropdownRow
 import features.subscription.isPlainHttpSubscriptionUrl
+import features.subscription.isValidSubscriptionIntervalInput
 import features.subscription.isValidManualSubscriptionUrl
+import features.subscription.sanitizeSubscriptionIntervalInput
 import features.subscription.usecase.MihomoProfileSyncStage
 import features.subscription.usecase.toSubscriptionFetchOptions
 import kotlinx.coroutines.CompletableDeferred
@@ -160,6 +162,7 @@ fun MihomoProfileEditPage(
     val updateIntervalState = rememberTextFieldState(
         initialText = targetProfile?.updateInterval ?: DefaultMihomoProfileUpdateInterval,
     )
+    val updateIntervalValid = isValidSubscriptionIntervalInput(updateIntervalState.text.toString())
     var updateViaProxy by remember(targetProfile?.id, isNew) {
         mutableStateOf(targetProfile?.updateViaProxy ?: false)
     }
@@ -394,6 +397,7 @@ fun MihomoProfileEditPage(
         val cleanUserAgent = userAgentState.text.toString().trim().ifBlank { app.DefaultMihomoProfileUserAgent }
         val cleanAgeSecretKey = ageSecretKeyState.text.toString().trim()
         val cleanInterval = updateIntervalState.text.toString().trim()
+        if (!isValidSubscriptionIntervalInput(cleanInterval)) return
         if (!trimmedUrl.isValidManualSubscriptionUrl()) {
             scope.launch { services.tipNotifier.show(invalidUrlMessage) }
             return
@@ -508,7 +512,7 @@ fun MihomoProfileEditPage(
                 actions = {
                     TextButton(
                         onClick = ::onSave,
-                        enabled = !saving,
+                        enabled = !saving && (profileType != MihomoProfileType.Url || updateIntervalValid),
                     ) {
                         Icon(Icons.Rounded.Save, contentDescription = null)
                         Spacer(Modifier.width(6.dp))
@@ -910,10 +914,10 @@ private fun ColumnScope.UrlProfileFields(
         label = { Text(stringResource(R.string.mihomo_configuration_update_interval)) },
         lineLimits = TextFieldLineLimits.SingleLine,
         inputTransformation = InputTransformation.byValue { _, proposed ->
-            proposed.toString().filter(Char::isDigit).take(5)
+            sanitizeSubscriptionIntervalInput(proposed.toString())
         },
         keyboardOptions = KeyboardOptions(
-            keyboardType = KeyboardType.Number,
+            keyboardType = KeyboardType.Decimal,
             imeAction = ImeAction.Done,
         ),
         modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),

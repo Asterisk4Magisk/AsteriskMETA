@@ -96,12 +96,12 @@ import features.subscription.SubscriptionInstallConfig
 import features.subscription.runtime.AndroidSubscriptionFetchOptions
 import features.subscription.toSubscriptionInstallConfigOrNull
 import features.subscription.usecase.MihomoProfileSyncStage
+import features.subscription.usecase.commitMihomoProfileSubscriptionUpdates
 import features.subscription.usecase.launchMihomoProfileSubscriptionUpdate
 import features.subscription.usecase.subscriptionUpdateRequestCount
 import features.subscription.usecase.subscriptionUpdateMessage
 import features.subscription.usecase.toSubscriptionFetchOptions
 import features.subscription.usecase.tryUpdateSubscriptionsSequentially
-import features.subscription.usecase.withUpdatedMihomoProfiles
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
@@ -473,14 +473,14 @@ fun MihomoProfileListPage(
                     onProfileCompleted = { item, profileResult, completedAtMillis ->
                         profileResult
                             .onSuccess { update ->
-                                updateAppState { state ->
-                                    state.withUpdatedMihomoProfiles(
-                                        updates = listOf(update),
-                                        updatedAtMillis = completedAtMillis,
-                                    )
-                                }
-                                updatedProfileIds += update.profileId
-                                updatedCount += 1
+                                val acceptedProfileIds = commitMihomoProfileSubscriptionUpdates(
+                                    updates = listOf(update),
+                                    updatedAtMillis = completedAtMillis,
+                                    contentStore = services.mihomoProfileContentStore,
+                                    updateAppState = updateAppState,
+                                )
+                                updatedProfileIds += acceptedProfileIds
+                                updatedCount += acceptedProfileIds.size
                             }
                             .onFailure { failedCount += 1 }
                         processedCount += 1
