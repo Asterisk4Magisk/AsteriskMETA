@@ -197,7 +197,7 @@
         },
         {
             "uniqueId": "github:heiher/hev-socks5-tunnel",
-            "artifactVersion": "2.17.0",
+            "artifactVersion": "2.17.1",
             "name": "hev-socks5-tunnel",
             "description": "A tun2socks tunnel that forwards TUN traffic to a SOCKS5 server.",
             "website": "https://github.com/heiher/hev-socks5-tunnel",
@@ -314,7 +314,7 @@
         },
         {
             "uniqueId": "io.github.dokar3:quickjs-kt-android",
-            "artifactVersion": "1.0.13",
+            "artifactVersion": "1.0.14",
             "name": "quickjs-kt",
             "description": "A QuickJS binding for idiomatic Kotlin, with Async/DSL/ES Modules support.",
             "website": "https://github.com/dokar3/quickjs-kt",
