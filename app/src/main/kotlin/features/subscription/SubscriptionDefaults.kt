@@ -5,4 +5,4 @@ package features.subscription
 
 const val DefaultSubscriptionUserAgent = "clash.meta"
 const val ClashMetaSubscriptionUserAgent = "clash.meta"
-const val FlClashXSubscriptionUserAgent = "FlClash X/v0.4.0-pre.15 Platform/android"
+const val FlClashXSubscriptionUserAgent = "FlClash X/v0.4.2 Platform/android"
