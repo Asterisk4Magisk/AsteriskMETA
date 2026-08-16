@@ -18,6 +18,10 @@ import engine.root.mode.DefaultTun2SocksProxyPort as ModeDefaultTun2SocksProxyPo
 import engine.root.runtime.RootRuntimeBusyException
 import engine.root.runtime.RootRuntimeConflictException
 import engine.root.runtime.RootSupervisorController
+import engine.root.runtime.toStableProxyEngineStatus
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.mapNotNull
 import kotlin.coroutines.cancellation.CancellationException
 import system.RootShellGateway
 
@@ -105,6 +109,25 @@ internal class RootModeEngine(
         return status()
     }
 
+    suspend fun shutdown(): ProxyEngineStatus {
+        controller.shutdownOwn()
+        LocalProxyRuntime.clear()
+        return status()
+    }
+
+    suspend fun reconfigureServiceControl(request: ProxyEngineStartRequest): Boolean {
+        if (!rootAccess.hasRootAccess()) error(context.getString(definition.rootRequiredErrorResId))
+        val config = definition.buildConfig(context.prepareRootConfigBuildContext(request))
+        require(config.asteriskdConfig.mode == definition.daemonMode)
+        val wasRunning = controller.reconfigureServiceControl(config.root, config.asteriskdConfig)
+        if (wasRunning) {
+            config.localProxyOptions?.let(LocalProxyRuntime::update) ?: LocalProxyRuntime.clear()
+        } else {
+            LocalProxyRuntime.clear()
+        }
+        return wasRunning
+    }
+
     suspend fun ownsRuntime(): Boolean {
         return controller.ownsRuntime()
     }
@@ -112,6 +135,12 @@ internal class RootModeEngine(
     override suspend fun status(): ProxyEngineStatus {
         return controller.proxyStatus(runMode, definition.daemonMode)
     }
+
+    fun observeStatus(): Flow<ProxyEngineStatus> = controller.observeStatus()
+        .mapNotNull { snapshot ->
+            snapshot.toStableProxyEngineStatus(runMode, definition.daemonMode)
+        }
+        .distinctUntilChanged()
 
     companion object {
         const val DefaultTproxyPort = ModeDefaultTproxyPort

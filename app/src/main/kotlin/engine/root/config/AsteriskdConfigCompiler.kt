@@ -18,6 +18,7 @@ import engine.root.daemon.config.AsteriskdMode
 import engine.root.daemon.config.AsteriskdModeOptions
 import engine.root.daemon.config.AsteriskdNetworkConfig
 import engine.root.daemon.config.AsteriskdOwner
+import engine.root.daemon.config.toAsteriskdServiceControlConfig
 
 internal val RootStartConfig.disableSystemIpv6: Boolean
     get() = !enableIpv6 && enableRootIpv6Disabler
@@ -109,5 +110,6 @@ internal fun RootStartConfig.buildAsteriskdConfig(
         modeOptions = modeOptions,
         matcher = matcher,
         helper = helper,
+        serviceControl = serviceControl.toAsteriskdServiceControlConfig(),
     )
 }

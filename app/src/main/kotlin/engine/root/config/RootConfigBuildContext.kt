@@ -83,6 +83,7 @@ private fun AppState.toRootStartConfig(
         enableFakeIp = if (rawConfig == null) effectiveFakeIpEnabled else false,
         fakeIpIpv4Pool = rootFakeIpIpv4Pool(),
         enableBoot = enableRootBootScript,
+        serviceControl = serviceControl,
     )
 }
 

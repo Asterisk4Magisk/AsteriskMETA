@@ -5,22 +5,29 @@ package app.effects
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import app.AppState
-import app.withMihomoRestartApplied
+import app.ServiceControlSettings
 import app.modes.isRootRunMode
+import app.withMihomoRestartApplied
 import data.AndroidAppStateStore
 import engine.proxy.AndroidProxyEngine
 import engine.proxy.ProxyEngineStatus
+import features.logs.AndroidAppLogger
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.distinctUntilChangedBy
+import kotlin.coroutines.cancellation.CancellationException
 
 @Composable
 internal fun ProxyStatusSynchronizer(
@@ -50,6 +57,49 @@ internal fun ProxyStatusSynchronizer(
             updateAppState = updateAppState,
         )
     }
+
+    LaunchedEffect(lifecycleOwner, stateStore, proxyEngine) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            combine(
+                stateStore.state,
+                proxyEngine.rootStatusWatchGeneration,
+            ) { state, runtimeGeneration ->
+                state.rootStatusWatchTarget(runtimeGeneration)
+            }
+                .distinctUntilChanged()
+                .collectLatest { target ->
+                    if (target == null) return@collectLatest
+                    try {
+                        proxyEngine.observeRootStatus(target.runMode).collect { status ->
+                            updateAppState { state ->
+                                reduceObservedProxyStatus(
+                                    currentState = state,
+                                    target = target,
+                                    status = status,
+                                    currentRuntimeGeneration =
+                                        proxyEngine.rootStatusWatchGeneration.value,
+                                )
+                            }
+                        }
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (error: Throwable) {
+                        AndroidAppLogger.warn(
+                            ProxyStatusWatchLogTag,
+                            "asteriskd status watch failed",
+                            error,
+                        )
+                    }
+                    synchronizeProxyStatus(
+                        currentState = { stateStore.state.value },
+                        readStatus = { snapshot ->
+                            runCatching { proxyEngine.status(snapshot.runMode, snapshot) }.getOrNull()
+                        },
+                        updateAppState = updateAppState,
+                    )
+                }
+        }
+    }
 }
 
 internal suspend fun observeProxyStatus(
@@ -62,6 +112,7 @@ internal suspend fun observeProxyStatus(
             Triple(state.runMode, state.proxyRunning, state.pendingMihomoRestartProfileId)
         }
         .collect { snapshot ->
+            if (snapshot.rootStatusWatchTarget() != null) return@collect
             synchronizeProxyStatus(
                 currentState = { snapshot },
                 readStatus = readStatus,
@@ -90,21 +141,51 @@ internal suspend fun synchronizeProxyStatus(
         ) {
             return@updateAppState state
         }
-        val synchronizedRunMode = status.runMode
-            ?.takeIf { status.running && it.isRootRunMode() }
-            ?: state.runMode
-        val updated = if (
-            state.proxyRunning == status.running &&
-            state.runMode == synchronizedRunMode
-        ) {
-            state
-        } else {
-            state.copy(
-                runMode = synchronizedRunMode,
-                proxyRunning = status.running,
-            )
-        }
-        if (status.running) updated else updated.withMihomoRestartApplied()
+        state.withSynchronizedProxyStatus(status)
     }
     return true
 }
+
+internal data class RootStatusWatchTarget(
+    val runMode: Int,
+    val serviceControl: ServiceControlSettings,
+    val expectedRunning: Boolean,
+    val runtimeGeneration: Long,
+)
+
+internal fun AppState.rootStatusWatchTarget(runtimeGeneration: Long = 0L): RootStatusWatchTarget? {
+    if (!runMode.isRootRunMode() || (!serviceControl.enabled && !proxyRunning)) return null
+    return RootStatusWatchTarget(
+        runMode = runMode,
+        serviceControl = serviceControl,
+        expectedRunning = proxyRunning,
+        runtimeGeneration = runtimeGeneration,
+    )
+}
+
+internal fun reduceObservedProxyStatus(
+    currentState: AppState,
+    target: RootStatusWatchTarget,
+    status: ProxyEngineStatus,
+    currentRuntimeGeneration: Long = target.runtimeGeneration,
+): AppState {
+    if (currentState.rootStatusWatchTarget(currentRuntimeGeneration) != target) return currentState
+    return currentState.withSynchronizedProxyStatus(status)
+}
+
+private fun AppState.withSynchronizedProxyStatus(status: ProxyEngineStatus): AppState {
+    val synchronizedRunMode = status.runMode
+        ?.takeIf { status.running && it.isRootRunMode() }
+        ?: runMode
+    val updated = if (proxyRunning == status.running && runMode == synchronizedRunMode) {
+        this
+    } else {
+        copy(
+            runMode = synchronizedRunMode,
+            proxyRunning = status.running,
+        )
+    }
+    return if (status.running) updated else updated.withMihomoRestartApplied()
+}
+
+private const val ProxyStatusWatchLogTag = "ProxyStatusSynchronizer"

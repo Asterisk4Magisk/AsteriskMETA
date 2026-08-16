@@ -83,7 +83,7 @@ internal class ProxyServiceUseCase(
 
     private fun RootOperationResult.toProxyServiceFailure(action: RootRequestedAction): ProxyServiceResult.Failed {
         logRootResult(toSanitizedLogRecord(action))
-        return ProxyServiceResult.Failed(RootOperationBlockedException())
+        return ProxyServiceResult.Failed(RootOperationBlockedException(this))
     }
 
     private fun Throwable.toProxyServiceFailure(action: RootRequestedAction): ProxyServiceResult.Failed {
@@ -99,7 +99,7 @@ internal class ProxyServiceUseCase(
         }
         logRootResult(rootResult.toSanitizedLogRecord(action))
         return if (this is RootRuntimeConflictException || this is RootRuntimeBusyException) {
-            ProxyServiceResult.Failed(RootOperationBlockedException())
+            ProxyServiceResult.Failed(RootOperationBlockedException(rootResult))
         } else {
             ProxyServiceResult.Failed(this)
         }

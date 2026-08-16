@@ -128,6 +128,8 @@ data class AppState(
     val socks5ProxyPort: String = RootModeEngine.DefaultTun2SocksProxyPort.toString(),
     val bpf2SocksBridgePort: String = RootModeEngine.DefaultBpf2SocksBridgePort.toString(),
 
+    val serviceControl: ServiceControlSettings = ServiceControlSettings(),
+
     val externalInterfaces: List<String> = emptyList(),
     val ignoredInterfaces: List<String> = emptyList(),
     val privateAddressCidrs: List<String> = emptyList(),

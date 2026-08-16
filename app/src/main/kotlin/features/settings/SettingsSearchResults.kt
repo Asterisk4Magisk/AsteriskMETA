@@ -206,6 +206,7 @@ internal fun settingsNestedSearchEntries(
     onOpenLocalProxy: () -> Unit,
     onOpenTun: () -> Unit,
     onOpenExternalInterfaces: () -> Unit,
+    onOpenServiceControl: () -> Unit,
     onOpenIgnoredInterfaces: () -> Unit,
     onOpenPrivateAddresses: () -> Unit,
 ): List<SettingsSearchEntry> {
@@ -215,6 +216,7 @@ internal fun settingsNestedSearchEntries(
     val tun = stringResource(R.string.settings_tun)
     val externalInterfaces = stringResource(R.string.settings_external_interfaces)
     val ignoredInterfaces = stringResource(R.string.settings_ignored_interfaces)
+    val serviceControl = stringResource(R.string.settings_service_control)
     val privateAddresses = stringResource(R.string.settings_private_addresses)
 
     val dnsItems = listOf(
@@ -279,6 +281,7 @@ internal fun settingsNestedSearchEntries(
         localProxyItems.forEach { add(SettingsSearchEntry(it, localProxy, Icons.Rounded.Router, onOpenLocalProxy)) }
         tunItems.forEach { add(SettingsSearchEntry(it, tun, Icons.Rounded.SettingsInputComponent, onOpenTun)) }
         externalItems.forEach { add(SettingsSearchEntry(it, externalInterfaces, Icons.Rounded.Cable, onOpenExternalInterfaces)) }
+        add(SettingsSearchEntry(serviceControl, serviceControl, Icons.Rounded.PowerSettingsNew, onOpenServiceControl))
         add(SettingsSearchEntry(ignoredInterfaces, ignoredInterfaces, Icons.Rounded.Block, onOpenIgnoredInterfaces))
         add(SettingsSearchEntry(privateAddresses, privateAddresses, Icons.Rounded.HomeWork, onOpenPrivateAddresses))
     }

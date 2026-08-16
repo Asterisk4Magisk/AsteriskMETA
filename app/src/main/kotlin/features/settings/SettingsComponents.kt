@@ -174,15 +174,22 @@ internal fun SettingsSwitchRow(
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     summary: String = "",
+    enabled: Boolean = true,
 ) {
     if (!settingsRowMatchesQuery(title, summary, checked.toString())) return
     SettingsRow(
         title = title,
         icon = icon,
         summary = summary,
-        modifier = modifier.clickable(role = Role.Switch) { onCheckedChange(!checked) },
+        modifier = modifier.clickable(enabled = enabled, role = Role.Switch) {
+            onCheckedChange(!checked)
+        },
         trailing = {
-            Switch(checked = checked, onCheckedChange = onCheckedChange)
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+                enabled = enabled,
+            )
         },
     )
 }

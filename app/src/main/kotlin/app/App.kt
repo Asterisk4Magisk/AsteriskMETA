@@ -31,6 +31,7 @@ import features.settings.locale.ProvideAppLanguage
 import features.settings.usecase.RootBootScriptUseCase
 import features.settings.usecase.RootEbpfProbeUseCase
 import features.settings.usecase.SwitchRunModeUseCase
+import features.settings.usecase.ApplyServiceControlUseCase
 import features.subscription.runtime.AndroidMihomoProviderFetcher
 import system.AndroidNetworkInterfaceProvider
 import system.AndroidPackageProvider
@@ -145,6 +146,9 @@ fun App(
     val proxyServiceUseCase = remember(proxyEngine) {
         ProxyServiceUseCase(proxyEngine)
     }
+    val applyServiceControlUseCase = remember(proxyEngine) {
+        ApplyServiceControlUseCase(proxyEngine)
+    }
     val tipNotifier = remember(appContext) { AndroidToastTipNotifier(appContext) }
     val services = remember(
         appScope,
@@ -165,6 +169,7 @@ fun App(
         monitoring,
         proxyServiceUseCase,
         switchRunModeUseCase,
+        applyServiceControlUseCase,
         rootBootScriptUseCase,
         rootEbpfProbeUseCase,
         tipNotifier,
@@ -189,6 +194,7 @@ fun App(
             monitoring = monitoring,
             proxyServiceUseCase = proxyServiceUseCase,
             switchRunModeUseCase = switchRunModeUseCase,
+            applyServiceControlUseCase = applyServiceControlUseCase,
             rootBootScriptUseCase = rootBootScriptUseCase,
             rootEbpfProbeUseCase = rootEbpfProbeUseCase,
             tipNotifier = tipNotifier,

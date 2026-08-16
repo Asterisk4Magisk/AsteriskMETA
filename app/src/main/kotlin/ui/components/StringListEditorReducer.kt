@@ -3,8 +3,11 @@
 
 package ui.components
 
-internal fun hasPendingStringListEdit(input: String, editingIndex: Int): Boolean =
-    input.isNotBlank() || editingIndex >= 0
+internal fun hasPendingStringListEdit(
+    input: String,
+    editingIndex: Int,
+    normalize: (String) -> String = String::trim,
+): Boolean = normalize(input).isNotEmpty() || editingIndex >= 0
 
 internal fun stringListItemKey(index: Int): String = "string-list-item-$index"
 
@@ -23,8 +26,9 @@ internal fun addStringListValue(
     source: List<String>,
     input: String,
     validate: (String) -> String?,
+    normalize: (String) -> String = String::trim,
 ): StringListEditResult {
-    val value = input.trim()
+    val value = normalize(input)
     val error = validate(value)
     return if (error == null) StringListEditResult(source + value) else StringListEditResult(source, error)
 }
@@ -34,8 +38,9 @@ internal fun editStringListValue(
     index: Int,
     input: String,
     validate: (String) -> String?,
+    normalize: (String) -> String = String::trim,
 ): StringListEditResult {
-    val value = input.trim()
+    val value = normalize(input)
     val error = validate(value)
     if (error != null || index !in source.indices) return StringListEditResult(source, error)
     return StringListEditResult(source.toMutableList().apply { this[index] = value })
@@ -44,10 +49,11 @@ internal fun editStringListValue(
 internal fun parseStringListBatch(
     input: String,
     validate: (String) -> String?,
+    normalize: (String) -> String = String::trim,
 ): StringListBatchResult {
     val values = mutableListOf<String>()
     input.lineSequence().forEachIndexed { index, line ->
-        val value = line.trim()
+        val value = normalize(line)
         if (value.isEmpty()) return@forEachIndexed
         val error = validate(value)
         if (error != null) {
@@ -57,3 +63,8 @@ internal fun parseStringListBatch(
     }
     return StringListBatchResult(values = values)
 }
+
+internal fun normalizeStringListValues(
+    values: List<String>,
+    normalize: (String) -> String = String::trim,
+): List<String> = values.map(normalize).filter(String::isNotEmpty).distinct()

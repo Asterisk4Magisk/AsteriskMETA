@@ -19,6 +19,13 @@ import engine.mihomo.raw.usesRawMihomoConfig
 import engine.mihomo.raw.loadSelectedRawConfig
 import engine.vpn.VpnMihomoEngine
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -34,7 +41,10 @@ internal class AndroidProxyEngine(
     private val rootEngines = RootModeEngine.createAll(appContext, rootAccess)
     private val rootEnginesByRunMode = rootEngines.associateBy(RootModeEngine::runMode)
     private val operationMutex = Mutex()
+    private val mutableRootStatusWatchGeneration = MutableStateFlow(0L)
     private var activeEngine: AndroidModeProxyEngine? = null
+    internal val rootStatusWatchGeneration: StateFlow<Long> =
+        mutableRootStatusWatchGeneration.asStateFlow()
 
     suspend fun start(request: ProxyEngineStartRequest): ProxyEngineStatus = operationMutex.withLock {
         startUnlocked(request)
@@ -48,8 +58,30 @@ internal class AndroidProxyEngine(
         stopRunModeUnlocked(runMode)
     }
 
-    suspend fun restart(request: ProxyEngineStartRequest): ProxyEngineStatus = operationMutex.withLock {
-        startUnlocked(request, explicitRestart = true)
+    suspend fun shutdownCurrentRunMode(runMode: Int): ProxyEngineStatus = operationMutex.withLock {
+        shutdownRunModeUnlocked(runMode)
+    }
+
+    suspend fun restart(request: ProxyEngineStartRequest): ProxyEngineStatus {
+        val status = operationMutex.withLock {
+            startUnlocked(request, explicitRestart = true)
+        }
+        mutableRootStatusWatchGeneration.update { generation -> generation + 1L }
+        return status
+    }
+
+    suspend fun reconfigureServiceControl(nextState: app.AppState): app.AppState {
+        val appliedState = operationMutex.withLock {
+            val rootEngine = rootEnginesByRunMode[nextState.runMode] ?: return@withLock nextState
+            val resolvedState = nextState.withResolvedDynamicLocalProxyPort()
+            val wasRunning = withContext(Dispatchers.Default) {
+                rootEngine.reconfigureServiceControl(ProxyEngineStartRequest(resolvedState))
+            }
+            activeEngine = rootEngine.takeIf { wasRunning }
+            resolvedState.copy(proxyRunning = wasRunning)
+        }
+        mutableRootStatusWatchGeneration.update { generation -> generation + 1L }
+        return appliedState
     }
 
     suspend fun status(
@@ -57,6 +89,13 @@ internal class AndroidProxyEngine(
         appState: app.AppState? = null,
     ): ProxyEngineStatus = operationMutex.withLock {
         statusUnlocked(preferredRunMode, appState)
+    }
+
+    internal fun observeRootStatus(runMode: Int): Flow<ProxyEngineStatus> {
+        val engine = rootEnginesByRunMode[runMode] ?: return emptyFlow()
+        return engine.observeStatus().map { status ->
+            normalizeRootRuntimeStatus(status, ::rootRunMode)
+        }
     }
 
     private suspend fun startUnlocked(
@@ -104,7 +143,7 @@ internal class AndroidProxyEngine(
         val rootToRootRestart = explicitRestart &&
             currentEngine is RootModeEngine && nextEngine is RootModeEngine
         if (currentEngine != null && currentEngine !== nextEngine && !rootToRootRestart) {
-            currentEngine.stop()
+            if (currentEngine is RootModeEngine) currentEngine.shutdown() else currentEngine.stop()
         }
         activeEngine = nextEngine
         try {
@@ -159,6 +198,18 @@ internal class AndroidProxyEngine(
         MihomoTrafficStatsNotificationService.reconcile(appContext, null)
         status
     }
+
+    private suspend fun shutdownRunModeUnlocked(runMode: Int): ProxyEngineStatus =
+        withContext(Dispatchers.Default) {
+            val engine = runMode.engine()
+            activeEngine
+                ?.takeIf { active -> active !== engine }
+                ?.let { active -> if (active is RootModeEngine) active.shutdown() else active.stop() }
+            val status = if (engine is RootModeEngine) engine.shutdown() else engine.stop()
+            activeEngine = null
+            MihomoTrafficStatsNotificationService.reconcile(appContext, null)
+            status
+        }
 
     private suspend fun findEngineToStop(preferredRunMode: Int?): AndroidModeProxyEngine? {
         val preferredEngine = preferredRunMode?.engine()

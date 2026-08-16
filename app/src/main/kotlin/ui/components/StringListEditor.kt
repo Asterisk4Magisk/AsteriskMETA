@@ -52,7 +52,6 @@ import androidx.compose.ui.unit.dp
 import app.R
 import ui.theme.AsteriskShapeTokens
 import ui.theme.AsteriskMotion
-import utils.toTrimmedNonEmptyList
 
 @Composable
 internal fun StringListEditor(
@@ -64,6 +63,7 @@ internal fun StringListEditor(
     modifier: Modifier = Modifier,
     description: String? = null,
     validateInput: (String) -> String? = { null },
+    normalizeInput: (String) -> String = String::trim,
     onPendingChange: ((Boolean) -> Unit)? = null,
 ) {
     var input by remember(editorKey, title) { mutableStateOf("") }
@@ -72,10 +72,11 @@ internal fun StringListEditor(
     var showBulkEditor by remember(editorKey, title) { mutableStateOf(false) }
     var bulkInput by remember(editorKey, title) { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
-    val sanitizedValues = values.toTrimmedNonEmptyList()
-    val inputError = input.trim().takeIf(String::isNotEmpty)?.let(validateInput)
-    val canAdd = input.trim().isNotEmpty() && inputError == null
-    val hasPendingInput = hasPendingStringListEdit(input, editingIndex)
+    val sanitizedValues = normalizeStringListValues(values, normalizeInput)
+    val normalizedInput = normalizeInput(input)
+    val inputError = normalizedInput.takeIf(String::isNotEmpty)?.let(validateInput)
+    val canAdd = normalizedInput.isNotEmpty() && inputError == null
+    val hasPendingInput = hasPendingStringListEdit(input, editingIndex, normalizeInput)
     val currentOnPendingChange by rememberUpdatedState(onPendingChange)
 
     LaunchedEffect(editorKey, title) {
@@ -124,9 +125,11 @@ internal fun StringListEditor(
                 IconButton(
                     enabled = canAdd,
                     onClick = {
-                        val result = addStringListValue(sanitizedValues, input, validateInput)
+                        val result = addStringListValue(
+                            sanitizedValues, input, validateInput, normalizeInput,
+                        )
                         if (result.error == null) {
-                            onValuesChange(result.values.toTrimmedNonEmptyList())
+                            onValuesChange(normalizeStringListValues(result.values, normalizeInput))
                             input = ""
                         }
                     },
@@ -148,8 +151,12 @@ internal fun StringListEditor(
                 val contentSizeMotion = AsteriskMotion.contentSpatial<androidx.compose.ui.unit.IntSize>()
                 val actionMotion = AsteriskMotion.fastSpatial<Float>()
                 val editError = if (editing) {
-                    editInput.trim().takeIf(String::isNotEmpty)?.let(validateInput)
-                        ?: if (editInput.trim().isEmpty()) stringResource(R.string.string_list_item_empty) else null
+                    normalizeInput(editInput).takeIf(String::isNotEmpty)?.let(validateInput)
+                        ?: if (normalizeInput(editInput).isEmpty()) {
+                            stringResource(R.string.string_list_item_empty)
+                        } else {
+                            null
+                        }
                 } else {
                     null
                 }
@@ -201,9 +208,12 @@ internal fun StringListEditor(
                                                     index,
                                                     editInput,
                                                     validateInput,
+                                                    normalizeInput,
                                                 )
                                                 if (result.error == null) {
-                                                    onValuesChange(result.values.toTrimmedNonEmptyList())
+                                                    onValuesChange(
+                                                        normalizeStringListValues(result.values, normalizeInput),
+                                                    )
                                                     focusManager.clearFocus()
                                                     editingIndex = -1
                                                 }
@@ -251,10 +261,11 @@ internal fun StringListEditor(
         value = bulkInput,
         onValueChange = { bulkInput = it },
         validateInput = validateInput,
+        normalizeInput = normalizeInput,
         onDismissRequest = { showBulkEditor = false },
         onSave = { nextValues ->
             editingIndex = -1
-            onValuesChange(nextValues.toTrimmedNonEmptyList())
+            onValuesChange(normalizeStringListValues(nextValues, normalizeInput))
             showBulkEditor = false
         },
     )
@@ -394,10 +405,11 @@ private fun StringListBulkEditorSheet(
     value: String,
     onValueChange: (String) -> Unit,
     validateInput: (String) -> String?,
+    normalizeInput: (String) -> String,
     onDismissRequest: () -> Unit,
     onSave: (List<String>) -> Unit,
 ) {
-    val result = parseStringListBatch(value, validateInput)
+    val result = parseStringListBatch(value, validateInput, normalizeInput)
     val error = result.error?.let { stringResource(R.string.string_list_line_error, result.errorLine ?: 1, it) }
     AsteriskModalBottomSheet(
         show = show,

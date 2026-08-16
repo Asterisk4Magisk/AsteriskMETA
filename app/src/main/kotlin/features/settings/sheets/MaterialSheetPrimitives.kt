@@ -90,6 +90,7 @@ internal fun SwitchPreference(
     icon: ImageVector,
     summary: String = "",
     checked: Boolean,
+    enabled: Boolean = true,
     onCheckedChange: (Boolean) -> Unit,
 ) {
     SettingsSwitchRow(
@@ -97,6 +98,7 @@ internal fun SwitchPreference(
         summary = summary,
         icon = icon,
         checked = checked,
+        enabled = enabled,
         onCheckedChange = onCheckedChange,
     )
 }

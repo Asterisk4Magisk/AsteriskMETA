@@ -3,6 +3,7 @@
 
 package engine.root.config
 
+import app.ServiceControlSettings
 import engine.proxy.LocalProxyOptions
 import engine.network.NetworkLimits
 import engine.root.daemon.config.AsteriskdConfig
@@ -34,6 +35,7 @@ internal class RootStartConfig(
     val enableFakeIp: Boolean,
     val fakeIpIpv4Pool: String,
     val enableBoot: Boolean,
+    val serviceControl: ServiceControlSettings,
 ) {
     init {
         ageSecretKey?.let { key ->
@@ -59,7 +61,8 @@ internal class RootStartConfig(
             enableLocalDns == other.enableLocalDns &&
             enableFakeIp == other.enableFakeIp &&
             fakeIpIpv4Pool == other.fakeIpIpv4Pool &&
-            enableBoot == other.enableBoot
+            enableBoot == other.enableBoot &&
+            serviceControl == other.serviceControl
     }
 
     override fun hashCode(): Int {
@@ -75,6 +78,7 @@ internal class RootStartConfig(
         result = 31 * result + enableFakeIp.hashCode()
         result = 31 * result + fakeIpIpv4Pool.hashCode()
         result = 31 * result + enableBoot.hashCode()
+        result = 31 * result + serviceControl.hashCode()
         return result
     }
 

@@ -238,6 +238,7 @@ private fun SettingsContent(
         onOpenLocalProxy = { sheetState.openLocalProxySettings(appState) },
         onOpenTun = { sheetState.openTunSettings(appState) },
         onOpenExternalInterfaces = { sheetState.openExternalInterfaces(appState) },
+        onOpenServiceControl = { sheetState.openServiceControl(appState) },
         onOpenIgnoredInterfaces = { sheetState.openIgnoredInterfaces(appState) },
         onOpenPrivateAddresses = { sheetState.openPrivateAddresses(appState) },
     )
@@ -521,6 +522,7 @@ private fun SettingsContent(
                         updateAppState { state -> state.copy(enableRootIpv6Disabler = enabled) }
                     },
                     onOpenExternalInterfaces = { sheetState.openExternalInterfaces(appState) },
+                    onOpenServiceControl = { sheetState.openServiceControl(appState) },
                     onOpenIgnoredInterfaces = { sheetState.openIgnoredInterfaces(appState) },
                     onOpenPrivateAddresses = { sheetState.openPrivateAddresses(appState) },
                 )
