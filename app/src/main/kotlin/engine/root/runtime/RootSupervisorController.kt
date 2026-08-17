@@ -5,7 +5,6 @@
 package engine.root.runtime
 
 import android.content.Context
-import android.os.Build
 import engine.proxy.ProxyEngineStatus
 import engine.root.config.RootStartConfig
 import engine.root.daemon.AsteriskdClient
@@ -25,7 +24,6 @@ import engine.root.publication.RootPublicationLaunchMode
 import engine.root.publication.RootPublicationStager
 import engine.root.publication.prepareRootPublicationDirectories
 import engine.root.publication.rootRuntimeLayout
-import engine.root.publication.validateElfHeaderFile
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withTimeoutOrNull
 import system.RootShellGateway
@@ -145,7 +143,7 @@ internal class RootSupervisorController(
         restartExpectedOwner: AsteriskdOwner?,
         launchMode: RootPublicationLaunchMode,
     ): AsteriskdSnapshot {
-        preparePublication(config)
+        preparePublication()
         val staged = RootPublicationStager.stage(
             root.publicationStagingDirectory,
             root.mihomoProfileBytes,
@@ -232,7 +230,7 @@ internal class RootSupervisorController(
         root: RootStartConfig,
         config: AsteriskdConfig,
     ) {
-        preparePublication(config)
+        preparePublication()
         RootBootConfigWriter.write(
             layout = runtimeLayout,
             coreConfigBytes = root.mihomoProfileBytes,
@@ -265,9 +263,8 @@ internal class RootSupervisorController(
         return IllegalStateException(message)
     }
 
-    private fun preparePublication(config: AsteriskdConfig) {
+    private fun preparePublication() {
         appContext.prepareRootPublicationDirectories()
-        validateElfHeaderFile(config.coreExecutablePath, Build.SUPPORTED_ABIS.toList())
     }
 
 }
