@@ -7,19 +7,15 @@ import android.content.Context
 import app.AppState
 import app.modes.isRootRunMode
 import engine.proxy.ProxyEngineStartRequest
+import engine.root.RootModeEngine
 import engine.root.runtime.RootFailureKind
-import engine.root.runtime.RootOperationBlockedException
 import engine.root.runtime.RootOperationResult
 import engine.root.runtime.RootRequestedAction
-import engine.root.runtime.toAppLogMessage
-import engine.root.runtime.model.RootRuntimeOwner
-import engine.root.runtime.RootRuntimeBusyException
-import engine.root.runtime.RootRuntimeConflictException
 import engine.root.runtime.RootSupervisorController
-import engine.root.RootModeEngine
+import engine.root.runtime.toAppLogMessage
 import features.logs.AndroidAppLogger
-import kotlin.coroutines.cancellation.CancellationException
 import system.AndroidRootShellGateway
+import kotlin.coroutines.cancellation.CancellationException
 
 internal class RootBootScriptUseCase(
     context: Context,
@@ -53,7 +49,7 @@ internal class RootBootScriptUseCase(
         if (!rootAccess.hasRootAccess()) {
             return@exclusive RootBootScriptResult.RootUnavailable
         }
-        install(state, deferIfRuntimeBound = true)
+        install(state)
     }
 
     suspend fun uninstall(rootAccessVerified: Boolean = false): RootBootScriptResult =
@@ -64,20 +60,6 @@ internal class RootBootScriptUseCase(
             uninstallUnlocked()
         }
 
-    suspend fun uninstallAndThen(
-        rootAccessVerified: Boolean = false,
-        afterUninstall: suspend () -> Unit,
-    ): RootBootScriptResult = operationGate.exclusive {
-        if (!rootAccessVerified && !rootAccess.hasRootAccess()) {
-            return@exclusive RootBootScriptResult.RootUnavailable
-        }
-        val result = uninstallUnlocked()
-        if (result == RootBootScriptResult.Success) {
-            afterUninstall()
-        }
-        result
-    }
-
     private suspend fun uninstallUnlocked(): RootBootScriptResult =
         runCatching {
             controller.removeBoot()
@@ -86,14 +68,11 @@ internal class RootBootScriptUseCase(
             onFailure = { error -> error.toRootBootScriptFailure() },
         )
 
-    private suspend fun install(
-        state: AppState,
-        deferIfRuntimeBound: Boolean = false,
-    ): RootBootScriptResult {
+    private suspend fun install(state: AppState): RootBootScriptResult {
         return runCatching {
             val request = ProxyEngineStartRequest(state)
             if (state.runMode.isRootRunMode()) {
-                installRootBootScript(state.runMode, request, deferIfRuntimeBound)
+                installRootBootScript(state.runMode, request)
             }
         }.fold(
             onSuccess = { RootBootScriptResult.Success },
@@ -104,9 +83,7 @@ internal class RootBootScriptUseCase(
     private suspend fun installRootBootScript(
         runMode: Int,
         request: ProxyEngineStartRequest,
-        deferIfRuntimeBound: Boolean,
     ) {
-        if (!controller.canPublishBoot(deferIfRuntimeBound)) return
         val config = RootModeEngine.prepareConfig(appContext, runMode, request)
         controller.publishBoot(config.root, config.asteriskdConfig)
     }
@@ -114,26 +91,12 @@ internal class RootBootScriptUseCase(
 
 private fun Throwable.toRootBootScriptFailure(): RootBootScriptResult.Failed {
     if (this is CancellationException) throw this
-    val operationResult = toRootBootOperationResult()
+    val operationResult = RootOperationResult.Failure(RootFailureKind.InternalFailure)
     AndroidAppLogger.error(
         RootBootLogTag,
         operationResult.toAppLogMessage(RootRequestedAction.BootRefresh),
     )
-    val reportedError = when (this) {
-        is RootRuntimeConflictException, is RootRuntimeBusyException -> RootOperationBlockedException(operationResult)
-        else -> this
-    }
-    return RootBootScriptResult.Failed(reportedError)
-}
-
-private fun Throwable.toRootBootOperationResult(): RootOperationResult = when (this) {
-    is RootRuntimeConflictException -> RootOperationResult.ForeignOwnerConflict(
-        owner = RootRuntimeOwner.entries.single { owner -> owner.wireValue == snapshot.owner.wireValue },
-    )
-    is RootRuntimeBusyException -> RootOperationResult.Busy(
-        RootRuntimeOwner.entries.single { owner -> owner.wireValue == snapshot.owner.wireValue },
-    )
-    else -> RootOperationResult.Failure(RootFailureKind.InternalFailure)
+    return RootBootScriptResult.Failed(this)
 }
 
 internal sealed interface RootBootScriptResult {
