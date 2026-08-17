@@ -235,7 +235,7 @@ internal class RootSupervisorController(
         root: RootStartConfig,
         config: AsteriskdConfig,
     ) {
-        status().boundSnapshot()?.let(::rejectBoundSnapshot)
+        check(status().canPublishBoot(AsteriskdOwner.AsteriskMeta, deferIfBound = false))
         preparePublication(config)
         val staged = RootPublicationStager.stage(
             root.publicationStagingDirectory,
@@ -251,6 +251,7 @@ internal class RootSupervisorController(
                         asteriskdConfigSourcePath = staged.asteriskdConfig.absolutePath,
                         bootEnabled = true,
                         launchMode = RootPublicationLaunchMode.None,
+                        publishWhileRunningOwner = AsteriskdOwner.AsteriskMeta.wireValue,
                     ),
                 ),
                 ShellExecOptions(logFailure = false),

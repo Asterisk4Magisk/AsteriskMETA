@@ -27,10 +27,10 @@ internal object RootPublicationCommand {
             bundle.restartExpectedOwner?.let { owner ->
                 appendConditionalStop(layout, owner)
             }
-            appendStatusMustBeUnbound(layout)
+            appendStatusMustBePublishable(layout, bundle.publishWhileRunningOwner)
             RootLegacyMigrationCommand.appendGate(this, layout)
-            appendStatusMustBeUnbound(layout)
-            appendStageFunctions(layout)
+            appendStatusMustBePublishable(layout, bundle.publishWhileRunningOwner)
+            appendStageFunctions()
             appendLine("core_config_tmp=")
             appendLine("asteriskd_config_tmp=")
             appendLine("startup_tmp=")
@@ -75,14 +75,29 @@ internal object RootPublicationCommand {
         }.trimEnd()
     }
 
-    private fun StringBuilder.appendStatusMustBeUnbound(layout: RootRuntimeLayout) {
+    private fun StringBuilder.appendStatusMustBePublishable(
+        layout: RootRuntimeLayout,
+        publishWhileRunningOwner: String?,
+    ) {
         appendLine("set +e")
         appendLine("asteriskd_status=\"$(${layout.asteriskdPath.shellQuote()} status)\"")
         appendLine("asteriskd_status_code=\"$?\"")
         appendLine("set -e")
         appendLine("if [ \"\$asteriskd_status_code\" -ne 3 ]; then")
-        appendLine("  printf '%s\\n' \"\$asteriskd_status\"")
-        appendLine("  exit \"\$asteriskd_status_code\"")
+        if (publishWhileRunningOwner == null) {
+            appendLine("  printf '%s\\n' \"\$asteriskd_status\"")
+            appendLine("  exit \"\$asteriskd_status_code\"")
+        } else {
+            appendLine("  [ \"\$asteriskd_status_code\" -eq 0 ] || { printf '%s\\n' \"\$asteriskd_status\"; exit \"\$asteriskd_status_code\"; }")
+            appendLine("  case \"\$asteriskd_status\" in")
+            appendLine("    *'\"owner\":\"$publishWhileRunningOwner\"'*) ;;")
+            appendLine("    *) printf '%s\\n' \"\$asteriskd_status\"; exit \"\$asteriskd_status_code\" ;;")
+            appendLine("  esac")
+            appendLine("  case \"\$asteriskd_status\" in")
+            appendLine("    *'\"phase\":\"running\"'*) ;;")
+            appendLine("    *) printf '%s\\n' \"\$asteriskd_status\"; exit \"\$asteriskd_status_code\" ;;")
+            appendLine("  esac")
+        }
         appendLine("fi")
     }
 
@@ -118,7 +133,7 @@ internal object RootPublicationCommand {
         appendLine("fi")
     }
 
-    private fun StringBuilder.appendStageFunctions(layout: RootRuntimeLayout) {
+    private fun StringBuilder.appendStageFunctions() {
         appendLine("prepare_metadata() {")
         appendLine("  temporary=\"\$1\"")
         appendLine("  parent=\"\$2\"")
@@ -131,7 +146,6 @@ internal object RootPublicationCommand {
         appendLine("  [ \"$(stat -c %u \"\$temporary\")\" = \"\$target_uid\" ] || return 1")
         appendLine("  [ \"$(stat -c %g \"\$temporary\")\" = \"\$target_gid\" ] || return 1")
         appendLine("  [ \"$(stat -c %a \"\$temporary\")\" = \"\$target_mode\" ] || return 1")
-        appendLine("  ${layout.asteriskdPath.shellQuote()} sync --file \"\$temporary\" || return 1")
         appendLine("}")
         appendLine("prepare_source_file() {")
         appendLine("  target=\"\$1\"")
@@ -171,9 +185,7 @@ internal object RootPublicationCommand {
         appendLine("publish_file() {")
         appendLine("  temporary=\"\$1\"")
         appendLine("  target=\"\$2\"")
-        appendLine("  parent=\"${'$'}{target%/*}\"")
         appendLine("  mv -f \"\$temporary\" \"\$target\"")
-        appendLine("  ${layout.asteriskdPath.shellQuote()} sync --directory \"\$parent\"")
         appendLine("}")
     }
 
