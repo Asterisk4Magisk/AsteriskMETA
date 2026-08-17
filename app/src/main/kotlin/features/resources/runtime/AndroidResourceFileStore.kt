@@ -324,29 +324,6 @@ private const val MihomoHomeDirName = "clash"
 
 private val SupportedAndroidAbis = setOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
 
-internal enum class CoreCandidateInstallPath {
-    ReplaceAppOwned,
-    ReplaceWithRoot,
-    InitialNoReplace,
-}
-
-internal fun chooseCoreCandidateInstallPath(
-    rootModeActive: Boolean,
-    targetExists: Boolean,
-): CoreCandidateInstallPath = when {
-    !targetExists -> CoreCandidateInstallPath.InitialNoReplace
-    rootModeActive -> CoreCandidateInstallPath.ReplaceWithRoot
-    else -> CoreCandidateInstallPath.ReplaceAppOwned
-}
-
-internal inline fun resolveCoreCandidateInstallPath(
-    targetExists: Boolean,
-    rootModeActive: () -> Boolean,
-): CoreCandidateInstallPath {
-    if (!targetExists) return CoreCandidateInstallPath.InitialNoReplace
-    return chooseCoreCandidateInstallPath(rootModeActive(), targetExists = true)
-}
-
 internal fun resourceFileExists(
     kind: ResourceFileKind?,
     targetExists: Boolean,

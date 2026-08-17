@@ -20,7 +20,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import features.resources.ResourceFileUpdateOptions
 import engine.root.publication.RootCoreRemovalCommand
-import engine.root.runtime.RootSupervisorController
 import system.AndroidRootShellGateway
 import system.RootShellGateway
 import system.ShellExecOptions
@@ -34,7 +33,6 @@ internal class AndroidResourceFileRepository(
     private val appContext = context.applicationContext
     private val store = AndroidResourceFileStore(appContext)
     private val downloader = AndroidResourceFileDownloader()
-    private val rootSupervisor = RootSupervisorController(appContext, rootShell)
 
     suspend fun status(customResourceFiles: List<CustomResourceFileState> = emptyList()): ResourceFilesStatus =
         withContext(Dispatchers.IO) {
@@ -243,31 +241,35 @@ internal class AndroidResourceFileRepository(
     }
 
     private suspend fun publishBundledCoreIfPossible() {
-        when (coreCandidateInstallPath()) {
-            CoreCandidateInstallPath.ReplaceWithRoot -> {
-                if (!rootSupervisor.isUnbound()) return
-                replaceCoreCandidateWithRoot(store.stageBundledMihomoCoreCandidate())
-            }
-            CoreCandidateInstallPath.ReplaceAppOwned -> replaceAppOwnedCoreCandidate(
-                store.stageBundledMihomoCoreCandidate(),
+        executeCoreCandidateInstall(store::stageBundledMihomoCoreCandidate) {
+            AndroidResourceFileLogger.info(
+                "Bundled Mihomo core replacement deferred because the existing core is ROOT-owned",
             )
-            CoreCandidateInstallPath.InitialNoReplace -> {
-                installInitialCoreCandidate(store.stageBundledMihomoCoreCandidate())
-            }
         }
     }
 
     private suspend fun installOrPublishCoreCandidate(
         candidateFactory: () -> File,
     ) {
-        when (coreCandidateInstallPath()) {
-            CoreCandidateInstallPath.ReplaceWithRoot -> {
-                rootSupervisor.requireUnbound()
-                replaceCoreCandidateWithRoot(candidateFactory())
-            }
-            CoreCandidateInstallPath.ReplaceAppOwned -> replaceAppOwnedCoreCandidate(candidateFactory())
-            CoreCandidateInstallPath.InitialNoReplace -> installInitialCoreCandidate(candidateFactory())
+        executeCoreCandidateInstall(candidateFactory) {
+            error(appContext.getString(R.string.settings_root_required))
         }
+    }
+
+    private suspend fun executeCoreCandidateInstall(
+        candidateFactory: () -> File,
+        deferRootOwned: suspend () -> Unit,
+    ) {
+        val target = store.file(ResourceFileKind.MihomoCore)
+        sharedCoreReplacementCoordinator.execute(
+            targetOwnerUid = target::coreBinaryOwnerUidOrNull,
+            rootModeActive = { currentRunMode().isRootRunMode() },
+            candidateFactory = candidateFactory,
+            installInitial = { candidate -> installInitialCoreCandidate(candidate) },
+            replaceAppOwned = { candidate -> replaceAppOwnedCoreCandidate(candidate) },
+            replaceWithRoot = { candidate -> replaceCoreCandidateWithRoot(candidate) },
+            deferRootOwned = deferRootOwned,
+        )
     }
 
     private fun installInitialCoreCandidate(candidate: File) {
@@ -277,11 +279,6 @@ internal class AndroidResourceFileRepository(
         } finally {
             candidate.delete()
         }
-    }
-
-    private suspend fun coreCandidateInstallPath(): CoreCandidateInstallPath {
-        val targetExists = store.file(ResourceFileKind.MihomoCore).exists()
-        return resolveCoreCandidateInstallPath(targetExists) { currentRunMode().isRootRunMode() }
     }
 
     private fun replaceAppOwnedCoreCandidate(candidate: File) {
