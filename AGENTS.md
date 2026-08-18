@@ -28,6 +28,16 @@ VPN Service is an independent non-ROOT execution path. Even on a rooted device, 
 - When switching from ROOT to VPN, any active ROOT cycle must be stopped by the ROOT lifecycle boundary before entering VPN. The VPN runtime itself must not perform ROOT cleanup.
 - Changes to proxy orchestration, mode selection, or lifecycle handling must include a regression check that the entire VPN lifecycle performs zero ROOT operations.
 
+### Respect Core API Stability and Product-Specific Control Paths
+
+- As a rule, do not introduce or depend on an experimental core feature. An exception exists only when this repository already uses that feature or a developer explicitly authorizes its use; adoption by a sibling app is not authorization for this app.
+- Mihomo's Clash API is a first-class Mihomo control capability used by AsteriskMETA, not an experimental-core exception that should be prohibited in ROOT mode.
+- For both VPN and ROOT, every runtime change supported by the Mihomo Clash API must use that hot-control path instead of rebuilding the configuration or restarting Mihomo/asteriskd. Current examples include Rule/Global/Direct mode, interactive profile reload, log level, selector changes, and provider operations.
+- Keep hot control in the Mihomo runtime/control layer. The API backend uses endpoints such as `PATCH /configs` for mode/log level and `PUT /configs?force=true` for profile reload; the embedded backend uses the equivalent Clash bridge operation. Do not move core-specific API calls into shared UI/state code.
+- A ROOT restriction or supervised restart is valid only for a change that the Mihomo Clash API cannot apply safely. Do not add a blanket `isRootRunMode` prohibition to an API-backed mutation.
+- Do not copy AsteriskBOX's supervised-restart workaround into AsteriskMETA. BOX intentionally avoids sing-box `experimental.clash_api` and therefore has a different ROOT mode-switch path.
+- Mihomo's Clash API does not grant blanket permission to enable unrelated experimental Mihomo features; each new experimental dependency still requires explicit developer authorization.
+
 ## Repository Structure and Product Boundaries
 
 - Application ID: `org.asterisk.zcc.ameta`.

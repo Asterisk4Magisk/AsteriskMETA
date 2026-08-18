@@ -327,7 +327,9 @@ internal class MihomoRuntimeRepository(
     suspend fun reloadInteractiveProfileFromDisk(appState: AppState): Result<Unit> {
         return runCatching {
             require(appState.hasUsableMihomoProfile()) { "Mihomo profile is not configured" }
-            require(!appState.runMode.isRootRunMode()) {
+            require(
+                !MihomoRuntimeMutation.ProfileReload.requiresSupervisedRestart(appState.runMode),
+            ) {
                 "ROOT runtime configuration changes require a supervised restart"
             }
             val control = resolveMihomoControlConfig(appState)
@@ -440,7 +442,9 @@ internal class MihomoRuntimeRepository(
         mode: String,
     ): Result<Unit> {
         return runCatching {
-            require(!appState.runMode.isRootRunMode()) {
+            require(
+                !MihomoRuntimeMutation.Mode.requiresSupervisedRestart(appState.runMode),
+            ) {
                 "ROOT runtime configuration changes require a supervised restart"
             }
             val control = resolveMihomoControlConfig(appState)
@@ -461,7 +465,9 @@ internal class MihomoRuntimeRepository(
             if (!appState.hasUsableMihomoProfile()) {
                 return@runCatching
             }
-            require(!appState.runMode.isRootRunMode()) {
+            require(
+                !MihomoRuntimeMutation.LogLevel.requiresSupervisedRestart(appState.runMode),
+            ) {
                 "ROOT runtime configuration changes require a supervised restart"
             }
             require(!appState.usesRawMihomoConfig()) { "Log level is read-only because it comes from YAML" }
