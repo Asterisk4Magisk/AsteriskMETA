@@ -18,9 +18,6 @@ private val RootDefaultBypassPrivateCidrs = listOf(
 )
 
 internal data class RootIptablesConfig(
-    val mark: String,
-    val ipv4Table: String,
-    val ipv6Table: String,
     val enableEbpfRules: Boolean = false,
     val enableEbpfDirectCidrBypass: Boolean = false,
     val externalInterfacePrefixes: List<String> = emptyList(),

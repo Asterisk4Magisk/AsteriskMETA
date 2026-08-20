@@ -37,8 +37,8 @@ internal class RootConfigBuildContext(
         )
     }
 
-    fun buildRootIptablesConfig(base: RootIptablesConfig): RootIptablesConfig {
-        return base.withAppSettings(context = androidContext, appState = appState)
+    fun buildRootIptablesConfig(): RootIptablesConfig {
+        return RootIptablesConfig().withAppSettings(context = androidContext, appState = appState)
     }
 }
 

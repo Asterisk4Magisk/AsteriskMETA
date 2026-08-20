@@ -6,18 +6,13 @@ package engine.root.mode
 import app.AppState
 import engine.mihomo.MihomoProfileFactory
 import engine.mihomo.MihomoTunDevice
-import engine.mihomo.MihomoTunInboundName
-import engine.proxy.LocalProxyOptions
 import engine.proxy.toLocalProxyOptions
 import engine.proxy.toLocalProxyOptionsOrNull
 import engine.root.config.RootConfigBuildContext
-import engine.root.daemon.config.AsteriskdConfig
+import engine.root.config.RootModeStartConfig
+import engine.root.config.buildAsteriskdConfig
 import engine.root.daemon.config.AsteriskdMode
 import engine.root.daemon.config.AsteriskdModeOptions
-import engine.root.config.RootIptablesConfig
-import engine.root.config.RootModeStartConfig
-import engine.root.config.RootStartConfig
-import engine.root.config.buildAsteriskdConfig
 import engine.vpn.TunOptions
 import engine.vpn.toTunOptions
 
@@ -29,12 +24,10 @@ internal data class MihomoTunConfig(
     val ipv6Address: String?,
 )
 
-internal val TunBaseIptablesConfig = Tun2SocksBaseIptablesConfig
-
 internal fun RootConfigBuildContext.buildTunStartConfig(): RootModeStartConfig {
     val appState = this.appState
     val rootStartConfig = buildRootStartConfig()
-    val iptablesConfig = buildRootIptablesConfig(TunBaseIptablesConfig)
+    val iptablesConfig = buildRootIptablesConfig()
     val tunConfig = rawConfig?.let { config ->
         val inbound = requireNotNull(config.tunInbound.value) {
             "Raw Mihomo configuration requires one compatible TUN inbound for Root TUN mode"
