@@ -19,8 +19,9 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.animation.core.snap
@@ -32,10 +33,54 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.exp
+import kotlin.math.sin
+import kotlin.math.sqrt
 
 internal val LocalReduceMotion = staticCompositionLocalOf { false }
 
-private const val NavigationTransitionDurationMillis = 300
+private const val NavigationTransitionDurationMillis = 500
+private const val PredictiveNavigationTransitionDurationMillis = 550
+
+// Mirrors the default transition curve used by AsteriskNG's Miuix NavDisplay.
+private val NavigationTransitionEasing = DampedNavigationEasing(
+    response = 0.8f,
+    damping = 0.95f,
+)
+
+private class DampedNavigationEasing(
+    response: Float,
+    damping: Float,
+) : Easing {
+    private val decayRate: Float
+    private val dampedFrequency: Float
+    private val phaseCoefficient: Float
+
+    init {
+        val angularFrequency = 2.0 * PI / response
+        val stiffness = angularFrequency * angularFrequency
+        val dampingCoefficient = damping * 4.0 * PI / response
+        val dampedFrequencySquared =
+            4.0 * stiffness - dampingCoefficient * dampingCoefficient
+
+        dampedFrequency = (sqrt(dampedFrequencySquared) / 2.0).toFloat()
+        decayRate = (-dampingCoefficient / 2.0).toFloat()
+        phaseCoefficient = decayRate / dampedFrequency
+    }
+
+    override fun transform(fraction: Float): Float {
+        val time = fraction.toDouble()
+        val decay = exp(decayRate * time)
+        return (
+            decay * (
+                -cos(dampedFrequency * time) +
+                    phaseCoefficient * sin(dampedFrequency * time)
+            ) + 1.0
+        ).toFloat()
+    }
+}
 
 /**
  * The only feature-facing motion gateway. Spatial changes and visual effects intentionally use
@@ -49,11 +94,11 @@ internal object AsteriskMotion {
 
     internal fun navigationForwardSlideOffsets(width: Int) = HorizontalSlideOffsets(
         incoming = width,
-        outgoing = -width / 3,
+        outgoing = -width / 4,
     )
 
     internal fun navigationBackSlideOffsets(width: Int) = HorizontalSlideOffsets(
-        incoming = -width / 3,
+        incoming = -width / 4,
         outgoing = width,
     )
 
@@ -68,13 +113,27 @@ internal object AsteriskMotion {
     } else {
         tween(
             durationMillis = NavigationTransitionDurationMillis,
-            easing = FastOutSlowInEasing,
+            easing = NavigationTransitionEasing,
         )
     }
 
     @Composable
     private fun <T> navigation(): FiniteAnimationSpec<T> =
         navigation(reducedMotion = LocalReduceMotion.current)
+
+    fun <T> predictiveNavigation(reducedMotion: Boolean): FiniteAnimationSpec<T> =
+        if (reducedMotion) {
+            snap()
+        } else {
+            tween(
+                durationMillis = PredictiveNavigationTransitionDurationMillis,
+                easing = LinearEasing,
+            )
+        }
+
+    @Composable
+    private fun <T> predictiveNavigation(): FiniteAnimationSpec<T> =
+        predictiveNavigation(reducedMotion = LocalReduceMotion.current)
 
     fun <T> effects(reducedMotion: Boolean): FiniteAnimationSpec<T> = if (reducedMotion) {
         snap()
@@ -192,7 +251,7 @@ internal object AsteriskMotion {
     @Composable
     fun <S> predictiveNavigationBack():
         AnimatedContentTransitionScope<S>.(Int) -> ContentTransform {
-        val spatialSpec = navigation<IntOffset>()
+        val spatialSpec = predictiveNavigation<IntOffset>()
         return { swipeEdge ->
             ContentTransform(
                 targetContentEnter = slideInHorizontally(
