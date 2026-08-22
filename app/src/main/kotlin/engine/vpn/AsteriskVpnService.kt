@@ -18,12 +18,13 @@ import app.R
 import app.modes.ProxyAppListModeBlacklist
 import app.modes.ProxyAppListModeGlobal
 import app.modes.ProxyAppListModeWhitelist
-import engine.mihomo.clearCoreLogs
+import engine.mihomo.logDirectoryPath
 import engine.network.NetworkDefaults
 import engine.proxy.LocalProxyLoopbackAddress
 import engine.proxy.LocalProxyRuntime
 import engine.vpn.hevtun.HevTunRuntime
 import features.logs.AndroidAppLogger
+import features.logs.clearServiceLogsAsApp
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -34,6 +35,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
 import system.getInstalledApplicationsCompat
 import utils.toTrimmedNonEmptyDistinctList
+import java.io.File
 import java.net.InetSocketAddress
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -118,7 +120,7 @@ class AsteriskVpnService : VpnService() {
 
     private fun startVpn(config: VpnServiceStartConfig) {
         stopVpn()
-        config.coreLogPaths.clearCoreLogs(LogTag)
+        clearServiceLogsAsApp(File(config.coreLogPaths.logDirectoryPath()), LogTag)
         val tunDescriptor = establishTun(config)
         tunFileDescriptor = tunDescriptor
         val hevConfig = config.hevSocks5TunnelConfig

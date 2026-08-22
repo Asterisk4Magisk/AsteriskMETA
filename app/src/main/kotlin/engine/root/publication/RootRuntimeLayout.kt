@@ -28,8 +28,11 @@ internal data class RootRuntimeLayout(
     val asteriskdStatePath: String
         get() = dataDir.posixChild("asteriskd.state")
 
+    val logDirectoryPath: String
+        get() = dataDir.posixChild("logs")
+
     val asteriskdLogPath: String
-        get() = dataDir.posixChild("logs").posixChild("asteriskd.log")
+        get() = logDirectoryPath.posixChild("asteriskd.log")
 }
 
 internal fun Context.rootRuntimeLayout(): RootRuntimeLayout = mihomoResourceFilePaths().toRootRuntimeLayout()
