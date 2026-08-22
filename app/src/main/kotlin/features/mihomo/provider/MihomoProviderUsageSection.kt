@@ -63,7 +63,7 @@ internal fun MihomoProviderUsageSection(
         if (visibleState != null) retainedVisibleState = visibleState
     }
     val effectsMotion = AsteriskMotion.effects<Float>()
-    val sizeMotion = AsteriskMotion.contentSpatial<IntSize>()
+    val sizeMotion = AsteriskMotion.contentSize()
 
     AnimatedVisibility(
         visible = visibleState != null,

@@ -4,7 +4,6 @@
 package features.settings.sheets
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -198,9 +197,7 @@ private fun ServiceControlRuleEditor(
     val invalidSsid = stringResource(R.string.settings_service_control_ssid_invalid)
     val invalidBssid = stringResource(R.string.settings_service_control_bssid_invalid)
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .animateContentSize(AsteriskMotion.contentSpatial()),
+        modifier = Modifier.fillMaxWidth(),
     ) {
         SwitchPreference(
             title = title,

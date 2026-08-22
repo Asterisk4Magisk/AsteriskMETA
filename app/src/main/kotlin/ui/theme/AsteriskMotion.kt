@@ -22,6 +22,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -35,20 +36,6 @@ import androidx.compose.ui.unit.IntSize
 internal val LocalReduceMotion = staticCompositionLocalOf { false }
 
 private const val NavigationTransitionDurationMillis = 300
-
-/**
- * Smooth, non-bouncing spatial motion for content that changes the surrounding layout.
- */
-internal object AsteriskContentMotionScheme {
-    private val defaultSpatialSpec: FiniteAnimationSpec<Any> = spring(
-        dampingRatio = Spring.DampingRatioNoBouncy,
-        stiffness = Spring.StiffnessMediumLow,
-    )
-
-    @Suppress("UNCHECKED_CAST")
-    fun <T> defaultSpatialSpec(): FiniteAnimationSpec<T> =
-        defaultSpatialSpec as FiniteAnimationSpec<T>
-}
 
 /**
  * The only feature-facing motion gateway. Spatial changes and visual effects intentionally use
@@ -123,22 +110,42 @@ internal object AsteriskMotion {
         MaterialTheme.motionScheme.defaultSpatialSpec()
     }
 
-    @Composable
-    fun <T> contentSpatial(): FiniteAnimationSpec<T> = if (LocalReduceMotion.current) {
+    fun contentFade(reducedMotion: Boolean): FiniteAnimationSpec<Float> = if (reducedMotion) {
         snap()
     } else {
-        AsteriskContentMotionScheme.defaultSpatialSpec()
+        spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMediumLow,
+        )
     }
 
     @Composable
+    fun contentFade(): FiniteAnimationSpec<Float> =
+        contentFade(reducedMotion = LocalReduceMotion.current)
+
+    fun contentSize(reducedMotion: Boolean): FiniteAnimationSpec<IntSize> = if (reducedMotion) {
+        snap()
+    } else {
+        spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMediumLow,
+            visibilityThreshold = IntSize.VisibilityThreshold,
+        )
+    }
+
+    @Composable
+    fun contentSize(): FiniteAnimationSpec<IntSize> =
+        contentSize(reducedMotion = LocalReduceMotion.current)
+
+    @Composable
     fun contentEnter(): EnterTransition =
-        fadeIn(animationSpec = contentSpatial()) +
-            expandVertically(animationSpec = contentSpatial())
+        fadeIn(animationSpec = contentFade()) +
+            expandVertically(animationSpec = contentSize())
 
     @Composable
     fun contentExit(): ExitTransition =
-        shrinkVertically(animationSpec = contentSpatial()) +
-            fadeOut(animationSpec = contentSpatial())
+        shrinkVertically(animationSpec = contentSize()) +
+            fadeOut(animationSpec = contentFade())
 
     @Composable
     fun <S> navigationForward(): AnimatedContentTransitionScope<S>.() -> ContentTransform {
@@ -257,18 +264,6 @@ internal object AsteriskMotion {
 
     fun fadeExit(spec: FiniteAnimationSpec<Float>): ExitTransition =
         fadeOut(animationSpec = spec)
-
-    fun scaleFadeEnter(
-        effectsSpec: FiniteAnimationSpec<Float>,
-        spatialSpec: FiniteAnimationSpec<Float>,
-    ): EnterTransition =
-        fadeIn(animationSpec = effectsSpec) + scaleIn(animationSpec = spatialSpec)
-
-    fun scaleFadeExit(
-        effectsSpec: FiniteAnimationSpec<Float>,
-        spatialSpec: FiniteAnimationSpec<Float>,
-    ): ExitTransition =
-        fadeOut(animationSpec = effectsSpec) + scaleOut(animationSpec = spatialSpec)
 
     fun <S> scaleSwap(
         spatialSpec: FiniteAnimationSpec<Float>,

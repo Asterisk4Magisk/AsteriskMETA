@@ -5,7 +5,6 @@ package ui.components
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -148,7 +147,6 @@ internal fun StringListEditor(
             if (sanitizedValues.isEmpty()) StringListStatusText(emptyText)
             sanitizedValues.forEachIndexed { index, value ->
                 val editing = editingIndex == index
-                val contentSizeMotion = AsteriskMotion.contentSpatial<androidx.compose.ui.unit.IntSize>()
                 val actionMotion = AsteriskMotion.fastSpatial<Float>()
                 val editError = if (editing) {
                     normalizeInput(editInput).takeIf(String::isNotEmpty)?.let(validateInput)
@@ -168,8 +166,7 @@ internal fun StringListEditor(
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 6.dp)
-                            .animateContentSize(animationSpec = contentSizeMotion),
+                            .padding(top = 6.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
                         shape = AsteriskShapeTokens.InnerContainer,
                     ) {
@@ -247,7 +244,14 @@ internal fun StringListEditor(
                                     }
                                 }
                             }
-                            editError?.let { StringListStatusText(it, error = true) }
+                            AnimatedVisibility(
+                                visible = editing && editError != null,
+                                enter = AsteriskMotion.contentEnter(),
+                                exit = AsteriskMotion.contentExit(),
+                                label = "string-list-edit-error",
+                            ) {
+                                editError?.let { StringListStatusText(it, error = true) }
+                            }
                         }
                     }
                 }
