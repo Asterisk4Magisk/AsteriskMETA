@@ -82,12 +82,12 @@ fun AppTheme(
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
     var animationsEnabled by remember(context) {
-        mutableStateOf(systemAnimationsEnabled(context))
+        mutableStateOf(systemAnimationsEnabled())
     }
     DisposableEffect(context.contentResolver) {
         val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
             override fun onChange(selfChange: Boolean) {
-                animationsEnabled = systemAnimationsEnabled(context)
+                animationsEnabled = systemAnimationsEnabled()
             }
         }
         context.contentResolver.registerContentObserver(
@@ -195,16 +195,7 @@ private fun SynchronizeSplashTheme(colorMode: Int) {
     }
 }
 
-private fun systemAnimationsEnabled(context: android.content.Context): Boolean =
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        ValueAnimator.areAnimatorsEnabled()
-    } else {
-        Settings.Global.getFloat(
-            context.contentResolver,
-            Settings.Global.ANIMATOR_DURATION_SCALE,
-            1f,
-        ) > 0f
-    }
+private fun systemAnimationsEnabled(): Boolean = ValueAnimator.areAnimatorsEnabled()
 
 @Composable
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)

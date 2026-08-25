@@ -223,13 +223,7 @@ class MihomoTrafficStatsNotificationService : Service() {
             snapshot.totalUp.toReadableBytes(keepTrailingZero = true),
             snapshot.totalDown.toReadableBytes(keepTrailingZero = true),
         )
-        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Notification.Builder(this, ChannelId)
-        } else {
-            @Suppress("DEPRECATION")
-            Notification.Builder(this)
-        }
-        return builder
+        return Notification.Builder(this, ChannelId)
             .setSmallIcon(android.R.drawable.stat_notify_sync)
             .setContentTitle(title)
             .setContentText(speedLine)
@@ -251,7 +245,6 @@ class MihomoTrafficStatsNotificationService : Service() {
     }
 
     private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         notificationManager.createNotificationChannel(
             NotificationChannel(
                 ChannelId,
@@ -292,11 +285,7 @@ class MihomoTrafficStatsNotificationService : Service() {
                 action = ActionStart
                 putRuntime(runtime)
             }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                appContext.startForegroundService(intent)
-            } else {
-                appContext.startService(intent)
-            }
+            appContext.startForegroundService(intent)
         }
 
         internal fun stop(context: Context) {
