@@ -141,6 +141,9 @@ data class AppState(
 val AppState.effectiveLocalDnsEnabled: Boolean
     get() = enableLocalDns
 
+val AppState.rootIpv6DataPathEnabled: Boolean
+    get() = enableIpv6 || (effectiveLocalDnsEnabled && !enableRootIpv6Disabler)
+
 val AppState.effectiveFakeIpEnabled: Boolean
     get() = effectiveLocalDnsEnabled && dnsEnhancedMode == MihomoDnsModeFakeIp
 

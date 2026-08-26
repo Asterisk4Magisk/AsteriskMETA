@@ -19,6 +19,7 @@ import app.modes.RunModeTproxy
 import app.modes.RunModeTun2Socks
 import app.modes.isRootRunMode
 import app.resourceFileUpdateSource
+import app.rootIpv6DataPathEnabled
 import engine.network.isIpv4CidrAddress
 import engine.network.toPortOrNull
 import engine.proxy.LocalProxyLoopbackAddress
@@ -38,10 +39,10 @@ import org.snakeyaml.engine.v2.representer.StandardRepresenter
 import utils.toTrimmedNonEmptyDistinctList
 
 internal const val Bpf2SocksRuntimeMarkerKey = "x-asteriskmeta-root-bpf2socks"
+internal const val MihomoTproxyInboundName = "asterisk-tproxy"
 internal const val MihomoTunDevice = "asterisk0"
 internal const val MihomoTunInboundName = "asterisk-tun"
 internal const val MihomoTunRuntimeMarkerKey = "x-asteriskmeta-root-tun"
-internal const val MihomoTunRuntimeConfigTag = "x-asteriskmeta-root-tun:"
 
 internal object MihomoProfileFactory {
     fun buildProfileBytes(
@@ -164,7 +165,7 @@ private fun MutableMap<String, Any?>.putAsteriskRuntimeOverrides(
             }
         }
         if (runMode == RunModeTproxy) {
-            put("tproxy-port", tproxyPort)
+            put("listeners", listOf(appState.toMihomoTproxyListenerYamlMap(tproxyPort)))
         }
         if (runMode == RunModeTun2Socks || runMode == RunModeBpf2Socks) {
             put("socks-port", socksPort)
@@ -369,13 +370,27 @@ private fun AppState.toMihomoTunListenerYamlMap(): Map<String, Any?> {
         "mtu" to tunOptions.mtu,
         "inet4-address" to listOf("${tunOptions.ipv4Address.address}/${tunOptions.ipv4Address.prefixLength}"),
     ).apply {
-        if (enableLocalDns) {
-            put("dns-hijack", listOf("0.0.0.0:53"))
+        if (effectiveLocalDnsEnabled) {
+            put(
+                "dns-hijack",
+                if (rootIpv6DataPathEnabled) listOf("0.0.0.0:53", "[::]:53")
+                else listOf("0.0.0.0:53"),
+            )
         }
-        if (enableIpv6) {
+        if (rootIpv6DataPathEnabled) {
             put("inet6-address", listOf("${tunOptions.ipv6Address.address}/${tunOptions.ipv6Address.prefixLength}"))
         }
     }
+}
+
+private fun AppState.toMihomoTproxyListenerYamlMap(port: Int): Map<String, Any?> {
+    return linkedMapOf(
+        "name" to MihomoTproxyInboundName,
+        "type" to "tproxy",
+        "listen" to if (rootIpv6DataPathEnabled) "::" else "0.0.0.0",
+        "port" to port,
+        "udp" to true,
+    )
 }
 
 private fun normalizedProxiesWithDnsOut(value: Any?): List<Any?> {

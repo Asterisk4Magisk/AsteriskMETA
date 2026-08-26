@@ -3,7 +3,6 @@
 
 package engine.root.mode
 
-import engine.mihomo.raw.runtimeIpv6Enabled
 import engine.proxy.toLocalProxyOptions
 import engine.proxy.toLocalProxyOptionsOrNull
 import engine.root.config.RootConfigBuildContext
@@ -46,7 +45,8 @@ internal fun RootConfigBuildContext.buildTun2SocksStartConfig(): RootModeStartCo
                 mtu = tunOptions.mtu,
                 ipv4Address = tunOptions.ipv4Address.address,
                 ipv6Address = tunOptions.ipv6Address.address.takeIf {
-                    rawConfig.runtimeIpv6Enabled(appState.enableIpv6)
+                    rootStartConfig.enableIpv6 ||
+                        (rootStartConfig.enableLocalDns && !rootStartConfig.enableRootIpv6Disabler)
                 },
                 multiQueue = true,
                 tcpFastOpen = true,
