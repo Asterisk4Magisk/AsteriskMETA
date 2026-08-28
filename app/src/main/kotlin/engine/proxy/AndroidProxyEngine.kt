@@ -17,6 +17,7 @@ import engine.mihomo.MihomoProfileFactory
 import engine.mihomo.raw.requireStartableRawConfig
 import engine.mihomo.raw.usesRawMihomoConfig
 import engine.mihomo.raw.loadSelectedRawConfig
+import engine.vpn.AndroidMihomoRuntime
 import engine.vpn.VpnMihomoEngine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -75,6 +76,7 @@ internal class AndroidProxyEngine(
             val rootEngine = rootEnginesByRunMode[nextState.runMode] ?: return@withLock nextState
             val resolvedState = nextState.withResolvedDynamicLocalProxyPort()
             val wasRunning = withContext(Dispatchers.Default) {
+                AndroidMihomoRuntime.releaseStandby()
                 rootEngine.reconfigureServiceControl(ProxyEngineStartRequest(resolvedState))
             }
             activeEngine = rootEngine.takeIf { wasRunning }
@@ -144,6 +146,9 @@ internal class AndroidProxyEngine(
             currentEngine is RootModeEngine && nextEngine is RootModeEngine
         if (currentEngine != null && currentEngine !== nextEngine && !rootToRootRestart) {
             if (currentEngine is RootModeEngine) currentEngine.shutdown() else currentEngine.stop()
+        }
+        if (nextEngine is RootModeEngine) {
+            AndroidMihomoRuntime.releaseStandby()
         }
         activeEngine = nextEngine
         try {
