@@ -189,6 +189,7 @@ private fun MutableMap<String, Any?>.putAsteriskRuntimeOverrides(
         put("bind-address", LocalProxyLoopbackAddress)
     }
     put("mode", appState.mihomoModeName())
+    put("unified-delay", true)
     put("log-level", appState.mihomoLogLevelName())
     put("geodata-mode", appState.enableGeodataMode)
     put("geodata-loader", appState.mihomoGeodataLoaderName())
@@ -556,6 +557,7 @@ private val AsteriskManagedTopLevelKeys = setOf(
     "allow-lan",
     "bind-address",
     "mode",
+    "unified-delay",
     "log-level",
     "geodata-mode",
     "geodata-loader",
