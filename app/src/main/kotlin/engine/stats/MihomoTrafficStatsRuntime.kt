@@ -22,7 +22,6 @@ internal fun AppState.toMihomoTrafficStatsRuntime(
     rawConfig: MihomoRawConfigSnapshot? = null,
 ): MihomoTrafficStatsRuntime? {
     if (!enableTrafficStatsNotification) return null
-    if (runMode != RunModeVpnService) return null
     val usesRawConfig = usesRawMihomoConfig()
     val control = if (usesRawConfig) {
         rawConfig?.api?.value?.control ?: return null
@@ -31,7 +30,7 @@ internal fun AppState.toMihomoTrafficStatsRuntime(
     }
     return MihomoTrafficStatsRuntime(
         control = control,
-        useBridge = !usesRawConfig,
+        useBridge = !usesRawConfig && runMode == RunModeVpnService,
         nodeName = selectedMihomoProfileOrNull()?.name.orEmpty(),
     )
 }

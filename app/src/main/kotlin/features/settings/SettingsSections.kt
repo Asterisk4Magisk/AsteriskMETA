@@ -422,6 +422,13 @@ internal fun SettingsProxyModeSections(
                         onCheckedChange = onEnableRootIpv6DisablerChange,
                     )
                 }
+                SwitchPreference(
+                    title = stringResource(R.string.settings_traffic_stats_notification),
+                    icon = Icons.Rounded.Notifications,
+                    summary = stringResource(R.string.settings_traffic_stats_notification_summary),
+                    checked = enableTrafficStatsNotification,
+                    onCheckedChange = onEnableTrafficStatsNotificationChange,
+                )
                 if (!rawState.showsReadOnlyYamlValues) {
                     ArrowPreference(
                         title = stringResource(R.string.settings_local_proxy),

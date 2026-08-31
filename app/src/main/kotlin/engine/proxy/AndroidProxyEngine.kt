@@ -310,14 +310,10 @@ internal class AndroidProxyEngine(
             MihomoTrafficStatsNotificationService.reconcile(appContext, null)
             return this
         }
-        val activeRunMode = runMode ?: appState?.runMode
-        if (activeRunMode != RunModeVpnService) {
-            MihomoTrafficStatsNotificationService.reconcile(appContext, null)
-            return this
-        }
         if (appState == null) {
             return this
         }
+        val activeRunMode = runMode ?: appState.runMode
         val rawConfig = if (appState.usesRawMihomoConfig()) {
             appContext.loadSelectedRawConfig(appState)?.snapshot
         } else {
