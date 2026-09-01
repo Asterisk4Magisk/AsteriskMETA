@@ -14,7 +14,7 @@ object ProjectConfig {
     const val VERSION_NAME = "1.2.7-dev"
     const val PACKAGE_NAME = "org.asterisk.zcc.ameta"
     const val ASTERISKD_VERSION = "v2.0.25"
-    const val BPF2SOCKS_VERSION = "v1.0.13"
+    const val BPF2SOCKS_VERSION = "v1.0.14"
     const val BPF_MATCHER_VERSION = "v1.0.1"
     const val CMFA_WRAPPER_VERSION = "v2.11.33-asterisk"
     const val MIHOMO_CORE_VERSION = "v1.19.30"
