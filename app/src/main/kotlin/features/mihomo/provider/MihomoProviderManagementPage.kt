@@ -497,7 +497,7 @@ internal suspend fun loadProxyProviderDeclarations(
     )[MihomoProviderType.Proxy] ?: ProviderDeclarationsState()
 }
 
-private suspend fun loadProviderDeclarationsByType(
+internal suspend fun loadProviderDeclarationsByType(
     context: Context,
     appState: app.AppState,
     dataDir: File,

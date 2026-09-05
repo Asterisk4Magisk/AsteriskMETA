@@ -22,6 +22,11 @@ internal class SettingsSheetState(
     var showTunSettings by mutableStateOf(false)
     var tunSettingsDraft by mutableStateOf(TunSettingsDraft())
 
+    var showTunBypassProviders by mutableStateOf(false)
+    var tunBypassProviderNamesDraft by mutableStateOf(emptyList<String>())
+    var showTunSharedNetwork by mutableStateOf(false)
+    var tunSharedNetworkInterfacesDraft by mutableStateOf(emptyList<String>())
+
     var showDnsSettings by mutableStateOf(false)
     var dnsSettingsDraft by mutableStateOf(DnsSettingsDraft())
 
@@ -48,6 +53,16 @@ internal class SettingsSheetState(
     fun openTunSettings(appState: AppState) {
         tunSettingsDraft = appState.toTunSettingsDraft()
         showTunSettings = true
+    }
+
+    fun openTunBypassProviders(appState: AppState) {
+        tunBypassProviderNamesDraft = appState.tunBypassRuleProviderNames
+        showTunBypassProviders = true
+    }
+
+    fun openTunSharedNetwork(appState: AppState) {
+        tunSharedNetworkInterfacesDraft = appState.tunSharedNetworkInterfaces
+        showTunSharedNetwork = true
     }
 
     fun openDnsSettings(appState: AppState) {

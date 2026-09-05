@@ -50,6 +50,7 @@ import features.settings.sheets.externalInterfacesSummary
 import features.settings.sheets.ignoredInterfacesSummary
 import features.settings.sheets.privateAddressCidrsSummary
 import features.settings.sheets.snifferSettingsSummary
+import features.settings.sheets.tunSharedNetworkInterfacesSummary
 import features.settings.sheets.tunSettingsSummary
 import features.settings.usecase.RootBootScriptResult
 import features.settings.usecase.RootEbpfProbeResult
@@ -183,7 +184,9 @@ private fun SettingsContent(
         bpf2SocksBridgePort = appState.bpf2SocksBridgePort,
         socks5ProxyPort = appState.socks5ProxyPort,
     )
-    val externalInterfacesSummary = externalInterfacesSummary(appState.externalInterfaces)
+    val externalInterfacesSummary = if (appState.runMode == RunModeTun) {
+        tunSharedNetworkInterfacesSummary(appState.tunSharedNetworkInterfaces)
+    } else externalInterfacesSummary(appState.externalInterfaces)
     val ignoredInterfacesSummary = ignoredInterfacesSummary(appState.ignoredInterfaces)
     val privateAddressCidrsSummary = privateAddressCidrsSummary(appState.privateAddressCidrs)
     val snifferSummary = snifferSettingsSummary(
@@ -233,16 +236,22 @@ private fun SettingsContent(
         }
     }
     val nestedSearchEntries = settingsNestedSearchEntries(
+        runMode = appState.runMode,
+        onOpenTunBypassProviders = { sheetState.openTunBypassProviders(appState) },
         onOpenDns = { sheetState.openDnsSettings(appState) },
         onOpenSniffer = { sheetState.openSnifferSettings(appState) },
         onOpenLocalProxy = { sheetState.openLocalProxySettings(appState) },
         onOpenTun = { sheetState.openTunSettings(appState) },
-        onOpenExternalInterfaces = { sheetState.openExternalInterfaces(appState) },
+        onOpenExternalInterfaces = {
+            if (appState.runMode == RunModeTun) sheetState.openTunSharedNetwork(appState)
+            else sheetState.openExternalInterfaces(appState)
+        },
         onOpenServiceControl = { sheetState.openServiceControl(appState) },
         onOpenIgnoredInterfaces = { sheetState.openIgnoredInterfaces(appState) },
         onOpenPrivateAddresses = { sheetState.openPrivateAddresses(appState) },
     )
     val topLevelSearchItems = settingsTopLevelSearchItems(
+        runMode = appState.runMode,
         colorModeOptions = colorModeOptions,
         colorMode = appState.colorMode,
         keyColorOptions = keyColorOptions,
@@ -419,6 +428,8 @@ private fun SettingsContent(
                     enableRootBootScript = appState.enableRootBootScript,
                     enableRootEbpfRules = appState.enableRootEbpfRules,
                     enableRootEbpfDirectCidrBypass = appState.enableRootEbpfDirectCidrBypass,
+                    tunBypassProvidersSummary = appState.tunBypassRuleProviderNames.joinToString().ifEmpty { stringResource(R.string.settings_tun_bypass_providers_none) },
+                    onOpenTunBypassProviders = { sheetState.openTunBypassProviders(appState) },
                     enableIpv6 = appState.enableIpv6,
                     enableRootIpv6Disabler = appState.enableRootIpv6Disabler,
                     externalInterfacesSummary = externalInterfacesSummary,
@@ -521,7 +532,10 @@ private fun SettingsContent(
                     onEnableRootIpv6DisablerChange = { enabled ->
                         updateAppState { state -> state.copy(enableRootIpv6Disabler = enabled) }
                     },
-                    onOpenExternalInterfaces = { sheetState.openExternalInterfaces(appState) },
+                    onOpenExternalInterfaces = {
+                        if (appState.runMode == RunModeTun) sheetState.openTunSharedNetwork(appState)
+                        else sheetState.openExternalInterfaces(appState)
+                    },
                     onOpenServiceControl = { sheetState.openServiceControl(appState) },
                     onOpenIgnoredInterfaces = { sheetState.openIgnoredInterfaces(appState) },
                     onOpenPrivateAddresses = { sheetState.openPrivateAddresses(appState) },

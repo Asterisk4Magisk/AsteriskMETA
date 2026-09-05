@@ -24,6 +24,7 @@ internal data class MihomoProviderDeclaration(
 internal data class MihomoRuleProviderDeclarationMetadata(
     val behavior: String,
     val format: String,
+    val tunBypassEligible: Boolean = false,
 )
 
 internal sealed interface MihomoProviderRawSource {
@@ -47,15 +48,6 @@ internal sealed interface MihomoProviderRawContent {
         val ruleCount: Int? = null,
         override val lastError: String = "",
     ) : MihomoProviderRawContent
-}
-
-internal fun String.parseMihomoProxyProviderDeclarations(
-    dataDir: File,
-): List<MihomoProviderDeclaration> {
-    return parseMihomoProviderDeclarations(
-        dataDir = dataDir,
-        type = MihomoProviderType.Proxy,
-    )
 }
 
 internal fun String.parseMihomoProviderDeclarations(
@@ -187,6 +179,7 @@ private fun Map<*, *>.toMihomoProviderDeclaration(
     val ruleMetadata = if (type == MihomoProviderType.Rule) {
         MihomoRuleProviderDeclarationMetadata(
             behavior = normalized["behavior"].asProviderTextOrNull()?.lowercase().orEmpty(),
+            tunBypassEligible = name in usableMihomoTunBypassProviders(mapOf(name to normalized)),
             format = normalized["format"].asProviderTextOrNull()
                 ?.lowercase()
                 .orEmpty()

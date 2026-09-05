@@ -33,24 +33,26 @@ internal object AsteriskdConfigValidator {
             }
             AsteriskdMode.Tun -> {
                 require(modeOptions.transparentPort == null && !modeOptions.tunnelName.isNullOrBlank())
-                require(helper == null)
+                require(helper == null && matcher == null)
             }
             AsteriskdMode.Ebpf -> {
                 require(modeOptions.transparentPort == null && modeOptions.tunnelName == null)
                 require(helper == null && matcher == null)
-                require(!network.enableLocalDns && !network.enableFakeDns && network.fakeDnsIpv4Pool == null)
-                require(network.ignoredInterfaces.isEmpty())
-                require(network.virtualInterfaces.isEmpty())
-                require(network.hotspotInterfacePrefixes.isEmpty())
-                require(network.proxyPrivateCidrs.isEmpty() && network.bypassPrivateCidrs.isEmpty())
-                require(network.appPolicy == AsteriskdAppPolicy(
-                    mode = AsteriskdAppPolicyMode.Global,
-                    uids = emptyList(),
-                    bypassUids = emptyList(),
-                    directCidrPathV4 = null,
-                    directCidrPathV6 = null,
-                ))
             }
+        }
+        if (mode == AsteriskdMode.Tun || mode == AsteriskdMode.Ebpf) {
+            require(!network.enableLocalDns && !network.enableFakeDns && network.fakeDnsIpv4Pool == null)
+            require(network.ignoredInterfaces.isEmpty())
+            require(network.virtualInterfaces.isEmpty())
+            if (mode == AsteriskdMode.Ebpf) require(network.hotspotInterfacePrefixes.isEmpty())
+            require(network.proxyPrivateCidrs.isEmpty() && network.bypassPrivateCidrs.isEmpty())
+            require(network.appPolicy == AsteriskdAppPolicy(
+                mode = AsteriskdAppPolicyMode.Global,
+                uids = emptyList(),
+                bypassUids = emptyList(),
+                directCidrPathV4 = null,
+                directCidrPathV6 = null,
+            ))
         }
         if (matcher != null) require(AsteriskdMetaConfigFactory.isMatcherAllowed(mode))
         network.appPolicy.directCidrPathV4?.let { pathV4 ->
@@ -88,5 +90,5 @@ internal object AsteriskdMetaConfigFactory {
     }
 
     fun isMatcherAllowed(mode: AsteriskdMode): Boolean =
-        mode == AsteriskdMode.Tproxy || mode == AsteriskdMode.Tun || mode == AsteriskdMode.Tun2Socks
+        mode == AsteriskdMode.Tproxy || mode == AsteriskdMode.Tun2Socks
 }

@@ -23,6 +23,7 @@ import app.rootIpv6DataPathEnabled
 import engine.network.isIpv4CidrAddress
 import engine.network.toPortOrNull
 import engine.proxy.LocalProxyLoopbackAddress
+import engine.root.config.resolveRootProxyApplicationUids
 import engine.root.RootModeEngine
 import engine.vpn.VpnDefaults
 import engine.vpn.toTunOptions
@@ -58,7 +59,10 @@ internal object MihomoProfileFactory {
             sourceBytes = sourceBytes,
             disableOverrides = selectedProfile.disableOverrides,
         ) { rawContent ->
-            rawContent.trim().withAsteriskRuntimeOverrides(appState, selectedProfile, runMode, exposePorts)
+            rawContent.trim().withAsteriskRuntimeOverrides(
+                appState, selectedProfile, runMode, exposePorts,
+                if (runMode == RunModeTun) context.resolveRootProxyApplicationUids(appState.proxyAppListSelectedApps) else emptyList(),
+            )
         }
     }
 
@@ -86,6 +90,7 @@ private fun String.withAsteriskRuntimeOverrides(
     selectedProfile: MihomoProfileState?,
     runMode: Int,
     exposePorts: Boolean,
+    tunApplicationUids: List<Int>,
 ): String {
     val escaped = escapeSupplementaryYamlCodePoints()
     val root = runCatching {
@@ -96,7 +101,7 @@ private fun String.withAsteriskRuntimeOverrides(
         if (selectedProfile?.overrideScriptId != DefaultMihomoOverrideScriptId) {
             error("Override script requires a YAML object profile")
         }
-        return appendRuntimeOverrides(appState, runMode, exposePorts)
+        return appendRuntimeOverrides(appState, runMode, exposePorts, tunApplicationUids)
     }
 
     val rawProfile = linkedMapOf<String, Any?>()
@@ -107,7 +112,7 @@ private fun String.withAsteriskRuntimeOverrides(
     return escaped.restore(
         rawProfile
             .applyMihomoProfileScriptOverride(selectedProfile, appState.mihomoOverrideScripts)
-            .toAsteriskRuntimeProfileYaml(appState, runMode, exposePorts = exposePorts),
+            .toAsteriskRuntimeProfileYaml(appState, runMode, exposePorts = exposePorts, tunApplicationUids = tunApplicationUids),
     )
 }
 
@@ -116,6 +121,7 @@ private fun Map<String, Any?>.toAsteriskRuntimeProfileYaml(
     runMode: Int,
     forceDns: Boolean = false,
     exposePorts: Boolean = true,
+    tunApplicationUids: List<Int>,
 ): String {
     val updated = linkedMapOf<String, Any?>()
     val managedKeys = AsteriskManagedTopLevelKeys
@@ -127,7 +133,7 @@ private fun Map<String, Any?>.toAsteriskRuntimeProfileYaml(
     if (runMode.isRootRunMode()) {
         updated.putCmfaRootProviderPaths()
     }
-    updated.putAsteriskRuntimeOverrides(appState, runMode, forceDns = forceDns, exposePorts = exposePorts)
+    updated.putAsteriskRuntimeOverrides(appState, runMode, forceDns = forceDns, exposePorts = exposePorts, tunApplicationUids = tunApplicationUids)
     return dumpYaml(normalizeYamlValue(updated))
 }
 
@@ -135,9 +141,10 @@ private fun String.appendRuntimeOverrides(
     appState: AppState,
     runMode: Int,
     exposePorts: Boolean,
+    tunApplicationUids: List<Int>,
 ): String {
     val managed = linkedMapOf<String, Any?>()
-    managed.putAsteriskRuntimeOverrides(appState, runMode, exposePorts = exposePorts)
+    managed.putAsteriskRuntimeOverrides(appState, runMode, exposePorts = exposePorts, tunApplicationUids = tunApplicationUids)
     val overrideYaml = dumpYaml(normalizeYamlValue(managed))
     return trimEnd() + "\n\n# AsteriskMETA runtime overrides\n" + overrideYaml
 }
@@ -147,6 +154,7 @@ private fun MutableMap<String, Any?>.putAsteriskRuntimeOverrides(
     runMode: Int,
     forceDns: Boolean = false,
     exposePorts: Boolean = true,
+    tunApplicationUids: List<Int>,
 ) {
     val mixedPort = appState.localProxyPort.toPortOrNull() ?: VpnDefaults.LOCAL_PROXY_PORT
     val tproxyPort = appState.transparentProxyPort.toPortOrNull() ?: RootModeEngine.DefaultTproxyPort
@@ -175,7 +183,7 @@ private fun MutableMap<String, Any?>.putAsteriskRuntimeOverrides(
         }
         if (runMode == RunModeTun) {
             put(MihomoTunRuntimeMarkerKey, true)
-            put("listeners", listOf(appState.toMihomoTunListenerYamlMap()))
+            put("listeners", listOf(appState.toMihomoTunListenerYamlMap(tunApplicationUids, this["rule-providers"])))
         }
         put("external-controller", control.address)
         put("secret", control.secret)
@@ -215,8 +223,9 @@ internal fun resolveMihomoRuntimeProfileBytes(
 }
 
 private fun AppState.requiresMihomoLanAccess(runMode: Int): Boolean {
+    val sharedInterfaces = if (runMode == RunModeTun) tunSharedNetworkInterfaces else externalInterfaces
     val hasRootSharing = runMode.isRootRunMode() &&
-        externalInterfaces.toTrimmedNonEmptyDistinctList().isNotEmpty()
+        sharedInterfaces.toTrimmedNonEmptyDistinctList().isNotEmpty()
     return localProxyListenAllInterfaces || hasRootSharing
 }
 
@@ -358,27 +367,35 @@ private fun MutableMap<String, Any?>.putNtpWriteToSystemOverride() {
     put("ntp", ntp)
 }
 
-private fun AppState.toMihomoTunListenerYamlMap(): Map<String, Any?> {
+internal fun AppState.toMihomoTunListenerYamlMap(
+    applicationUids: List<Int>,
+    ruleProviders: Any?,
+): Map<String, Any?> {
     val tunOptions = toTunOptions()
     return linkedMapOf<String, Any?>(
         "name" to MihomoTunInboundName,
         "type" to "tun",
         "device" to MihomoTunDevice,
         "stack" to MihomoProfileFactory.tunStack(this),
-        "auto-route" to false,
-        "auto-detect-interface" to false,
-        "auto-redirect" to false,
+        "auto-route" to true,
+        "auto-detect-interface" to true,
+        "auto-redirect" to true,
         "mtu" to tunOptions.mtu,
         "inet4-address" to listOf("${tunOptions.ipv4Address.address}/${tunOptions.ipv4Address.prefixLength}"),
     ).apply {
+        putAll(mihomoRootTunPolicy(
+            if (proxyAppListSelectedApps.toTrimmedNonEmptyDistinctList().isEmpty()) app.modes.ProxyAppListModeGlobal else proxyAppListMode,
+            applicationUids, tunSharedNetworkInterfaces,
+            tunBypassRuleProviderNames, ruleProviders,
+        ))
         if (effectiveLocalDnsEnabled) {
             put(
                 "dns-hijack",
-                if (rootIpv6DataPathEnabled) listOf("0.0.0.0:53", "[::]:53")
+                if (enableIpv6) listOf("0.0.0.0:53", "[::]:53")
                 else listOf("0.0.0.0:53"),
             )
         }
-        if (rootIpv6DataPathEnabled) {
+        if (enableIpv6) {
             put("inet6-address", listOf("${tunOptions.ipv6Address.address}/${tunOptions.ipv6Address.prefixLength}"))
         }
     }

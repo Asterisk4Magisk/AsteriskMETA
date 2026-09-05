@@ -30,6 +30,7 @@ internal fun filterSettingsSearchEntries(
 
 @Composable
 internal fun settingsTopLevelSearchItems(
+    runMode: Int,
     colorModeOptions: List<String>,
     colorMode: Int,
     keyColorOptions: List<String>,
@@ -52,6 +53,12 @@ internal fun settingsTopLevelSearchItems(
     fun optionValue(options: List<String>, index: Int): String =
         options.getOrNull(index).orEmpty()
 
+    val obsoleteTunTitles = setOf(
+        stringResource(R.string.settings_root_ebpf_matcher),
+        stringResource(R.string.settings_root_ebpf_bypass_direct_cidrs),
+        stringResource(R.string.settings_ignored_interfaces),
+        stringResource(R.string.settings_private_addresses),
+    )
     return listOf(
         SettingsSearchItem(
             SettingsSectionId.Theme,
@@ -164,7 +171,7 @@ internal fun settingsTopLevelSearchItems(
             stringResource(R.string.settings_root_ipv6_disabler),
             stringResource(R.string.settings_root_ipv6_disabler_summary),
         ),
-        SettingsSearchItem(SettingsSectionId.Tproxy, stringResource(R.string.settings_external_interfaces), externalInterfacesSummary),
+        SettingsSearchItem(SettingsSectionId.Tproxy, stringResource(if (runMode == app.modes.RunModeTun) R.string.settings_tun_shared_network else R.string.settings_external_interfaces), externalInterfacesSummary),
         SettingsSearchItem(SettingsSectionId.Tproxy, stringResource(R.string.settings_ignored_interfaces), ignoredInterfacesSummary),
         SettingsSearchItem(SettingsSectionId.Tproxy, stringResource(R.string.settings_private_addresses), privateAddressesSummary),
         SettingsSearchItem(SettingsSectionId.Logs, stringResource(R.string.settings_core_logs)),
@@ -176,7 +183,7 @@ internal fun settingsTopLevelSearchItems(
             title = "Boolean",
             optionText = listOf("true", "false"),
         ),
-    )
+    ).filterNot { runMode == app.modes.RunModeTun && it.title in obsoleteTunTitles }
 }
 
 @Composable
@@ -201,6 +208,8 @@ internal fun SettingsNestedSearchResults(
 
 @Composable
 internal fun settingsNestedSearchEntries(
+    runMode: Int,
+    onOpenTunBypassProviders: () -> Unit,
     onOpenDns: () -> Unit,
     onOpenSniffer: () -> Unit,
     onOpenLocalProxy: () -> Unit,
@@ -280,9 +289,16 @@ internal fun settingsNestedSearchEntries(
         snifferItems.forEach { add(SettingsSearchEntry(it, sniffer, Icons.Rounded.TravelExplore, onOpenSniffer)) }
         localProxyItems.forEach { add(SettingsSearchEntry(it, localProxy, Icons.Rounded.Router, onOpenLocalProxy)) }
         tunItems.forEach { add(SettingsSearchEntry(it, tun, Icons.Rounded.SettingsInputComponent, onOpenTun)) }
-        externalItems.forEach { add(SettingsSearchEntry(it, externalInterfaces, Icons.Rounded.Cable, onOpenExternalInterfaces)) }
+        if (runMode == app.modes.RunModeTun) {
+            add(SettingsSearchEntry(stringResource(R.string.settings_tun_shared_network), tun, Icons.Rounded.Cable, onOpenExternalInterfaces))
+            add(SettingsSearchEntry(stringResource(R.string.settings_tun_bypass_providers), tun, Icons.Rounded.Route, onOpenTunBypassProviders))
+        } else {
+            externalItems.forEach { add(SettingsSearchEntry(it, externalInterfaces, Icons.Rounded.Cable, onOpenExternalInterfaces)) }
+        }
         add(SettingsSearchEntry(serviceControl, serviceControl, Icons.Rounded.PowerSettingsNew, onOpenServiceControl))
-        add(SettingsSearchEntry(ignoredInterfaces, ignoredInterfaces, Icons.Rounded.Block, onOpenIgnoredInterfaces))
-        add(SettingsSearchEntry(privateAddresses, privateAddresses, Icons.Rounded.HomeWork, onOpenPrivateAddresses))
+        if (runMode != app.modes.RunModeTun) {
+            add(SettingsSearchEntry(ignoredInterfaces, ignoredInterfaces, Icons.Rounded.Block, onOpenIgnoredInterfaces))
+            add(SettingsSearchEntry(privateAddresses, privateAddresses, Icons.Rounded.HomeWork, onOpenPrivateAddresses))
+        }
     }
 }

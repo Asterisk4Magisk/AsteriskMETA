@@ -53,7 +53,7 @@ internal fun RootStartConfig.buildAsteriskdConfig(
             readinessTimeoutMilliseconds = 5000,
             ageSecretKey = ageSecretKey,
         ),
-        network = if (mode == AsteriskdMode.Ebpf) {
+        network = if (mode == AsteriskdMode.Tun || mode == AsteriskdMode.Ebpf) {
             AsteriskdNetworkConfig(
                 enableIpv6 = enableIpv6,
                 disableSystemIpv6 = disableSystemIpv6,
@@ -62,7 +62,12 @@ internal fun RootStartConfig.buildAsteriskdConfig(
                 fakeDnsIpv4Pool = null,
                 ignoredInterfaces = emptyList(),
                 virtualInterfaces = emptyList(),
-                hotspotInterfacePrefixes = emptyList(),
+                // Shared interfaces are used only for Android offload preparation.
+                hotspotInterfacePrefixes = if (mode == AsteriskdMode.Tun) {
+                    iptablesConfig.externalInterfacePrefixes.distinct()
+                } else {
+                    emptyList()
+                },
                 proxyPrivateCidrs = emptyList(),
                 bypassPrivateCidrs = emptyList(),
                 appPolicy = AsteriskdAppPolicy(

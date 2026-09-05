@@ -276,6 +276,8 @@ internal fun SettingsProxyModeSections(
     externalInterfacesSummary: String,
     ignoredInterfacesSummary: String,
     privateAddressCidrsSummary: String,
+    tunBypassProvidersSummary: String,
+    onOpenTunBypassProviders: () -> Unit,
     onOpenLocalProxySettings: () -> Unit,
     onEnableTrafficStatsNotificationChange: (Boolean) -> Unit,
     onEnableVpnAppendHttpProxyChange: (Boolean) -> Unit,
@@ -384,7 +386,7 @@ internal fun SettingsProxyModeSections(
                     onClick = onOpenServiceControl,
                 )
                 AnimatedVisibility(
-                    visible = runMode != RunModeBpf2Socks,
+                    visible = runMode != RunModeBpf2Socks && runMode != RunModeTun,
                     enter = AsteriskMotion.contentEnter(),
                     exit = AsteriskMotion.contentExit(),
                 ) {
@@ -397,7 +399,7 @@ internal fun SettingsProxyModeSections(
                     )
                 }
                 AnimatedVisibility(
-                    visible = enableRootEbpfRules || runMode == RunModeBpf2Socks,
+                    visible = runMode != RunModeTun && (enableRootEbpfRules || runMode == RunModeBpf2Socks),
                     enter = AsteriskMotion.contentEnter(),
                     exit = AsteriskMotion.contentExit(),
                 ) {
@@ -470,23 +472,34 @@ internal fun SettingsProxyModeSections(
                     }
                 }
                 ArrowPreference(
-                    title = stringResource(R.string.settings_external_interfaces),
+                    title = stringResource(if (runMode == RunModeTun) R.string.settings_tun_shared_network else R.string.settings_external_interfaces),
                     icon = Icons.Rounded.Cable,
                     summary = externalInterfacesSummary,
                     onClick = onOpenExternalInterfaces,
                 )
-                ArrowPreference(
-                    title = stringResource(R.string.settings_ignored_interfaces),
-                    icon = Icons.Rounded.Block,
-                    summary = ignoredInterfacesSummary,
-                    onClick = onOpenIgnoredInterfaces,
-                )
-                ArrowPreference(
-                    title = stringResource(R.string.settings_private_addresses),
-                    icon = Icons.Rounded.HomeWork,
-                    summary = privateAddressCidrsSummary,
-                    onClick = onOpenPrivateAddresses,
-                )
+                if (runMode == RunModeTun) {
+                    if (!rawState.showsReadOnlyYamlValues) {
+                        ArrowPreference(
+                            title = stringResource(R.string.settings_tun_bypass_providers),
+                            icon = Icons.Rounded.Route,
+                            summary = tunBypassProvidersSummary,
+                            onClick = onOpenTunBypassProviders,
+                        )
+                    }
+                } else {
+                    ArrowPreference(
+                        title = stringResource(R.string.settings_ignored_interfaces),
+                        icon = Icons.Rounded.Block,
+                        summary = ignoredInterfacesSummary,
+                        onClick = onOpenIgnoredInterfaces,
+                    )
+                    ArrowPreference(
+                        title = stringResource(R.string.settings_private_addresses),
+                        icon = Icons.Rounded.HomeWork,
+                        summary = privateAddressCidrsSummary,
+                        onClick = onOpenPrivateAddresses,
+                    )
+                }
             }
         }
     }

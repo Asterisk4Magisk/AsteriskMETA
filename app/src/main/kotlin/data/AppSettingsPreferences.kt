@@ -246,6 +246,8 @@ internal class AppSettingsPreferences(
                 defaults.bpf2SocksBridgePort,
             ) ?: defaults.bpf2SocksBridgePort,
             serviceControl = preferences.getServiceControl(defaults.serviceControl),
+            tunSharedNetworkInterfaces = preferences.getStringList(KeyTunSharedNetworkInterfaces, defaults.tunSharedNetworkInterfaces),
+            tunBypassRuleProviderNames = preferences.getStringList(KeyTunBypassRuleProviderNames, defaults.tunBypassRuleProviderNames),
             externalInterfaces = preferences.getStringList(KeyExternalInterfaces, defaults.externalInterfaces),
             ignoredInterfaces = preferences.getStringList(KeyIgnoredInterfaces, defaults.ignoredInterfaces),
             privateAddressCidrs = preferences.getStringList(KeyPrivateAddressCidrs, defaults.privateAddressCidrs),
@@ -342,6 +344,8 @@ internal class AppSettingsPreferences(
             .putString(KeySocks5ProxyPort, state.socks5ProxyPort)
             .putString(KeyBpf2SocksBridgePort, state.bpf2SocksBridgePort)
             .putServiceControl(state.serviceControl)
+            .putStringList(KeyTunSharedNetworkInterfaces, state.tunSharedNetworkInterfaces)
+            .putStringList(KeyTunBypassRuleProviderNames, state.tunBypassRuleProviderNames)
             .putStringList(KeyExternalInterfaces, state.externalInterfaces)
             .putStringList(KeyIgnoredInterfaces, state.ignoredInterfaces)
             .putStringList(KeyPrivateAddressCidrs, state.privateAddressCidrs)
@@ -571,6 +575,8 @@ private const val KeyServiceControlWifiDisconnectStartBssids = "service_control_
 private const val KeyServiceControlWifiDisconnectStopEnabled = "service_control_wifi_disconnect_stop_enabled"
 private const val KeyServiceControlWifiDisconnectStopSsids = "service_control_wifi_disconnect_stop_ssids"
 private const val KeyServiceControlWifiDisconnectStopBssids = "service_control_wifi_disconnect_stop_bssids"
+private const val KeyTunSharedNetworkInterfaces = "tun_shared_network_interfaces"
+private const val KeyTunBypassRuleProviderNames = "tun_bypass_rule_provider_names"
 private const val KeyExternalInterfaces = "external_interfaces"
 private const val KeyIgnoredInterfaces = "ignored_interfaces"
 private const val KeyPrivateAddressCidrs = "private_address_cidrs"

@@ -778,4 +778,18 @@
     <string name="settings_service_control_doze_note">Timers do not wake the device. If Android suspends the process, the latest missed action is reconciled after resume; stop wins when both are due.</string>
     <string name="settings_service_control_saving">Restarting…</string>
     <string name="settings_service_control_save_failed">Could not apply service control. Your edits were kept.</string>
+
+    <string name="settings_tun_shared_network_input">Downstream interface names</string>
+    <string name="settings_tun_shared_network">Tethering sharing</string>
+    <string name="settings_tun_shared_network_description">Enter one exact downstream interface name per item (for example ap0, rndis0, rmnet0, or ppp0). Wildcards and loopback are not supported.</string>
+    <string name="settings_tun_shared_network_empty">No downstream interfaces configured</string>
+    <string name="settings_tun_shared_network_none">Not enabled</string>
+    <string name="settings_tun_shared_network_selected">Configured interfaces: {count}</string>
+    <string name="settings_tun_bypass_providers">TUN bypass rule sets</string>
+    <string name="settings_tun_bypass_providers_description">Select IP CIDR providers from the active profile. Matching destinations bypass TUN in kernel routing. Changes apply when TUN starts again.</string>
+    <string name="settings_tun_bypass_providers_empty">No usable IP CIDR rule providers in the current profile</string>
+    <string name="settings_tun_bypass_providers_none">No bypass rule sets selected</string>
+    <string name="settings_tun_bypass_provider_unavailable">Unavailable in this profile; bypass is inactive. Turn off to remove.</string>
+    <string name="settings_tun_shared_network_invalid">Enter an exact interface name, without wildcards or loopback</string>
+    <string name="settings_tun_bypass_providers_no_match">No matching rule sets</string>
 </resources>

@@ -21,6 +21,8 @@ import features.settings.sheets.LocalProxySettingsBottomSheet
 import features.settings.sheets.PrivateAddressBottomSheet
 import features.settings.sheets.SnifferSettingsBottomSheet
 import features.settings.sheets.ServiceControlBottomSheet
+import features.settings.sheets.TunBypassProvidersBottomSheet
+import features.settings.sheets.TunSharedNetworkBottomSheet
 import features.settings.sheets.TunSettingsBottomSheet
 import features.settings.sheets.sanitizeExternalInterfaces
 import features.settings.sheets.sanitizeIgnoredInterfaceSelectors
@@ -221,6 +223,27 @@ internal fun SettingsBottomSheetsHost(
                 )
             }
             sheetState.showSnifferSettings = false
+        },
+    )
+    TunBypassProvidersBottomSheet(
+        show = sheetState.showTunBypassProviders,
+        appState = appState,
+        selectedNames = sheetState.tunBypassProviderNamesDraft,
+        onSelectedNamesChange = { sheetState.tunBypassProviderNamesDraft = it },
+        onDismissRequest = { sheetState.showTunBypassProviders = false },
+        onSave = { names ->
+            updateAppState { it.copy(tunBypassRuleProviderNames = names) }
+            sheetState.showTunBypassProviders = false
+        },
+    )
+    TunSharedNetworkBottomSheet(
+        show = sheetState.showTunSharedNetwork,
+        interfaces = sheetState.tunSharedNetworkInterfacesDraft,
+        onInterfacesChange = { sheetState.tunSharedNetworkInterfacesDraft = it },
+        onDismissRequest = { sheetState.showTunSharedNetwork = false },
+        onSave = { interfaces ->
+            updateAppState { it.copy(tunSharedNetworkInterfaces = interfaces) }
+            sheetState.showTunSharedNetwork = false
         },
     )
     ExternalInterfacesBottomSheet(
