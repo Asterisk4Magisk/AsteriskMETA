@@ -385,6 +385,14 @@ internal fun SettingsProxyModeSections(
                     summary = stringResource(R.string.settings_service_control_summary),
                     onClick = onOpenServiceControl,
                 )
+                if (runMode == RunModeTun && !rawState.showsReadOnlyYamlValues) {
+                    ArrowPreference(
+                        title = stringResource(R.string.settings_root_ebpf_bypass_direct_cidrs),
+                        icon = Icons.Rounded.Route,
+                        summary = tunBypassRuleSetsSummary,
+                        onClick = onOpenTunBypassRuleSets,
+                    )
+                }
                 AnimatedVisibility(
                     visible = runMode != RunModeBpf2Socks && runMode != RunModeTun,
                     enter = AsteriskMotion.contentEnter(),
@@ -477,16 +485,7 @@ internal fun SettingsProxyModeSections(
                     summary = externalInterfacesSummary,
                     onClick = onOpenExternalInterfaces,
                 )
-                if (runMode == RunModeTun) {
-                    if (!rawState.showsReadOnlyYamlValues) {
-                        ArrowPreference(
-                            title = stringResource(R.string.settings_root_ebpf_bypass_direct_cidrs),
-                            icon = Icons.Rounded.Route,
-                            summary = tunBypassRuleSetsSummary,
-                            onClick = onOpenTunBypassRuleSets,
-                        )
-                    }
-                } else {
+                if (runMode != RunModeTun) {
                     ArrowPreference(
                         title = stringResource(R.string.settings_ignored_interfaces),
                         icon = Icons.Rounded.Block,
