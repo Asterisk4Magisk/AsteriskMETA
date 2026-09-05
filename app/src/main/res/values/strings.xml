@@ -785,11 +785,12 @@
     <string name="settings_tun_shared_network_empty">No downstream interfaces configured</string>
     <string name="settings_tun_shared_network_none">Not enabled</string>
     <string name="settings_tun_shared_network_selected">Configured interfaces: {count}</string>
-    <string name="settings_tun_bypass_providers">TUN bypass rule sets</string>
-    <string name="settings_tun_bypass_providers_description">Select IP CIDR providers from the active profile. Matching destinations bypass TUN in kernel routing. Changes apply when TUN starts again.</string>
-    <string name="settings_tun_bypass_providers_empty">No usable IP CIDR rule providers in the current profile</string>
-    <string name="settings_tun_bypass_providers_none">No bypass rule sets selected</string>
-    <string name="settings_tun_bypass_provider_unavailable">Unavailable in this profile; bypass is inactive. Turn off to remove.</string>
-    <string name="settings_tun_shared_network_invalid">Enter an exact interface name, without wildcards or loopback</string>
-    <string name="settings_tun_bypass_providers_no_match">No matching rule sets</string>
+    <string name="settings_tun_bypass_rule_sets_summary_none">No rule sets selected</string>
+    <string name="settings_tun_bypass_rule_sets_summary_selected">Selected: {ruleSets}</string>
+    <string name="settings_tun_bypass_rule_sets_picker_title">Rule sets</string>
+    <string name="settings_tun_bypass_rule_sets_description">Only IP CIDRs in the selected rule sets bypass traffic capture. Domain rules do not apply.</string>
+    <string name="settings_tun_bypass_rule_sets_empty">No available IP CIDR rule sets in the current profile</string>
+    <string name="settings_tun_bypass_rule_set_unavailable">Unavailable in the current profile; bypass is inactive. Turn off to remove.</string>
+    <string name="settings_tun_shared_network_invalid">Invalid interface name</string>
+    <string name="settings_tun_bypass_rule_sets_no_match">No matching rule sets</string>
 </resources>

@@ -21,7 +21,7 @@ import features.settings.sheets.LocalProxySettingsBottomSheet
 import features.settings.sheets.PrivateAddressBottomSheet
 import features.settings.sheets.SnifferSettingsBottomSheet
 import features.settings.sheets.ServiceControlBottomSheet
-import features.settings.sheets.TunBypassProvidersBottomSheet
+import features.settings.sheets.TunBypassRuleSetBottomSheet
 import features.settings.sheets.TunSharedNetworkBottomSheet
 import features.settings.sheets.TunSettingsBottomSheet
 import features.settings.sheets.sanitizeExternalInterfaces
@@ -225,15 +225,15 @@ internal fun SettingsBottomSheetsHost(
             sheetState.showSnifferSettings = false
         },
     )
-    TunBypassProvidersBottomSheet(
-        show = sheetState.showTunBypassProviders,
+    TunBypassRuleSetBottomSheet(
+        show = sheetState.showTunBypassRuleSets,
         appState = appState,
-        selectedNames = sheetState.tunBypassProviderNamesDraft,
-        onSelectedNamesChange = { sheetState.tunBypassProviderNamesDraft = it },
-        onDismissRequest = { sheetState.showTunBypassProviders = false },
-        onSave = { names ->
-            updateAppState { it.copy(tunBypassRuleProviderNames = names) }
-            sheetState.showTunBypassProviders = false
+        selectedTags = sheetState.tunBypassRuleSetTagsDraft,
+        onSelectedTagsChange = { sheetState.tunBypassRuleSetTagsDraft = it },
+        onDismissRequest = { sheetState.showTunBypassRuleSets = false },
+        onSave = { tags ->
+            updateAppState { it.copy(tunBypassRuleSetTags = tags) }
+            sheetState.showTunBypassRuleSets = false
         },
     )
     TunSharedNetworkBottomSheet(

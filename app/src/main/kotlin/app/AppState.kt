@@ -131,7 +131,7 @@ data class AppState(
     val serviceControl: ServiceControlSettings = ServiceControlSettings(),
 
     val tunSharedNetworkInterfaces: List<String> = emptyList(),
-    val tunBypassRuleProviderNames: List<String> = emptyList(),
+    val tunBypassRuleSetTags: List<String> = emptyList(),
     val externalInterfaces: List<String> = emptyList(),
     val ignoredInterfaces: List<String> = emptyList(),
     val privateAddressCidrs: List<String> = emptyList(),

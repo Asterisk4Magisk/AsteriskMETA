@@ -237,7 +237,7 @@ private fun SettingsContent(
     }
     val nestedSearchEntries = settingsNestedSearchEntries(
         runMode = appState.runMode,
-        onOpenTunBypassProviders = { sheetState.openTunBypassProviders(appState) },
+        onOpenTunBypassRuleSets = { sheetState.openTunBypassRuleSets(appState) },
         onOpenDns = { sheetState.openDnsSettings(appState) },
         onOpenSniffer = { sheetState.openSnifferSettings(appState) },
         onOpenLocalProxy = { sheetState.openLocalProxySettings(appState) },
@@ -428,8 +428,15 @@ private fun SettingsContent(
                     enableRootBootScript = appState.enableRootBootScript,
                     enableRootEbpfRules = appState.enableRootEbpfRules,
                     enableRootEbpfDirectCidrBypass = appState.enableRootEbpfDirectCidrBypass,
-                    tunBypassProvidersSummary = appState.tunBypassRuleProviderNames.joinToString().ifEmpty { stringResource(R.string.settings_tun_bypass_providers_none) },
-                    onOpenTunBypassProviders = { sheetState.openTunBypassProviders(appState) },
+                    tunBypassRuleSetsSummary = appState.tunBypassRuleSetTags.joinToString().let { tags ->
+                        if (tags.isEmpty()) {
+                            stringResource(R.string.settings_tun_bypass_rule_sets_summary_none)
+                        } else {
+                            stringResource(R.string.settings_tun_bypass_rule_sets_summary_selected)
+                                .formatTemplate("ruleSets" to tags)
+                        }
+                    },
+                    onOpenTunBypassRuleSets = { sheetState.openTunBypassRuleSets(appState) },
                     enableIpv6 = appState.enableIpv6,
                     enableRootIpv6Disabler = appState.enableRootIpv6Disabler,
                     externalInterfacesSummary = externalInterfacesSummary,

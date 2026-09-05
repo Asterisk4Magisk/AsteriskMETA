@@ -7,12 +7,12 @@ import app.modes.ProxyAppListModeBlacklist
 import app.modes.ProxyAppListModeWhitelist
 import utils.toTrimmedNonEmptyDistinctList
 
-/** Only kernel routing policy: never translates bypass providers into DIRECT rules. */
+/** Only kernel routing policy: never translates bypass rule sets into DIRECT rules. */
 internal fun mihomoRootTunPolicy(
     appListMode: Int,
     applicationUids: List<Int>,
     sharedInterfaces: List<String>,
-    bypassProviderNames: List<String>,
+    bypassRuleSetTags: List<String>,
     ruleProviders: Any?,
 ): Map<String, Any?> = linkedMapOf<String, Any?>().apply {
     // lo keeps local OUTPUT capture, but prevents an empty selector from capturing all forwarding.
@@ -27,12 +27,12 @@ internal fun mihomoRootTunPolicy(
             put("include-uid", (uids + RootProxyAppWhitelistSystemUids).distinct().sorted())
         }
     }
-    val usable = usableMihomoTunBypassProviders(ruleProviders)
-    val selected = bypassProviderNames.toTrimmedNonEmptyDistinctList().filter { it in usable }
+    val usable = usableMihomoTunBypassRuleSets(ruleProviders)
+    val selected = bypassRuleSetTags.toTrimmedNonEmptyDistinctList().filter { it in usable }
     if (selected.isNotEmpty()) put("route-exclude-address-set", selected)
 }
 
-internal fun usableMihomoTunBypassProviders(ruleProviders: Any?): Set<String> =
+internal fun usableMihomoTunBypassRuleSets(ruleProviders: Any?): Set<String> =
     (ruleProviders as? Map<*, *>).orEmpty().mapNotNull { (key, value) ->
         val name = key as? String ?: return@mapNotNull null
         val provider = (value as? Map<*, *>)?.normalizedProviderMap() ?: return@mapNotNull null

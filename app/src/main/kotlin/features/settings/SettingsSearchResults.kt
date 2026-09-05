@@ -209,7 +209,7 @@ internal fun SettingsNestedSearchResults(
 @Composable
 internal fun settingsNestedSearchEntries(
     runMode: Int,
-    onOpenTunBypassProviders: () -> Unit,
+    onOpenTunBypassRuleSets: () -> Unit,
     onOpenDns: () -> Unit,
     onOpenSniffer: () -> Unit,
     onOpenLocalProxy: () -> Unit,
@@ -291,7 +291,7 @@ internal fun settingsNestedSearchEntries(
         tunItems.forEach { add(SettingsSearchEntry(it, tun, Icons.Rounded.SettingsInputComponent, onOpenTun)) }
         if (runMode == app.modes.RunModeTun) {
             add(SettingsSearchEntry(stringResource(R.string.settings_tun_shared_network), tun, Icons.Rounded.Cable, onOpenExternalInterfaces))
-            add(SettingsSearchEntry(stringResource(R.string.settings_tun_bypass_providers), tun, Icons.Rounded.Route, onOpenTunBypassProviders))
+            add(SettingsSearchEntry(stringResource(R.string.settings_root_ebpf_bypass_direct_cidrs), tun, Icons.Rounded.Route, onOpenTunBypassRuleSets))
         } else {
             externalItems.forEach { add(SettingsSearchEntry(it, externalInterfaces, Icons.Rounded.Cable, onOpenExternalInterfaces)) }
         }

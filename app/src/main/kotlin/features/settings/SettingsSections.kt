@@ -276,8 +276,8 @@ internal fun SettingsProxyModeSections(
     externalInterfacesSummary: String,
     ignoredInterfacesSummary: String,
     privateAddressCidrsSummary: String,
-    tunBypassProvidersSummary: String,
-    onOpenTunBypassProviders: () -> Unit,
+    tunBypassRuleSetsSummary: String,
+    onOpenTunBypassRuleSets: () -> Unit,
     onOpenLocalProxySettings: () -> Unit,
     onEnableTrafficStatsNotificationChange: (Boolean) -> Unit,
     onEnableVpnAppendHttpProxyChange: (Boolean) -> Unit,
@@ -480,10 +480,10 @@ internal fun SettingsProxyModeSections(
                 if (runMode == RunModeTun) {
                     if (!rawState.showsReadOnlyYamlValues) {
                         ArrowPreference(
-                            title = stringResource(R.string.settings_tun_bypass_providers),
+                            title = stringResource(R.string.settings_root_ebpf_bypass_direct_cidrs),
                             icon = Icons.Rounded.Route,
-                            summary = tunBypassProvidersSummary,
-                            onClick = onOpenTunBypassProviders,
+                            summary = tunBypassRuleSetsSummary,
+                            onClick = onOpenTunBypassRuleSets,
                         )
                     }
                 } else {

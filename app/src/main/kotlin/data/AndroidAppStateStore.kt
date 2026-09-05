@@ -181,7 +181,7 @@ private fun AppState.isCheapNoopUpdate(previous: AppState): Boolean {
         dnsFallbackFilterDomain === previous.dnsFallbackFilterDomain &&
         dnsHosts === previous.dnsHosts &&
         tunSharedNetworkInterfaces === previous.tunSharedNetworkInterfaces &&
-        tunBypassRuleProviderNames === previous.tunBypassRuleProviderNames &&
+        tunBypassRuleSetTags === previous.tunBypassRuleSetTags &&
         externalInterfaces === previous.externalInterfaces &&
         ignoredInterfaces === previous.ignoredInterfaces &&
         privateAddressCidrs === previous.privateAddressCidrs &&

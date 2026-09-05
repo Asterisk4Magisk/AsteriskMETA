@@ -25,13 +25,14 @@ import features.mihomo.provider.loadProviderDeclarationsByType
 import features.mihomo.provider.mihomoProviderDataDir
 import ui.components.AsteriskSearchField
 import ui.icons.AsteriskIcons as Icons
+import utils.toTrimmedNonEmptyDistinctList
 
 @Composable
-internal fun TunBypassProvidersBottomSheet(
+internal fun TunBypassRuleSetBottomSheet(
     show: Boolean,
     appState: AppState,
-    selectedNames: List<String>,
-    onSelectedNamesChange: (List<String>) -> Unit,
+    selectedTags: List<String>,
+    onSelectedTagsChange: (List<String>) -> Unit,
     onDismissRequest: () -> Unit,
     onSave: (List<String>) -> Unit,
 ) {
@@ -45,25 +46,27 @@ internal fun TunBypassProvidersBottomSheet(
         state = loadProviderDeclarationsByType(context, appState, context.mihomoProviderDataDir())[MihomoProviderType.Rule]
             ?: ProviderDeclarationsState()
     }
+    val selected = selectedTags.toTrimmedNonEmptyDistinctList()
     val providers = state.providers.filter { it.ruleMetadata?.tunBypassEligible == true }
     val availableNames = providers.map { it.name }.toSet()
     val filteredProviders = providers.filter { it.name.contains(query, ignoreCase = true) }
-    val unavailableNames = selectedNames.filter { it !in availableNames && it.contains(query, ignoreCase = true) }
+    val unavailableTags = selected.filter { it !in availableNames && it.contains(query, ignoreCase = true) }
     SettingsModalBottomSheet(
         show = show,
-        title = stringResource(R.string.settings_tun_bypass_providers),
+        title = stringResource(R.string.settings_root_ebpf_bypass_direct_cidrs),
         startAction = {
             TextButton(stringResource(R.string.common_cancel), Icons.Rounded.Close, onDismissRequest)
         },
         endAction = {
             TextButton(stringResource(R.string.common_save), Icons.Rounded.Save, {
-                onSave(selectedNames.distinct())
+                onSave(selected)
             }, enabled = !state.loading && state.error.isBlank())
         },
         onDismissRequest = onDismissRequest,
     ) {
         SettingsSheetContent {
-            Text(stringResource(R.string.settings_tun_bypass_providers_description), Modifier.padding(16.dp))
+            Text(stringResource(R.string.settings_tun_bypass_rule_sets_description), Modifier.padding(16.dp))
+            Text(stringResource(R.string.settings_tun_bypass_rule_sets_picker_title), Modifier.padding(horizontal = 16.dp))
             AsteriskSearchField(
                 query = query,
                 onQueryChange = { query = it },
@@ -77,28 +80,28 @@ internal fun TunBypassProvidersBottomSheet(
                     TextButton(stringResource(R.string.common_retry), Icons.Rounded.Refresh, { reloadToken += 1 })
                 }
                 else -> {
-                    if (providers.isEmpty()) Text(stringResource(R.string.settings_tun_bypass_providers_empty), Modifier.padding(16.dp))
-                    if (query.isNotBlank() && filteredProviders.isEmpty() && unavailableNames.isEmpty()) {
-                        Text(stringResource(R.string.settings_tun_bypass_providers_no_match), Modifier.padding(16.dp))
+                    if (providers.isEmpty()) Text(stringResource(R.string.settings_tun_bypass_rule_sets_empty), Modifier.padding(16.dp))
+                    if (query.isNotBlank() && filteredProviders.isEmpty() && unavailableTags.isEmpty()) {
+                        Text(stringResource(R.string.settings_tun_bypass_rule_sets_no_match), Modifier.padding(16.dp))
                     }
                     filteredProviders.forEach { provider ->
                         SwitchPreference(
                             title = provider.name,
                             icon = Icons.Rounded.Route,
                             summary = listOfNotNull(provider.vehicleType, provider.ruleMetadata?.behavior, provider.ruleMetadata?.format).joinToString(" · "),
-                            checked = provider.name in selectedNames,
+                            checked = provider.name in selected,
                             onCheckedChange = { checked ->
-                                onSelectedNamesChange(if (checked) (selectedNames + provider.name).distinct() else selectedNames - provider.name)
+                                onSelectedTagsChange(if (checked) selected + provider.name else selected - provider.name)
                             },
                         )
                     }
-                    unavailableNames.forEach { name ->
+                    unavailableTags.forEach { tag ->
                         SwitchPreference(
-                            title = name,
+                            title = tag,
                             icon = Icons.Rounded.Block,
-                            summary = stringResource(R.string.settings_tun_bypass_provider_unavailable),
+                            summary = stringResource(R.string.settings_tun_bypass_rule_set_unavailable),
                             checked = true,
-                            onCheckedChange = { onSelectedNamesChange(selectedNames - name) },
+                            onCheckedChange = { onSelectedTagsChange(selected - tag) },
                         )
                     }
                 }

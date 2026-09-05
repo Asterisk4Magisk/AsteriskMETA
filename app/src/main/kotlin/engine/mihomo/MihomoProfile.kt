@@ -386,7 +386,7 @@ internal fun AppState.toMihomoTunListenerYamlMap(
         putAll(mihomoRootTunPolicy(
             if (proxyAppListSelectedApps.toTrimmedNonEmptyDistinctList().isEmpty()) app.modes.ProxyAppListModeGlobal else proxyAppListMode,
             applicationUids, tunSharedNetworkInterfaces,
-            tunBypassRuleProviderNames, ruleProviders,
+            tunBypassRuleSetTags, ruleProviders,
         ))
         if (effectiveLocalDnsEnabled) {
             put(

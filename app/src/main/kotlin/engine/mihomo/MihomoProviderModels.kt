@@ -179,7 +179,7 @@ private fun Map<*, *>.toMihomoProviderDeclaration(
     val ruleMetadata = if (type == MihomoProviderType.Rule) {
         MihomoRuleProviderDeclarationMetadata(
             behavior = normalized["behavior"].asProviderTextOrNull()?.lowercase().orEmpty(),
-            tunBypassEligible = name in usableMihomoTunBypassProviders(mapOf(name to normalized)),
+            tunBypassEligible = name in usableMihomoTunBypassRuleSets(mapOf(name to normalized)),
             format = normalized["format"].asProviderTextOrNull()
                 ?.lowercase()
                 .orEmpty()

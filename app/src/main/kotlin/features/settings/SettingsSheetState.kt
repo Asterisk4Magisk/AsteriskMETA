@@ -22,8 +22,8 @@ internal class SettingsSheetState(
     var showTunSettings by mutableStateOf(false)
     var tunSettingsDraft by mutableStateOf(TunSettingsDraft())
 
-    var showTunBypassProviders by mutableStateOf(false)
-    var tunBypassProviderNamesDraft by mutableStateOf(emptyList<String>())
+    var showTunBypassRuleSets by mutableStateOf(false)
+    var tunBypassRuleSetTagsDraft by mutableStateOf(emptyList<String>())
     var showTunSharedNetwork by mutableStateOf(false)
     var tunSharedNetworkInterfacesDraft by mutableStateOf(emptyList<String>())
 
@@ -55,9 +55,9 @@ internal class SettingsSheetState(
         showTunSettings = true
     }
 
-    fun openTunBypassProviders(appState: AppState) {
-        tunBypassProviderNamesDraft = appState.tunBypassRuleProviderNames
-        showTunBypassProviders = true
+    fun openTunBypassRuleSets(appState: AppState) {
+        tunBypassRuleSetTagsDraft = appState.tunBypassRuleSetTags
+        showTunBypassRuleSets = true
     }
 
     fun openTunSharedNetwork(appState: AppState) {
