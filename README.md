@@ -11,9 +11,9 @@ An Android Mihomo GUI client powered by [Mihomo](https://github.com/MetaCubeX/mi
 ## Features
 
 - VPN Service, TPROXY(ROOT), TUN(ROOT), TUN2SOCKS(ROOT), and BPF2SOCKS(ROOT) run modes
-- Add configurations from QR code, local file, or URL subscription
-- JavaScript override scripts for advanced configuration mutation
-- ROOT start-on-boot script generation through Magisk `service.d`
+- Import and manage Mihomo configurations from QR codes, local files, or URL subscriptions
+- JavaScript override scripts for advanced configuration changes
+- Profile, proxy, connection, log, and resource management
 - Material 3 Compose UI
 
 ## Screenshots
@@ -31,52 +31,44 @@ An Android Mihomo GUI client powered by [Mihomo](https://github.com/MetaCubeX/mi
 
 - Works without root permission.
 - Uses Android `VpnService`.
-- Uses the CMFA bridge module to run Mihomo in the app process.
-- Suitable for normal Android app-level VPN usage.
+- Runs Mihomo in the app process through the CMFA bridge.
 
 ### TPROXY(ROOT)
 
-- Requires root permission.
 - Runs the local Mihomo executable directly with libsu.
-- Uses iptables and policy routing for transparent proxy traffic.
-- Uses the configured transparent proxy port as the Mihomo inbound.
+- Uses a TPROXY listener with iptables and policy routing for transparent proxy traffic.
 
 ### TUN(ROOT)
 
-- Requires root permission.
 - Runs the local Mihomo executable directly with libsu.
-- Uses Mihomo's TUN listener to create the fixed TUN device `asterisk0`.
-- Keeps Mihomo `auto-route` disabled and applies app-managed iptables and policy routing rules.
-- Defaults to the gVisor TUN stack for compatibility; users can switch to another Mihomo TUN stack in settings.
+- Managed configurations use the fixed TUN device `asterisk0` with Mihomo-managed `auto-route`, `auto-detect-interface`, and `auto-redirect`.
+- Supports configurable Mihomo TUN stacks.
+- Selected IP CIDR rule sets are passed to `route-exclude-address-set`; domain rules do not apply.
+- Exact downstream interface names can be included for hotspot and tethering traffic.
 
 ### TUN2SOCKS(ROOT)
 
-- Requires root permission.
 - Runs the local Mihomo executable directly with libsu.
 - Uses `hev-socks5-tunnel` to create the fixed TUN device `asterisk0`.
-- Uses Mihomo's local SOCKS5 inbound as the tunnel target.
-- Shares most ROOT routing and app proxy behavior with TPROXY, but routes traffic through the TUN device instead of Mihomo's TPROXY inbound.
+- Sends tunnel traffic to a local Mihomo SOCKS5 listener.
 
 ### BPF2SOCKS(ROOT)
 
-- Requires root permission.
 - Runs the local Mihomo executable and native `bpf2socks` helper directly with libsu.
-- Uses eBPF plus a local bridge to send TCP and UDP traffic to Mihomo's SOCKS5 inbound.
-- Defaults to bridge port `65532` and SOCKS5 inbound port `65534`.
+- Uses eBPF without creating a TUN device and sends captured TCP and UDP traffic to a local Mihomo SOCKS5 listener.
+- Defaults to bridge port `65532` and SOCKS5 listener port `65534`.
 - Requires the eBPF probe to pass before startup. Devices with insufficient support cannot start this mode.
 
-### ROOT address monitor
+### asteriskd
 
-- All ROOT modes use the native `asteriskd` monitor after Mihomo and mode rules are ready.
-- It tracks local IPv4/IPv6 address changes and atomically refreshes direct-bypass iptables chains or BPF maps, so public addresses are not accidentally captured by the proxy path.
-- When system IPv6 disabling is enabled, it also applies the setting to newly appearing IPv6 interfaces. With IPv6 enabled, it reacts to configured tethering interfaces and removes Android IPv6 TC offload rules when needed.
-- The monitor log is `files/clash/logs/asteriskd.log`; generated `files/clash/stop.sh` is the single ROOT stop entry point and restores captured IPv6 state before cleanup.
+- Watches local IPv4/IPv6 addresses and tethering interfaces, then refreshes the relevant iptables rules or BPF maps.
+- Cleans up networking rules owned by the active ROOT mode when the service stops.
 
 ## Resource Files
 
-- Runtime files are stored in the app private `files/clash` directory, commonly `/data/user/0/org.asterisk.zcc.ameta/files/clash`.
-- The bundled Mihomo executable is restored from native libraries and can be replaced manually with an `mihomo` executable file.
-- Custom resource files can be added, replaced manually, or updated from their configured URLs.
+- Runtime files are stored in the app-private `files/clash` directory.
+- The bundled Mihomo executable can be replaced from Resource Management.
+- Custom resources can be added or replaced locally and updated from configured URLs.
 
 ## Development
 
@@ -98,22 +90,11 @@ On macOS or Linux:
 ./gradlew assembleDebug
 ```
 
-The build:
+The build prepares Mihomo and the CMFA Go core, builds the configured native helper submodules, and produces ABI split APKs plus a universal APK.
 
-- uses Android SDK and NDK
-- prepares bundled Mihomo native runtime files
-- checks out the Mihomo submodule to `ProjectConfig.MIHOMO_CORE_VERSION` before CMFA JNI builds
-- checks out `hev-socks5-tunnel` to `ProjectConfig.HEV_SOCKS5_TUNNEL_VERSION` before building it
-- builds the native `hev-socks5-tunnel` JNI library and CLI runtime from its submodule
-- builds the vendored CMFA Go core
-- checks out `asteriskd`, `bpf2socks`, and `bpfmatcher` to their `ProjectConfig` versions before building them with the NDK
-- produces ABI split APKs for `arm64-v8a`, `armeabi-v7a`, `x86`, `x86_64`, plus a universal APK
-
-If Gradle cannot find Android NDK, set `ndk.dir` in `local.properties`, set `ANDROID_NDK_HOME`, or install an NDK under the Android SDK.
+If Gradle cannot find the Android NDK, configure it through Android Studio, `ndk.dir` in `local.properties`, or `ANDROID_NDK_HOME`.
 
 ## WSA
-
-For WSA, VPN permission can be granted with:
 
 ```bash
 appops set org.asterisk.zcc.ameta ACTIVATE_VPN allow

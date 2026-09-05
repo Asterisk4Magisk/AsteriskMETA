@@ -11,9 +11,9 @@
 ## 功能
 
 - VPN Service、TPROXY(ROOT)、TUN(ROOT)、TUN2SOCKS(ROOT) 和 BPF2SOCKS(ROOT) 运行模式
-- 支持通过二维码、本地文件、URL 订阅添加配置
-- 支持 JavaScript 覆写脚本，用于进阶配置修改
-- 通过 Magisk `service.d` 脚本支持 ROOT 模式开机自启
+- 通过二维码、本地文件或 URL 订阅导入并管理 Mihomo 配置
+- 支持 JavaScript 覆写脚本，用于进阶配置调整
+- 配置、代理、连接、日志和资源管理
 - Material 3 Compose UI
 
 ## 预览
@@ -31,52 +31,44 @@
 
 - 无需 root 权限。
 - 使用 Android `VpnService`。
-- 通过 CMFA bridge 模块在应用进程中运行 Mihomo。
-- 适合常规 Android 应用级 VPN 使用场景。
+- 通过 CMFA bridge 在应用进程中运行 Mihomo。
 
 ### TPROXY(ROOT)
 
-- 需要 root 权限。
 - 通过 libsu 直接运行本地 Mihomo 可执行文件。
-- 使用 iptables 和策略路由处理透明代理流量。
-- 使用已配置的透明代理端口作为 Mihomo 入站。
+- 使用 TPROXY listener、iptables 和策略路由处理透明代理流量。
 
 ### TUN(ROOT)
 
-- 需要 root 权限。
 - 通过 libsu 直接运行本地 Mihomo 可执行文件。
-- 使用 Mihomo 的 TUN listener 创建固定 TUN 设备 `asterisk0`。
-- 不启用 Mihomo `auto-route`，而是使用应用托管的 iptables 和策略路由规则。
-- 默认使用 gVisor TUN 栈以优先保证兼容性，用户可以在设置中切换到其他 Mihomo TUN 栈。
+- 托管配置使用固定 TUN 设备 `asterisk0`，并由 Mihomo 的 `auto-route`、`auto-detect-interface` 和 `auto-redirect` 管理路由。
+- 支持配置 Mihomo TUN 栈。
+- 所选 IP CIDR 规则集会写入 `route-exclude-address-set`，域名规则不生效。
+- 可加入准确的下游接口名以接管热点和网络共享流量。
 
 ### TUN2SOCKS(ROOT)
 
-- 需要 root 权限。
 - 通过 libsu 直接运行本地 Mihomo 可执行文件。
 - 使用 `hev-socks5-tunnel` 创建固定 TUN 设备 `asterisk0`。
-- 使用 Mihomo 的本地 SOCKS5 入站作为隧道目标。
-- 与 TPROXY 共享大部分 ROOT 路由和应用代理行为，但流量会通过 TUN 设备转发，而不是通过 Mihomo 的 TPROXY 入站。
+- 将隧道流量送入本地 Mihomo SOCKS5 listener。
 
 ### BPF2SOCKS(ROOT)
 
-- 需要 root 权限。
 - 通过 libsu 直接运行本地 Mihomo 可执行文件和 native `bpf2socks` helper。
-- 使用 eBPF 和本地 bridge 将 TCP、UDP 流量送入 Mihomo 的 SOCKS5 入站。
-- 默认 bridge 端口为 `65532`，SOCKS5 入站端口为 `65534`。
+- 使用 eBPF 接管 TCP、UDP 流量并送入本地 Mihomo SOCKS5 listener，不创建 TUN 设备。
+- 默认 bridge 端口为 `65532`，SOCKS5 listener 端口为 `65534`。
 - 启动前要求 eBPF probe 通过。设备支持不足时，该模式无法启动。
 
-### ROOT 地址监控
+### asteriskd
 
-- 所有 ROOT 模式会在 Mihomo 与模式规则就绪后启动 native `asteriskd` 监控器。
-- 它会监听本地 IPv4/IPv6 地址变化，并原子更新直连绕过的 iptables 链或 BPF map，避免公网地址被错误送入代理路径。
-- 启用禁用系统 IPv6 时，它会对新出现的 IPv6 接口继续生效；启用 IPv6 时，它会响应已配置的热点接口，并按需移除 Android IPv6 TC offload 规则。
-- 日志路径为 `files/clash/logs/asteriskd.log`；生成的 `files/clash/stop.sh` 是唯一的 ROOT 停止入口，会先恢复已记录的 IPv6 状态再清理规则。
+- 监听本地 IPv4/IPv6 地址和热点接口变化，并刷新相应的 iptables 规则或 BPF map。
+- 服务停止时清理当前 ROOT 模式负责的网络规则。
 
 ## 资源文件
 
-- 运行时文件存储在应用私有的 `files/clash` 目录中，通常为 `/data/user/0/org.asterisk.zcc.ameta/files/clash`。
-- 内置 Mihomo 可执行文件会从 native libraries 还原，也可以手动替换为 `mihomo` 可执行文件。
-- 自定义资源文件可以手动添加、替换，或通过配置的 URL 更新。
+- 运行文件存储在应用私有的 `files/clash` 目录。
+- 内置 Mihomo 可执行文件可在资源管理中替换。
+- 自定义资源可在本地添加或替换，也可通过配置的 URL 更新。
 
 ## 开发
 
@@ -98,22 +90,11 @@ macOS 或 Linux：
 ./gradlew assembleDebug
 ```
 
-构建过程会：
+构建会准备 Mihomo 和 CMFA Go core，构建已配置的 native helper submodule，并生成 ABI split APK 和 universal APK。
 
-- 使用 Android SDK 和 NDK
-- 准备内置 Mihomo native 运行时文件
-- 在 CMFA JNI 构建前将 Mihomo submodule checkout 到 `ProjectConfig.MIHOMO_CORE_VERSION`
-- 构建前将 `hev-socks5-tunnel` checkout 到 `ProjectConfig.HEV_SOCKS5_TUNNEL_VERSION`
-- 从 submodule 构建 native `hev-socks5-tunnel` JNI library 和 CLI runtime
-- 构建 vendored CMFA Go core
-- 将 `asteriskd`、`bpf2socks` 和 `bpfmatcher` checkout 到各自的 `ProjectConfig` 版本，再使用 NDK 构建
-- 产出 `arm64-v8a`、`armeabi-v7a`、`x86`、`x86_64` 四个 ABI split APK，以及一个 universal APK
-
-如果 Gradle 找不到 Android NDK，请在 `local.properties` 中设置 `ndk.dir`，设置 `ANDROID_NDK_HOME`，或在 Android SDK 下安装 NDK。
+如果 Gradle 找不到 Android NDK，请通过 Android Studio、`local.properties` 中的 `ndk.dir` 或 `ANDROID_NDK_HOME` 配置。
 
 ## WSA
-
-对于 WSA，可以使用以下命令授予 VPN 权限：
 
 ```bash
 appops set org.asterisk.zcc.ameta ACTIVATE_VPN allow
