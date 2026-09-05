@@ -5,6 +5,7 @@ package features.settings.sheets
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -65,7 +66,6 @@ internal fun TunBypassRuleSetBottomSheet(
         onDismissRequest = onDismissRequest,
     ) {
         SettingsSheetContent {
-            Text(stringResource(R.string.settings_tun_bypass_rule_sets_description), Modifier.padding(16.dp))
             Text(stringResource(R.string.settings_tun_bypass_rule_sets_picker_title), Modifier.padding(horizontal = 16.dp))
             AsteriskSearchField(
                 query = query,
@@ -106,6 +106,12 @@ internal fun TunBypassRuleSetBottomSheet(
                     }
                 }
             }
+            Text(
+                text = stringResource(R.string.settings_tun_bypass_rule_sets_description),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(16.dp),
+            )
         }
     }
 }
