@@ -25,7 +25,6 @@ internal data class RootConfigRuntimePaths(
 internal class RootStartConfig(
     val mihomoProfileBytes: ByteArray,
     val ageSecretKey: String?,
-    val publicationStagingDirectory: String,
     val runtimePaths: RootConfigRuntimePaths,
     val directCidrIpv4Path: String,
     val directCidrIpv6Path: String,
@@ -52,7 +51,6 @@ internal class RootStartConfig(
         if (other !is RootStartConfig) return false
         return mihomoProfileBytes.contentEquals(other.mihomoProfileBytes) &&
             ageSecretKey == other.ageSecretKey &&
-            publicationStagingDirectory == other.publicationStagingDirectory &&
             runtimePaths == other.runtimePaths &&
             directCidrIpv4Path == other.directCidrIpv4Path &&
             directCidrIpv6Path == other.directCidrIpv6Path &&
@@ -68,7 +66,6 @@ internal class RootStartConfig(
     override fun hashCode(): Int {
         var result = mihomoProfileBytes.contentHashCode()
         result = 31 * result + ageSecretKey.hashCode()
-        result = 31 * result + publicationStagingDirectory.hashCode()
         result = 31 * result + runtimePaths.hashCode()
         result = 31 * result + directCidrIpv4Path.hashCode()
         result = 31 * result + directCidrIpv6Path.hashCode()

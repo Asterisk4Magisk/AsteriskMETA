@@ -31,7 +31,6 @@ internal class RootConfigBuildContext(
         return appState.toRootStartConfig(
             mihomoProfileBytes = preparedMihomoProfileBytes
                 ?: MihomoProfileFactory.buildProfileBytes(androidContext, appState),
-            publicationStagingDirectory = androidContext.cacheDir.absolutePath,
             resourceFilePaths = resourceFilePaths,
             rawConfig = rawConfig,
         )
@@ -55,7 +54,6 @@ internal fun Context.prepareRootConfigBuildContext(request: ProxyEngineStartRequ
 
 private fun AppState.toRootStartConfig(
     mihomoProfileBytes: ByteArray,
-    publicationStagingDirectory: String,
     resourceFilePaths: MihomoResourceFilePaths,
     rawConfig: MihomoRawConfigSnapshot?,
 ): RootStartConfig {
@@ -64,7 +62,6 @@ private fun AppState.toRootStartConfig(
     return RootStartConfig(
         mihomoProfileBytes = mihomoProfileBytes,
         ageSecretKey = selectedMihomoProfileOrNull()?.ageSecretKey?.takeIf(String::isNotEmpty),
-        publicationStagingDirectory = publicationStagingDirectory,
         runtimePaths = RootConfigRuntimePaths(
             coreExecutablePath = resourceFilePaths.mihomoCorePath,
             coreConfigPath = File(dataDirectory, "config.yaml").absolutePath,
