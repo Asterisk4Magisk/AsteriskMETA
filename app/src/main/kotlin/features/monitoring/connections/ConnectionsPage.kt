@@ -11,8 +11,12 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -30,6 +34,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -45,6 +51,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import app.LocalAppStateStore
+import app.collectAppState
 import app.LocalAppServices
 import app.R
 import engine.mihomo.runtime.MihomoConnection
@@ -76,6 +84,7 @@ import ui.icons.AsteriskIcons as Icons
 internal fun ConnectionsMonitorPage(padding: PaddingValues) {
     val horizontalPadding = rememberPageGutter()
     val services = LocalAppServices.current
+    val appState by LocalAppStateStore.current.collectAppState()
     val monitoring by services.monitoring.state.collectAsState()
     val connections = monitoring.connections
     val scope = rememberCoroutineScope()
@@ -86,8 +95,39 @@ internal fun ConnectionsMonitorPage(padding: PaddingValues) {
     var showMenu by rememberSaveable { mutableStateOf(false) }
     var showCloseAllConfirmation by rememberSaveable { mutableStateOf(false) }
     var operationInProgress by rememberSaveable { mutableStateOf(false) }
-    var paused by rememberSaveable { mutableStateOf(false) }
+    var paused by remember { mutableStateOf(false) }
     var frozenConnections by remember { mutableStateOf(connections) }
+    val history = remember { ConnectionPageHistory<MihomoConnection>(MihomoConnection::id) }
+    var pageSnapshot by remember { mutableStateOf(ConnectionPageSnapshot<MihomoConnection>()) }
+    var frozenPageSnapshot by remember { mutableStateOf(pageSnapshot) }
+    var showClosed by remember { mutableStateOf(false) }
+    var previousServiceRunning by remember { mutableStateOf(appState.proxyRunning) }
+    LaunchedEffect(appState.proxyRunning, connections) {
+        val restarted = !previousServiceRunning && appState.proxyRunning
+        previousServiceRunning = appState.proxyRunning
+        pageSnapshot = history.update(
+            running = appState.proxyRunning,
+            successful = connections.status == ConnectionMonitorStatus.Available && !connections.stale,
+            snapshotMillis = connections.snapshot.updatedAtMillis,
+            connections = connections.snapshot.connections,
+            nowMillis = System.currentTimeMillis(),
+        )
+        if (restarted || !appState.proxyRunning) {
+            showCloseAllConfirmation = false
+            showMenu = false
+            paused = false
+            selected = null
+            frozenPageSnapshot = pageSnapshot
+            frozenConnections = connections
+        }
+    }
+    val displayedHistory = if (paused) frozenPageSnapshot else pageSnapshot
+    val listedConnections = if (showClosed) {
+        displayedHistory.closed.values.toList().asReversed().map {
+            it.connection.copy(uploadBytesPerSecond = 0L, downloadBytesPerSecond = 0L)
+        }
+    } else displayedHistory.active
+    val liveIds = pageSnapshot.active.mapTo(HashSet(), MihomoConnection::id)
     val closeFailed = stringResource(R.string.monitor_connections_close_failed)
     val closeAllFailed = stringResource(R.string.monitor_connections_close_all_failed)
     ObserveMonitoring(MonitoringIntent.Connections)
@@ -97,9 +137,9 @@ internal fun ConnectionsMonitorPage(padding: PaddingValues) {
         frozen = frozenConnections,
         paused = paused,
     )
-    val visibleConnections = remember(displayedConnections.snapshot.connections, query, route, sort) {
+    val visibleConnections = remember(listedConnections, query, route, sort) {
         reduceConnections(
-            connections = displayedConnections.snapshot.connections,
+            connections = listedConnections,
             query = query,
             route = route,
             sort = sort,
@@ -107,12 +147,15 @@ internal fun ConnectionsMonitorPage(padding: PaddingValues) {
     }
 
     fun closeConnection(connection: MihomoConnection) {
-        if (operationInProgress) return
+        if (operationInProgress || !appState.proxyRunning || connection.id !in liveIds) return
         operationInProgress = true
         scope.launch {
             services.monitoring.closeConnection(connection.id)
                 .onSuccess {
                     frozenConnections = discardDisplayedConnection(frozenConnections, connection.id)
+                    frozenPageSnapshot = frozenPageSnapshot.copy(
+                        active = frozenPageSnapshot.active.filterNot { it.id == connection.id },
+                    )
                 }
                 .onFailure { error -> services.tipNotifier.showError(error, closeFailed) }
             operationInProgress = false
@@ -125,7 +168,10 @@ internal fun ConnectionsMonitorPage(padding: PaddingValues) {
         actions = {
             IconButton(
                 onClick = {
-                    if (!paused) frozenConnections = connections
+                    if (!paused) {
+                        frozenConnections = connections
+                        frozenPageSnapshot = pageSnapshot
+                    }
                     paused = !paused
                 },
             ) {
@@ -139,7 +185,7 @@ internal fun ConnectionsMonitorPage(padding: PaddingValues) {
             Box {
                 IconButton(
                     onClick = { showMenu = true },
-                    enabled = displayedConnections.activeCount?.let { it > 0 } == true && !operationInProgress,
+                    enabled = appState.proxyRunning && liveIds.isNotEmpty() && !operationInProgress,
                 ) {
                     Icon(Icons.Rounded.MoreVert, stringResource(R.string.home_more_actions))
                 }
@@ -184,25 +230,36 @@ internal fun ConnectionsMonitorPage(padding: PaddingValues) {
         ) {
             item("status") {
                 ConnectionsMonitorStatus(
-                    state = buildMonitoringConnectionsFocusState(displayedConnections),
+                    state = buildMonitoringConnectionsFocusState(
+                        displayedConnections.copy(
+                            status = if (showClosed) ConnectionMonitorStatus.Available else displayedConnections.status,
+                            activeCount = if (showClosed) listedConnections.size else displayedConnections.activeCount,
+                            snapshot = displayedConnections.snapshot.copy(connections = listedConnections),
+                        ),
+                    ),
                     paused = paused,
+                    showClosed = showClosed,
+                    onShowClosedChange = { showClosed = it; selected = null },
                 )
             }
             when {
-                displayedConnections.status == ConnectionMonitorStatus.ServiceStopped -> item("stopped") {
+                !showClosed && displayedConnections.status == ConnectionMonitorStatus.ServiceStopped -> item("stopped") {
                     StatusCard(stringResource(R.string.monitor_service_not_enabled))
                 }
-                displayedConnections.status == ConnectionMonitorStatus.Loading -> item("loading") {
+                !showClosed && displayedConnections.status == ConnectionMonitorStatus.Loading -> item("loading") {
                     StatusCard(stringResource(R.string.monitor_loading), loading = true)
                 }
-                displayedConnections.status == ConnectionMonitorStatus.Error &&
+                !showClosed && displayedConnections.status == ConnectionMonitorStatus.Error &&
                     displayedConnections.snapshot.updatedAtMillis == 0L -> item("error") {
                     StatusCard(displayedConnections.error.ifBlank { stringResource(R.string.monitor_data_unavailable) })
                 }
                 visibleConnections.isEmpty() -> item("empty") {
                     StatusCard(
                         if (query.isBlank() && route == ConnectionRouteFilter.All) {
-                            stringResource(R.string.monitor_connections_empty)
+                            stringResource(
+                                if (showClosed) R.string.monitor_connections_closed_empty
+                                else R.string.monitor_connections_empty,
+                            )
                         } else {
                             stringResource(R.string.monitor_connections_no_match)
                         },
@@ -223,7 +280,9 @@ internal fun ConnectionsMonitorPage(padding: PaddingValues) {
                                 if (selected?.id == connection.id) selected = null
                                 closeConnection(connection)
                             },
-                            closeEnabled = !operationInProgress,
+                            closeEnabled = !showClosed && appState.proxyRunning &&
+                                connection.id in liveIds && !operationInProgress,
+                            detectedClosedAt = if (showClosed) displayedHistory.closed[connection.id]?.detectedAtMillis else null,
                         )
                     }
                 }
@@ -249,6 +308,7 @@ internal fun ConnectionsMonitorPage(padding: PaddingValues) {
                 AsteriskActionButton(
                     text = stringResource(R.string.monitor_connections_close_all_confirm),
                     icon = Icons.Rounded.LinkOff,
+                    enabled = appState.proxyRunning && liveIds.isNotEmpty() && !operationInProgress,
                     onClick = {
                         showCloseAllConfirmation = false
                         operationInProgress = true
@@ -256,6 +316,7 @@ internal fun ConnectionsMonitorPage(padding: PaddingValues) {
                             services.monitoring.closeAllConnections()
                                 .onSuccess {
                                     frozenConnections = clearDisplayedConnections(frozenConnections)
+                                    frozenPageSnapshot = frozenPageSnapshot.copy(active = emptyList())
                                 }
                                 .onFailure { error -> services.tipNotifier.showError(error, closeAllFailed) }
                             operationInProgress = false
@@ -278,7 +339,12 @@ internal fun ConnectionsMonitorPage(padding: PaddingValues) {
 private fun ConnectionsMonitorStatus(
     state: MonitoringConnectionsFocusState,
     paused: Boolean,
+    showClosed: Boolean,
+    onShowClosedChange: (Boolean) -> Unit,
 ) {
+    var showStateMenu by remember { mutableStateOf(false) }
+    val activeLabel = stringResource(R.string.monitor_connections_active)
+    val closedLabel = stringResource(R.string.monitor_connections_closed)
     val summary = when (state.status) {
         ConnectionMonitorStatus.ServiceStopped -> stringResource(R.string.monitor_service_not_enabled)
         ConnectionMonitorStatus.Loading -> stringResource(R.string.monitor_loading)
@@ -289,7 +355,7 @@ private fun ConnectionsMonitorStatus(
                 state.proxyCount,
                 state.directCount,
             )
-            stringResource(
+            if (showClosed) routeSummary else stringResource(
                 R.string.monitor_connections_status_summary,
                 routeSummary,
                 stringResource(
@@ -299,10 +365,56 @@ private fun ConnectionsMonitorStatus(
         }
     }
     MonitoringStatusHeader(
-        title = stringResource(R.string.monitor_connections_active),
+        title = stringResource(R.string.monitor_connections_total),
         value = state.activeCount?.toString() ?: "—",
         summary = summary,
         modifier = ContentWidthModifier,
+        compactStatus = true,
+        controls = {
+            TextButton(
+                onClick = { showStateMenu = true },
+                modifier = Modifier.height(24.dp),
+                contentPadding = PaddingValues(0.dp),
+            ) {
+                Text(text = if (showClosed) closedLabel else activeLabel, maxLines = 1)
+                Spacer(Modifier.width(4.dp))
+                // Anchor the popup to the arrow, independently of the label width.
+                Box(modifier = Modifier.size(24.dp), contentAlignment = Alignment.Center) {
+                    AsteriskExpansionIndicator(expanded = showStateMenu)
+                    DropdownMenu(
+                        expanded = showStateMenu,
+                        onDismissRequest = { showStateMenu = false },
+                    ) {
+                        listOf(false, true).forEach { closed ->
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = if (closed) closedLabel else activeLabel,
+                                        color = if (closed == showClosed) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.onSurface,
+                                    )
+                                },
+                                leadingIcon = {
+                                    if (closed == showClosed) {
+                                        Icon(
+                                            Icons.Rounded.Check,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                        )
+                                    } else {
+                                        Spacer(Modifier.size(24.dp))
+                                    }
+                                },
+                                onClick = {
+                                    showStateMenu = false
+                                    onShowClosedChange(closed)
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+        },
     )
 }
 
@@ -355,6 +467,7 @@ private fun ConnectionCard(
     onOpen: () -> Unit,
     onClose: () -> Unit,
     closeEnabled: Boolean,
+    detectedClosedAt: Long? = null,
 ) {
     Card(
         onClick = onOpen,
@@ -378,7 +491,7 @@ private fun ConnectionCard(
                     text = listOf(
                         connection.process.ifBlank { stringResource(R.string.monitor_connections_unknown_source) },
                         connection.network.uppercase().ifBlank { stringResource(R.string.monitor_value_unknown) },
-                        formatDuration(connection.startedAtMillis),
+                        formatDuration(connection.startedAtMillis, detectedClosedAt),
                     ).joinToString(" · "),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -421,6 +534,12 @@ private fun ConnectionCard(
                     .fillMaxWidth()
                     .padding(start = 16.dp, end = 16.dp, bottom = 14.dp),
             ) {
+                detectedClosedAt?.let { time ->
+                    DetailRow(
+                        stringResource(R.string.monitor_connections_closed_time),
+                        java.text.DateFormat.getDateTimeInstance().format(java.util.Date(time)),
+                    )
+                }
                 DetailRow(stringResource(R.string.monitor_connections_source), connection.sourceAddress)
                 DetailRow(stringResource(R.string.monitor_connections_target), connection.destinationAddress)
                 DetailRow(stringResource(R.string.monitor_connections_process), connection.process)
@@ -492,9 +611,9 @@ private fun formatRatePair(download: Long?, upload: Long?): String {
     return "↓ ${(download ?: 0L).toReadableBytes()}/s · ↑ ${(upload ?: 0L).toReadableBytes()}/s"
 }
 
-private fun formatDuration(startedAtMillis: Long?): String {
+private fun formatDuration(startedAtMillis: Long?, endedAtMillis: Long? = null): String {
     val start = startedAtMillis ?: return "—"
-    val elapsed = (System.currentTimeMillis() - start).coerceAtLeast(0L)
+    val elapsed = ((endedAtMillis ?: System.currentTimeMillis()) - start).coerceAtLeast(0L)
     return DateUtils.formatElapsedTime(elapsed / 1_000L)
 }
 

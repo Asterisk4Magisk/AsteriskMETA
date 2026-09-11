@@ -779,4 +779,8 @@
     <string name="settings_tun_bypass_rule_set_unavailable">当前配置中不可用，不会用于绕过；关闭以移除。</string>
     <string name="settings_tun_shared_network_invalid">无效的接口名</string>
     <string name="settings_tun_bypass_rule_sets_no_match">没有匹配的规则集</string>
+    <string name="monitor_connections_closed">已断开</string>
+    <string name="monitor_connections_total">连接总数</string>
+    <string name="monitor_connections_closed_time">断开时间</string>
+    <string name="monitor_connections_closed_empty">暂无已断开连接记录</string>
 </resources>

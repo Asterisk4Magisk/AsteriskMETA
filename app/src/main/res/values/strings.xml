@@ -122,7 +122,7 @@
     <string name="monitor_sort_target">Target</string>
 
     <string name="monitor_connections_title">Connections</string>
-    <string name="monitor_connections_active">Active connections</string>
+    <string name="monitor_connections_active">Active</string>
     <string name="monitor_connections_focus_routes">Proxy %1$d · Direct %2$d</string>
     <string name="monitor_connections_status_summary">%1$s · %2$s</string>
     <string name="monitor_connections_live">Live</string>
@@ -793,4 +793,8 @@
     <string name="settings_tun_bypass_rule_set_unavailable">Unavailable in the current profile; bypass is inactive. Turn off to remove.</string>
     <string name="settings_tun_shared_network_invalid">Invalid interface name</string>
     <string name="settings_tun_bypass_rule_sets_no_match">No matching rule sets</string>
+    <string name="monitor_connections_closed">Disconnected</string>
+    <string name="monitor_connections_total">Total connections</string>
+    <string name="monitor_connections_closed_time">Disconnection time</string>
+    <string name="monitor_connections_closed_empty">No disconnected connections recorded</string>
 </resources>

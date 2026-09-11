@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 internal fun AsteriskStatusCard(
     modifier: Modifier = Modifier,
     status: String? = null,
+    compactStatus: Boolean = false,
     controls: @Composable RowScope.() -> Unit = EmptyStatusCardControls,
     content: @Composable ColumnScope.() -> Unit,
 ) {
@@ -34,9 +35,9 @@ internal fun AsteriskStatusCard(
             content()
             if (status != null || controls !== EmptyStatusCardControls) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 40.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = if (compactStatus) 0.dp else 40.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalAlignment = if (compactStatus) Alignment.Bottom else Alignment.CenterVertically,
                 ) {
                     if (status == null) {
                         Spacer(Modifier.weight(1f))

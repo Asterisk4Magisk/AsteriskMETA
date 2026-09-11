@@ -108,11 +108,15 @@ internal fun MonitoringStatusHeader(
     value: String,
     summary: String,
     modifier: Modifier = Modifier,
+    compactStatus: Boolean = false,
+    controls: @Composable RowScope.() -> Unit = {},
     metrics: @Composable RowScope.() -> Unit = {},
 ) {
     AsteriskStatusCard(
         modifier = modifier,
         status = summary,
+        compactStatus = compactStatus,
+        controls = controls,
     ) {
         Text(
             text = title,
