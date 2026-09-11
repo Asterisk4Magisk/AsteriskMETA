@@ -7,7 +7,6 @@ package features.mihomo
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -15,8 +14,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.calculateEndPadding
-import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -41,10 +38,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Scaffold
+import ui.components.AsteriskScaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import ui.components.AsteriskTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -66,7 +63,6 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.platform.ViewConfiguration
 import androidx.compose.ui.res.stringResource
@@ -367,10 +363,10 @@ fun MihomoProxyPage(
         }
     }
 
-    Scaffold(
+    AsteriskScaffold(
         topBar = {
-            Column(modifier = Modifier.background(MaterialTheme.colorScheme.surface)) {
-                TopAppBar(
+            Column {
+                AsteriskTopAppBar(
                     title = { Text(stringResource(R.string.mihomo_proxies_title)) },
                     actions = {
                         if (hasProviders) {
@@ -430,12 +426,6 @@ fun MihomoProxyPage(
             isWideScreen = isWideScreen,
         )
         val listPadding = pageListPadding(contentPadding, bottomExtra = 104.dp)
-        val layoutDirection = LocalLayoutDirection.current
-        val pageListContentPadding = PaddingValues(
-            start = listPadding.calculateStartPadding(layoutDirection),
-            end = listPadding.calculateEndPadding(layoutDirection),
-            bottom = listPadding.calculateBottomPadding(),
-        )
 
         Box {
             HorizontalPager(
@@ -458,8 +448,8 @@ fun MihomoProxyPage(
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(columns),
                         state = pageGridState,
-                        modifier = Modifier.padding(top = listPadding.calculateTopPadding()),
-                        contentPadding = pageListContentPadding,
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = listPadding,
                         verticalArrangement = Arrangement.spacedBy(MihomoProxyNodeGridSpacing),
                         horizontalArrangement = Arrangement.spacedBy(MihomoProxyNodeGridSpacing),
                     ) {

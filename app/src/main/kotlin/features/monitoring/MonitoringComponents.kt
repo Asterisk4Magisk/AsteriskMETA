@@ -5,7 +5,6 @@
 
 package features.monitoring
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -18,9 +17,9 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
+import ui.components.AsteriskScaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import ui.components.AsteriskTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,10 +42,10 @@ internal fun MonitoringScaffold(
     content: @Composable (PaddingValues) -> Unit,
 ) {
     val navigator = LocalNavigator.current
-    Scaffold(
+    AsteriskScaffold(
         topBar = {
-            Column(modifier = Modifier.background(MaterialTheme.colorScheme.surface)) {
-                TopAppBar(
+            Column {
+                AsteriskTopAppBar(
                     title = { Text(title) },
                     navigationIcon = {
                         IconButton(onClick = navigator::pop) {

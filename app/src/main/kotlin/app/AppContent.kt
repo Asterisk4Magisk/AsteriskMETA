@@ -22,11 +22,11 @@ import androidx.compose.foundation.layout.union
 import ui.icons.AsteriskIcons as Icons
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
+import ui.components.AsteriskFloatingNavigationBar
+import ui.components.AsteriskFloatingNavigationItem
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
-import androidx.compose.material3.Scaffold
+import ui.components.AsteriskScaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -273,7 +273,7 @@ private fun WideScreenContent(
                 )
             }
         }
-        Scaffold(
+        AsteriskScaffold(
             modifier = Modifier
                 .fillMaxSize(),
             contentWindowInsets =
@@ -300,7 +300,7 @@ private fun CompactScreenLayout(
     padding: PaddingValues,
     mainDestinationState: MainDestinationState,
 ) {
-    Scaffold(
+    AsteriskScaffold(
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
             MainNavigationBar(
@@ -324,14 +324,13 @@ private fun MainNavigationBar(
     modifier: Modifier = Modifier,
 ) {
     val selectedDestination = mainDestinationState.current
-    NavigationBar(modifier = modifier) {
+    AsteriskFloatingNavigationBar(modifier = modifier) {
         navigationItems.forEach { item ->
-            NavigationBarItem(
+            AsteriskFloatingNavigationItem(
                 selected = selectedDestination == item.destination,
                 onClick = { mainDestinationState.select(item.destination) },
-                icon = { Icon(imageVector = item.icon, contentDescription = null) },
-                label = { Text(item.label) },
-                alwaysShowLabel = true,
+                icon = item.icon,
+                label = item.label,
             )
         }
     }

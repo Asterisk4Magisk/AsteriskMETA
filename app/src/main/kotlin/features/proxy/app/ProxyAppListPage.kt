@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -28,10 +27,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -70,6 +66,9 @@ import ui.clipboard.ClipboardImportMode
 import ui.clipboard.getPlainText
 import ui.clipboard.setPlainText
 import ui.components.AsteriskPinnedSearchArea
+import ui.components.AsteriskPullToRefreshBox
+import ui.components.AsteriskScaffold
+import ui.components.AsteriskTopAppBar
 import ui.components.ImportModeDialog
 import ui.layout.pageContentPaddingWithCutout
 import ui.layout.pageListPadding
@@ -162,7 +161,7 @@ fun ProxyAppListPage(
         },
     )
 
-    Scaffold(
+    AsteriskScaffold(
         topBar = {
             ProxyAppListTopBar(
                 onBack = onBack,
@@ -300,8 +299,8 @@ private fun ProxyAppListTopBar(
     onMoreAction: (ProxyAppListMoreAction) -> Unit,
     onSelectedUserIdChange: (Int) -> Unit,
 ) {
-    Column(modifier = Modifier.background(MaterialTheme.colorScheme.surface)) {
-        TopAppBar(
+    Column {
+        AsteriskTopAppBar(
             navigationIcon = {
                 onBack?.let { navigateBack ->
                     IconButton(onClick = navigateBack) {
@@ -368,6 +367,7 @@ private fun ProxyAppListContent(
     val layoutDirection = LocalLayoutDirection.current
     val pagerListPadding = PaddingValues(
         start = listPadding.calculateStartPadding(layoutDirection),
+        top = listPadding.calculateTopPadding(),
         end = listPadding.calculateEndPadding(layoutDirection),
         bottom = listPadding.calculateBottomPadding(),
     )
@@ -403,12 +403,12 @@ private fun ProxyAppListContent(
 
     Box(
         modifier = Modifier
-            .fillMaxSize()
-            .padding(top = listPadding.calculateTopPadding()),
+            .fillMaxSize(),
     ) {
-        PullToRefreshBox(
+        AsteriskPullToRefreshBox(
             isRefreshing = pageState.refreshingApps,
             onRefresh = pageState::requestRefresh,
+            indicatorTopPadding = listPadding.calculateTopPadding(),
             modifier = Modifier.fillMaxSize(),
         ) {
             HorizontalPager(

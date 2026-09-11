@@ -30,11 +30,11 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
+import ui.components.AsteriskScaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import ui.components.AsteriskTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -318,9 +318,9 @@ fun MihomoDashboardPage(
         }
     }
 
-    Scaffold(
+    AsteriskScaffold(
         topBar = {
-            TopAppBar(
+            AsteriskTopAppBar(
                 title = { Text(stringResource(R.string.app_name)) },
             )
         },

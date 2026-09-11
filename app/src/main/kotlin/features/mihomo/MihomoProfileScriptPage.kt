@@ -12,8 +12,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.calculateEndPadding
-import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -37,11 +35,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
+import ui.components.AsteriskScaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import ui.components.AsteriskTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -53,7 +51,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboard
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -142,9 +139,9 @@ fun MihomoOverrideScriptListPage(
         }
     }
 
-    Scaffold(
+    AsteriskScaffold(
         topBar = {
-            TopAppBar(
+            AsteriskTopAppBar(
                 title = { Text(stringResource(R.string.mihomo_override_scripts_title)) },
                 navigationIcon = {
                     IconButton(onClick = { navigator.pop() }) {
@@ -170,16 +167,10 @@ fun MihomoOverrideScriptListPage(
             isWideScreen = isWideScreen,
         )
         val listPadding = pageListPadding(contentPadding)
-        val layoutDirection = LocalLayoutDirection.current
-        val pageListContentPadding = PaddingValues(
-            start = listPadding.calculateStartPadding(layoutDirection),
-            end = listPadding.calculateEndPadding(layoutDirection),
-            bottom = listPadding.calculateBottomPadding(),
-        )
 
         LazyColumn(
-            modifier = Modifier.padding(top = listPadding.calculateTopPadding()),
-            contentPadding = pageListContentPadding,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = listPadding,
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             if (appState.mihomoOverrideScripts.isEmpty()) {
@@ -481,9 +472,9 @@ fun MihomoOverrideScriptEditPage(
         }
     }
 
-    Scaffold(
+    AsteriskScaffold(
         topBar = {
-            TopAppBar(
+            AsteriskTopAppBar(
                 title = { Text(title, maxLines = 1) },
                 navigationIcon = {
                     IconButton(onClick = { navigator.pop() }) {

@@ -16,9 +16,9 @@ import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
+import ui.components.AsteriskScaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import ui.components.AsteriskTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -296,9 +296,9 @@ fun ResourceManagementPage(
             status.customResourceFiles.map { file -> file.status.updatedAtMillis }
         ).maxOrNull() ?: 0L
 
-    Scaffold(
+    AsteriskScaffold(
         topBar = {
-            TopAppBar(
+            AsteriskTopAppBar(
                 title = { Text(stringResource(R.string.settings_resource_management)) },
                 navigationIcon = {
                     IconButton(onClick = { navigator.pop() }) {

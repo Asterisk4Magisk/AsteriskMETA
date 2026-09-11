@@ -9,9 +9,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import ui.icons.AsteriskIcons as Icons
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.Scaffold
+import ui.components.AsteriskScaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import ui.components.AsteriskTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import app.LocalIsWideScreen
@@ -28,9 +28,9 @@ fun AboutPage(
     val isWideScreen = LocalIsWideScreen.current
     val navigator = LocalNavigator.current
 
-    Scaffold(
+    AsteriskScaffold(
         topBar = {
-            TopAppBar(
+            AsteriskTopAppBar(
                 title = { Text(stringResource(R.string.about_title)) },
                 navigationIcon = {
                     IconButton(onClick = { navigator.pop() }) {

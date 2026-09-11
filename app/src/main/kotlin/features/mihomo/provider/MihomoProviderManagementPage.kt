@@ -6,7 +6,6 @@
 package features.mihomo.provider
 
 import android.content.Context
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,12 +17,11 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryTabRow
-import androidx.compose.material3.Scaffold
+import ui.components.AsteriskScaffold
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import ui.components.AsteriskTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -376,10 +374,10 @@ fun MihomoProviderManagementPage(
         refreshingAllTypes = refreshingAllTypes,
         ruleRuntimeLoading = ruleRuntimeLoading,
     )
-    Scaffold(
+    AsteriskScaffold(
             topBar = {
-            Column(modifier = Modifier.background(MaterialTheme.colorScheme.surface)) {
-                TopAppBar(
+            Column {
+                AsteriskTopAppBar(
                     title = { Text(stringResource(R.string.mihomo_provider_management_title)) },
                     navigationIcon = {
                         IconButton(onClick = { navigator.pop() }) {
@@ -412,7 +410,7 @@ fun MihomoProviderManagementPage(
                         }
                     },
                 )
-                PrimaryTabRow(selectedTabIndex = selectedTab.ordinal) {
+                PrimaryTabRow(selectedTabIndex = selectedTab.ordinal, containerColor = androidx.compose.ui.graphics.Color.Transparent) {
                     MihomoProviderManagementTab.entries.forEach { tab ->
                         Tab(
                             selected = selectedTab == tab,

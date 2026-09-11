@@ -5,7 +5,6 @@
 
 package features.mihomo.provider
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -32,9 +31,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
+import ui.components.AsteriskScaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import ui.components.AsteriskTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -214,10 +213,10 @@ fun MihomoProxyProviderDetailPage(
         }
     }
 
-    Scaffold(
+    AsteriskScaffold(
         topBar = {
-            Column(modifier = Modifier.background(MaterialTheme.colorScheme.surface)) {
-                TopAppBar(
+            Column {
+                AsteriskTopAppBar(
                     title = { Text(provider?.name ?: providerName, maxLines = 1) },
                     navigationIcon = {
                         IconButton(onClick = { navigator.pop() }) {

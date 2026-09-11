@@ -36,12 +36,12 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
+import ui.components.AsteriskScaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import ui.components.AsteriskTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -494,9 +494,9 @@ fun MihomoProfileEditPage(
         )
     }
 
-    Scaffold(
+    AsteriskScaffold(
         topBar = {
-            TopAppBar(
+            AsteriskTopAppBar(
                 title = { Text(title, maxLines = 1) },
                 navigationIcon = {
                     IconButton(
@@ -544,17 +544,17 @@ fun MihomoProfileEditPage(
             }
         } else {
             key(targetProfile?.id, profileType) {
-                val baseModifier = Modifier
-                    .fillMaxSize()
-                    .padding(contentPadding)
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
-
+                val scrollModifier = if (profileType == MihomoProfileType.Url) {
+                    Modifier.verticalScroll(rememberScrollState())
+                } else {
+                    Modifier
+                }
                 Column(
-                    modifier = if (profileType == MihomoProfileType.Url) {
-                        baseModifier.verticalScroll(rememberScrollState())
-                    } else {
-                        baseModifier
-                    },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .then(scrollModifier)
+                        .padding(contentPadding)
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
                 ) {
                     if (profileType == MihomoProfileType.Url) {
                         OutlinedTextField(

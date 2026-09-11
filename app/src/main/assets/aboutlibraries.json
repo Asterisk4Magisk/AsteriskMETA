@@ -196,6 +196,19 @@
             ]
         },
         {
+            "uniqueId": "dev.chrisbanes.haze:haze",
+            "artifactVersion": "1.7.3",
+            "name": "Haze",
+            "description": "Haze",
+            "website": "https://github.com/chrisbanes/haze/",
+            "scm": {
+                "url": "https://github.com/chrisbanes/haze/"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ]
+        },
+        {
             "uniqueId": "github:heiher/hev-socks5-tunnel",
             "artifactVersion": "2.17.1",
             "name": "hev-socks5-tunnel",
@@ -327,10 +340,10 @@
         },
         {
             "uniqueId": "androidx.room:room-runtime",
-            "artifactVersion": "2.8.4",
+            "artifactVersion": "2.8.5",
             "name": "Room-Runtime",
             "description": "Android Room-Runtime",
-            "website": "https://developer.android.com/jetpack/androidx/releases/room#2.8.4",
+            "website": "https://developer.android.com/jetpack/androidx/releases/room#2.8.5",
             "scm": {
                 "url": "https://cs.android.com/androidx/platform/frameworks/support"
             },

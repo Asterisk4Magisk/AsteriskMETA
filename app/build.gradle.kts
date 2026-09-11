@@ -105,6 +105,7 @@ tasks.named("preBuild") {
 
 dependencies {
     implementation(libs.compose.ui)
+    implementation(libs.haze)
     implementation(libs.compose.foundation)
     implementation(libs.compose.material.icons.extended)
     implementation(libs.compose.material3)
