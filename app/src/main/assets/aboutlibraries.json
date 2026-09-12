@@ -287,6 +287,19 @@
             ]
         },
         {
+            "uniqueId": "androidx.lifecycle:lifecycle-runtime-compose",
+            "artifactVersion": "2.11.0",
+            "name": "Lifecycle Runtime Compose",
+            "description": "Compose integration with Lifecycle",
+            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.11.0",
+            "scm": {
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ]
+        },
+        {
             "uniqueId": "com.materialkolor:material-kolor",
             "artifactVersion": "5.0.1",
             "name": "MaterialKolor",

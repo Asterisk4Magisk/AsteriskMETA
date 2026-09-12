@@ -108,11 +108,14 @@ internal object AsteriskMotion {
         swipeEdge: Int,
     ): HorizontalSlideOffsets = navigationBackSlideOffsets(width)
 
-    fun <T> navigation(reducedMotion: Boolean): FiniteAnimationSpec<T> = if (reducedMotion) {
+    fun <T> navigation(
+        reducedMotion: Boolean,
+        durationMillis: Int = NavigationTransitionDurationMillis,
+    ): FiniteAnimationSpec<T> = if (reducedMotion) {
         snap()
     } else {
         tween(
-            durationMillis = NavigationTransitionDurationMillis,
+            durationMillis = durationMillis,
             easing = NavigationTransitionEasing,
         )
     }
@@ -120,6 +123,23 @@ internal object AsteriskMotion {
     @Composable
     private fun <T> navigation(): FiniteAnimationSpec<T> =
         navigation(reducedMotion = LocalReduceMotion.current)
+
+    // Convert finger progress into the unfinished entry's time fraction. Inverting the same
+    // easing keeps progress=0 at the current visual position instead of restarting the slide.
+    internal fun interruptedNavigationFraction(entryFraction: Float, backProgress: Float): Float {
+        val start = entryFraction.coerceIn(0f, 1f)
+        val progress = backProgress.coerceIn(0f, 1f)
+        if (progress == 0f) return start
+        if (progress == 1f) return 0f
+        val target = NavigationTransitionEasing.transform(start) * (1f - progress)
+        var lower = 0f
+        var upper = start
+        repeat(20) {
+            val middle = (lower + upper) / 2f
+            if (NavigationTransitionEasing.transform(middle) < target) lower = middle else upper = middle
+        }
+        return (lower + upper) / 2f
+    }
 
     fun <T> predictiveNavigation(reducedMotion: Boolean): FiniteAnimationSpec<T> =
         if (reducedMotion) {

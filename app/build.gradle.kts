@@ -111,6 +111,7 @@ dependencies {
     implementation(libs.compose.material3)
     implementation(libs.androidx.navigation3.runtime)
     implementation(libs.androidx.navigation3.ui)
+    implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.navigationevent)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.work.runtime)
