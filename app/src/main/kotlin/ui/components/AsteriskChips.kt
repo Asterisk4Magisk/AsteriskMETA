@@ -33,6 +33,7 @@ internal fun AsteriskFilterChip(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     leadingIcon: (@Composable () -> Unit)? = null,
+    trailingIcon: (@Composable () -> Unit)? = null,
 ) {
     InteractiveChip(
         text = label,
@@ -41,6 +42,7 @@ internal fun AsteriskFilterChip(
         onClick = onClick,
         modifier = modifier,
         leadingIcon = leadingIcon,
+        trailingIcon = trailingIcon,
     )
 }
 
@@ -94,6 +96,7 @@ private fun InteractiveChip(
     onClick: () -> Unit,
     modifier: Modifier,
     leadingIcon: (@Composable () -> Unit)?,
+    trailingIcon: (@Composable () -> Unit)?,
 ) {
     val containerColor = animateColorAsState(
         targetValue = when {
@@ -146,6 +149,11 @@ private fun InteractiveChip(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+                trailingIcon?.let { icon ->
+                    Box(modifier = Modifier.size(18.dp), contentAlignment = Alignment.Center) {
+                        icon()
+                    }
+                }
             }
         }
     }

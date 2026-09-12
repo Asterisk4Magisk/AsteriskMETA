@@ -5,6 +5,8 @@
 
 package features.resources
 
+import ui.components.AsteriskDropdownAnchor
+import ui.components.AsteriskDropdownMenuItem
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -53,7 +55,6 @@ import app.R
 import app.ResourceFileStatus
 import ui.components.AsteriskActionButton
 import ui.components.AsteriskChipTone
-import ui.components.AsteriskExpansionIndicator
 import ui.components.AsteriskInfoChip
 import ui.components.AsteriskModalBottomSheet
 import ui.components.AsteriskStatusCard
@@ -145,20 +146,20 @@ internal fun ResourceOverviewCard(
             ) {
                 Text(stringResource(R.string.settings_resource_files_source))
                 Spacer(Modifier.width(4.dp))
-                AsteriskExpansionIndicator(expanded = sourceMenuExpanded)
-            }
-            DropdownMenu(
-                expanded = sourceMenuExpanded,
-                onDismissRequest = { sourceMenuExpanded = false },
-            ) {
-                sourceOptions.forEachIndexed { index, option ->
-                    DropdownMenuItem(
-                        text = { Text(option) },
-                        onClick = {
-                            sourceMenuExpanded = false
-                            onSourceChange(index)
-                        },
-                    )
+                AsteriskDropdownAnchor(
+                    expanded = sourceMenuExpanded,
+                    onDismissRequest = { sourceMenuExpanded = false },
+                ) {
+                    sourceOptions.forEachIndexed { index, option ->
+                        AsteriskDropdownMenuItem(
+                            text = option,
+                            selected = index == safeSource,
+                            onClick = {
+                                sourceMenuExpanded = false
+                                onSourceChange(index)
+                            },
+                        )
+                    }
                 }
             }
         }

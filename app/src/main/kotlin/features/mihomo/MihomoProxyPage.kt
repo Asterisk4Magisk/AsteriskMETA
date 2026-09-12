@@ -5,6 +5,7 @@
 
 package features.mihomo
 
+import ui.components.AsteriskDropdownMenuItem
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
@@ -37,7 +38,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
 import ui.components.AsteriskScaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -740,15 +740,14 @@ private fun MihomoProxyOptionsMenu(
                             R.string.mihomo_proxies_option_layout_multiple,
                             Icons.Rounded.GridView,
                         ),
-                    ).forEach { (value, label, icon) ->
-                        DropdownMenuItem(
-                            text = { Text(stringResource(label)) },
+                    ).forEach { (value, label, _) ->
+                        AsteriskDropdownMenuItem(
+                            text = stringResource(label),
+                            selected = layout == value,
                             onClick = {
                                 dismissMenu()
                                 onLayoutChange(value)
                             },
-                            leadingIcon = { Icon(icon, contentDescription = null) },
-                            trailingIcon = { RadioButton(selected = layout == value, onClick = null) },
                         )
                     }
                 }
@@ -776,15 +775,14 @@ private fun MihomoProxyOptionsMenu(
                             R.string.mihomo_proxies_option_sort_delay,
                             Icons.Rounded.Speed,
                         ),
-                    ).forEach { (value, label, icon) ->
-                        DropdownMenuItem(
-                            text = { Text(stringResource(label)) },
+                    ).forEach { (value, label, _) ->
+                        AsteriskDropdownMenuItem(
+                            text = stringResource(label),
+                            selected = sort == value,
                             onClick = {
                                 dismissMenu()
                                 onSortChange(value)
                             },
-                            leadingIcon = { Icon(icon, contentDescription = null) },
-                            trailingIcon = { RadioButton(selected = sort == value, onClick = null) },
                         )
                     }
                 }

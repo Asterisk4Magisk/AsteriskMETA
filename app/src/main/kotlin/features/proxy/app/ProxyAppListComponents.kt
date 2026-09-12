@@ -3,6 +3,7 @@
 
 package features.proxy.app
 
+import ui.components.AsteriskDropdownMenuItem
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
@@ -22,7 +23,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -35,7 +35,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -44,9 +43,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.R
-import app.modes.ProxyAppListModeBlacklist
-import app.modes.ProxyAppListModeGlobal
-import app.modes.ProxyAppListModeWhitelist
 import coil3.compose.AsyncImage
 import features.proxy.app.model.AppPackageEntry
 import features.proxy.app.model.ProxyAppIconRequest
@@ -148,26 +144,16 @@ internal fun ProxyAppListModeMenu(
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             modes.forEachIndexed { index, mode ->
-                DropdownMenuItem(
-                    text = { Text(mode) },
-                    leadingIcon = { Icon(proxyAppListModeIcon(index), contentDescription = null) },
+                AsteriskDropdownMenuItem(
+                    text = mode,
+                    selected = selectedIndex == index,
                     onClick = {
                         expanded = false
                         onSelectedIndexChange(index)
                     },
-                    trailingIcon = { RadioButton(selected = selectedIndex == index, onClick = null) },
                 )
             }
         }
-    }
-}
-
-internal fun proxyAppListModeIcon(mode: Int): ImageVector {
-    return when (mode) {
-        ProxyAppListModeBlacklist -> Icons.Rounded.Block
-        ProxyAppListModeWhitelist -> Icons.Rounded.CheckCircle
-        ProxyAppListModeGlobal -> Icons.Rounded.Public
-        else -> Icons.Rounded.Tune
     }
 }
 
