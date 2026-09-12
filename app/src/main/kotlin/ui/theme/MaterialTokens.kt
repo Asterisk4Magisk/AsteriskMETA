@@ -28,10 +28,10 @@ internal object AsteriskShapeTokens {
     val ExtraSmallContainerRadius = 12.dp
     val SmallContainerRadius = 16.dp
     val InnerContainerRadius = 20.dp
-    val ListCardRadius = 28.dp
-    val PageCardRadius = 28.dp
-    val SheetRadius = 28.dp
-    val HeroContainerRadius = 28.dp
+    val ListCardRadius = 24.dp
+    val PageCardRadius = 24.dp
+    val SheetRadius = 24.dp
+    val HeroContainerRadius = 24.dp
 
     val ExtraSmallContainer = RoundedCornerShape(ExtraSmallContainerRadius)
     val SmallContainer = RoundedCornerShape(SmallContainerRadius)
