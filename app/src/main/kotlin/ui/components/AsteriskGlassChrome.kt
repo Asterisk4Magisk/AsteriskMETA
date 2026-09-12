@@ -63,7 +63,7 @@ import dev.chrisbanes.haze.rememberHazeState
 internal val LocalChromeBackdrop = compositionLocalOf<HazeState?> { null }
 
 // Shared by top bars, floating navigation, and the no-blur fallback.
-private const val ChromeTransparency = 0.40f
+private const val ChromeTransparency = 0.60f
 
 @Composable
 internal fun chromeStyle(): HazeStyle {
