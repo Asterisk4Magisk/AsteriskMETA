@@ -3,12 +3,22 @@
 
 package ui.components
 
+import androidx.collection.intListOf
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuPopup
+import androidx.compose.material3.MenuAnchorPosition
+import androidx.compose.material3.MenuDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -44,12 +54,28 @@ internal fun AsteriskDropdownAnchor(
             contentDescription = null,
             modifier = Modifier.rotate(rotation),
         )
-        DropdownMenu(
+        DropdownMenuPopup(
             expanded = expanded,
             onDismissRequest = onDismissRequest,
-            modifier = menuModifier,
-            content = content,
-        )
+            popupPositionProvider = MenuDefaults.rememberDropdownMenuPopupPositionProvider(
+                ArrowMenuPosition,
+            ),
+        ) {
+            Surface(
+                shape = MenuDefaults.shape,
+                color = MenuDefaults.containerColor,
+                tonalElevation = MenuDefaults.TonalElevation,
+                shadowElevation = MenuDefaults.ShadowElevation,
+            ) {
+                Column(
+                    modifier = menuModifier
+                        .padding(vertical = 8.dp)
+                        .width(IntrinsicSize.Max)
+                        .verticalScroll(rememberScrollState()),
+                    content = content,
+                )
+            }
+        }
     }
 }
 
@@ -80,3 +106,12 @@ internal fun AsteriskDropdownMenuItem(
         onClick = onClick,
     )
 }
+
+// Keep the menu's right edge at the arrow. Material handles window-edge clamping
+// and derives the animation origin without changing the content's layout direction.
+private val ArrowMenuPosition = MenuAnchorPosition.Custom(
+    xCandidates = { intListOf(anchorBounds.right - menuSize.width) },
+    yCandidates = {
+        intListOf(anchorBounds.bottom, anchorBounds.top - menuSize.height, anchorBounds.bottom)
+    },
+)

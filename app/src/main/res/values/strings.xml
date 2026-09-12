@@ -179,6 +179,7 @@
     <string name="monitor_traffic_7_days">Last 7 days</string>
     <string name="monitor_traffic_30_days">Last 30 days</string>
     <string name="monitor_traffic_total">Total</string>
+    <string name="monitor_resource_source_info">CPU measurement</string>
     <string name="monitor_traffic_local_notice">Traffic history is recorded only in this app’s private local storage and is never sent to probe or subscription services.</string>
 
     <string name="monitor_network_title">Network status</string>

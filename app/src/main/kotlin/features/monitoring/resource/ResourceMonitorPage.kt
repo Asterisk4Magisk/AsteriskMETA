@@ -4,20 +4,22 @@
 package features.monitoring.resource
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -47,6 +49,7 @@ import ui.layout.rememberPageGutter
 import utils.toReadableBytes
 import kotlin.math.ceil
 import kotlin.math.roundToInt
+import ui.icons.AsteriskIcons as Icons
 
 @Composable
 internal fun ResourceMonitorPage(padding: PaddingValues) {
@@ -54,6 +57,7 @@ internal fun ResourceMonitorPage(padding: PaddingValues) {
     val services = LocalAppServices.current
     val monitoring by services.monitoring.state.collectAsState()
     val resource = monitoring.resource
+    var sourceInfo by rememberSaveable { mutableStateOf<ProcessStatsSourceKind?>(null) }
     var range by rememberSaveable { mutableStateOf(ResourceChartRange.FifteenMinutes) }
     ObserveMonitoring(MonitoringIntent.Resource)
 
@@ -81,45 +85,29 @@ internal fun ResourceMonitorPage(padding: PaddingValues) {
                 )
             }
             if (monitoring.serviceRunning) {
-                item("source") {
-                    Column(modifier = ResourceContentModifier) {
+                item("controls") {
+                    Row(
+                        modifier = ResourceContentModifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
                         resource.source?.let { source ->
-                            Surface(
-                                color = MaterialTheme.colorScheme.secondaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                                shape = MaterialTheme.shapes.small,
-                                modifier = Modifier.defaultMinSize(minHeight = 32.dp),
-                            ) {
-                                Text(
-                                    resourceSourceLabel(source),
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
-                                    style = MaterialTheme.typography.labelLarge,
-                                )
-                            }
-                            Text(
-                                text = stringResource(
-                                    if (source == ProcessStatsSourceKind.CoreProcess) {
-                                        R.string.monitor_resource_root_explanation
-                                    } else {
-                                        R.string.monitor_resource_embedded_explanation
-                                    },
-                                ),
-                                modifier = Modifier.padding(top = 6.dp),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            AsteriskFilterChip(
+                                selected = true,
+                                onClick = { sourceInfo = source },
+                                label = resourceSourceLabel(source),
+                                trailingIcon = {
+                                    Icon(
+                                        Icons.Rounded.Info,
+                                        contentDescription = stringResource(R.string.monitor_resource_source_info),
+                                    )
+                                },
                             )
                         } ?: Text(
                             text = stringResource(R.string.monitor_data_unavailable),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                    }
-                }
-                item("range") {
-                    Row(
-                        modifier = ResourceContentModifier,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
                         ResourceChartRange.entries.forEach { option ->
                             AsteriskFilterChip(
                                 selected = range == option,
@@ -143,6 +131,23 @@ internal fun ResourceMonitorPage(padding: PaddingValues) {
                 }
             }
         }
+    }
+    sourceInfo?.let { source ->
+        AlertDialog(
+            onDismissRequest = { sourceInfo = null },
+            title = { Text(stringResource(R.string.monitor_resource_source_info)) },
+            text = {
+                Text(stringResource(
+                    if (source == ProcessStatsSourceKind.CoreProcess) R.string.monitor_resource_root_explanation
+                    else R.string.monitor_resource_embedded_explanation,
+                ))
+            },
+            confirmButton = {
+                TextButton(onClick = { sourceInfo = null }) {
+                    Text(stringResource(android.R.string.ok))
+                }
+            },
+        )
     }
 }
 

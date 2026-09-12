@@ -177,6 +177,7 @@
     <string name="monitor_traffic_7_days">近 7 日</string>
     <string name="monitor_traffic_30_days">近 30 日</string>
     <string name="monitor_traffic_total">合计</string>
+    <string name="monitor_resource_source_info">CPU 统计说明</string>
     <string name="monitor_traffic_local_notice">流量历史仅记录在应用私有本地存储中，不会发送到探测服务或订阅源。</string>
 
     <string name="monitor_network_title">网络状态</string>

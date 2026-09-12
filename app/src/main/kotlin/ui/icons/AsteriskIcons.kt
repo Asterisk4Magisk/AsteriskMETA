@@ -54,6 +54,7 @@ import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.HomeWork
 import androidx.compose.material.icons.rounded.Http
 import androidx.compose.material.icons.rounded.Hub
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Lan
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.Link
@@ -143,6 +144,7 @@ internal object AsteriskIcons {
         val HomeWork: ImageVector = MaterialIcons.Rounded.HomeWork
         val Http: ImageVector = MaterialIcons.Rounded.Http
         val Hub: ImageVector = MaterialIcons.Rounded.Hub
+        val Info: ImageVector = MaterialIcons.Rounded.Info
         val Lan: ImageVector = MaterialIcons.Rounded.Lan
         val Language: ImageVector = MaterialIcons.Rounded.Language
         val Link: ImageVector = MaterialIcons.Rounded.Link
