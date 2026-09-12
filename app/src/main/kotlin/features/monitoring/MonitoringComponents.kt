@@ -97,7 +97,7 @@ internal fun MonitoringSectionCard(
                 )
                 headerContent()
             }
-            Box(modifier = Modifier.padding(top = 14.dp)) { content() }
+            Box(modifier = Modifier.padding(top = 12.dp)) { content() }
         }
     }
 }

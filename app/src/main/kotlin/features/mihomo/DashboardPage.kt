@@ -995,7 +995,7 @@ private fun MonitoringEntryCard(
                     Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            Column {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 Text(
                     text = summary,

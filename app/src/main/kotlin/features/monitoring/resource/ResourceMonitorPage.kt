@@ -160,6 +160,7 @@ private fun ResourceMonitorStatus(state: MonitoringResourceFocusState) {
             stringResource(R.string.monitor_service_not_enabled)
         },
         modifier = ResourceContentModifier,
+        compactStatus = true,
     )
 }
 
