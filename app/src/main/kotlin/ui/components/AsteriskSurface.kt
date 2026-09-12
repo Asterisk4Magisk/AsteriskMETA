@@ -44,6 +44,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Velocity
 import ui.theme.AsteriskShapeTokens
+import kotlin.math.abs
 
 @Composable
 internal fun AsteriskPageCard(
@@ -174,31 +175,26 @@ internal fun shouldAllowSheetStateChange(
     targetValue != SheetValue.Hidden || !show || dismissEnabled
 
 internal class SheetGestureHandoffGuard {
-    private var gestureActive = false
-    private var contentConsumed = false
+    private var hasScrollDecision = false
+    private var canDragSheet = false
 
     fun startGesture() {
-        gestureActive = true
-        contentConsumed = false
+        hasScrollDecision = false
+        canDragSheet = false
     }
 
-    fun ensureGestureStarted() {
-        if (gestureActive) return
-        startGesture()
-    }
-
-    fun recordContentConsumption(deltaY: Float) {
-        if (gestureActive && deltaY != 0f) {
-            contentConsumed = true
-        }
+    fun recordScroll(consumedY: Float, availableY: Float) {
+        if (hasScrollDecision) return
+        hasScrollDecision = true
+        // decide once, allowing subpixel consumption at the content boundary.
+        canDragSheet = availableY > 0f && abs(consumedY) < 0.5f
     }
 
     fun shouldConsumeDownwardRemainder(remainderY: Float): Boolean =
-        gestureActive && contentConsumed && remainderY > 0f
+        hasScrollDecision && !canDragSheet && remainderY > 0f
 
     fun endGesture() {
-        gestureActive = false
-        contentConsumed = false
+        startGesture()
     }
 }
 
@@ -209,21 +205,13 @@ private class SheetContentNestedScrollConnection : NestedScrollConnection {
         handoffGuard.startGesture()
     }
 
-    override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-        if (source == NestedScrollSource.UserInput) {
-            handoffGuard.ensureGestureStarted()
-        }
-        return Offset.Zero
-    }
-
     override fun onPostScroll(
         consumed: Offset,
         available: Offset,
         source: NestedScrollSource,
     ): Offset {
         if (source == NestedScrollSource.UserInput) {
-            handoffGuard.ensureGestureStarted()
-            handoffGuard.recordContentConsumption(consumed.y)
+            handoffGuard.recordScroll(consumed.y, available.y)
         }
         return if (handoffGuard.shouldConsumeDownwardRemainder(available.y)) {
             Offset(x = 0f, y = available.y)
