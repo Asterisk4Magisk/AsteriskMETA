@@ -349,8 +349,8 @@ private fun rememberCodeEditorColors(): CodeEditorColors {
             function = colorScheme.secondary,
             comment = colorScheme.onSurfaceVariant.copy(alpha = 0.68f),
             operator = colorScheme.onSurfaceVariant,
-            actionBackground = colorScheme.inverseSurface,
-            actionForeground = colorScheme.inverseOnSurface,
+            actionBackground = colorScheme.surfaceContainerHigh,
+            actionForeground = colorScheme.onSurface,
         )
     }
 }
