@@ -22,7 +22,9 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.Lifecycle
@@ -53,9 +55,9 @@ internal fun <T : Any> AsteriskNavDisplay(
     entries: List<NavEntry<T>>,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
-    transitionSpec: AnimatedContentTransitionScope<Scene<T>>.() -> ContentTransform,
-    popTransitionSpec: AnimatedContentTransitionScope<Scene<T>>.() -> ContentTransform,
-    predictivePopTransitionSpec: AnimatedContentTransitionScope<Scene<T>>.(Int) -> ContentTransform,
+    transitionSpec: AnimatedContentTransitionScope<Any>.() -> ContentTransform,
+    popTransitionSpec: AnimatedContentTransitionScope<Any>.() -> ContentTransform,
+    predictivePopTransitionSpec: AnimatedContentTransitionScope<Any>.(Int) -> ContentTransform,
 ) {
     require(entries.isNotEmpty()) { "Navigation entries cannot be empty" }
     val strategies = remember { listOf(SinglePaneSceneStrategy<T>()) }
@@ -78,7 +80,17 @@ internal fun <T : Any> AsteriskNavDisplay(
         },
     )
 
-    val transitionState = remember { SeekableTransitionState(scene) }
+    // Scene equality includes its decorated content. Re-entering a popped route can
+    // produce a new Scene with the same key before its old transition has settled.
+    // Animate by key so A -> B remains A -> B, rather than becoming B(old) -> B(new)
+    // and dropping A. Render the latest content independently of animation identity.
+    val renderedScenes = remember { mutableStateMapOf<Any, Scene<T>>() }
+    for (backScene in sceneState.previousScenes) renderedScenes[backScene.key] = backScene
+    renderedScenes[scene.key] = scene
+    val retainedSceneKeys by rememberUpdatedState(
+        sceneState.previousScenes.map { it.key }.toSet() + scene.key,
+    )
+    val transitionState = remember { SeekableTransitionState(scene.key) }
     val transition = rememberTransition(transitionState, label = "navigation-scene")
     val inPredictiveBack by remember(previousScene != null) {
         derivedStateOf { previousScene != null && gestureState.transitionState is InProgress }
@@ -91,10 +103,10 @@ internal fun <T : Any> AsteriskNavDisplay(
     // A scene keeps its assigned layer until the whole transition has settled.
     // In particular, starting back while A -> B is entering must not put B below A.
     val layers = remember { mutableMapOf<Any, Float>() }
-    val initialKey = transition.currentState.key
-    val targetKey = transition.targetState.key
+    val initialKey = transition.currentState
+    val targetKey = transition.targetState
     val initialLayer = layers.getOrPut(initialKey) { 0f }
-    val interruptedEntry = inPredictiveBack && transition.currentState == previousScene
+    val interruptedEntry = inPredictiveBack && transition.currentState == previousScene?.key
     val targetLayer = when {
         initialKey == targetKey -> initialLayer
         targetKey in layers -> layers.getValue(targetKey)
@@ -105,11 +117,11 @@ internal fun <T : Any> AsteriskNavDisplay(
 
     val reducedMotion = LocalReduceMotion.current
     if (inPredictiveBack && previousScene != null) {
-        LaunchedEffect(scene, previousScene) {
+        LaunchedEffect(scene.key, previousScene.key) {
             val entryInterruptionFraction = transitionState.fraction
             snapshotFlow { gestureState.transitionState }.collectLatest { gesture ->
                 if (gesture is InProgress) {
-                    if (transition.currentState == previousScene) {
+                    if (transition.currentState == previousScene.key) {
                         // Reverse the partially completed A -> B transition, rather than
                         // retargeting it as though B had already finished entering.
                         transitionState.seekTo(
@@ -117,30 +129,30 @@ internal fun <T : Any> AsteriskNavDisplay(
                                 entryFraction = entryInterruptionFraction,
                                 backProgress = gesture.latestEvent.progress,
                             ),
-                            scene,
+                            scene.key,
                         )
                     } else {
-                        transitionState.seekTo(gesture.latestEvent.progress, previousScene)
+                        transitionState.seekTo(gesture.latestEvent.progress, previousScene.key)
                     }
                 }
             }
         }
     } else {
-        LaunchedEffect(scene) {
-            if (transitionState.currentState != scene) {
-                if (transitionState.targetState == scene) {
+        LaunchedEffect(scene.key) {
+            if (transitionState.currentState != scene.key) {
+                if (transitionState.targetState == scene.key) {
                     transitionState.animateTo(
-                        scene,
+                        scene.key,
                         animationSpec = AsteriskMotion.navigation(reducedMotion),
                     )
                 } else {
-                    transitionState.animateTo(scene)
+                    transitionState.animateTo(scene.key)
                 }
             } else {
                 // Commit/cancel can return to the initial state while the entry is still
                 // visible. Finish that same transition before disposing its old content.
                 val duration = transition.totalDurationNanos / 1_000_000
-                val completed = transition.targetState == scene
+                val completed = transition.targetState == scene.key
                 val finalFraction = if (completed) 1f else 0f
                 val remaining = if (completed) 1f - transitionState.fraction else transitionState.fraction
                 animate(
@@ -152,7 +164,7 @@ internal fun <T : Any> AsteriskNavDisplay(
                     ),
                 ) { value, _ ->
                     this@LaunchedEffect.launch {
-                        if (value == finalFraction) transitionState.snapTo(scene)
+                        if (value == finalFraction) transitionState.snapTo(scene.key)
                         else transitionState.seekTo(value)
                     }
                 }
@@ -162,7 +174,7 @@ internal fun <T : Any> AsteriskNavDisplay(
 
     transition.AnimatedContent(
         modifier = modifier,
-        contentKey = { it.key },
+        contentKey = { it },
         transitionSpec = {
             val gesture = gestureState.transitionState
             val transform = when {
@@ -178,7 +190,8 @@ internal fun <T : Any> AsteriskNavDisplay(
                 sizeTransform = null,
             )
         },
-    ) { targetScene ->
+    ) { targetSceneKey ->
+        val targetScene = renderedScenes.getValue(targetSceneKey)
         val settled = transition.currentState == transition.targetState
         val lifecycleOwner = rememberLifecycleOwner(
             maxLifecycle = if (settled) Lifecycle.State.RESUMED else Lifecycle.State.STARTED,
@@ -196,8 +209,9 @@ internal fun <T : Any> AsteriskNavDisplay(
             snapshotFlow {
                 transition.currentState == transition.targetState && !transition.isRunning
             }.filter { it }.collect {
-                val settledKey = transition.targetState.key
+                val settledKey = transition.targetState
                 layers.keys.retainAll(setOf(settledKey))
+                renderedScenes.keys.retainAll(retainedSceneKeys)
             }
         }
     }
