@@ -23,7 +23,7 @@ import kotlin.coroutines.cancellation.CancellationException
 
 class BroadcastControlReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        val command = intent.action.toProxyControlCommand() ?: return
+        val command = intent.action.toProxyControlCommand(context) ?: return
         val pendingResult = goAsync()
         val appContext = context.applicationContext
 
@@ -44,9 +44,9 @@ class BroadcastControlReceiver : BroadcastReceiver() {
     }
 
     companion object {
-        const val ACTION_START = "org.asterisk.zcc.ameta.action.PROXY_START"
-        const val ACTION_STOP = "org.asterisk.zcc.ameta.action.PROXY_STOP"
-        const val ACTION_TOGGLE = "org.asterisk.zcc.ameta.action.PROXY_TOGGLE"
+        const val ACTION_START = ".action.PROXY_START"
+        const val ACTION_STOP = ".action.PROXY_STOP"
+        const val ACTION_TOGGLE = ".action.PROXY_TOGGLE"
 
         private val operationScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
         private val operationMutex = Mutex()
@@ -151,11 +151,11 @@ private enum class ProxyControlCommand(
     Toggle("toggle"),
 }
 
-private fun String?.toProxyControlCommand(): ProxyControlCommand? {
+private fun String?.toProxyControlCommand(context: Context): ProxyControlCommand? {
     return when (this) {
-        BroadcastControlReceiver.ACTION_START -> ProxyControlCommand.Start
-        BroadcastControlReceiver.ACTION_STOP -> ProxyControlCommand.Stop
-        BroadcastControlReceiver.ACTION_TOGGLE -> ProxyControlCommand.Toggle
+        context.packageName + BroadcastControlReceiver.ACTION_START -> ProxyControlCommand.Start
+        context.packageName + BroadcastControlReceiver.ACTION_STOP -> ProxyControlCommand.Stop
+        context.packageName + BroadcastControlReceiver.ACTION_TOGGLE -> ProxyControlCommand.Toggle
         else -> null
     }
 }
