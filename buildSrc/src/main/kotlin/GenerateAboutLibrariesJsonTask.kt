@@ -64,6 +64,15 @@ abstract class GenerateAboutLibrariesJsonTask : DefaultTask() {
         )
         val bundledRuntimeLibraries = listOf(
             library(
+                "npm:js-beautify",
+                "2.0.3",
+                "JS Beautify",
+                "Offline JavaScript code formatting.",
+                "https://beautifier.io",
+                "https://github.com/beautifier/js-beautify",
+                listOf("MIT"),
+            ),
+            library(
                 "github:Asterisk4Magisk/asteriskd",
                 ProjectConfig.ASTERISKD_VERSION,
                 "asteriskd",

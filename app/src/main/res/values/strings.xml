@@ -798,4 +798,8 @@
     <string name="monitor_connections_total">Total connections</string>
     <string name="monitor_connections_closed_time">Disconnection time</string>
     <string name="monitor_connections_closed_empty">No disconnected connections recorded</string>
+    <string name="code_editor_format_yaml">Format YAML</string>
+    <string name="code_editor_format_javascript">Format JavaScript</string>
+    <string name="code_editor_format_failed">Could not format the code. Check its syntax and try again.</string>
+    <string name="code_editor_format_content_changed">Content changed during formatting. Tap format again.</string>
 </resources>

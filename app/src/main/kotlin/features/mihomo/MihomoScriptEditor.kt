@@ -3,6 +3,19 @@
 
 package features.mihomo
 
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import app.LocalAppServices
+import app.R
+import kotlinx.coroutines.launch
+import kotlin.coroutines.cancellation.CancellationException
+import ui.icons.AsteriskIcons as Icons
 import android.content.Context
 import android.graphics.Typeface
 import android.text.InputType
@@ -98,6 +111,23 @@ internal class MihomoCodeEditorState(
         documentVersion += 1
     }
 
+    fun replaceFormattedText(text: String) {
+        val attached = editor ?: return replaceText(text)
+        if (text == snapshotText()) return
+        val line = attached.cursor.leftLine
+        val column = attached.cursor.leftColumn
+        val content = attached.text
+        content.beginBatchEdit()
+        try {
+            content.replace(0, content.length, text)
+        } finally {
+            content.endBatchEdit()
+        }
+        retainedText = text
+        val restoredLine = line.coerceAtMost(content.lineCount - 1)
+        attached.setSelection(restoredLine, column.coerceAtMost(content.getColumnCount(restoredLine)), false)
+    }
+
     private fun applyRetainedText(editor: CodeEditor) {
         editor.setText(retainedText)
         if (moveCursorToEnd) {
@@ -151,6 +181,19 @@ private fun SoraCodeEditor(
 ) {
     val colors = rememberCodeEditorColors()
     val colorScheme = remember(colors) { colors.toSoraColorScheme() }
+    val context = LocalContext.current.applicationContext
+    val scope = rememberCoroutineScope()
+    val tipNotifier = LocalAppServices.current.tipNotifier
+    val currentReadOnly by rememberUpdatedState(readOnly)
+    var formatting by remember(state, language) { mutableStateOf(false) }
+    val formatLabel = stringResource(
+        when (language) {
+            MihomoCodeLanguage.JavaScript -> R.string.code_editor_format_javascript
+            MihomoCodeLanguage.Yaml -> R.string.code_editor_format_yaml
+        },
+    )
+    val formatFailed = stringResource(R.string.code_editor_format_failed)
+    val contentChanged = stringResource(R.string.code_editor_format_content_changed)
     val borderWidth by animateDpAsState(
         targetValue = if (state.isFocused) FocusedBorderWidth else 0.dp,
         animationSpec = AsteriskMotion.fastSpatial(),
@@ -194,6 +237,54 @@ private fun SoraCodeEditor(
                 },
                 modifier = Modifier.fillMaxSize(),
             )
+            if (!readOnly) {
+                Surface(
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp),
+                    shape = AsteriskShapeTokens.InnerContainer,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    tonalElevation = 3.dp,
+                ) {
+                    IconButton(
+                        enabled = !formatting,
+                        onClick = {
+                            val source = state.snapshotText()
+                            formatting = true
+                            scope.launch {
+                                try {
+                                    val formatted = formatMihomoCode(context, source, language)
+                                    if (!currentReadOnly) {
+                                        if (state.snapshotText() == source) {
+                                            state.replaceFormattedText(formatted)
+                                        } else {
+                                            tipNotifier.show(contentChanged)
+                                        }
+                                    }
+                                } catch (cancelled: CancellationException) {
+                                    throw cancelled
+                                } catch (_: Exception) {
+                                    tipNotifier.show(formatFailed)
+                                } finally {
+                                    formatting = false
+                                }
+                            }
+                        },
+                    ) {
+                        if (formatting) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                strokeWidth = 2.dp,
+                            )
+                        } else {
+                            Icon(
+                                Icons.Rounded.AutoFixHigh,
+                                contentDescription = formatLabel,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            )
+                        }
+                    }
+                }
+            }
             if (state.isEmpty) {
                 Text(
                     text = label,

@@ -1,6 +1,19 @@
 {
     "libraries": [
         {
+            "uniqueId": "npm:js-beautify",
+            "artifactVersion": "2.0.3",
+            "name": "JS Beautify",
+            "description": "Offline JavaScript code formatting.",
+            "website": "https://beautifier.io",
+            "scm": {
+                "url": "https://github.com/beautifier/js-beautify"
+            },
+            "licenses": [
+                "MIT"
+            ]
+        },
+        {
             "uniqueId": "androidx.activity:activity-compose",
             "artifactVersion": "1.13.0",
             "name": "Activity Compose",
