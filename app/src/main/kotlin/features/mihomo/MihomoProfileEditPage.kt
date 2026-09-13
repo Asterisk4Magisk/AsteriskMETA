@@ -5,6 +5,7 @@
 
 package features.mihomo
 
+import ui.layout.codeEditorShowsSupportingContent
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
@@ -593,41 +594,49 @@ fun MihomoProfileEditPage(
                             },
                         )
                     } else {
-                        Surface(
-                            onClick = { showFileProperties = true },
-                            enabled = !saving,
-                            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                            shape = MaterialTheme.shapes.large,
-                            color = MaterialTheme.colorScheme.surfaceContainer,
+                        AnimatedVisibility(
+                            visible = codeEditorShowsSupportingContent(contentEditorState.isFocused),
+                            enter = AsteriskMotion.contentEnter(),
+                            exit = AsteriskMotion.contentExit(),
                         ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Tune,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                )
-                                Spacer(Modifier.width(14.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = stringResource(R.string.mihomo_configuration_properties),
-                                        style = MaterialTheme.typography.titleMedium,
-                                    )
-                                    Text(
-                                        text = nameState.text.toString().ifBlank {
-                                            stringResource(R.string.mihomo_configuration_name)
-                                        },
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 1,
-                                    )
+                            Column {
+                                Surface(
+                                    onClick = { showFileProperties = true },
+                                    enabled = !saving,
+                                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                                    shape = MaterialTheme.shapes.large,
+                                    color = MaterialTheme.colorScheme.surfaceContainer,
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Tune,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                        )
+                                        Spacer(Modifier.width(14.dp))
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = stringResource(R.string.mihomo_configuration_properties),
+                                                style = MaterialTheme.typography.titleMedium,
+                                            )
+                                            Text(
+                                                text = nameState.text.toString().ifBlank {
+                                                    stringResource(R.string.mihomo_configuration_name)
+                                                },
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                maxLines = 1,
+                                            )
+                                        }
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                                            contentDescription = null,
+                                        )
+                                    }
                                 }
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                                    contentDescription = null,
-                                )
                             }
                         }
                         YamlCodeEditor(

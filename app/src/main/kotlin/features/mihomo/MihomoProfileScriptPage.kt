@@ -5,6 +5,8 @@
 
 package features.mihomo
 
+import ui.layout.codeEditorShowsSupportingContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -544,18 +546,26 @@ fun MihomoOverrideScriptEditPage(
                 }
             } else {
                 key(targetScript?.id, isNew) {
-                    OutlinedTextField(
-                        state = nameState,
-                        label = { Text(stringResource(R.string.mihomo_override_script_name)) },
-                        lineLimits = TextFieldLineLimits.SingleLine,
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                    )
-                    DebugProfileSelector(
-                        profiles = appState.mihomoProfiles,
-                        selectedProfileId = debugProfileId,
-                        onSelectedProfileIdChange = { debugProfileId = it },
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                    )
+                    AnimatedVisibility(
+                        visible = codeEditorShowsSupportingContent(scriptEditorState.isFocused),
+                        enter = AsteriskMotion.contentEnter(),
+                        exit = AsteriskMotion.contentExit(),
+                    ) {
+                        Column {
+                            OutlinedTextField(
+                                state = nameState,
+                                label = { Text(stringResource(R.string.mihomo_override_script_name)) },
+                                lineLimits = TextFieldLineLimits.SingleLine,
+                                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                            )
+                            DebugProfileSelector(
+                                profiles = appState.mihomoProfiles,
+                                selectedProfileId = debugProfileId,
+                                onSelectedProfileIdChange = { debugProfileId = it },
+                                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                            )
+                        }
+                    }
                     JavaScriptCodeEditor(
                         label = stringResource(R.string.mihomo_configuration_override_script_content),
                         state = scriptEditorState,
