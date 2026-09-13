@@ -114,7 +114,14 @@ fun AppTheme(
     } else {
         null
     }
-    val materialScheme = systemDynamicScheme ?: fallbackScheme
+    val baseScheme = systemDynamicScheme ?: fallbackScheme
+    val materialScheme = baseScheme.copy(
+        background = if (resolution.isDark) {
+            lerp(baseScheme.background, Color.Black, 0.1f)
+        } else {
+            lerp(baseScheme.background, Color.White, 0.3f)
+        },
+    )
     var displayedScheme by remember { mutableStateOf(materialScheme) }
     var displayedIsDark by remember { mutableStateOf(resolution.isDark) }
     var systemBarIsDark by remember { mutableStateOf(resolution.isDark) }
