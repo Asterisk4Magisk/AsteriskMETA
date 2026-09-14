@@ -384,7 +384,7 @@ internal fun AppState.toMihomoTunListenerYamlMap(
         "inet4-address" to listOf("${tunOptions.ipv4Address.address}/${tunOptions.ipv4Address.prefixLength}"),
     ).apply {
         putAll(mihomoRootTunPolicy(
-            if (proxyAppListSelectedApps.toTrimmedNonEmptyDistinctList().isEmpty()) app.modes.ProxyAppListModeGlobal else proxyAppListMode,
+            proxyAppListMode,
             applicationUids, tunSharedNetworkInterfaces,
             tunBypassRuleSetTags, ruleProviders,
         ))
