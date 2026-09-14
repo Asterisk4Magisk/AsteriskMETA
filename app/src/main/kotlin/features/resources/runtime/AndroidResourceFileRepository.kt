@@ -3,6 +3,8 @@
 
 package features.resources.runtime
 
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import android.content.Context
 import android.net.Uri
 import app.R
@@ -112,6 +114,7 @@ internal class AndroidResourceFileRepository(
         }
         store.dataDir.mkdirs()
         AndroidResourceFileDownloadCancellation.begin()
+        currentCoroutineContext().ensureActive()
         val notifier = AndroidResourceFileDownloadNotifier(appContext)
         val downloadProxy = options.toDownloadProxy()
         if (downloadProxy != null) {

@@ -16,9 +16,7 @@ import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import ui.components.AsteriskScaffold
 import androidx.compose.material3.Text
-import ui.components.AsteriskTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -31,7 +29,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import app.AppState
 import app.CustomResourceFileState
 import app.CustomResourceFileStatus
 import app.LocalAppServices
@@ -47,10 +44,11 @@ import app.customResourceFileNameOrNull
 import app.nextAvailableCustomResourceFileId
 import app.resourceFileUpdateSource
 import app.statusOf
-import engine.network.toPortOrNull
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.launch
 import ui.components.AsteriskExtendedFab
+import ui.components.AsteriskScaffold
+import ui.components.AsteriskTopAppBar
 import ui.layout.pageContentPaddingWithCutout
 import ui.layout.pageListPadding
 import ui.text.formatTemplate
@@ -512,14 +510,7 @@ private fun ResourceSectionTitle(text: String) {
     )
 }
 
-private fun AppState.resourceFileUpdateOptions(): ResourceFileUpdateOptions {
-    return ResourceFileUpdateOptions(
-        useRunningProxy = proxyRunning,
-        fallbackProxyPort = localProxyPort.toPortOrNull(),
-        fallbackProxyUsername = localProxyUsername,
-        fallbackProxyPassword = localProxyPassword,
-    )
-}
+
 
 private fun ResourceFilesStatus.statusOf(customFile: CustomResourceFileState): CustomResourceFileStatus {
     return customResourceFiles.firstOrNull { fileStatus -> fileStatus.file.id == customFile.id }

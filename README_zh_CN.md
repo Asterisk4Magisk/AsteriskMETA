@@ -70,6 +70,28 @@
 - 内置 Mihomo 可执行文件可在资源管理中替换。
 - 自定义资源可在本地添加或替换，也可通过配置的 URL 更新。
 
+## 广播控制
+
+在设置中开启 **广播控制** 后，显式指定以下接收器发送广播。Action 前缀为 `org.asterisk.zcc.ameta.action.`。
+
+| 操作 | Action 后缀 |
+| --- | --- |
+| 启动代理 | `PROXY_START` |
+| 停止代理 | `PROXY_STOP` |
+| 切换代理启停 | `PROXY_TOGGLE` |
+| 更新全部 URL 订阅 | `SUBSCRIPTION_UPDATE` |
+| 取消广播订阅更新 | `SUBSCRIPTION_UPDATE_CANCEL` |
+| 更新全部资源 | `RESOURCE_UPDATE` |
+| 取消资源更新 | `RESOURCE_UPDATE_CANCEL` |
+
+```sh
+adb shell am broadcast -n org.asterisk.zcc.ameta/features.automation.BroadcastControlReceiver -a org.asterisk.zcc.ameta.action.SUBSCRIPTION_UPDATE
+```
+
+订阅更新跳过本地项，取消时保留已完成结果及定时更新配置。资源更新沿用资源管理中的当前配置，取消资源更新会同时清空其共享队列。同类更新执行期间，重复命令会合并。
+
+更新在后台执行，不会启动代理。广播送达不代表更新完成，结果请查看应用日志的 `BroadcastControl` 标签。
+
 ## 开发
 
 构建前初始化 submodule：

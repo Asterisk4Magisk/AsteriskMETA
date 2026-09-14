@@ -6,6 +6,7 @@ package features.automation
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import app.AsteriskApplication
 import app.withMihomoRestartApplied
 import data.AndroidAppStateStore
 import engine.proxy.AndroidProxyEngine
@@ -23,7 +24,7 @@ import kotlin.coroutines.cancellation.CancellationException
 
 class BroadcastControlReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        val command = intent.action.toProxyControlCommand(context) ?: return
+        val command = parseBroadcastControlCommand(intent.action, context.packageName) ?: return
         val pendingResult = goAsync()
         val appContext = context.applicationContext
 
@@ -44,10 +45,6 @@ class BroadcastControlReceiver : BroadcastReceiver() {
     }
 
     companion object {
-        const val ACTION_START = ".action.PROXY_START"
-        const val ACTION_STOP = ".action.PROXY_STOP"
-        const val ACTION_TOGGLE = ".action.PROXY_TOGGLE"
-
         private val operationScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
         private val operationMutex = Mutex()
     }
@@ -71,10 +68,20 @@ private class BroadcastControlHandler(
     }
     private val proxyServiceUseCase by lazy { ProxyServiceUseCase(proxyEngine) }
 
-    suspend fun handle(command: ProxyControlCommand) {
+    suspend fun handle(command: BroadcastControlCommand) {
         val configuredState = stateStore.state.value
         if (!configuredState.enableBroadcastControl) {
             AndroidAppLogger.warn(LogTag, "Ignored ${command.actionName} because broadcast control is disabled")
+            return
+        }
+
+        if (dispatchBroadcastUpdate(
+                command = command,
+                enabled = configuredState.enableBroadcastControl,
+                gateway = AndroidBroadcastUpdateGateway(appContext as AsteriskApplication),
+            )
+        ) {
+            AndroidAppLogger.info(LogTag, "Broadcast control ${command.actionName} dispatched")
             return
         }
 
@@ -82,7 +89,7 @@ private class BroadcastControlHandler(
         val state = stateStore.state.value.copy(proxyRunning = running)
 
         val result = when (command) {
-            ProxyControlCommand.Start -> {
+            BroadcastControlCommand.Start -> {
                 if (running) {
                     ProxyServiceResult.Success(proxyRunning = true)
                 } else {
@@ -90,7 +97,7 @@ private class BroadcastControlHandler(
                 }
             }
 
-            ProxyControlCommand.Stop -> {
+            BroadcastControlCommand.Stop -> {
                 if (!running) {
                     ProxyServiceResult.Success(proxyRunning = false)
                 } else {
@@ -98,7 +105,8 @@ private class BroadcastControlHandler(
                 }
             }
 
-            ProxyControlCommand.Toggle -> proxyServiceUseCase.toggle(state)
+            BroadcastControlCommand.Toggle -> proxyServiceUseCase.toggle(state)
+            else -> return
         }
 
         applyResult(command, result)
@@ -118,7 +126,7 @@ private class BroadcastControlHandler(
     }
 
     private fun applyResult(
-        command: ProxyControlCommand,
+        command: BroadcastControlCommand,
         result: ProxyServiceResult,
     ) {
         when (result) {
@@ -140,23 +148,6 @@ private class BroadcastControlHandler(
                 AndroidAppLogger.error(LogTag, "Broadcast control ${command.actionName} failed", result.error)
             }
         }
-    }
-}
-
-private enum class ProxyControlCommand(
-    val actionName: String,
-) {
-    Start("start"),
-    Stop("stop"),
-    Toggle("toggle"),
-}
-
-private fun String?.toProxyControlCommand(context: Context): ProxyControlCommand? {
-    return when (this) {
-        context.packageName + BroadcastControlReceiver.ACTION_START -> ProxyControlCommand.Start
-        context.packageName + BroadcastControlReceiver.ACTION_STOP -> ProxyControlCommand.Stop
-        context.packageName + BroadcastControlReceiver.ACTION_TOGGLE -> ProxyControlCommand.Toggle
-        else -> null
     }
 }
 

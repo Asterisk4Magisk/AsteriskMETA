@@ -348,12 +348,13 @@ internal fun AppState.toSubscriptionFetchOptions(profile: MihomoProfileState): A
 internal fun AppState.withUpdatedMihomoProfiles(
     updates: List<MihomoProfileSubscriptionUpdate>,
     updatedAtMillis: Long,
+    requireScheduled: Boolean = true,
 ): AppState {
     if (updates.isEmpty()) return this
     val currentProfilesById = mihomoProfiles.associateBy { profile -> profile.id }
     val updatesById = updates
         .filter { update ->
-            currentProfilesById[update.profileId]?.isApplicableTo(update) == true
+            currentProfilesById[update.profileId]?.isApplicableTo(update, requireScheduled) == true
         }
         .associateBy { update -> update.profileId }
     if (updatesById.isEmpty()) return this
@@ -382,17 +383,19 @@ internal fun commitMihomoProfileSubscriptionUpdates(
     updatedAtMillis: Long,
     contentStore: MihomoProfileContentStore,
     updateAppState: ((AppState) -> AppState) -> Unit,
+    requireScheduled: Boolean = true,
 ): Set<Int> {
     var acceptedUpdates = emptyList<MihomoProfileSubscriptionUpdate>()
     var referencedPaths = emptySet<String>()
     updateAppState { state ->
         val profilesById = state.mihomoProfiles.associateBy(MihomoProfileState::id)
         acceptedUpdates = updates.filter { update ->
-            profilesById[update.profileId]?.isApplicableTo(update) == true
+            profilesById[update.profileId]?.isApplicableTo(update, requireScheduled) == true
         }
         state.withUpdatedMihomoProfiles(
             updates = acceptedUpdates,
             updatedAtMillis = updatedAtMillis,
+            requireScheduled = requireScheduled,
         ).also { updatedState ->
             referencedPaths = updatedState.mihomoProfiles
                 .mapNotNullTo(mutableSetOf()) { profile -> profile.contentPath.takeIf(String::isNotBlank) }
@@ -425,10 +428,12 @@ internal fun MihomoProfileState.subscriptionFetchIdentity(): MihomoProfileSubscr
     )
 }
 
-private fun MihomoProfileState.isApplicableTo(update: MihomoProfileSubscriptionUpdate): Boolean {
+private fun MihomoProfileState.isApplicableTo(
+    update: MihomoProfileSubscriptionUpdate,
+    requireScheduled: Boolean,
+): Boolean {
     return type == MihomoProfileType.Url &&
-        enabled &&
-        parseSubscriptionSchedule(updateInterval) is SubscriptionSchedule.Enabled &&
+        (!requireScheduled || (enabled && parseSubscriptionSchedule(updateInterval) is SubscriptionSchedule.Enabled)) &&
         subscriptionFetchIdentity() == update.sourceIdentity
 }
 
