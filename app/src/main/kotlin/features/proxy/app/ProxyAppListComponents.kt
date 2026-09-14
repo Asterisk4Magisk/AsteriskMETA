@@ -61,6 +61,9 @@ import ui.icons.AsteriskIcons as Icons
 
 internal enum class ProxyAppListMoreAction {
     ToggleSystemApps,
+    ScanChinaApps,
+    InvertSelection,
+    ClearSelection,
     ImportClipboard,
     ExportClipboard,
 }
@@ -110,6 +113,32 @@ internal fun ProxyAppListMoreActionsMenu(
                 onClick = { onAction(ProxyAppListMoreAction.ToggleSystemApps) },
                 leadingIcon = { Icon(Icons.Rounded.Apps, contentDescription = null) },
                 trailingIcon = { AsteriskCheckbox(checked = showSystemApps, onCheckedChange = null) },
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.proxy_app_list_scan_china_apps)) },
+                onClick = {
+                    expanded = false
+                    onAction(ProxyAppListMoreAction.ScanChinaApps)
+                },
+                leadingIcon = { Icon(Icons.Rounded.Public, contentDescription = null) },
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.proxy_app_list_invert_selection)) },
+                onClick = {
+                    expanded = false
+                    onAction(ProxyAppListMoreAction.InvertSelection)
+                },
+                leadingIcon = {
+                    Icon(Icons.AutoMirrored.Rounded.CompareArrows, contentDescription = null)
+                },
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.proxy_app_list_clear_selection)) },
+                onClick = {
+                    expanded = false
+                    onAction(ProxyAppListMoreAction.ClearSelection)
+                },
+                leadingIcon = { Icon(Icons.Rounded.Remove, contentDescription = null) },
             )
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.common_import_from_clipboard)) },

@@ -803,4 +803,13 @@
     <string name="code_editor_format_failed">Could not format the code. Check its syntax and try again.</string>
     <string name="code_editor_format_content_changed">Content changed during formatting. Tap format again.</string>
     <string name="broadcast_update_notification_title">Updating subscriptions and resources</string>
+    <string name="proxy_app_list_scan_china_apps">Scan Chinese apps</string>
+    <string name="proxy_app_list_scan_china_progress">Scanned %1$d of %2$d, matched %3$d</string>
+    <string name="proxy_app_list_scan_china_done">Scanned %1$d apps, found %2$d Chinese apps</string>
+    <string name="proxy_app_list_scan_china_no_match">Scanned {scanned} apps, no Chinese apps found</string>
+    <string name="proxy_app_list_scan_china_skipped_global">Skipped in all-app mode</string>
+    <string name="proxy_app_list_invert_selection">Invert selection</string>
+    <string name="proxy_app_list_clear_selection">Clear selection</string>
+    <string name="proxy_app_list_invert_done">Selection inverted</string>
+    <string name="proxy_app_list_clear_done">Selection cleared</string>
 </resources>

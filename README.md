@@ -135,3 +135,4 @@ appops set org.asterisk.zcc.ameta ACTIVATE_VPN allow
 - [@android/material3](https://developer.android.com/develop/ui/compose/designsystems/material3)
 - [@MetaCubeX/meta-rules-dat](https://github.com/MetaCubeX/meta-rules-dat)
 - [@mayaxcn/china-ip-list](https://github.com/mayaxcn/china-ip-list)
+- [@xchacha20-poly1305/husi](https://github.com/xchacha20-poly1305/husi) — heuristic idea for the per-app proxy "Scan Chinese apps" feature

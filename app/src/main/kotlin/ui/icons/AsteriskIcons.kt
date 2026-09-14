@@ -3,10 +3,10 @@
 
 package ui.icons
 
-import androidx.compose.material.icons.Icons as MaterialIcons
 import androidx.compose.material.icons.automirrored.rounded.AltRoute
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.Article
+import androidx.compose.material.icons.automirrored.rounded.CompareArrows
 import androidx.compose.material.icons.automirrored.rounded.Help
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
@@ -15,8 +15,8 @@ import androidx.compose.material.icons.automirrored.rounded.Sort
 import androidx.compose.material.icons.rounded.AccountTree
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Apps
-import androidx.compose.material.icons.rounded.AutoFixHigh
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.AutoFixHigh
 import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material.icons.rounded.Bluetooth
 import androidx.compose.material.icons.rounded.BugReport
@@ -40,8 +40,6 @@ import androidx.compose.material.icons.rounded.Dns
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.EditNote
-import androidx.compose.material.icons.rounded.ErrorOutline
-import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.rounded.FileDownload
@@ -72,11 +70,11 @@ import androidx.compose.material.icons.rounded.PowerSettingsNew
 import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.QrCodeScanner
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.Route
 import androidx.compose.material.icons.rounded.Router
 import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.SearchOff
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.SettingsEthernet
@@ -96,9 +94,10 @@ import androidx.compose.material.icons.rounded.ViewModule
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VpnLock
 import androidx.compose.material.icons.rounded.Warning
-import androidx.compose.material.icons.rounded.Wifi
 import androidx.compose.material.icons.rounded.Widgets
+import androidx.compose.material.icons.rounded.Wifi
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.material.icons.Icons as MaterialIcons
 
 /** Central ownership point for the app's Material/Google icon language. */
 internal object AsteriskIcons {
@@ -118,6 +117,7 @@ internal object AsteriskIcons {
         val ChevronLeft: ImageVector = MaterialIcons.Rounded.ChevronLeft
         val ChevronRight: ImageVector = MaterialIcons.Rounded.ChevronRight
         val Clear: ImageVector = MaterialIcons.Rounded.Clear
+        val Remove: ImageVector = MaterialIcons.Rounded.Remove
         val Close: ImageVector = MaterialIcons.Rounded.Close
         val CloudSync: ImageVector = MaterialIcons.Rounded.CloudSync
         val Code: ImageVector = MaterialIcons.Rounded.Code
@@ -131,8 +131,6 @@ internal object AsteriskIcons {
         val Download: ImageVector = MaterialIcons.Rounded.Download
         val Edit: ImageVector = MaterialIcons.Rounded.Edit
         val EditNote: ImageVector = MaterialIcons.Rounded.EditNote
-        val ErrorOutline: ImageVector = MaterialIcons.Rounded.ErrorOutline
-        val ExpandLess: ImageVector = MaterialIcons.Rounded.ExpandLess
         val ExpandMore: ImageVector = MaterialIcons.Rounded.ExpandMore
         val Extension: ImageVector = MaterialIcons.Rounded.Extension
         val FileDownload: ImageVector = MaterialIcons.Rounded.FileDownload
@@ -167,7 +165,6 @@ internal object AsteriskIcons {
         val Router: ImageVector = MaterialIcons.Rounded.Router
         val Save: ImageVector = MaterialIcons.Rounded.Save
         val Search: ImageVector = MaterialIcons.Rounded.Search
-        val SearchOff: ImageVector = MaterialIcons.Rounded.SearchOff
         val Security: ImageVector = MaterialIcons.Rounded.Security
         val Settings: ImageVector = MaterialIcons.Rounded.Settings
         val SettingsEthernet: ImageVector = MaterialIcons.Rounded.SettingsEthernet
@@ -199,6 +196,7 @@ internal object AsteriskIcons {
             val Help: ImageVector = MaterialIcons.AutoMirrored.Rounded.Help
             val KeyboardArrowRight: ImageVector = MaterialIcons.AutoMirrored.Rounded.KeyboardArrowRight
             val OpenInNew: ImageVector = MaterialIcons.AutoMirrored.Rounded.OpenInNew
+            val CompareArrows: ImageVector = MaterialIcons.AutoMirrored.Rounded.CompareArrows
             val Send: ImageVector = MaterialIcons.AutoMirrored.Rounded.Send
             val Sort: ImageVector = MaterialIcons.AutoMirrored.Rounded.Sort
         }
