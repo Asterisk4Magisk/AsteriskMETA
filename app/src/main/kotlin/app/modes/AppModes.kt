@@ -23,6 +23,7 @@ const val MihomoModeDirect = 2
 const val MihomoTunStackSystem = 0
 const val MihomoTunStackGvisor = 1
 const val MihomoTunStackMixed = 2
+const val MihomoTunStackMips = 3
 
 const val ProxyAppListModeBlacklist = 0
 const val ProxyAppListModeWhitelist = 1

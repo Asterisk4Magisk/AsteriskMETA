@@ -80,7 +80,7 @@
         },
         {
             "uniqueId": "github:MetaCubeX/ClashMetaForAndroid",
-            "artifactVersion": "v2.11.33-asterisk",
+            "artifactVersion": "v2.11.34-asterisk",
             "name": "CMFA Mihomo wrapper",
             "description": "Vendored CMFA Android core bridge module for Mihomo.",
             "website": "https://github.com/MetaCubeX/ClashMetaForAndroid",
@@ -340,7 +340,7 @@
         },
         {
             "uniqueId": "github:MetaCubeX/mihomo",
-            "artifactVersion": "v1.19.30",
+            "artifactVersion": "v1.19.31",
             "name": "Mihomo",
             "description": "An open platform for proxy and anti-censorship networking.",
             "website": "https://github.com/MetaCubeX/mihomo",

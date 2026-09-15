@@ -160,7 +160,7 @@ private fun parseTunInbound(root: Map<*, *>): RawConfigField<MihomoRawTunInbound
     val mtu = value["mtu"].intOrNull()
     val ipv4 = value.firstString("inet4-address") ?: value.firstString("inet4_address")
     val ipv6 = value.firstString("inet6-address") ?: value.firstString("inet6_address")
-    val valid = device.isNotBlank() && stack in setOf("system", "gvisor", "mixed") &&
+    val valid = device.isNotBlank() && stack in setOf("system", "gvisor", "mixed", "mips") &&
         mtu != null && mtu in 576..9000 && ipv4 != null && isCidrAddress(ipv4) && ":" !in ipv4
     if (!valid) return RawConfigField(path = path, problem = "TUN inbound is incomplete or invalid")
     return RawConfigField(

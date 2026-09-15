@@ -23,6 +23,7 @@ internal fun settingsTunStackOptions() = listOf(
     stringResource(R.string.settings_tun_stack_system),
     stringResource(R.string.settings_tun_stack_gvisor),
     stringResource(R.string.settings_tun_stack_mixed),
+    stringResource(R.string.settings_tun_stack_mips),
 )
 
 @Composable

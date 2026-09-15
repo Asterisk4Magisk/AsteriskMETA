@@ -12,6 +12,7 @@ import app.modes.MihomoModeDirect
 import app.modes.MihomoModeGlobal
 import app.modes.MihomoTunStackGvisor
 import app.modes.MihomoTunStackMixed
+import app.modes.MihomoTunStackMips
 import app.modes.RunModeBpf2Socks
 import app.modes.RunModeTun
 import app.modes.RunModeVpnService
@@ -79,6 +80,7 @@ internal object MihomoProfileFactory {
         return when (appState.mihomoTunStack) {
             MihomoTunStackGvisor -> "gvisor"
             MihomoTunStackMixed -> "mixed"
+            MihomoTunStackMips -> "mips"
             else -> "system"
         }
     }

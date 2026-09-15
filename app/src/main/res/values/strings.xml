@@ -439,6 +439,7 @@
     <string name="settings_tun_stack_system">System</string>
     <string name="settings_tun_stack_gvisor">gVisor</string>
     <string name="settings_tun_stack_mixed">Mixed</string>
+    <string name="settings_tun_stack_mips">Mips</string>
 
     <!-- Settings -->
     <string name="settings_title">Settings</string>
