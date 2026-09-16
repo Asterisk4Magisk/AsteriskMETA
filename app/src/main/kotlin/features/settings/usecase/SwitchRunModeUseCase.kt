@@ -13,6 +13,7 @@ import app.modes.RunModeVpnService
 import app.modes.isRootRunMode
 import engine.hevtun.deleteHevSocks5TunnelLogFile
 import engine.proxy.AndroidProxyEngine
+import engine.root.runtime.RootFailureWatcher
 import features.logs.AndroidAppLogger
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -94,6 +95,10 @@ internal class SwitchRunModeUseCase(
 
         if (normalizedTargetMode != RunModeTun2Socks) {
             deleteHevSocks5TunnelLog()
+        }
+        // A failed/inactive ROOT cycle may still be collecting its diagnostic report.
+        if (currentState.runMode.isRootRunMode()) {
+            RootFailureWatcher.stop(suspendUntilNextAttempt = true)
         }
         return SwitchRunModeResult.Success(
             runMode = normalizedTargetMode,

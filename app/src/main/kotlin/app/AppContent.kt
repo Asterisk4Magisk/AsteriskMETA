@@ -228,6 +228,7 @@ fun AppContent(
                 popTransitionSpec = AsteriskMotion.navigationBack(),
                 predictivePopTransitionSpec = AsteriskMotion.predictiveNavigationBack(),
             )
+            features.proxy.ProxyErrorHost()
         }
     }
 }
