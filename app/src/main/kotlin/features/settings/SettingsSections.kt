@@ -15,6 +15,7 @@ import ui.icons.AsteriskIcons as Icons
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import app.R
+import ui.components.IconAccent
 import ui.theme.AsteriskMotion
 import androidx.compose.ui.res.stringResource
 
@@ -42,6 +43,7 @@ internal fun SettingsThemeSection(
     SettingsSectionCard {
         OverlayDropdownPreference(
             title = stringResource(R.string.settings_color_mode),
+            accent = IconAccent.MaskPurple,
             icon = Icons.Rounded.DarkMode,
             items = colorModeOptions,
             selectedIndex = colorMode,
@@ -49,6 +51,7 @@ internal fun SettingsThemeSection(
         )
         OverlayDropdownPreference(
             title = stringResource(R.string.settings_theme_color),
+            accent = IconAccent.MaskPink,
             icon = Icons.Rounded.Palette,
             items = keyColorOptions,
             selectedIndex = seedIndex,
@@ -56,6 +59,7 @@ internal fun SettingsThemeSection(
         )
         OverlayDropdownPreference(
             title = stringResource(R.string.settings_language),
+            accent = IconAccent.MaskBlue,
             icon = Icons.Rounded.Language,
             items = languageOptions,
             selectedIndex = languageMode,
@@ -73,12 +77,14 @@ internal fun SettingsSubscriptionsSection(
     SettingsSectionCard {
         ArrowPreference(
             title = stringResource(R.string.proxy_app_list_title),
+            accent = IconAccent.MaskBlue,
             icon = Icons.Rounded.Apps,
             summary = stringResource(R.string.proxy_app_list_settings_summary),
             onClick = onOpenProxyAppList,
         )
         ArrowPreference(
             title = stringResource(R.string.settings_resource_management),
+            accent = IconAccent.MaskOrange,
             icon = Icons.Rounded.Folder,
             summary = stringResource(R.string.settings_resource_management_summary),
             onClick = onOpenResourceManagement,
@@ -111,18 +117,21 @@ internal fun SettingsCoreSection(
         if (!rawEnabled) {
             ArrowPreference(
                 title = stringResource(R.string.settings_dns),
+                accent = IconAccent.MaskBlueVariant,
                 icon = Icons.Rounded.Dns,
                 summary = stringResource(R.string.settings_dns_summary),
                 onClick = onOpenDnsSettings,
             )
             ArrowPreference(
                 title = stringResource(R.string.settings_sniffer),
+                accent = IconAccent.MaskGreen,
                 icon = Icons.Rounded.TravelExplore,
                 summary = snifferSettingsSummary,
                 onClick = onOpenSnifferSettings,
             )
             SwitchPreference(
                 title = stringResource(R.string.settings_geodata_mode),
+                accent = IconAccent.MaskBlue,
                 icon = Icons.Rounded.Public,
                 summary = stringResource(R.string.settings_geodata_mode_summary),
                 checked = enableGeodataMode,
@@ -130,6 +139,7 @@ internal fun SettingsCoreSection(
             )
             OverlayDropdownPreference(
                 title = stringResource(R.string.settings_geodata_loader),
+                accent = IconAccent.MaskGrey,
                 icon = Icons.Rounded.Storage,
                 summary = stringResource(R.string.settings_geodata_loader_summary),
                 items = geodataLoaderOptions,
@@ -138,6 +148,7 @@ internal fun SettingsCoreSection(
             )
             OverlayDropdownPreference(
                 title = stringResource(R.string.settings_log_level),
+                accent = IconAccent.MaskRed,
                 icon = Icons.Rounded.BugReport,
                 items = SettingsLogLevelOptions,
                 selectedIndex = coreLogLevel,
@@ -146,6 +157,7 @@ internal fun SettingsCoreSection(
         } else {
             SwitchPreference(
                 title = stringResource(R.string.settings_dns),
+                accent = IconAccent.MaskBlueVariant,
                 icon = Icons.Rounded.Dns,
                 summary = raw?.let { "DNS hijack · ${it.dnsHijack.path}" }
                     ?: rawState.unavailableReason.orEmpty(),
@@ -154,6 +166,7 @@ internal fun SettingsCoreSection(
             )
             SettingsReadOnlyRow(
                 title = stringResource(R.string.settings_sniffer),
+                accent = IconAccent.MaskGreen,
                 value = raw?.snifferEnabled?.value?.toString() ?: notConfigured,
                 source = fromYaml,
                 summary = raw?.snifferEnabled?.path ?: rawState.unavailableReason.orEmpty(),
@@ -161,6 +174,7 @@ internal fun SettingsCoreSection(
             )
             SettingsReadOnlyRow(
                 title = stringResource(R.string.settings_geodata_mode),
+                accent = IconAccent.MaskBlue,
                 value = raw?.geodataMode?.value?.toString() ?: notConfigured,
                 source = fromYaml,
                 summary = raw?.geodataMode?.path ?: rawState.unavailableReason.orEmpty(),
@@ -168,6 +182,7 @@ internal fun SettingsCoreSection(
             )
             SettingsReadOnlyRow(
                 title = stringResource(R.string.settings_geodata_loader),
+                accent = IconAccent.MaskGrey,
                 value = raw?.geodataLoader?.value ?: notConfigured,
                 source = fromYaml,
                 summary = raw?.geodataLoader?.path ?: rawState.unavailableReason.orEmpty(),
@@ -175,6 +190,7 @@ internal fun SettingsCoreSection(
             )
             SettingsReadOnlyRow(
                 title = stringResource(R.string.settings_log_level),
+                accent = IconAccent.MaskRed,
                 value = raw?.logLevel?.value ?: notConfigured,
                 source = fromYaml,
                 summary = raw?.logLevel?.path ?: rawState.unavailableReason.orEmpty(),
@@ -204,6 +220,7 @@ internal fun SettingsAdvancedSection(
     SettingsSectionCard {
         SwitchPreference(
             title = stringResource(R.string.settings_broadcast_control),
+            accent = IconAccent.MaskYellow,
             icon = Icons.Rounded.CellTower,
             summary = stringResource(R.string.settings_broadcast_control_summary),
             checked = enableBroadcastControl,
@@ -212,6 +229,7 @@ internal fun SettingsAdvancedSection(
         if (!rawState.showsReadOnlyYamlValues) {
             SwitchPreference(
                 title = "IPv6",
+                accent = IconAccent.MaskBlue,
                 icon = Icons.Rounded.Public,
                 summary = stringResource(R.string.settings_ipv6_summary),
                 checked = enableIpv6,
@@ -224,6 +242,7 @@ internal fun SettingsAdvancedSection(
             ) {
                 SwitchPreference(
                     title = stringResource(R.string.settings_ipv6_prefer),
+                    accent = IconAccent.MaskGreen,
                     icon = Icons.Rounded.Route,
                     summary = stringResource(R.string.settings_ipv6_prefer_summary),
                     checked = enableIpv6Prefer,
@@ -232,6 +251,7 @@ internal fun SettingsAdvancedSection(
             }
             ArrowPreference(
                 title = stringResource(R.string.mihomo_configuration_override_script),
+                accent = IconAccent.MaskPurple,
                 icon = Icons.Rounded.Code,
                 summary = overrideScriptSummary,
                 onClick = onOpenOverrideScripts,
@@ -239,6 +259,7 @@ internal fun SettingsAdvancedSection(
         } else {
             SettingsReadOnlyRow(
                 title = "IPv6",
+                accent = IconAccent.MaskBlue,
                 value = raw?.ipv6?.value?.toString() ?: stringResource(R.string.settings_value_not_configured),
                 source = stringResource(R.string.settings_value_from_yaml),
                 summary = raw?.ipv6?.path ?: rawState.unavailableReason.orEmpty(),
@@ -246,6 +267,7 @@ internal fun SettingsAdvancedSection(
             )
             SettingsReadOnlyRow(
                 title = stringResource(R.string.mihomo_configuration_override_script),
+                accent = IconAccent.MaskPurple,
                 value = stringResource(R.string.mihomo_configuration_override_script_stopped),
                 source = stringResource(R.string.mihomo_configuration_raw_chip),
                 icon = Icons.Rounded.Lock,
@@ -253,6 +275,7 @@ internal fun SettingsAdvancedSection(
         }
         OverlayDropdownPreference(
             title = stringResource(R.string.settings_run_mode),
+            accent = IconAccent.MaskPurple,
             icon = Icons.Rounded.AccountTree,
             items = runModeOptions,
             selectedIndex = selectedRunModeIndex.coerceIn(runModeOptions.indices),
@@ -306,6 +329,7 @@ internal fun SettingsProxyModeSections(
                 if (!rawState.showsReadOnlyYamlValues) {
                     ArrowPreference(
                         title = stringResource(R.string.settings_local_proxy),
+                        accent = IconAccent.MaskBlue,
                         icon = Icons.Rounded.Router,
                         summary = localProxySettingsSummary,
                         onClick = onOpenLocalProxySettings,
@@ -313,6 +337,7 @@ internal fun SettingsProxyModeSections(
                 } else {
                     SettingsReadOnlyRow(
                         title = stringResource(R.string.settings_local_proxy),
+                        accent = IconAccent.MaskBlue,
                         value = raw?.socksInbound?.value?.port?.toString()
                             ?: stringResource(R.string.settings_value_not_configured),
                         source = stringResource(R.string.settings_value_from_yaml),
@@ -322,6 +347,7 @@ internal fun SettingsProxyModeSections(
                 }
                 SwitchPreference(
                     title = stringResource(R.string.settings_traffic_stats_notification),
+                    accent = IconAccent.MaskPink,
                     icon = Icons.Rounded.Notifications,
                     summary = stringResource(R.string.settings_traffic_stats_notification_summary),
                     checked = enableTrafficStatsNotification,
@@ -329,6 +355,7 @@ internal fun SettingsProxyModeSections(
                 )
                 SwitchPreference(
                     title = stringResource(R.string.settings_vpn_append_http_proxy),
+                    accent = IconAccent.MaskOrange,
                     icon = Icons.Rounded.Http,
                     summary = stringResource(R.string.settings_vpn_append_http_proxy_summary),
                     checked = enableVpnAppendHttpProxy,
@@ -336,6 +363,7 @@ internal fun SettingsProxyModeSections(
                 )
                 SwitchPreference(
                     title = stringResource(R.string.settings_vpn_hev_tun),
+                    accent = IconAccent.MaskYellow,
                     icon = Icons.Rounded.Memory,
                     summary = stringResource(R.string.settings_vpn_hev_tun_summary),
                     checked = enableVpnHevTun,
@@ -343,6 +371,7 @@ internal fun SettingsProxyModeSections(
                 )
                 ArrowPreference(
                     title = stringResource(R.string.settings_tun),
+                    accent = IconAccent.MaskBlueVariant,
                     icon = Icons.Rounded.SettingsInputComponent,
                     summary = tunSettingsSummary,
                     onClick = onOpenTunSettings,
@@ -374,6 +403,7 @@ internal fun SettingsProxyModeSections(
                 ) {
                     SwitchPreference(
                         title = stringResource(R.string.settings_root_boot_script),
+                        accent = IconAccent.MaskPink,
                         icon = Icons.Rounded.PowerSettingsNew,
                         summary = stringResource(R.string.settings_root_boot_script_summary),
                         checked = enableRootBootScript,
@@ -382,6 +412,7 @@ internal fun SettingsProxyModeSections(
                 }
                 ArrowPreference(
                     title = stringResource(R.string.settings_service_control),
+                    accent = IconAccent.MaskPink,
                     icon = Icons.Rounded.PowerSettingsNew,
                     summary = stringResource(R.string.settings_service_control_summary),
                     onClick = onOpenServiceControl,
@@ -389,6 +420,7 @@ internal fun SettingsProxyModeSections(
                 if (runMode == RunModeTun && !rawState.showsReadOnlyYamlValues) {
                     ArrowPreference(
                         title = stringResource(R.string.settings_root_ebpf_bypass_direct_cidrs),
+                        accent = IconAccent.MaskGreen,
                         icon = Icons.Rounded.Route,
                         summary = tunBypassRuleSetsSummary,
                         onClick = onOpenTunBypassRuleSets,
@@ -401,6 +433,7 @@ internal fun SettingsProxyModeSections(
                 ) {
                     SwitchPreference(
                         title = stringResource(R.string.settings_root_ebpf_matcher),
+                        accent = IconAccent.MaskPurple,
                         icon = Icons.Rounded.Security,
                         summary = stringResource(R.string.settings_root_ebpf_matcher_summary),
                         checked = enableRootEbpfRules,
@@ -414,6 +447,7 @@ internal fun SettingsProxyModeSections(
                 ) {
                     SwitchPreference(
                         title = stringResource(R.string.settings_root_ebpf_bypass_direct_cidrs),
+                        accent = IconAccent.MaskGreen,
                         icon = Icons.Rounded.Route,
                         summary = stringResource(R.string.settings_root_ebpf_bypass_direct_cidrs_summary),
                         checked = enableRootEbpfDirectCidrBypass,
@@ -427,6 +461,7 @@ internal fun SettingsProxyModeSections(
                 ) {
                     SwitchPreference(
                         title = stringResource(R.string.settings_root_ipv6_disabler),
+                        accent = IconAccent.MaskBlue,
                         icon = Icons.Rounded.Public,
                         summary = stringResource(R.string.settings_root_ipv6_disabler_summary),
                         checked = enableRootIpv6Disabler,
@@ -435,6 +470,7 @@ internal fun SettingsProxyModeSections(
                 }
                 SwitchPreference(
                     title = stringResource(R.string.settings_traffic_stats_notification),
+                    accent = IconAccent.MaskPink,
                     icon = Icons.Rounded.Notifications,
                     summary = stringResource(R.string.settings_traffic_stats_notification_summary),
                     checked = enableTrafficStatsNotification,
@@ -443,6 +479,7 @@ internal fun SettingsProxyModeSections(
                 if (!rawState.showsReadOnlyYamlValues) {
                     ArrowPreference(
                         title = stringResource(R.string.settings_local_proxy),
+                        accent = IconAccent.MaskBlue,
                         icon = Icons.Rounded.Router,
                         summary = localProxySettingsSummary,
                         onClick = onOpenLocalProxySettings,
@@ -450,6 +487,7 @@ internal fun SettingsProxyModeSections(
                 } else {
                     SettingsReadOnlyRow(
                         title = stringResource(R.string.settings_local_proxy),
+                        accent = IconAccent.MaskBlue,
                         value = raw?.socksInbound?.value?.port?.toString()
                             ?: stringResource(R.string.settings_value_not_configured),
                         source = stringResource(R.string.settings_value_from_yaml),
@@ -465,6 +503,7 @@ internal fun SettingsProxyModeSections(
                     if (!rawState.showsReadOnlyYamlValues || runMode == RunModeTun2Socks) {
                         ArrowPreference(
                             title = stringResource(R.string.settings_tun),
+                            accent = IconAccent.MaskBlueVariant,
                             icon = Icons.Rounded.SettingsInputComponent,
                             summary = tunSettingsSummary,
                             onClick = onOpenTunSettings,
@@ -472,6 +511,7 @@ internal fun SettingsProxyModeSections(
                     } else {
                         SettingsReadOnlyRow(
                             title = stringResource(R.string.settings_tun),
+                            accent = IconAccent.MaskBlueVariant,
                             value = raw?.tunInbound?.value?.let { "${it.device} · ${it.stack} · ${it.mtu}" }
                                 ?: stringResource(R.string.settings_value_not_configured),
                             source = stringResource(R.string.settings_value_from_yaml),
@@ -482,6 +522,7 @@ internal fun SettingsProxyModeSections(
                 }
                 ArrowPreference(
                     title = stringResource(if (runMode == RunModeTun) R.string.settings_tun_shared_network else R.string.settings_external_interfaces),
+                    accent = IconAccent.MaskGrey,
                     icon = Icons.Rounded.Cable,
                     summary = externalInterfacesSummary,
                     onClick = onOpenExternalInterfaces,
@@ -489,12 +530,14 @@ internal fun SettingsProxyModeSections(
                 if (runMode != RunModeTun) {
                     ArrowPreference(
                         title = stringResource(R.string.settings_ignored_interfaces),
+                        accent = IconAccent.MaskRed,
                         icon = Icons.Rounded.Block,
                         summary = ignoredInterfacesSummary,
                         onClick = onOpenIgnoredInterfaces,
                     )
                     ArrowPreference(
                         title = stringResource(R.string.settings_private_addresses),
+                        accent = IconAccent.MaskOrange,
                         icon = Icons.Rounded.HomeWork,
                         summary = privateAddressCidrsSummary,
                         onClick = onOpenPrivateAddresses,
@@ -514,11 +557,13 @@ internal fun SettingsLogsSection(
     SettingsSectionCard {
         ArrowPreference(
             title = stringResource(R.string.settings_core_logs),
+            accent = IconAccent.MaskGreen,
             icon = Icons.AutoMirrored.Rounded.Article,
             onClick = onOpenCoreLogs,
         )
         ArrowPreference(
             title = stringResource(R.string.settings_logcat),
+            accent = IconAccent.MaskPurple,
             icon = Icons.Rounded.Terminal,
             onClick = onOpenLogcatLogs,
         )
@@ -534,11 +579,13 @@ internal fun SettingsAboutSection(
     SettingsSectionCard(bottomPadding = 0.dp) {
         ArrowPreference(
             title = stringResource(R.string.settings_about_project),
+            accent = IconAccent.MaskBlue,
             icon = Icons.AutoMirrored.Rounded.Help,
             onClick = onOpenAbout,
         )
         ArrowPreference(
             title = stringResource(R.string.settings_open_source_licenses),
+            accent = IconAccent.MaskGrey,
             icon = Icons.Rounded.Policy,
             onClick = onOpenLicenses,
         )

@@ -5,6 +5,7 @@
 
 package features.mihomo
 
+import ui.isInDarkTheme
 import ui.components.AsteriskDropdownMenuItem
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -1049,14 +1050,15 @@ private fun MihomoProxyLoadingCard() {
 
 @Composable
 private fun delayColor(delay: Int?, status: MihomoDelayStatus?): Color {
+    val darkTheme = isInDarkTheme()
     return when {
-        status == MihomoDelayStatus.Timeout || status == MihomoDelayStatus.Failed -> {
-            MaterialTheme.colorScheme.error
-        }
+        status == MihomoDelayStatus.Timeout || status == MihomoDelayStatus.Failed -> if (darkTheme) Color(0xFFF12522) else Color(0xFFE94634)
         status == null || delay == null -> MaterialTheme.colorScheme.onSurfaceVariant
-        delay < 300 -> MaterialTheme.colorScheme.primary
-        delay < 500 -> MaterialTheme.colorScheme.tertiary
-        else -> MaterialTheme.colorScheme.error
+        delay < 0 -> if (darkTheme) Color(0xFFF12522) else Color(0xFFE94634)
+        delay < 100 -> if (darkTheme) Color(0xFF6BD58A) else Color(0xFF128A3C)
+        delay < 200 -> if (darkTheme) Color(0xFFFFC857) else Color(0xFFD18A00)
+        delay < 300 -> if (darkTheme) Color(0xFFFF9B63) else Color(0xFFE06400)
+        else -> if (darkTheme) Color(0xFFF12522) else Color(0xFFE94634)
     }
 }
 
