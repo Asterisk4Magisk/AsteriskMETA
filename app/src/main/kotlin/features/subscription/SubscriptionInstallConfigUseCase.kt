@@ -90,21 +90,20 @@ private fun Url.toSubscriptionInstallConfigOrNull(rawValue: String): Subscriptio
         rawValue = rawValue,
         schemes = HttpsSubscriptionUrlSchemes,
     )?.let { return it }
-    val source = installConfigSource() ?: return null
     val url = parameters["url"]?.trim().orEmpty()
     if (!isSubscriptionInstallConfigUri() || !url.isValidSubscriptionUrl()) return null
-    val name = listOfNotNull(
-        parameters["name"],
+    // Ktor has already decoded query parameters; preserve literal percent escapes in names.
+    val name = parameters["name"]?.trim()?.takeIf(String::isNotBlank) ?: listOfNotNull(
         fragment,
         url.toSubscriptionUrlFragmentOrNull(),
-        source.defaultName,
+        DefaultSubscriptionName,
     )
         .firstNotNullOfOrNull { value -> value.trim().decodeUrlComponentPreservingPlus().takeIf(String::isNotBlank) }
         ?: return null
     return SubscriptionInstallConfig(
         name = name,
         url = url,
-        userAgent = source.userAgent,
+        userAgent = app.DefaultMihomoProfileUserAgent,
     )
 }
 
@@ -113,13 +112,13 @@ private fun Url.toRawSubscriptionInstallConfigOrNull(
     schemes: Set<String>,
 ): SubscriptionInstallConfig? {
     if (!rawValue.isValidSubscriptionUrl(schemes)) return null
-    val name = listOfNotNull(fragment, V2rayNgDefaultSubscriptionName)
+    val name = listOfNotNull(fragment, DefaultSubscriptionName)
         .firstNotNullOfOrNull { value -> value.trim().decodeUrlComponentPreservingPlus().takeIf(String::isNotBlank) }
         ?: return null
     return SubscriptionInstallConfig(
         name = name,
         url = rawValue,
-        userAgent = DefaultSubscriptionUserAgent,
+        userAgent = app.DefaultMihomoProfileUserAgent,
     )
 }
 
@@ -172,39 +171,17 @@ private fun String.toSubscriptionUrlOrNull(): Url? {
     return runCatching { Url(value) }.getOrNull()
 }
 
-private enum class InstallConfigSource(
-    val scheme: String,
-    val userAgent: String,
-    val defaultName: String? = null,
-) {
-    V2rayNg(scheme = "v2rayng", userAgent = DefaultSubscriptionUserAgent, defaultName = V2rayNgDefaultSubscriptionName),
-    Clash(scheme = "clash", userAgent = ClashMetaSubscriptionUserAgent, defaultName = ClashDefaultSubscriptionName),
-    ClashMeta(scheme = "clashmeta", userAgent = ClashMetaSubscriptionUserAgent, defaultName = ClashDefaultSubscriptionName),
-    FlClashX(
-        scheme = "flclashx",
-        userAgent = FlClashXSubscriptionUserAgent,
-        defaultName = ClashDefaultSubscriptionName,
-    ),
-}
-
 private fun Url.isSubscriptionInstallConfigUri(): Boolean {
-    return installConfigSource() != null &&
+    return protocol.name.lowercase() in InstallConfigSchemes &&
         host.lowercase() in InstallConfigHosts
-}
-
-private fun Url.installConfigSource(): InstallConfigSource? {
-    val uriScheme = protocol.name
-    return InstallConfigSource.entries.firstOrNull { source ->
-        source.scheme.equals(uriScheme, ignoreCase = true)
-    }
 }
 
 private fun String.toSubscriptionUrlFragmentOrNull(): String? {
     return runCatching { Url(this).fragment }.getOrNull()
 }
 
-private const val V2rayNgDefaultSubscriptionName = "import sub"
-private const val ClashDefaultSubscriptionName = "clashsub"
+private const val DefaultSubscriptionName = "clashsub"
+private val InstallConfigSchemes = setOf("clash", "clashmeta")
 private val InstallConfigHosts = setOf("install-config", "install-sub")
 private val HttpsSubscriptionUrlSchemes = setOf("https")
 private val ManualSubscriptionUrlSchemes = setOf("http", "https")

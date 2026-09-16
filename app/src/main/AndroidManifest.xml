@@ -49,16 +49,6 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
 
-                <data android:scheme="v2rayng" />
-                <data android:host="install-config" />
-                <data android:host="install-sub" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-
                 <data android:scheme="clash" />
                 <data android:host="install-config" />
             </intent-filter>
@@ -69,15 +59,6 @@
                 <category android:name="android.intent.category.BROWSABLE" />
 
                 <data android:scheme="clashmeta" />
-                <data android:host="install-config" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-
-                <data android:scheme="flclashx" />
                 <data android:host="install-config" />
             </intent-filter>
         </activity>
