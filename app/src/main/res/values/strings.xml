@@ -61,6 +61,7 @@
     <string name="common_clipboard_unsupported_format">Unsupported clipboard format</string>
     <string name="common_replace">Replace</string>
     <string name="common_update">Update</string>
+    <string name="common_error_update_interval">Enter at least 0.25 hours</string>
     <string name="common_restore">Restore</string>
     <string name="common_complete">Complete</string>
     <string name="common_copy">Copy</string>
@@ -556,6 +557,9 @@
     </plurals>
     <string name="settings_resource_files_source_value">Source: %1$s</string>
     <string name="settings_resource_files_last_check">Last check {time}</string>
+    <string name="settings_resource_files_auto_update_title">Automatic resource updates</string>
+    <string name="settings_resource_files_auto_update_summary">Periodically update resource files when connected</string>
+    <string name="settings_resource_files_auto_update_interval">Update interval (hours)</string>
     <string name="settings_resource_files_update">Update resource files</string>
     <string name="settings_resource_files_add_custom">Add custom resource file</string>
     <string name="settings_resource_files_custom_file">Custom resource file</string>

@@ -73,6 +73,8 @@ data class AppState(
     val enableTrafficStatsNotification: Boolean = false,
     val enableBroadcastControl: Boolean = false,
     val mihomoGeodataLoader: Int = MihomoGeodataLoaderStandard,
+    val enableResourceAutoUpdate: Boolean = false,
+    val resourceAutoUpdateInterval: String = "24",
     val resourceFileSource: Int = ResourceFileSourceMetaCubeXGithub,
     val customResourceFileGeoIpUrl: String = "",
     val customResourceFileGeoSiteUrl: String = "",

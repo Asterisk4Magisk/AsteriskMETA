@@ -109,6 +109,9 @@ internal class AppSettingsPreferences(
                 defaults.enableBroadcastControl,
             ),
             mihomoGeodataLoader = preferences.getInt(KeyMihomoGeodataLoader, defaults.mihomoGeodataLoader),
+            enableResourceAutoUpdate = preferences.getBoolean(KeyEnableResourceAutoUpdate, defaults.enableResourceAutoUpdate),
+            resourceAutoUpdateInterval = preferences.getString(KeyResourceAutoUpdateInterval, defaults.resourceAutoUpdateInterval)
+                ?: defaults.resourceAutoUpdateInterval,
             resourceFileSource = preferences.getInt(KeyResourceFileSource, defaults.resourceFileSource),
             customResourceFileGeoIpUrl = preferences.getString(
                 KeyCustomResourceFileGeoIpUrl,
@@ -292,6 +295,8 @@ internal class AppSettingsPreferences(
             .putBoolean(KeyEnableTrafficStatsNotification, state.enableTrafficStatsNotification)
             .putBoolean(KeyEnableBroadcastControl, state.enableBroadcastControl)
             .putInt(KeyMihomoGeodataLoader, state.mihomoGeodataLoader)
+            .putBoolean(KeyEnableResourceAutoUpdate, state.enableResourceAutoUpdate)
+            .putString(KeyResourceAutoUpdateInterval, state.resourceAutoUpdateInterval)
             .putInt(KeyResourceFileSource, state.resourceFileSource)
             .putString(KeyCustomResourceFileGeoIpUrl, state.customResourceFileGeoIpUrl)
             .putString(KeyCustomResourceFileGeoSiteUrl, state.customResourceFileGeoSiteUrl)
@@ -507,6 +512,8 @@ private const val KeyEnableGeodataMode = "enable_geodata_mode"
 private const val KeyEnableTrafficStatsNotification = "enable_traffic_stats_notification"
 private const val KeyEnableBroadcastControl = "enable_broadcast_control"
 private const val KeyMihomoGeodataLoader = "mihomo_geodata_loader"
+private const val KeyEnableResourceAutoUpdate = "enable_resource_auto_update"
+private const val KeyResourceAutoUpdateInterval = "resource_auto_update_interval"
 private const val KeyResourceFileSource = "resource_file_source"
 private const val KeyCustomResourceFileGeoIpUrl = "custom_resource_file_geoip_url"
 private const val KeyCustomResourceFileGeoSiteUrl = "custom_resource_file_geosite_url"

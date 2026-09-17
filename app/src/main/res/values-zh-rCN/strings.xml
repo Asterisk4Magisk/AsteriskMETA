@@ -61,6 +61,7 @@
     <string name="common_clipboard_unsupported_format">剪贴板格式不支持</string>
     <string name="common_replace">替换</string>
     <string name="common_update">更新</string>
+    <string name="common_error_update_interval">请输入不少于 0.25 小时的数值</string>
     <string name="common_restore">恢复</string>
     <string name="common_complete">完成</string>
     <string name="common_copy">复制</string>
@@ -543,6 +544,9 @@
     </plurals>
     <string name="settings_resource_files_source_value">来源：%1$s</string>
     <string name="settings_resource_files_last_check">最近检查 {time}</string>
+    <string name="settings_resource_files_auto_update_title">资源自动更新</string>
+    <string name="settings_resource_files_auto_update_summary">联网时定期更新资源文件</string>
+    <string name="settings_resource_files_auto_update_interval">更新周期（小时）</string>
     <string name="settings_resource_files_update">更新资源文件</string>
     <string name="settings_resource_files_add_custom">添加自定义资源文件</string>
     <string name="settings_resource_files_custom_file">自定义资源文件</string>

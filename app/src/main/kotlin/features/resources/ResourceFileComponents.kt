@@ -81,6 +81,7 @@ internal fun ResourceOverviewCard(
     onSourceChange: (Int) -> Unit,
     onUpdate: () -> Unit,
     onCancel: () -> Unit,
+    onSettings: () -> Unit,
     modifier: Modifier = Modifier,
     actionsEnabled: Boolean = true,
 ) {
@@ -121,9 +122,18 @@ internal fun ResourceOverviewCard(
             )
             Text(
                 text = stringResource(R.string.settings_resource_files_overview),
+                modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
+            IconButton(onClick = onSettings) {
+                Icon(
+                    imageVector = Icons.Rounded.Settings,
+                    contentDescription = stringResource(R.string.settings_title),
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
         Text(
             text = pluralStringResource(
@@ -280,7 +290,11 @@ internal fun CustomResourceFileCard(
     ResourceFileCardSurface(
         fileName = file.name,
         status = fileStatus.status,
-        description = file.url.ifBlank { stringResource(R.string.settings_resource_files_local_only) },
+        description = if (file.url.isBlank()) {
+            stringResource(R.string.settings_resource_files_local_only)
+        } else {
+            null
+        },
         modifier = modifier,
         updateState = updateState,
         actionsEnabled = actionsEnabled,

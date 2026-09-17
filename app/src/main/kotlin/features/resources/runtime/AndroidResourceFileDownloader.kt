@@ -3,6 +3,7 @@
 
 package features.resources.runtime
 
+import app.ProjectInfo
 import utils.writeAtomically
 import java.io.File
 import java.net.Authenticator
@@ -67,6 +68,7 @@ private fun URI.toUrlConnection(proxy: AndroidResourceFileDownloadProxy?): HttpU
         readTimeout = 60_000
         instanceFollowRedirects = true
         requestMethod = "GET"
+        setRequestProperty("User-Agent", ResourceFileDefaultUserAgent)
     }
 }
 
@@ -96,6 +98,7 @@ private fun AndroidResourceFileDownloadProxy.toAuthenticator(): Authenticator {
 }
 
 private val ProxyAuthenticatorLock = Any()
+private const val ResourceFileDefaultUserAgent = "${ProjectInfo.PROJECT_NAME}/v${ProjectInfo.VERSION_NAME}"
 
 internal fun overallProgress(
     fileIndex: Int,

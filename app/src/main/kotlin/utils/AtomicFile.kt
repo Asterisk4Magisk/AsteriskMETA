@@ -5,6 +5,8 @@ package utils
 
 import java.io.File
 import java.io.OutputStream
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 
 internal fun writeAtomically(
     target: File,
@@ -23,14 +25,8 @@ internal fun writeAtomically(
                 tempFile.delete()
                 error("${target.name} is empty")
             }
-            if (target.exists() && !target.delete()) {
-                tempFile.delete()
-                error("Failed to replace ${target.name}")
-            }
-            if (!tempFile.renameTo(target)) {
-                tempFile.delete()
-                error("Failed to replace ${target.name}")
-            }
+            // Never unlink the live file before publication: a failed move must leave it usable.
+            Files.move(tempFile.toPath(), target.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
         } catch (error: Throwable) {
             tempFile.delete()
             throw error

@@ -79,6 +79,7 @@ fun ResourceManagementPage(
     val editCustomResourceFileNameState = rememberTextFieldState()
     val editCustomResourceFileUrlState = rememberTextFieldState()
     var showCustomSourceEditor by remember { mutableStateOf(false) }
+    var showResourceAutoUpdateSheet by remember { mutableStateOf(false) }
     val sourceGeoIpUrlState = rememberTextFieldState()
     val sourceGeoSiteUrlState = rememberTextFieldState()
     val sourceMmdbUrlState = rememberTextFieldState()
@@ -356,6 +357,7 @@ fun ResourceManagementPage(
                         )
                     },
                     onCancel = resourceFileUpdateCoordinator::cancelAll,
+                    onSettings = { showResourceAutoUpdateSheet = true },
                 )
             }
             item(key = "resource_core_section") {
@@ -454,6 +456,18 @@ fun ResourceManagementPage(
                 }
             }
         }
+        ResourceAutoUpdateSheet(
+            show = showResourceAutoUpdateSheet,
+            enabled = appState.enableResourceAutoUpdate,
+            interval = appState.resourceAutoUpdateInterval,
+            onDismissRequest = { showResourceAutoUpdateSheet = false },
+            onSave = { enabled, interval ->
+                updateAppState { state ->
+                    state.copy(enableResourceAutoUpdate = enabled, resourceAutoUpdateInterval = interval)
+                }
+                showResourceAutoUpdateSheet = false
+            },
+        )
         CustomResourceFileEditorSheet(
             show = showCustomResourceFileDialog.value,
             nameState = customResourceFileNameState,
