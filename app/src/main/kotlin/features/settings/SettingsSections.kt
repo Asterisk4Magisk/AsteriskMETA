@@ -85,13 +85,6 @@ internal fun SettingsCoreSection(
     SmallTitle(text = stringResource(R.string.settings_core))
     SettingsSectionCard {
         ArrowPreference(
-            title = stringResource(R.string.proxy_app_list_title),
-            accent = IconAccent.MaskPurple,
-            icon = Icons.Rounded.Apps,
-            summary = stringResource(R.string.settings_app_management_summary),
-            onClick = onOpenApps,
-        )
-        ArrowPreference(
             title = stringResource(R.string.settings_resource_management),
             accent = IconAccent.MaskOrange,
             icon = Icons.Rounded.Folder,
@@ -130,14 +123,6 @@ internal fun SettingsCoreSection(
                 selectedIndex = geodataLoader.coerceIn(geodataLoaderOptions.indices),
                 onSelectedIndexChange = onGeodataLoaderChange,
             )
-            OverlayDropdownPreference(
-                title = stringResource(R.string.settings_log_level),
-                accent = IconAccent.MaskRed,
-                icon = Icons.Rounded.BugReport,
-                items = SettingsLogLevelOptions,
-                selectedIndex = coreLogLevel,
-                onSelectedIndexChange = onCoreLogLevelChange,
-            )
         } else {
             SwitchPreference(
                 title = stringResource(R.string.settings_dns),
@@ -172,6 +157,24 @@ internal fun SettingsCoreSection(
                 summary = raw?.geodataLoader?.path ?: rawState.unavailableReason.orEmpty(),
                 icon = Icons.Rounded.Storage,
             )
+        }
+        ArrowPreference(
+            title = stringResource(R.string.proxy_app_list_title),
+            accent = IconAccent.MaskPurple,
+            icon = Icons.Rounded.Apps,
+            summary = stringResource(R.string.settings_app_management_summary),
+            onClick = onOpenApps,
+        )
+        if (!rawEnabled) {
+            OverlayDropdownPreference(
+                title = stringResource(R.string.settings_log_level),
+                accent = IconAccent.MaskRed,
+                icon = Icons.Rounded.BugReport,
+                items = SettingsLogLevelOptions,
+                selectedIndex = coreLogLevel,
+                onSelectedIndexChange = onCoreLogLevelChange,
+            )
+        } else {
             SettingsReadOnlyRow(
                 title = stringResource(R.string.settings_log_level),
                 accent = IconAccent.MaskRed,
