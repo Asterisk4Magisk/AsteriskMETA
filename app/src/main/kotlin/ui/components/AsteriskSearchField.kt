@@ -31,7 +31,7 @@ import androidx.compose.ui.unit.dp
 import ui.theme.AsteriskMotion
 import ui.theme.AsteriskShapeTokens
 
-private const val SearchFieldContainerAlpha = 0.6f
+private const val SearchFieldContainerAlpha = 0.8f
 
 @Composable
 internal fun AsteriskSearchField(
