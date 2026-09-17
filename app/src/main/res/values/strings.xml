@@ -41,6 +41,7 @@
     <string name="qr_scan_choose_image">Choose from album</string>
 <!-- Common -->
     <string name="common_cancel">Cancel</string>
+    <string name="common_close">Close</string>
     <string name="common_clear">Clear</string>
     <string name="common_search">Search</string>
     <string name="common_retry">Retry</string>
@@ -433,8 +434,7 @@
     <string name="mihomo_configuration_http_subscription_warning_message">This subscription URL uses HTTP cleartext transport. The configuration content may be read or modified in transit. Save only if you trust this source.</string>
     <string name="mihomo_configuration_http_subscription_warning_confirm">Save anyway</string>
     <string name="mihomo_configuration_invalid_qr_content">QR code does not contain a supported subscription link</string>
-    <string name="settings_configurations">Configurations</string>
-    <string name="proxy_app_list_settings_summary">Choose which apps use the proxy</string>
+    <string name="settings_app_management_summary">Choose which installed apps use the proxy and how</string>
     <string name="settings_tun_stack">TUN stack</string>
     <string name="settings_tun_stack_system">System</string>
     <string name="settings_tun_stack_gvisor">gVisor</string>
@@ -443,13 +443,13 @@
 
     <!-- Settings -->
     <string name="settings_title">Settings</string>
+    <string name="settings_app">Appearance</string>
     <string name="settings_search_results">Search results</string>
     <string name="settings_search_no_results">No matching settings</string>
     <plurals name="settings_search_match_count">
         <item quantity="one">%1$d matching setting</item>
         <item quantity="other">%1$d matching settings</item>
     </plurals>
-    <string name="settings_theme">Theme</string>
     <string name="settings_color_mode">Theme</string>
     <string name="settings_language">Language</string>
     <string name="settings_theme_color">Accent color</string>
@@ -539,7 +539,7 @@
     <string name="settings_ipv6_summary">Enable IPv6 support</string>
     <string name="settings_ipv6_prefer">IPv6 preferred</string>
     <string name="settings_ipv6_prefer_summary">Prefer IPv6 addresses when connecting</string>
-    <string name="settings_core">Core settings</string>
+    <string name="settings_core">General</string>
     <string name="settings_resource_management">Resource management</string>
     <string name="settings_resource_management_summary">Manage core files and GEO resource files</string>
     <string name="settings_resource_files_core_files">Core files</string>
@@ -719,7 +719,6 @@
     <string name="proxy_app_list_mode_blacklist">Blacklist mode</string>
     <string name="proxy_app_list_mode_whitelist">Whitelist mode</string>
     <string name="proxy_app_list_mode_global">All-app mode</string>
-    <string name="proxy_app_list_mode">App proxy mode</string>
     <string name="proxy_app_list_more_actions">More actions</string>
     <string name="proxy_app_list_show_system_apps">Show system apps</string>
     <string name="proxy_app_list_search_label">Search apps</string>
@@ -805,6 +804,11 @@
     <string name="code_editor_format_content_changed">Content changed during formatting. Tap format again.</string>
     <string name="broadcast_update_notification_title">Updating subscriptions and resources</string>
     <string name="proxy_app_list_scan_china_apps">Scan Chinese apps</string>
+    <string name="proxy_app_list_help">Help</string>
+    <string name="proxy_app_list_help_title">App proxy modes</string>
+    <string name="proxy_app_list_help_blacklist">Blacklist mode: apps on the blacklist bypass the proxy; everything else uses it.</string>
+    <string name="proxy_app_list_help_global">All-app mode: every app uses the proxy.</string>
+    <string name="proxy_app_list_help_whitelist">Whitelist mode: only apps on the whitelist use the proxy; everything else bypasses it.</string>
     <string name="proxy_app_list_scan_china_progress">Scanned %1$d of %2$d, matched %3$d</string>
     <string name="proxy_app_list_scan_china_done">Apps scanned: %1$d; Chinese apps found: %2$d</string>
     <string name="proxy_app_list_scan_china_no_match">Scanned {scanned} apps, no Chinese apps found</string>

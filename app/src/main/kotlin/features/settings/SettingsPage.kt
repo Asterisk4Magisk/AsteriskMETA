@@ -306,25 +306,6 @@ private fun SettingsContent(
                     )
                 }
             }
-            item(key = "settings_theme") {
-                SettingsThemeSection(
-                    colorModeOptions = colorModeOptions,
-                    colorMode = appState.colorMode,
-                    keyColorOptions = keyColorOptions,
-                    seedIndex = appState.seedIndex,
-                    languageOptions = languageOptions,
-                    languageMode = appState.languageMode,
-                    onColorModeChange = { index -> updateAppState { state -> state.copy(colorMode = index) } },
-                    onSeedIndexChange = { index -> updateAppState { state -> state.copy(seedIndex = index) } },
-                    onLanguageModeChange = { index -> updateAppState { state -> state.copy(languageMode = index) } },
-                )
-            }
-            item(key = "settings_subscriptions") {
-                SettingsSubscriptionsSection(
-                    onOpenProxyAppList = { navigator.push(Route.ProxyAppList) },
-                    onOpenResourceManagement = { navigator.push(Route.ResourceManagement) },
-                )
-            }
             item(key = "settings_core") {
                 SettingsCoreSection(
                     snifferSettingsSummary = snifferSummary,
@@ -335,6 +316,8 @@ private fun SettingsContent(
                     enableLocalDns = appState.enableLocalDns,
                     onOpenDnsSettings = { sheetState.openDnsSettings(appState) },
                     onOpenSnifferSettings = { sheetState.openSnifferSettings(appState) },
+                    onOpenApps = { navigator.push(Route.ProxyAppList) },
+                    onOpenResourceManagement = { navigator.push(Route.ResourceManagement) },
                     onEnableGeodataModeChange = { enabled ->
                         updateAppState { state -> state.copy(enableGeodataMode = enabled) }
                     },
@@ -544,6 +527,19 @@ private fun SettingsContent(
                     onOpenServiceControl = { sheetState.openServiceControl(appState) },
                     onOpenIgnoredInterfaces = { sheetState.openIgnoredInterfaces(appState) },
                     onOpenPrivateAddresses = { sheetState.openPrivateAddresses(appState) },
+                )
+            }
+            item(key = "settings_app") {
+                SettingsAppSection(
+                    colorModeOptions = colorModeOptions,
+                    colorMode = appState.colorMode,
+                    keyColorOptions = keyColorOptions,
+                    seedIndex = appState.seedIndex,
+                    languageOptions = languageOptions,
+                    languageMode = appState.languageMode,
+                    onColorModeChange = { index -> updateAppState { state -> state.copy(colorMode = index) } },
+                    onSeedIndexChange = { index -> updateAppState { state -> state.copy(seedIndex = index) } },
+                    onLanguageModeChange = { index -> updateAppState { state -> state.copy(languageMode = index) } },
                 )
             }
             item(key = "settings_logs") {

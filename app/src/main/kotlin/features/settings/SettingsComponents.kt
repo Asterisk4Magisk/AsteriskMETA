@@ -333,13 +333,13 @@ private fun SettingsRow(
 }
 
 @Composable
-private fun settingsRowMatchesQuery(
+internal fun settingsRowMatchesQuery(
     title: String,
     summary: String,
     value: String,
     optionText: List<String> = emptyList(),
 ): Boolean =
-    SettingsSearchItem(SettingsSectionId.Theme, title, summary, value, optionText)
+    SettingsSearchItem(SettingsSectionId.Apps, title, summary, value, optionText)
         .matchesSettingsQuery(LocalSettingsSearchQuery.current)
 
 @Composable

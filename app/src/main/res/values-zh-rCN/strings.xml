@@ -41,6 +41,7 @@
     <string name="qr_scan_choose_image">从相册选择</string>
 <!-- Common -->
     <string name="common_cancel">取消</string>
+    <string name="common_close">关闭</string>
     <string name="common_clear">清除</string>
     <string name="common_search">搜索</string>
     <string name="common_retry">重试</string>
@@ -422,8 +423,7 @@
     <string name="mihomo_configuration_http_subscription_warning_message">当前订阅 URL 使用 HTTP 明文传输，配置内容可能在传输过程中被读取或篡改。仅在你信任该来源时继续保存。</string>
     <string name="mihomo_configuration_http_subscription_warning_confirm">仍然保存</string>
     <string name="mihomo_configuration_invalid_qr_content">二维码中没有可支持的订阅链接</string>
-    <string name="settings_configurations">配置</string>
-    <string name="proxy_app_list_settings_summary">选择需要使用代理的应用</string>
+    <string name="settings_app_management_summary">选择哪些应用使用代理以及代理方式</string>
     <string name="settings_tun_stack">TUN 栈</string>
     <string name="settings_tun_stack_system">System</string>
     <string name="settings_tun_stack_gvisor">gVisor</string>
@@ -432,12 +432,12 @@
 
     <!-- Settings -->
     <string name="settings_title">设置</string>
+    <string name="settings_app">外观</string>
     <string name="settings_search_results">搜索结果</string>
     <string name="settings_search_no_results">没有匹配的设置项</string>
     <plurals name="settings_search_match_count">
         <item quantity="other">匹配 %1$d 个设置项</item>
     </plurals>
-    <string name="settings_theme">主题</string>
     <string name="settings_color_mode">主题</string>
     <string name="settings_language">语言</string>
     <string name="settings_theme_color">强调色</string>
@@ -527,7 +527,7 @@
     <string name="settings_ipv6_summary">启用 IPv6 支持</string>
     <string name="settings_ipv6_prefer">IPv6 优先</string>
     <string name="settings_ipv6_prefer_summary">连接时优先使用 IPv6 地址</string>
-    <string name="settings_core">核心设置</string>
+    <string name="settings_core">常规</string>
     <string name="settings_resource_management">资源管理</string>
     <string name="settings_resource_management_summary">管理核心文件与GEO资源文件</string>
     <string name="settings_resource_files_core_files">核心文件</string>
@@ -705,7 +705,6 @@
     <string name="proxy_app_list_mode_blacklist">黑名单模式</string>
     <string name="proxy_app_list_mode_whitelist">白名单模式</string>
     <string name="proxy_app_list_mode_global">全应用模式</string>
-    <string name="proxy_app_list_mode">代理模式</string>
     <string name="proxy_app_list_more_actions">更多操作</string>
     <string name="proxy_app_list_show_system_apps">显示系统应用</string>
     <string name="proxy_app_list_search_label">搜索应用名称</string>
@@ -791,6 +790,11 @@
     <string name="code_editor_format_content_changed">格式化期间内容已修改，请重新点击格式化</string>
     <string name="broadcast_update_notification_title">正在更新订阅和资源</string>
     <string name="proxy_app_list_scan_china_apps">扫描中国应用</string>
+    <string name="proxy_app_list_help">帮助</string>
+    <string name="proxy_app_list_help_title">分应用代理模式</string>
+    <string name="proxy_app_list_help_blacklist">黑名单模式：仅名单中的应用不使用代理，其他应用均使用代理。</string>
+    <string name="proxy_app_list_help_global">全应用模式：所有应用均使用代理。</string>
+    <string name="proxy_app_list_help_whitelist">白名单模式：仅名单中的应用使用代理，其他应用均不使用代理。</string>
     <string name="proxy_app_list_scan_china_progress">已扫描 %1$d / %2$d，命中 %3$d</string>
     <string name="proxy_app_list_scan_china_done">已扫描 %1$d 个应用，发现 %2$d 个中国应用</string>
     <string name="proxy_app_list_scan_china_no_match">已扫描 {scanned} 个应用，未发现中国应用</string>

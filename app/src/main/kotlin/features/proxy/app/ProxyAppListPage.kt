@@ -24,7 +24,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -32,11 +34,13 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -44,9 +48,12 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -74,12 +81,13 @@ import ui.clipboard.ClipboardImportFailure
 import ui.clipboard.ClipboardImportMode
 import ui.clipboard.getPlainText
 import ui.clipboard.setPlainText
-import ui.components.AsteriskPinnedSearchArea
 import ui.components.AsteriskPullToRefreshBox
 import ui.components.AsteriskScaffold
+import ui.components.AsteriskSearchField
 import ui.components.AsteriskTopAppBar
 import ui.components.ImportModeDialog
 import ui.layout.pageContentPaddingWithCutout
+import ui.layout.pageHorizontalPadding
 import ui.layout.pageListPadding
 import ui.text.formatTemplate
 import kotlin.time.Duration.Companion.milliseconds
@@ -122,6 +130,8 @@ fun ProxyAppListPage(
     val invertDoneMessage = stringResource(R.string.proxy_app_list_invert_done)
     val clearDoneMessage = stringResource(R.string.proxy_app_list_clear_done)
     var pendingScanJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    var showHelpDialog by remember { mutableStateOf(false) }
+    var searchActive by rememberSaveable { mutableStateOf(false) }
 
     val appSelectionKeyGroups = remember(pageState.appPackages) {
         pageState.appPackages.groupBy { entry ->
@@ -191,16 +201,14 @@ fun ProxyAppListPage(
         topBar = {
             ProxyAppListTopBar(
                 onBack = onBack,
-                modes = proxyAppListModes,
-                modeIndex = modeIndex,
                 searchValue = pageState.searchValue,
+                searchActive = searchActive,
                 showSystemApps = pageState.showSystemApps,
-                userTabs = pageState.userTabs,
-                selectedUserId = selectedUserId,
-                onModeChanged = { index ->
-                    updateAppState { state -> state.copy(proxyAppListMode = index) }
-                },
                 onSearchValueChange = { value -> pageState.searchValue = value },
+                onSearchActiveChange = { active ->
+                    searchActive = active
+                    if (!active) pageState.searchValue = ""
+                },
                 onMoreAction = { action ->
                     when (action) {
                         ProxyAppListMoreAction.ToggleSystemApps -> {
@@ -242,6 +250,10 @@ fun ProxyAppListPage(
                                 )
                                 tipNotifier.show(copiedMessage)
                             }
+                        }
+
+                        ProxyAppListMoreAction.Help -> {
+                            showHelpDialog = true
                         }
 
                         ProxyAppListMoreAction.InvertSelection -> {
@@ -352,7 +364,6 @@ fun ProxyAppListPage(
 
                     }
                 },
-                onSelectedUserIdChange = { userId -> pageState.selectedUserId = userId },
             )
         },
     ) { innerPadding ->
@@ -361,27 +372,65 @@ fun ProxyAppListPage(
             outerPadding = padding,
             isWideScreen = isWideScreen,
         )
-        val listPadding = pageListPadding(contentPadding)
-
-        ProxyAppListContent(
-            pageState = pageState,
-            selectedAppKeys = selectedAppKeys,
-            modeIndex = modeIndex,
-            iconSizePx = iconSizePx,
-            listPadding = listPadding,
-            userPagerState = userPagerState,
-            onAppCheckedChange = { item, isChecked ->
-                updateAppState { state ->
-                    state.copy(
-                        proxyAppListSelectedApps = updateProxyAppListSelection(
-                            selectedApps = state.proxyAppListSelectedApps,
-                            item = item,
-                            isChecked = isChecked,
-                        ),
-                    )
-                }
-            },
+        val layoutDirection = LocalLayoutDirection.current
+        val listPadding = pageListPadding(
+            contentPadding = PaddingValues(
+                start = contentPadding.calculateStartPadding(layoutDirection),
+                top = 0.dp,
+                end = contentPadding.calculateEndPadding(layoutDirection),
+                bottom = contentPadding.calculateBottomPadding(),
+            ),
         )
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = contentPadding.calculateTopPadding()),
+        ) {
+            ProxyAppListModeSegmentedRow(
+                modes = proxyAppListModes,
+                selectedIndex = modeIndex,
+                onSelectedIndexChange = { index ->
+                    updateAppState { state -> state.copy(proxyAppListMode = index) }
+                },
+                modifier = Modifier
+                    .pageHorizontalPadding()
+                    .padding(top = 8.dp, bottom = 12.dp),
+            )
+
+            if (pageState.userTabs.size > 1) {
+                ProxyAppListUserSpaceTabs(
+                    tabs = pageState.userTabs,
+                    selectedUserId = selectedUserId,
+                    onSelectedUserIdChange = { userId -> pageState.selectedUserId = userId },
+                    modifier = Modifier
+                        .pageHorizontalPadding()
+                        .padding(bottom = 8.dp),
+                )
+            }
+
+            Box(modifier = Modifier.weight(1f)) {
+                ProxyAppListContent(
+                    pageState = pageState,
+                    selectedAppKeys = selectedAppKeys,
+                    modeIndex = modeIndex,
+                    iconSizePx = iconSizePx,
+                    listPadding = listPadding,
+                    userPagerState = userPagerState,
+                    onAppCheckedChange = { item, isChecked ->
+                        updateAppState { state ->
+                            state.copy(
+                                proxyAppListSelectedApps = updateProxyAppListSelection(
+                                    selectedApps = state.proxyAppListSelectedApps,
+                                    item = item,
+                                    isChecked = isChecked,
+                                ),
+                            )
+                        }
+                    },
+                )
+            }
+        }
     }
 
     val appListImport = pendingAppListImport
@@ -424,23 +473,64 @@ fun ProxyAppListPage(
             pageState.scanProgress = null
         },
     )
+
+    if (showHelpDialog) {
+        AlertDialog(
+            onDismissRequest = { showHelpDialog = false },
+            title = { Text(stringResource(R.string.proxy_app_list_help_title)) },
+            text = {
+                Column {
+                    Text(stringResource(R.string.proxy_app_list_help_blacklist))
+                    Text(stringResource(R.string.proxy_app_list_help_global))
+                    Text(stringResource(R.string.proxy_app_list_help_whitelist))
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showHelpDialog = false }) {
+                    Text(stringResource(R.string.common_close))
+                }
+            },
+        )
+    }
 }
 
 @Composable
 private fun ProxyAppListTopBar(
     onBack: (() -> Unit)?,
-    modes: List<String>,
-    modeIndex: Int,
     searchValue: String,
+    searchActive: Boolean,
     showSystemApps: Boolean,
-    userTabs: List<ProxyAppListUserSpaceTabUi>,
-    selectedUserId: Int?,
-    onModeChanged: (Int) -> Unit,
     onSearchValueChange: (String) -> Unit,
+    onSearchActiveChange: (Boolean) -> Unit,
     onMoreAction: (ProxyAppListMoreAction) -> Unit,
-    onSelectedUserIdChange: (Int) -> Unit,
 ) {
-    Column {
+    if (searchActive) {
+        val focusRequester = remember { FocusRequester() }
+        LaunchedEffect(Unit) {
+            focusRequester.requestFocus()
+        }
+        AsteriskTopAppBar(
+            navigationIcon = {
+                IconButton(onClick = { onSearchActiveChange(false) }) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                        contentDescription = stringResource(R.string.common_back),
+                    )
+                }
+            },
+            title = {
+                AsteriskSearchField(
+                    query = searchValue,
+                    onQueryChange = onSearchValueChange,
+                    placeholder = stringResource(R.string.proxy_app_list_search_label),
+                    clearContentDescription = stringResource(R.string.common_clear),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester),
+                )
+            },
+        )
+    } else {
         AsteriskTopAppBar(
             navigationIcon = {
                 onBack?.let { navigateBack ->
@@ -453,42 +543,21 @@ private fun ProxyAppListTopBar(
                 }
             },
             title = {
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(stringResource(R.string.proxy_app_list_title))
-                    Text(
-                        text = modes[modeIndex],
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                    )
-                }
+                Text(stringResource(R.string.proxy_app_list_title))
             },
             actions = {
-                ProxyAppListModeMenu(
-                    modes = modes,
-                    selectedIndex = modeIndex,
-                    onSelectedIndexChange = onModeChanged,
-                )
+                IconButton(onClick = { onSearchActiveChange(true) }) {
+                    Icon(
+                        imageVector = Icons.Rounded.Search,
+                        contentDescription = stringResource(R.string.common_search),
+                    )
+                }
                 ProxyAppListMoreActionsMenu(
                     showSystemApps = showSystemApps,
                     onAction = onMoreAction,
                 )
             },
         )
-        AsteriskPinnedSearchArea(
-            query = searchValue,
-            onQueryChange = onSearchValueChange,
-            placeholder = stringResource(R.string.proxy_app_list_search_label),
-            clearContentDescription = stringResource(R.string.common_clear),
-        ) {
-            if (userTabs.size > 1) {
-                ProxyAppListUserSpaceTabs(
-                    tabs = userTabs,
-                    selectedUserId = selectedUserId,
-                    onSelectedUserIdChange = onSelectedUserIdChange,
-                )
-            }
-        }
     }
 }
 

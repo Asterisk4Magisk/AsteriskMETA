@@ -3,7 +3,6 @@
 
 package features.proxy.app
 
-import ui.components.AsteriskDropdownMenuItem
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
@@ -23,6 +22,9 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -66,6 +68,7 @@ internal enum class ProxyAppListMoreAction {
     ClearSelection,
     ImportClipboard,
     ExportClipboard,
+    Help,
 }
 
 @Composable
@@ -156,31 +159,37 @@ internal fun ProxyAppListMoreActionsMenu(
                 },
                 leadingIcon = { Icon(Icons.Rounded.FileUpload, contentDescription = null) },
             )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.proxy_app_list_help)) },
+                onClick = {
+                    expanded = false
+                    onAction(ProxyAppListMoreAction.Help)
+                },
+                leadingIcon = { Icon(Icons.AutoMirrored.Rounded.Help, contentDescription = null) },
+            )
         }
     }
 }
 
 @Composable
-internal fun ProxyAppListModeMenu(
+internal fun ProxyAppListModeSegmentedRow(
     modes: List<String>,
     selectedIndex: Int,
     onSelectedIndexChange: (Int) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    Box {
-        IconButton(onClick = { expanded = true }) {
-            Icon(Icons.Rounded.Tune, stringResource(R.string.proxy_app_list_mode))
-        }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            modes.forEachIndexed { index, mode ->
-                AsteriskDropdownMenuItem(
-                    text = mode,
-                    selected = selectedIndex == index,
-                    onClick = {
-                        expanded = false
-                        onSelectedIndexChange(index)
-                    },
-                )
+    val safeIndex = if (selectedIndex in modes.indices) selectedIndex else 0
+    SingleChoiceSegmentedButtonRow(modifier = modifier.fillMaxWidth()) {
+        modes.forEachIndexed { index, mode ->
+            SegmentedButton(
+                selected = safeIndex == index,
+                onClick = { onSelectedIndexChange(index) },
+                shape = SegmentedButtonDefaults.itemShape(
+                    index = index,
+                    count = modes.size,
+                ),
+            ) {
+                Text(mode)
             }
         }
     }

@@ -6,8 +6,7 @@ package features.settings
 import engine.mihomo.raw.MihomoRawConfigSnapshot
 
 internal enum class SettingsSectionId {
-    Theme,
-    Configurations,
+    Apps,
     Core,
     Advanced,
     Vpn,

@@ -61,30 +61,30 @@ internal fun settingsTopLevelSearchItems(
     )
     return listOf(
         SettingsSearchItem(
-            SettingsSectionId.Theme,
+            SettingsSectionId.Apps,
             stringResource(R.string.settings_color_mode),
             value = optionValue(colorModeOptions, colorMode),
             optionText = colorModeOptions,
         ),
         SettingsSearchItem(
-            SettingsSectionId.Theme,
+            SettingsSectionId.Apps,
             stringResource(R.string.settings_theme_color),
             value = optionValue(keyColorOptions, seedIndex),
             optionText = keyColorOptions,
         ),
         SettingsSearchItem(
-            SettingsSectionId.Theme,
+            SettingsSectionId.Apps,
             stringResource(R.string.settings_language),
             value = optionValue(languageOptions, languageMode),
             optionText = languageOptions,
         ),
         SettingsSearchItem(
-            SettingsSectionId.Configurations,
+            SettingsSectionId.Core,
             stringResource(R.string.proxy_app_list_title),
-            stringResource(R.string.proxy_app_list_settings_summary),
+            stringResource(R.string.settings_app_management_summary),
         ),
         SettingsSearchItem(
-            SettingsSectionId.Configurations,
+            SettingsSectionId.Core,
             stringResource(R.string.settings_resource_management),
             stringResource(R.string.settings_resource_management_summary),
         ),

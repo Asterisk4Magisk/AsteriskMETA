@@ -28,68 +28,36 @@ internal fun settingsTunStackOptions() = listOf(
 )
 
 @Composable
-internal fun SettingsThemeSection(
+internal fun SettingsAppSection(
+    languageOptions: List<String>,
+    languageMode: Int,
     colorModeOptions: List<String>,
     colorMode: Int,
     keyColorOptions: List<String>,
     seedIndex: Int,
-    languageOptions: List<String>,
-    languageMode: Int,
     onColorModeChange: (Int) -> Unit,
     onSeedIndexChange: (Int) -> Unit,
     onLanguageModeChange: (Int) -> Unit,
 ) {
-    SmallTitle(text = stringResource(R.string.settings_theme))
+    SmallTitle(text = stringResource(R.string.settings_app))
     SettingsSectionCard {
         OverlayDropdownPreference(
-            title = stringResource(R.string.settings_color_mode),
-            accent = IconAccent.MaskPurple,
-            icon = Icons.Rounded.DarkMode,
-            items = colorModeOptions,
-            selectedIndex = colorMode,
-            onSelectedIndexChange = onColorModeChange,
-        )
-        OverlayDropdownPreference(
-            title = stringResource(R.string.settings_theme_color),
-            accent = IconAccent.MaskPink,
-            icon = Icons.Rounded.Palette,
-            items = keyColorOptions,
-            selectedIndex = seedIndex,
-            onSelectedIndexChange = onSeedIndexChange,
-        )
-        OverlayDropdownPreference(
             title = stringResource(R.string.settings_language),
-            accent = IconAccent.MaskBlue,
             icon = Icons.Rounded.Language,
             items = languageOptions,
             selectedIndex = languageMode,
             onSelectedIndexChange = onLanguageModeChange,
-        )
-    }
-}
-
-@Composable
-internal fun SettingsSubscriptionsSection(
-    onOpenProxyAppList: () -> Unit,
-    onOpenResourceManagement: () -> Unit,
-) {
-    SmallTitle(text = stringResource(R.string.settings_configurations))
-    SettingsSectionCard {
-        ArrowPreference(
-            title = stringResource(R.string.proxy_app_list_title),
             accent = IconAccent.MaskBlue,
-            icon = Icons.Rounded.Apps,
-            summary = stringResource(R.string.proxy_app_list_settings_summary),
-            onClick = onOpenProxyAppList,
-        )
-        ArrowPreference(
-            title = stringResource(R.string.settings_resource_management),
-            accent = IconAccent.MaskOrange,
-            icon = Icons.Rounded.Folder,
-            summary = stringResource(R.string.settings_resource_management_summary),
-            onClick = onOpenResourceManagement,
         )
     }
+    ThemeSettingsContent(
+        colorModeOptions = colorModeOptions,
+        colorMode = colorMode,
+        keyColorOptions = keyColorOptions,
+        seedIndex = seedIndex,
+        onColorModeChange = onColorModeChange,
+        onSeedIndexChange = onSeedIndexChange,
+    )
 }
 
 @Composable
@@ -102,6 +70,8 @@ internal fun SettingsCoreSection(
     enableLocalDns: Boolean,
     onOpenDnsSettings: () -> Unit,
     onOpenSnifferSettings: () -> Unit,
+    onOpenApps: () -> Unit,
+    onOpenResourceManagement: () -> Unit,
     onEnableGeodataModeChange: (Boolean) -> Unit,
     onGeodataLoaderChange: (Int) -> Unit,
     onCoreLogLevelChange: (Int) -> Unit,
@@ -114,6 +84,20 @@ internal fun SettingsCoreSection(
     val notConfigured = stringResource(R.string.settings_value_not_configured)
     SmallTitle(text = stringResource(R.string.settings_core))
     SettingsSectionCard {
+        ArrowPreference(
+            title = stringResource(R.string.proxy_app_list_title),
+            accent = IconAccent.MaskPurple,
+            icon = Icons.Rounded.Apps,
+            summary = stringResource(R.string.settings_app_management_summary),
+            onClick = onOpenApps,
+        )
+        ArrowPreference(
+            title = stringResource(R.string.settings_resource_management),
+            accent = IconAccent.MaskOrange,
+            icon = Icons.Rounded.Folder,
+            summary = stringResource(R.string.settings_resource_management_summary),
+            onClick = onOpenResourceManagement,
+        )
         if (!rawEnabled) {
             ArrowPreference(
                 title = stringResource(R.string.settings_dns),
