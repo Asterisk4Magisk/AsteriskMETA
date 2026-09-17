@@ -31,6 +31,8 @@ import androidx.compose.ui.unit.dp
 import ui.theme.AsteriskMotion
 import ui.theme.AsteriskShapeTokens
 
+private const val SearchFieldContainerAlpha = 0.6f
+
 @Composable
 internal fun AsteriskSearchField(
     query: String,
@@ -77,9 +79,9 @@ internal fun AsteriskSearchField(
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
         keyboardActions = KeyboardActions(onSearch = { onSearch?.invoke() }),
         colors = TextFieldDefaults.colors(
-            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-            disabledContainerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.6f),
+            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = SearchFieldContainerAlpha),
+            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = SearchFieldContainerAlpha),
+            disabledContainerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = SearchFieldContainerAlpha * 0.6f),
             focusedIndicatorColor = Color.Transparent,
             unfocusedIndicatorColor = Color.Transparent,
             disabledIndicatorColor = Color.Transparent,

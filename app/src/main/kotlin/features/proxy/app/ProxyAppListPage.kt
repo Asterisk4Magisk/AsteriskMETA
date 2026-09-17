@@ -199,172 +199,196 @@ fun ProxyAppListPage(
 
     AsteriskScaffold(
         topBar = {
-            ProxyAppListTopBar(
-                onBack = onBack,
-                searchValue = pageState.searchValue,
-                searchActive = searchActive,
-                showSystemApps = pageState.showSystemApps,
-                onSearchValueChange = { value -> pageState.searchValue = value },
-                onSearchActiveChange = { active ->
-                    searchActive = active
-                    if (!active) pageState.searchValue = ""
-                },
-                onMoreAction = { action ->
-                    when (action) {
-                        ProxyAppListMoreAction.ToggleSystemApps -> {
-                            pageState.showSystemApps = !pageState.showSystemApps
-                        }
+            Column {
+                ProxyAppListTopBar(
+                    onBack = onBack,
+                    searchValue = pageState.searchValue,
+                    searchActive = searchActive,
+                    showSystemApps = pageState.showSystemApps,
+                    onSearchValueChange = { value -> pageState.searchValue = value },
+                    onSearchActiveChange = { active ->
+                        searchActive = active
+                        if (!active) pageState.searchValue = ""
+                    },
+                    onMoreAction = { action ->
+                        when (action) {
+                            ProxyAppListMoreAction.ToggleSystemApps -> {
+                                pageState.showSystemApps = !pageState.showSystemApps
+                            }
 
-                        ProxyAppListMoreAction.ImportClipboard -> {
-                            scope.launch {
-                                runCatching {
-                                    decodeProxyAppListFromClipboard(
-                                        text = clipboard.getPlainText().orEmpty(),
-                                        currentUserId = selectedUserId ?: 0,
-                                        selfPackageName = selfPackageName,
-                                    )
-                                }.onSuccess { imported ->
-                                    pendingAppListImport = imported
-                                }.onFailure { error ->
-                                    tipNotifier.show(
-                                        error.proxyAppListClipboardImportMessage(
-                                            emptyClipboard = clipboardEmptyMessage,
-                                            unsupportedFormat = unsupportedClipboardMessage,
-                                            noValidApps = noValidAppsMessage,
-                                            invalidEntry = invalidEntryMessage,
-                                            invalidUserId = invalidUserIdMessage,
-                                            unsupportedMode = unsupportedModeMessage,
+                            ProxyAppListMoreAction.ImportClipboard -> {
+                                scope.launch {
+                                    runCatching {
+                                        decodeProxyAppListFromClipboard(
+                                            text = clipboard.getPlainText().orEmpty(),
+                                            currentUserId = selectedUserId ?: 0,
+                                            selfPackageName = selfPackageName,
+                                        )
+                                    }.onSuccess { imported ->
+                                        pendingAppListImport = imported
+                                    }.onFailure { error ->
+                                        tipNotifier.show(
+                                            error.proxyAppListClipboardImportMessage(
+                                                emptyClipboard = clipboardEmptyMessage,
+                                                unsupportedFormat = unsupportedClipboardMessage,
+                                                noValidApps = noValidAppsMessage,
+                                                invalidEntry = invalidEntryMessage,
+                                                invalidUserId = invalidUserIdMessage,
+                                                unsupportedMode = unsupportedModeMessage,
+                                            ),
+                                        )
+                                    }
+                                }
+                            }
+
+                            ProxyAppListMoreAction.ExportClipboard -> {
+                                scope.launch {
+                                    clipboard.setPlainText(
+                                        encodeProxyAppListForClipboard(
+                                            selectedApps = appState.proxyAppListSelectedApps,
+                                            mode = appState.proxyAppListMode,
                                         ),
                                     )
+                                    tipNotifier.show(copiedMessage)
                                 }
                             }
-                        }
 
-                        ProxyAppListMoreAction.ExportClipboard -> {
-                            scope.launch {
-                                clipboard.setPlainText(
-                                    encodeProxyAppListForClipboard(
-                                        selectedApps = appState.proxyAppListSelectedApps,
-                                        mode = appState.proxyAppListMode,
-                                    ),
-                                )
-                                tipNotifier.show(copiedMessage)
+                            ProxyAppListMoreAction.Help -> {
+                                showHelpDialog = true
                             }
-                        }
 
-                        ProxyAppListMoreAction.Help -> {
-                            showHelpDialog = true
-                        }
+                            ProxyAppListMoreAction.InvertSelection -> {
+                                val snapshot = pageState.appPackages
+                                if (snapshot.isNotEmpty()) {
+                                    updateAppState { state ->
+                                        state.copy(proxyAppListSelectedApps = invertSelectionForScan(
+                                            matched = expandSelectionToSharedUids(state.proxyAppListSelectedApps, appSelectionKeyGroups),
+                                            allKeys = snapshot.map { "${it.userId ?: 0}:${it.packageName}" },
+                                        ))
+                                    }
+                                    scope.launch { tipNotifier.show(invertDoneMessage) }
+                                }
+                            }
 
-                        ProxyAppListMoreAction.InvertSelection -> {
-                            val snapshot = pageState.appPackages
-                            if (snapshot.isNotEmpty()) {
+                            ProxyAppListMoreAction.ClearSelection -> {
                                 updateAppState { state ->
-                                    state.copy(proxyAppListSelectedApps = invertSelectionForScan(
-                                        matched = expandSelectionToSharedUids(state.proxyAppListSelectedApps, appSelectionKeyGroups),
-                                        allKeys = snapshot.map { "${it.userId ?: 0}:${it.packageName}" },
-                                    ))
+                                    state.copy(proxyAppListSelectedApps = emptyList())
                                 }
-                                scope.launch { tipNotifier.show(invertDoneMessage) }
+                                scope.launch { tipNotifier.show(clearDoneMessage) }
                             }
-                        }
 
-                        ProxyAppListMoreAction.ClearSelection -> {
-                            updateAppState { state ->
-                                state.copy(proxyAppListSelectedApps = emptyList())
-                            }
-                            scope.launch { tipNotifier.show(clearDoneMessage) }
-                        }
-
-                        ProxyAppListMoreAction.ScanChinaApps -> {
-                            val currentMode = appState.proxyAppListMode
-                            if (currentMode == ProxyAppListModeGlobal) {
-                                scope.launch {
-                                    tipNotifier.show(scanSkippedGlobalMessage)
-                                }
-                            } else {
-                                val snapshot = pageState.appPackages.toList()
-                                if (snapshot.isEmpty()) {
+                            ProxyAppListMoreAction.ScanChinaApps -> {
+                                val currentMode = appState.proxyAppListMode
+                                if (currentMode == ProxyAppListModeGlobal) {
                                     scope.launch {
-                                        tipNotifier.show(scanNoMatchTemplate.formatTemplate("scanned" to 0))
+                                        tipNotifier.show(scanSkippedGlobalMessage)
                                     }
                                 } else {
-                                    val snapshotMode = currentMode
-                                    pageState.scanProgress = ScanProgressState(
-                                        total = snapshot.size,
-                                        scanned = 0,
-                                        matched = emptyList(),
-                                    )
-                                    pendingScanJob?.cancel()
-                                    pendingScanJob = scope.launch {
-                                        try {
-                                            val matchedEntries = LinkedHashMap<String, MatchedApp>()
-                                            withContext(Dispatchers.IO) {
-                                                snapshot.forEachIndexed { index, entry ->
-                                                    ensureActive()
-                                                    if (AppScanner.isChinaApp(entry.packageName, packageManager)) {
-                                                        val label = entry.name
-                                                        val key = "${entry.userId ?: 0}:${entry.packageName}"
-                                                        synchronized(matchedEntries) {
-                                                            matchedEntries[key] = MatchedApp(key, entry.packageName, label)
+                                    val snapshot = pageState.appPackages.toList()
+                                    if (snapshot.isEmpty()) {
+                                        scope.launch {
+                                            tipNotifier.show(scanNoMatchTemplate.formatTemplate("scanned" to 0))
+                                        }
+                                    } else {
+                                        val snapshotMode = currentMode
+                                        pageState.scanProgress = ScanProgressState(
+                                            total = snapshot.size,
+                                            scanned = 0,
+                                            matched = emptyList(),
+                                        )
+                                        pendingScanJob?.cancel()
+                                        pendingScanJob = scope.launch {
+                                            try {
+                                                val matchedEntries = LinkedHashMap<String, MatchedApp>()
+                                                withContext(Dispatchers.IO) {
+                                                    snapshot.forEachIndexed { index, entry ->
+                                                        ensureActive()
+                                                        if (AppScanner.isChinaApp(entry.packageName, packageManager)) {
+                                                            val label = entry.name
+                                                            val key = "${entry.userId ?: 0}:${entry.packageName}"
+                                                            synchronized(matchedEntries) {
+                                                                matchedEntries[key] = MatchedApp(key, entry.packageName, label)
+                                                            }
+                                                        }
+                                                        val currentScanned = index + 1
+                                                        val currentMatched = synchronized(matchedEntries) {
+                                                            matchedEntries.values.toList()
+                                                        }
+                                                        withContext(Dispatchers.Main) {
+                                                            pageState.scanProgress = ScanProgressState(
+                                                                total = snapshot.size,
+                                                                scanned = currentScanned,
+                                                                matched = currentMatched,
+                                                            )
                                                         }
                                                     }
-                                                    val currentScanned = index + 1
-                                                    val currentMatched = synchronized(matchedEntries) {
-                                                        matchedEntries.values.toList()
-                                                    }
-                                                    withContext(Dispatchers.Main) {
-                                                        pageState.scanProgress = ScanProgressState(
-                                                            total = snapshot.size,
-                                                            scanned = currentScanned,
-                                                            matched = currentMatched,
+                                                }
+                                                val finalMatched = matchedEntries.values.toList()
+                                                val finalKeys = expandSelectionToSharedUids(finalMatched.map { it.key }, appSelectionKeyGroups)
+                                                val allKeys = snapshot.map { entry ->
+                                                    "${entry.userId ?: 0}:${entry.packageName}"
+                                                }
+                                                updateAppState { state ->
+                                                    if (state.proxyAppListMode != snapshotMode) return@updateAppState state
+                                                    val nextSelection = when (snapshotMode) {
+                                                        ProxyAppListModeBlacklist -> mergeSelectedAppsForScan(
+                                                            current = state.proxyAppListSelectedApps,
+                                                            matched = finalKeys,
                                                         )
+                                                        ProxyAppListModeWhitelist -> invertSelectionForScan(
+                                                            matched = finalKeys,
+                                                            allKeys = allKeys,
+                                                        )
+                                                        else -> state.proxyAppListSelectedApps
                                                     }
+                                                    state.copy(proxyAppListSelectedApps = nextSelection)
                                                 }
-                                            }
-                                            val finalMatched = matchedEntries.values.toList()
-                                            val finalKeys = expandSelectionToSharedUids(finalMatched.map { it.key }, appSelectionKeyGroups)
-                                            val allKeys = snapshot.map { entry ->
-                                                "${entry.userId ?: 0}:${entry.packageName}"
-                                            }
-                                            updateAppState { state ->
-                                                if (state.proxyAppListMode != snapshotMode) return@updateAppState state
-                                                val nextSelection = when (snapshotMode) {
-                                                    ProxyAppListModeBlacklist -> mergeSelectedAppsForScan(
-                                                        current = state.proxyAppListSelectedApps,
-                                                        matched = finalKeys,
+                                                if (finalMatched.isNotEmpty()) {
+                                                    tipNotifier.show(
+                                                        String.format(scanDoneTemplate, snapshot.size, finalMatched.size),
                                                     )
-                                                    ProxyAppListModeWhitelist -> invertSelectionForScan(
-                                                        matched = finalKeys,
-                                                        allKeys = allKeys,
+                                                } else {
+                                                    tipNotifier.show(
+                                                        scanNoMatchTemplate.formatTemplate("scanned" to snapshot.size),
                                                     )
-                                                    else -> state.proxyAppListSelectedApps
                                                 }
-                                                state.copy(proxyAppListSelectedApps = nextSelection)
-                                            }
-                                            if (finalMatched.isNotEmpty()) {
-                                                tipNotifier.show(
-                                                    String.format(scanDoneTemplate, snapshot.size, finalMatched.size),
-                                                )
-                                            } else {
-                                                tipNotifier.show(
-                                                    scanNoMatchTemplate.formatTemplate("scanned" to snapshot.size),
-                                                )
-                                            }
-                                        } finally {
-                                            if (pendingScanJob === coroutineContext[kotlinx.coroutines.Job]) {
-                                                pageState.scanProgress = null
-                                                pendingScanJob = null
+                                            } finally {
+                                                if (pendingScanJob === coroutineContext[kotlinx.coroutines.Job]) {
+                                                    pageState.scanProgress = null
+                                                    pendingScanJob = null
+                                                }
                                             }
                                         }
                                     }
                                 }
                             }
-                        }
 
-                    }
-                },
-            )
+                        }
+                    },
+                )
+
+                ProxyAppListModeSegmentedRow(
+                    modes = proxyAppListModes,
+                    selectedIndex = modeIndex,
+                    onSelectedIndexChange = { index ->
+                        updateAppState { state -> state.copy(proxyAppListMode = index) }
+                    },
+                    modifier = Modifier
+                        .pageHorizontalPadding()
+                        .padding(top = 8.dp, bottom = 12.dp),
+                )
+
+                if (pageState.userTabs.size > 1) {
+                    ProxyAppListUserSpaceTabs(
+                        tabs = pageState.userTabs,
+                        selectedUserId = selectedUserId,
+                        onSelectedUserIdChange = { userId -> pageState.selectedUserId = userId },
+                        modifier = Modifier
+                            .pageHorizontalPadding()
+                            .padding(bottom = 8.dp),
+                    )
+                }
+            }
         },
     ) { innerPadding ->
         val contentPadding = pageContentPaddingWithCutout(
@@ -372,65 +396,28 @@ fun ProxyAppListPage(
             outerPadding = padding,
             isWideScreen = isWideScreen,
         )
-        val layoutDirection = LocalLayoutDirection.current
-        val listPadding = pageListPadding(
-            contentPadding = PaddingValues(
-                start = contentPadding.calculateStartPadding(layoutDirection),
-                top = 0.dp,
-                end = contentPadding.calculateEndPadding(layoutDirection),
-                bottom = contentPadding.calculateBottomPadding(),
-            ),
+        // Keep the viewport behind the glass header; inset only the list content.
+        val listPadding = pageListPadding(contentPadding)
+
+        ProxyAppListContent(
+            pageState = pageState,
+            selectedAppKeys = selectedAppKeys,
+            modeIndex = modeIndex,
+            iconSizePx = iconSizePx,
+            listPadding = listPadding,
+            userPagerState = userPagerState,
+            onAppCheckedChange = { item, isChecked ->
+                updateAppState { state ->
+                    state.copy(
+                        proxyAppListSelectedApps = updateProxyAppListSelection(
+                            selectedApps = state.proxyAppListSelectedApps,
+                            item = item,
+                            isChecked = isChecked,
+                        ),
+                    )
+                }
+            },
         )
-
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(top = contentPadding.calculateTopPadding()),
-        ) {
-            ProxyAppListModeSegmentedRow(
-                modes = proxyAppListModes,
-                selectedIndex = modeIndex,
-                onSelectedIndexChange = { index ->
-                    updateAppState { state -> state.copy(proxyAppListMode = index) }
-                },
-                modifier = Modifier
-                    .pageHorizontalPadding()
-                    .padding(top = 8.dp, bottom = 12.dp),
-            )
-
-            if (pageState.userTabs.size > 1) {
-                ProxyAppListUserSpaceTabs(
-                    tabs = pageState.userTabs,
-                    selectedUserId = selectedUserId,
-                    onSelectedUserIdChange = { userId -> pageState.selectedUserId = userId },
-                    modifier = Modifier
-                        .pageHorizontalPadding()
-                        .padding(bottom = 8.dp),
-                )
-            }
-
-            Box(modifier = Modifier.weight(1f)) {
-                ProxyAppListContent(
-                    pageState = pageState,
-                    selectedAppKeys = selectedAppKeys,
-                    modeIndex = modeIndex,
-                    iconSizePx = iconSizePx,
-                    listPadding = listPadding,
-                    userPagerState = userPagerState,
-                    onAppCheckedChange = { item, isChecked ->
-                        updateAppState { state ->
-                            state.copy(
-                                proxyAppListSelectedApps = updateProxyAppListSelection(
-                                    selectedApps = state.proxyAppListSelectedApps,
-                                    item = item,
-                                    isChecked = isChecked,
-                                ),
-                            )
-                        }
-                    },
-                )
-            }
-        }
     }
 
     val appListImport = pendingAppListImport
@@ -639,7 +626,11 @@ private fun ProxyAppListContent(
             }
         }
         if (showAutomaticLoading) {
-            ProxyAppListLoadingState(modifier = Modifier.fillMaxSize())
+            ProxyAppListLoadingState(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(listPadding),
+            )
         }
     }
 }
