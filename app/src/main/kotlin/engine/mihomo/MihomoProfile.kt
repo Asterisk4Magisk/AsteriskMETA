@@ -52,6 +52,7 @@ internal object MihomoProfileFactory {
         appState: AppState,
         runMode: Int = appState.runMode,
         exposePorts: Boolean = true,
+        useRootProviderPaths: Boolean = runMode.isRootRunMode(),
     ): ByteArray {
         val selectedProfile = appState.selectedMihomoProfileOrNull()
             ?: error(MihomoProfileMissingErrorMessage)
@@ -63,6 +64,7 @@ internal object MihomoProfileFactory {
             rawContent.trim().withAsteriskRuntimeOverrides(
                 appState, selectedProfile, runMode, exposePorts,
                 if (runMode == RunModeTun) context.resolveRootProxyApplicationUids(appState.proxyAppListSelectedApps) else emptyList(),
+                useRootProviderPaths,
             )
         }
     }
@@ -72,8 +74,9 @@ internal object MihomoProfileFactory {
         appState: AppState,
         runMode: Int = appState.runMode,
         exposePorts: Boolean = true,
+        useRootProviderPaths: Boolean = runMode.isRootRunMode(),
     ): String {
-        return buildProfileBytes(context, appState, runMode, exposePorts).toString(Charsets.UTF_8)
+        return buildProfileBytes(context, appState, runMode, exposePorts, useRootProviderPaths).toString(Charsets.UTF_8)
     }
 
     fun tunStack(appState: AppState): String {
@@ -93,6 +96,7 @@ private fun String.withAsteriskRuntimeOverrides(
     runMode: Int,
     exposePorts: Boolean,
     tunApplicationUids: List<Int>,
+    useRootProviderPaths: Boolean,
 ): String {
     val escaped = escapeSupplementaryYamlCodePoints()
     val root = runCatching {
@@ -114,16 +118,20 @@ private fun String.withAsteriskRuntimeOverrides(
     return escaped.restore(
         rawProfile
             .applyMihomoProfileScriptOverride(selectedProfile, appState.mihomoOverrideScripts)
-            .toAsteriskRuntimeProfileYaml(appState, runMode, exposePorts = exposePorts, tunApplicationUids = tunApplicationUids),
+            .toAsteriskRuntimeProfileYaml(
+                appState, runMode, exposePorts = exposePorts, tunApplicationUids = tunApplicationUids,
+                useRootProviderPaths = useRootProviderPaths,
+            ),
     )
 }
 
-private fun Map<String, Any?>.toAsteriskRuntimeProfileYaml(
+internal fun Map<String, Any?>.toAsteriskRuntimeProfileYaml(
     appState: AppState,
     runMode: Int,
     forceDns: Boolean = false,
     exposePorts: Boolean = true,
     tunApplicationUids: List<Int>,
+    useRootProviderPaths: Boolean = runMode.isRootRunMode(),
 ): String {
     val updated = linkedMapOf<String, Any?>()
     val managedKeys = AsteriskManagedTopLevelKeys
@@ -132,7 +140,7 @@ private fun Map<String, Any?>.toAsteriskRuntimeProfileYaml(
             updated[name] = normalizeYamlValue(value)
         }
     }
-    if (runMode.isRootRunMode()) {
+    if (useRootProviderPaths) {
         updated.putCmfaRootProviderPaths()
     }
     updated.putAsteriskRuntimeOverrides(appState, runMode, forceDns = forceDns, exposePorts = exposePorts, tunApplicationUids = tunApplicationUids)

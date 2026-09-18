@@ -81,6 +81,7 @@ private fun AppState.toRootStartConfig(
         fakeIpIpv4Pool = rootFakeIpIpv4Pool(),
         enableBoot = enableRootBootScript,
         serviceControl = serviceControl,
+        manageProviders = selectedMihomoProfileOrNull()?.disableOverrides != true,
     )
 }
 

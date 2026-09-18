@@ -28,6 +28,8 @@ import engine.root.publication.prepareRootPublicationDirectories
 import engine.root.publication.rootRuntimeLayout
 import features.logs.AndroidAppLogger
 import features.logs.clearServiceLogRepositories
+import features.subscription.runtime.mihomoCoreFetchLock
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.withTimeoutOrNull
@@ -165,6 +167,7 @@ internal class RootSupervisorController(
                 bootEnabled = root.enableBoot,
                 launchMode = launchMode,
                 restartExpectedOwner = restartExpectedOwner?.wireValue,
+                manageProviders = root.manageProviders,
             )
             clearInMemoryServiceLogs()
             stage = "root_prepare"
@@ -180,10 +183,12 @@ internal class RootSupervisorController(
             RootPublicationWriter.write(runtimeLayout, root.mihomoProfileBytes, daemonConfigBytes)
             runCatching { AndroidAppLogger.info(LogTag, "root_start stage=config_write result=ok") }
             stage = "launch"
-            val launchResult = shell.exec(
-                RootPublicationCommand.buildLaunch(publication),
-                ShellExecOptions(logFailure = false),
-            )
+            val launchResult = mihomoCoreFetchLock.withLock {
+                shell.exec(
+                    RootPublicationCommand.buildLaunch(publication),
+                    ShellExecOptions(logFailure = false),
+                )
+            }
             if (launchResult.errno != 0 || launchResult.stdout.isNotBlank()) {
                 throw launchFailure(launchResult)
             }

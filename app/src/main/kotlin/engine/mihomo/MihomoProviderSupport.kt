@@ -24,7 +24,7 @@ internal fun MutableMap<String, Any?>.putCmfaRootProviderPaths() {
             }
             val updatedProvider = provider.normalizedProviderMap()
             updatedProvider.cmfaProviderPath(type.cmfaPrefix)?.let { path ->
-                updatedProvider["path"] = "$CmfaProvidersDirectory/$path"
+                updatedProvider["path"] = "$MihomoRootProvidersDirectory/$path"
             }
             updatedProviders[name] = updatedProvider
         }
@@ -32,6 +32,4 @@ internal fun MutableMap<String, Any?>.putCmfaRootProviderPaths() {
     }
 }
 
-internal fun String.hasMihomoProxyProviders(): Boolean {
-    return hasMihomoProvider(MihomoProviderType.Proxy)
-}
+internal const val MihomoRootProvidersDirectory = "providers-root"

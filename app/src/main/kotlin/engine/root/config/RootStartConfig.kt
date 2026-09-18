@@ -35,6 +35,7 @@ internal class RootStartConfig(
     val fakeIpIpv4Pool: String,
     val enableBoot: Boolean,
     val serviceControl: ServiceControlSettings,
+    val manageProviders: Boolean = true,
 ) {
     init {
         ageSecretKey?.let { key ->
@@ -60,7 +61,7 @@ internal class RootStartConfig(
             enableFakeIp == other.enableFakeIp &&
             fakeIpIpv4Pool == other.fakeIpIpv4Pool &&
             enableBoot == other.enableBoot &&
-            serviceControl == other.serviceControl
+            serviceControl == other.serviceControl && manageProviders == other.manageProviders
     }
 
     override fun hashCode(): Int {
@@ -76,6 +77,7 @@ internal class RootStartConfig(
         result = 31 * result + fakeIpIpv4Pool.hashCode()
         result = 31 * result + enableBoot.hashCode()
         result = 31 * result + serviceControl.hashCode()
+        result = 31 * result + manageProviders.hashCode()
         return result
     }
 

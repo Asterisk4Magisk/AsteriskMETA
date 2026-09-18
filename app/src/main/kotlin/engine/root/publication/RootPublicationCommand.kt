@@ -10,6 +10,7 @@ internal object RootPublicationCommand {
     fun buildPreparation(bundle: RootPublicationBundle): String {
         val layout = bundle.runtimeLayout
         return buildString {
+            appendLine("(")
             appendLine("set -eu")
             RootPublicationRequiredTools.forEach { tool ->
                 appendLine("command -v $tool >/dev/null 2>&1 || { printf '%s\\n' 'root_start missing_tool=$tool' >&2; exit 70; }")
@@ -23,12 +24,14 @@ internal object RootPublicationCommand {
             RootLegacyMigrationCommand.appendGate(this, layout)
             appendStatusMustBePublishable(layout)
             appendServiceLogCleanup(layout)
+            appendLine(")")
         }.trimEnd()
     }
 
     fun buildLaunch(bundle: RootPublicationBundle): String {
         val layout = bundle.runtimeLayout
         return buildString {
+            appendLine("(")
             appendLine("set -eu")
             appendStatusMustBePublishable(layout)
             listOf(layout.configPath, layout.asteriskdConfigPath).forEach { path ->
@@ -45,16 +48,13 @@ internal object RootPublicationCommand {
                 RootPublicationLaunchMode.Monitor -> "monitor"
             }
             if (launchCommand != null) {
-                appendLine(
-                    "nohup ${layout.asteriskdPath.shellQuote()} $launchCommand " +
-                        "--config ${layout.asteriskdConfigPath.shellQuote()} " +
-                        "</dev/null >/dev/null 2>>${layout.asteriskdLogPath.shellQuote()} &",
-                )
+                appendLine(RootProviderPublicationCommand.buildStart(layout, launchCommand, bundle.manageProviders))
             }
+            appendLine(")")
         }.trimEnd()
     }
 
-    private fun StringBuilder.appendStatusMustBePublishable(layout: RootRuntimeLayout) {
+    internal fun StringBuilder.appendStatusMustBePublishable(layout: RootRuntimeLayout) {
         appendLine("set +e")
         appendLine("asteriskd_status=\"$(${layout.asteriskdPath.shellQuote()} status)\"")
         appendLine("asteriskd_status_code=\"$?\"")
@@ -123,4 +123,6 @@ internal val RootPublicationRequiredTools = listOf(
     "rm",
     "sleep",
     "nohup",
+    "cp",
+    "find",
 )

@@ -15,6 +15,7 @@ import engine.mihomo.MihomoControlConfig
 import engine.mihomo.raw.loadSelectedRawConfig
 import engine.mihomo.raw.usesRawMihomoConfig
 import engine.proxy.ProxyEngineStartRequest
+import engine.root.publication.publishRootProviderUpdates
 import engine.vpn.AndroidMihomoRuntime
 import engine.vpn.VpnMihomoConfigFactory
 import features.resources.runtime.mihomoResourceFilePaths
@@ -336,6 +337,9 @@ internal class MihomoRuntimeRepository(
             val backend = resolveInteractiveBackend(appState, control)
             withContext(Dispatchers.IO) {
                 ensureInteractiveRuntime(appState, backend)
+                if (appState.runMode.isRootRunMode() && backend == MihomoRuntimeBackend.Api && !appState.usesRawMihomoConfig()) {
+                    appContext.publishRootProviderUpdates()
+                }
                 client.reloadProfile(
                     config = control,
                     profilePath = java.io.File(appContext.mihomoResourceFilePaths().dataDir, "config.yaml").absolutePath,

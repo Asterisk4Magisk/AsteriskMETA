@@ -43,6 +43,7 @@ import app.LocalIsWideScreen
 import app.LocalNavigator
 import app.R
 import app.collectAppState
+import app.modes.isRootRunMode
 import app.navigation.Route
 import engine.mihomo.MihomoProfileFactory
 import engine.mihomo.MihomoProviderDeclaration
@@ -505,10 +506,14 @@ internal suspend fun loadProviderDeclarationsByType(
     }
     return withContext(Dispatchers.IO) {
         runMihomoRuntimeCatching {
-            val profile = MihomoProfileFactory.buildProfile(context, appState)
+            val rootRuntime = appState.proxyRunning && appState.runMode.isRootRunMode()
+            val profile = MihomoProfileFactory.buildProfile(
+                context, appState,
+                useRootProviderPaths = rootRuntime,
+            )
             MihomoProviderType.entries.associateWith { type ->
                 ProviderDeclarationsState(
-                    providers = profile.parseMihomoProviderDeclarations(dataDir, type),
+                    providers = profile.parseMihomoProviderDeclarations(dataDir, type, rootRuntime),
                 )
             }
         }.getOrElse { error ->

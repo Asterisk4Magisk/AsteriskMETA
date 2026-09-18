@@ -70,7 +70,9 @@ internal object VpnMihomoConfigFactory {
         }
         val profilePath = File(resourceFilePaths.dataDir, "config.yaml").absolutePath
         val profileBytes = request.preparedMihomoProfileBytes
-            ?: MihomoProfileFactory.buildProfileBytes(context, appState, exposePorts = exposePorts)
+            ?: MihomoProfileFactory.buildProfileBytes(
+                context, appState, exposePorts = exposePorts, useRootProviderPaths = false,
+            )
         val profileSignature = profileBytes.sha256Hex()
         val ageSecretKey = appState.selectedMihomoProfileOrNull()?.ageSecretKey.orEmpty()
         val runtimeIpv6 = rawConfig.runtimeIpv6Enabled(appState.enableIpv6)

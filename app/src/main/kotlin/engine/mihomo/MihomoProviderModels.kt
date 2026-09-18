@@ -53,21 +53,15 @@ internal sealed interface MihomoProviderRawContent {
 internal fun String.parseMihomoProviderDeclarations(
     dataDir: File,
     type: MihomoProviderType,
+    rootRuntime: Boolean = false,
 ): List<MihomoProviderDeclaration> {
     val root = parseMihomoYamlRoot() ?: return emptyList()
     val providers = root[type.topLevelKey].asProviderMap()
     return providers.mapNotNull { (providerName, providerValue) ->
         val name = providerName.asProviderTextOrNull() ?: return@mapNotNull null
         val provider = providerValue as? Map<*, *> ?: return@mapNotNull null
-        provider.toMihomoProviderDeclaration(name, type, dataDir)
+        provider.toMihomoProviderDeclaration(name, type, dataDir, rootRuntime)
     }
-}
-
-internal fun String.hasMihomoProvider(type: MihomoProviderType): Boolean {
-    return parseMihomoYamlRoot()
-        ?.get(type.topLevelKey)
-        .asProviderMap()
-        .isNotEmpty()
 }
 
 internal fun String.hasMihomoProviders(): Boolean {
@@ -126,7 +120,12 @@ internal fun Map<*, *>.cmfaProviderPath(prefix: String): String? {
 internal fun Map<*, *>.providerFileCandidates(
     dataDir: File,
     type: MihomoProviderType,
+    rootRuntime: Boolean = false,
 ): List<File> {
+    val runtimePath = this["path"].asProviderTextOrNull()
+    if (rootRuntime && runtimePath?.startsWith("$MihomoRootProvidersDirectory/") == true) {
+        return listOf(File(dataDir, runtimePath.resolveAsCmfaProviderRoot()))
+    }
     return buildList {
         val path = this@providerFileCandidates["path"].asProviderTextOrNull()
             ?.takeIf { value -> value.startsWith("$CmfaProvidersDirectory/") }
@@ -166,6 +165,7 @@ private fun Map<*, *>.toMihomoProviderDeclaration(
     name: String,
     type: MihomoProviderType,
     dataDir: File,
+    rootRuntime: Boolean,
 ): MihomoProviderDeclaration {
     val normalized = normalizedProviderMap()
     val vehicleType = normalized["type"].asProviderTextOrNull().orEmpty()
@@ -173,7 +173,7 @@ private fun Map<*, *>.toMihomoProviderDeclaration(
     val declarationYaml = mihomoProviderDeclarationYaml(type, name, normalized)
     val rawSource = when (vehicleType.lowercase()) {
         "inline" -> MihomoProviderRawSource.Inline(declarationYaml)
-        "http", "file" -> MihomoProviderRawSource.File(providerFileCandidates(dataDir, type))
+        "http", "file" -> MihomoProviderRawSource.File(providerFileCandidates(dataDir, type, rootRuntime))
         else -> MihomoProviderRawSource.Missing
     }
     val ruleMetadata = if (type == MihomoProviderType.Rule) {
