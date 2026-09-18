@@ -63,6 +63,17 @@ func Parse(rawConfig *config.RawConfig) (*config.Config, error) {
 
 func Load(path string) error {
 	rawCfg, err := UnmarshalAndPatch(path)
+	return applyProfile(path, rawCfg, err)
+}
+
+// LoadBytes keeps standby configuration in memory without replacing the service's config.yaml.
+// path remains the provider base directory, just as it is for Load.
+func LoadBytes(path string, content []byte) error {
+	rawCfg, err := UnmarshalAndPatchBytes(path, content)
+	return applyProfile(path, rawCfg, err)
+}
+
+func applyProfile(path string, rawCfg *config.RawConfig, err error) error {
 	if err != nil {
 		log.Errorln("Load %s: %s", path, err.Error())
 

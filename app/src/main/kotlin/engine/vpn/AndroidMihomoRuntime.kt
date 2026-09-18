@@ -29,10 +29,7 @@ internal object AndroidMihomoRuntime {
     private var tunContextRunning = false
 
     @Volatile
-    private var activeProfileDir: File? = null
-
-    @Volatile
-    private var activeConfigSignature: MihomoRuntimeConfigSignature? = null
+    private var activeProfile: LoadedMihomoProfile? = null
 
     @Volatile
     private var owner = MihomoRuntimeOwner.None
@@ -120,8 +117,7 @@ internal object AndroidMihomoRuntime {
             running = false
             nativeTunRunning = false
             tunContextRunning = false
-            activeProfileDir = null
-            activeConfigSignature = null
+            activeProfile = null
             owner = MihomoRuntimeOwner.None
             runCatching { Clash.setAgeSecretKey(null) }
                 .onFailure { error -> AndroidAppLogger.warn(LogTag, "Failed to clear mihomo age secret key", error) }
@@ -154,8 +150,7 @@ internal object AndroidMihomoRuntime {
             coreLogSubscriber?.stop()
             coreLogSubscriber = null
             loaded = false
-            activeProfileDir = null
-            activeConfigSignature = null
+            activeProfile = null
         }
     }
 
@@ -175,10 +170,10 @@ internal object AndroidMihomoRuntime {
     }
 
     suspend fun reloadProfile() {
-        val profileDir = activeProfileDir ?: error("mihomo profile directory is not loaded")
-        setRuntimeAgeSecretKey(activeConfigSignature?.ageSecretKey.orEmpty())
+        val profile = activeProfile ?: error("mihomo profile is not loaded")
+        setRuntimeAgeSecretKey(profile.signature.ageSecretKey)
         withTimeout(DefaultLoadTimeoutMillis.milliseconds) {
-            Clash.load(profileDir).await()
+            loadProfile(profile.directory, profile.content)
         }
     }
 
@@ -187,7 +182,7 @@ internal object AndroidMihomoRuntime {
         config: VpnServiceStartConfig,
     ) {
         val signature = config.runtimeConfigSignature()
-        if (loaded && activeConfigSignature == signature) {
+        if (loaded && activeProfile?.signature == signature) {
             return
         }
         stop(resetCore = true)
@@ -197,7 +192,10 @@ internal object AndroidMihomoRuntime {
         }
         val profileDir = File(dataDir).apply { mkdirs() }
         val profileFile = File(config.mihomoProfilePath)
-        if (!profileFile.isFile || profileFile.length() <= 0L) {
+        val profileContent = config.standbyProfileContent?.copyOf()
+        if (profileContent?.isEmpty() == true ||
+            (profileContent == null && (!profileFile.isFile || profileFile.length() <= 0L))
+        ) {
             error("mihomo profile file is unavailable")
         }
 
@@ -209,24 +207,27 @@ internal object AndroidMihomoRuntime {
                     Clash.reset()
                     Clash.clearOverride(Clash.OverrideSlot.Session)
                     setRuntimeAgeSecretKey(config.ageSecretKey)
-                    Clash.load(profileDir).await()
+                    loadProfile(profileDir, profileContent)
                 }
             }
         }.onFailure { error ->
             coreLogSubscriber?.stop()
             coreLogSubscriber = null
             loaded = false
-            activeProfileDir = null
-            activeConfigSignature = null
+            activeProfile = null
             throw error
         }
         loaded = true
         running = false
         nativeTunRunning = false
         tunContextRunning = false
-        activeProfileDir = profileDir
-        activeConfigSignature = signature
-        AndroidAppLogger.info(LogTag, "Loaded mihomo runtime profile ${profileFile.absolutePath}")
+        activeProfile = LoadedMihomoProfile(profileDir, profileContent, signature)
+        val source = if (profileContent == null) "file" else "memory"
+        AndroidAppLogger.info(LogTag, "Loaded mihomo runtime profile source=$source")
+    }
+
+    private suspend fun loadProfile(profileDir: File, content: ByteArray?) {
+        if (content == null) Clash.load(profileDir).await() else Clash.load(profileDir, content).await()
     }
 
     private fun VpnServiceStartConfig.tunGatewayAddresses(): String {
@@ -251,6 +252,13 @@ private data class MihomoRuntimeConfigSignature(
     val profilePath: String,
     val profileSignature: String,
     val ageSecretKey: String,
+    val inMemoryProfile: Boolean,
+)
+
+private class LoadedMihomoProfile(
+    val directory: File,
+    val content: ByteArray?,
+    val signature: MihomoRuntimeConfigSignature,
 )
 
 private fun VpnServiceStartConfig.runtimeConfigSignature(): MihomoRuntimeConfigSignature {
@@ -259,5 +267,6 @@ private fun VpnServiceStartConfig.runtimeConfigSignature(): MihomoRuntimeConfigS
         profilePath = mihomoProfilePath,
         profileSignature = mihomoProfileSignature,
         ageSecretKey = ageSecretKey,
+        inMemoryProfile = standbyProfileContent != null,
     )
 }

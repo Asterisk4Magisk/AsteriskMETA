@@ -293,6 +293,12 @@ object Clash {
         }
     }
 
+    fun load(path: File, content: ByteArray): CompletableDeferred<Unit> {
+        return CompletableDeferred<Unit>().apply {
+            Bridge.nativeLoadFromBytes(this, path.absolutePath, content)
+        }
+    }
+
     fun queryProviders(): List<Provider> {
         val providers =
             Json.Default.decodeFromString(JsonArray.serializer(), Bridge.nativeQueryProviders())

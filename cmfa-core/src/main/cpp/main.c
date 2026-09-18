@@ -341,6 +341,21 @@ Java_com_github_kr328_clash_core_bridge_Bridge_nativeLoad(JNIEnv *env, jobject t
 }
 
 JNIEXPORT void JNICALL
+Java_com_github_kr328_clash_core_bridge_Bridge_nativeLoadFromBytes(JNIEnv *env, jobject thiz,
+                                                               jobject completable, jstring path,
+                                                               jbyteArray content) {
+    TRACE_METHOD();
+
+    jsize length = (*env)->GetArrayLength(env, content);
+    jbyte *bytes = (*env)->GetByteArrayElements(env, content, NULL);
+    if (bytes == NULL) return;
+    jobject _completable = new_global(completable);
+    scoped_string _path = get_string(path);
+    loadFromBytes((c_object) (uintptr_t) _completable, _path, (char *) bytes, length);
+    (*env)->ReleaseByteArrayElements(env, content, bytes, JNI_ABORT);
+}
+
+JNIEXPORT void JNICALL
 Java_com_github_kr328_clash_core_bridge_Bridge_nativeFetchAndValid(JNIEnv *env, jobject thiz,
                                                                     jobject callback,
                                                                     jlong task_id,

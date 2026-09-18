@@ -47,6 +47,8 @@ internal data class VpnServiceStartConfig(
     val coreLogPaths: MihomoCoreLogPaths,
     val dataDir: String = "",
     val hevSocks5TunnelConfig: HevSocks5TunnelConfig? = null,
+    // Standby is loaded in-process; it must not replace the ROOT/boot service profile.
+    val standbyProfileContent: ByteArray? = null,
 )
 
 internal object VpnMihomoConfigFactory {
@@ -76,8 +78,10 @@ internal object VpnMihomoConfigFactory {
         val profileSignature = profileBytes.sha256Hex()
         val ageSecretKey = appState.selectedMihomoProfileOrNull()?.ageSecretKey.orEmpty()
         val runtimeIpv6 = rawConfig.runtimeIpv6Enabled(appState.enableIpv6)
-        writeAtomically(File(profilePath)) { output ->
-            output.write(profileBytes)
+        if (exposePorts) {
+            writeAtomically(File(profilePath)) { output ->
+                output.write(profileBytes)
+            }
         }
 
         return VpnServiceStartConfig(
@@ -96,6 +100,7 @@ internal object VpnMihomoConfigFactory {
             dnsServers = tunOptions.dnsServers,
             mihomoProfilePath = profilePath,
             mihomoProfileSignature = profileSignature,
+            standbyProfileContent = profileBytes.takeUnless { exposePorts },
             ageSecretKey = ageSecretKey,
             mihomoTunStack = rawConfig?.tunInbound?.value?.stack ?: MihomoProfileFactory.tunStack(appState),
             applicationPolicy = appState.toVpnApplicationPolicy(Process.myUid().toAndroidUserId()),

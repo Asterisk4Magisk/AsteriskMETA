@@ -65,6 +65,7 @@ object Bridge {
     external fun nativeCancelFetch(taskId: Long)
 
     external fun nativeLoad(completable: CompletableDeferred<Unit>, path: String)
+    external fun nativeLoadFromBytes(completable: CompletableDeferred<Unit>, path: String, content: ByteArray)
     external fun nativeQueryProviders(): String
     external fun nativeQueryProvider(type: String, name: String): String?
     external fun nativeUpdateProvider(

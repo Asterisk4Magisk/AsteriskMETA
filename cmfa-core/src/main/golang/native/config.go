@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"runtime"
 	"sync"
+	"unsafe"
 
 	"cfa/native/config"
 )
@@ -85,6 +86,18 @@ func load(completable C.c_object, path C.c_string) {
 
 		runtime.GC()
 	}(C.GoString(path))
+}
+
+//export loadFromBytes
+func loadFromBytes(completable C.c_object, path C.c_string, content *C.char, length C.int) {
+	// JNI releases its array when this call returns; copy before starting the goroutine.
+	profilePath := C.GoString(path)
+	profileContent := C.GoBytes(unsafe.Pointer(content), length)
+	go func() {
+		C.complete(completable, marshalString(config.LoadBytes(profilePath, profileContent)))
+		C.release_object(completable)
+		runtime.GC()
+	}()
 }
 
 //export readOverride
