@@ -44,6 +44,16 @@ fun Modifier.pageReadableWidth(): Modifier = this
 fun Modifier.pageHorizontalPadding(): Modifier = pageReadableWidth()
     .padding(horizontal = rememberPageGutter())
 
+@Composable
+fun Modifier.cutoutHorizontalPadding(): Modifier {
+    val layoutDirection = LocalLayoutDirection.current
+    val cutoutPadding = WindowInsets.displayCutout.asPaddingValues()
+    return padding(
+        start = cutoutPadding.calculateStartPadding(layoutDirection),
+        end = cutoutPadding.calculateEndPadding(layoutDirection),
+    )
+}
+
 fun Modifier.pageScrollModifiers(
     topAppBarScrollBehavior: TopAppBarScrollBehavior,
 ): Modifier = this

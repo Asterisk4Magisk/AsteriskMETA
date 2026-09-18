@@ -86,6 +86,10 @@ import ui.components.AsteriskScaffold
 import ui.components.AsteriskSearchField
 import ui.components.AsteriskTopAppBar
 import ui.components.ImportModeDialog
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
+import ui.layout.cutoutHorizontalPadding
 import ui.layout.pageContentPaddingWithCutout
 import ui.layout.pageHorizontalPadding
 import ui.layout.pageListPadding
@@ -374,6 +378,7 @@ fun ProxyAppListPage(
                         updateAppState { state -> state.copy(proxyAppListMode = index) }
                     },
                     modifier = Modifier
+                        .cutoutHorizontalPadding()
                         .pageHorizontalPadding()
                         .padding(top = 8.dp, bottom = 12.dp),
                 )
@@ -384,6 +389,7 @@ fun ProxyAppListPage(
                         selectedUserId = selectedUserId,
                         onSelectedUserIdChange = { userId -> pageState.selectedUserId = userId },
                         modifier = Modifier
+                            .cutoutHorizontalPadding()
                             .pageHorizontalPadding()
                             .padding(bottom = 8.dp),
                     )
@@ -492,6 +498,16 @@ private fun ProxyAppListTopBar(
     onMoreAction: (ProxyAppListMoreAction) -> Unit,
 ) {
     if (searchActive) {
+        // Intercept the system back action so it exits search mode first
+        // instead of navigating away from the page. Without this, dismissing
+        // the IME with back would still pop the destination when the user
+        // taps back a second time.
+        val searchBackEventState = rememberNavigationEventState(NavigationEventInfo.None)
+        NavigationBackHandler(
+            state = searchBackEventState,
+            isBackEnabled = true,
+            onBackCompleted = { onSearchActiveChange(false) },
+        )
         val focusRequester = remember { FocusRequester() }
         LaunchedEffect(Unit) {
             focusRequester.requestFocus()
