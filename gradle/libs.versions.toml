@@ -1,8 +1,7 @@
 [versions]
-agp = "9.4.0"
+agp = "9.4.1"
 androidx-activity-compose = "1.13.0"
 androidx-lifecycle = "2.11.0"
-androidx-core = "1.19.0"
 androidx-navigation3 = "1.1.7"
 androidx-navigationevent = "1.1.0"
 androidx-room = "2.8.5"
@@ -15,7 +14,6 @@ dexlib2 = "3.0.10"
 haze = "1.7.3"
 kotlin = "2.4.20"
 kotlinx-serialization-json = "1.11.0"
-kotlinx-coroutines = "1.11.0"
 ksp = "2.3.11"
 ktor = "3.6.0"
 libsu = "6.0.0"
@@ -34,7 +32,6 @@ androidx-navigationevent = { module = "org.jetbrains.androidx.navigationevent:na
 androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "androidx-room" }
 androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "androidx-room" }
 androidx-work-runtime = { module = "androidx.work:work-runtime", version.ref = "androidx-work" }
-androidx-core = { module = "androidx.core:core-ktx", version.ref = "androidx-core" }
 compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "compose" }
 compose-material-icons-extended = { module = "org.jetbrains.compose.material:material-icons-extended", version.ref = "compose-material-icons" }
 compose-material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "compose-material3" }
@@ -44,7 +41,6 @@ coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" 
 dexlib2 = { module = "com.android.tools.smali:smali-dexlib2", version.ref = "dexlib2" }
 haze = { module = "dev.chrisbanes.haze:haze", version.ref = "haze" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization-json" }
-kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "kotlinx-coroutines" }
 ktor-http = { module = "io.ktor:ktor-http", version.ref = "ktor" }
 libsu-core = { module = "com.github.topjohnwu.libsu:core", version.ref = "libsu" }
 material-kolor = { module = "com.materialkolor:material-kolor", version.ref = "material-kolor" }

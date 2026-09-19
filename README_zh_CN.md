@@ -2,7 +2,7 @@
 
 # AsteriskMETA
 
-一个 Android Mihomo GUI 客户端，使用 [Mihomo](https://github.com/MetaCubeX/mihomo)、[AndroidLibClashLite](https://github.com/Asterisk4Magisk/AndroidLibClashLite) 和 [hev-socks5-tunnel](https://github.com/heiher/hev-socks5-tunnel) 实现。
+一个 Android Mihomo GUI 客户端。
 
 ## Telegram 频道
 

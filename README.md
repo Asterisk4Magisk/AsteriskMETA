@@ -2,7 +2,7 @@ English | [简体中文](README_zh_CN.md)
 
 # AsteriskMETA
 
-An Android Mihomo GUI client powered by [Mihomo](https://github.com/MetaCubeX/mihomo), [AndroidLibClashLite](https://github.com/Asterisk4Magisk/AndroidLibClashLite), and [hev-socks5-tunnel](https://github.com/heiher/hev-socks5-tunnel).
+An Android Mihomo GUI client.
 
 ## Telegram Channel
 
