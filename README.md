@@ -2,7 +2,7 @@ English | [简体中文](README_zh_CN.md)
 
 # AsteriskMETA
 
-An Android Mihomo GUI client powered by [Mihomo](https://github.com/MetaCubeX/mihomo), [CMFA Mihomo wrapper](https://github.com/MetaCubeX/ClashMetaForAndroid/tree/main/core), and [hev-socks5-tunnel](https://github.com/heiher/hev-socks5-tunnel).
+An Android Mihomo GUI client powered by [Mihomo](https://github.com/MetaCubeX/mihomo), [AndroidLibClashLite](https://github.com/Asterisk4Magisk/AndroidLibClashLite), and [hev-socks5-tunnel](https://github.com/heiher/hev-socks5-tunnel).
 
 ## Telegram Channel
 
@@ -31,7 +31,7 @@ An Android Mihomo GUI client powered by [Mihomo](https://github.com/MetaCubeX/mi
 
 - Works without root permission.
 - Uses Android `VpnService`.
-- Runs Mihomo in the app process through the CMFA bridge.
+- Runs Mihomo in the app process through gomobile bindings from AndroidLibClashLite.
 
 ### TPROXY(ROOT)
 
@@ -67,7 +67,8 @@ An Android Mihomo GUI client powered by [Mihomo](https://github.com/MetaCubeX/mi
 ## Resource Files
 
 - Runtime files are stored in the app-private `files/clash` directory.
-- The bundled Mihomo executable can be replaced from Resource Management.
+- ROOT uses the small launcher in the APK's native library directory; it shares the bundled Core with VPN. Resource Management still supports custom Mihomo executables.
+- On the first shared-Core upgrade, users with an existing local executable are prompted once to keep or remove it. Removing it switches ROOT to the shared Core; this is also available through Restore in Resource Management.
 - Custom resources can be added or replaced locally and updated from configured URLs.
 
 ## Broadcast Control
@@ -112,7 +113,7 @@ On macOS or Linux:
 ./gradlew assembleDebug
 ```
 
-The build prepares Mihomo and the CMFA Go core, builds the configured native helper submodules, and produces ABI split APKs plus a universal APK.
+The build downloads the pinned AndroidLibClashLite AAR, builds the configured native helper submodules, and produces ABI split APKs plus a universal APK. The app no longer builds Mihomo or downloads a separate official CLI.
 
 If Gradle cannot find the Android NDK, configure it through Android Studio, `ndk.dir` in `local.properties`, or `ANDROID_NDK_HOME`.
 
@@ -130,6 +131,7 @@ appops set org.asterisk.zcc.ameta ACTIVATE_VPN allow
 
 - [@MetaCubeX/mihomo](https://github.com/MetaCubeX/mihomo)
 - [@MetaCubeX/ClashMetaForAndroid](https://github.com/MetaCubeX/ClashMetaForAndroid)
+- [@Asterisk4Magisk/AndroidLibClashLite](https://github.com/Asterisk4Magisk/AndroidLibClashLite)
 - [@heiher/hev-socks5-tunnel](https://github.com/heiher/hev-socks5-tunnel)
 - [@topjohnwu/libsu](https://github.com/topjohnwu/libsu)
 - [@android/material3](https://developer.android.com/develop/ui/compose/designsystems/material3)

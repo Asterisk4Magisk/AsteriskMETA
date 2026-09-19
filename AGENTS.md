@@ -11,7 +11,7 @@ AsteriskBOX, AsteriskNG, and AsteriskMETA belong to the same product family. Whe
 - Before making a change, search sibling repositories for equivalent screens, state, use cases, and runtime components. When the other apps are present in the workspace, proactively assess and apply all relevant changes to them.
 - Shared code should use the same top-level layers: `app`, `data`, `engine`, `features`, `system`, `ui`, and `utils`. Equivalent files should use consistent relative paths, names, interfaces, state models, error semantics, log fields, and test locations.
 - Keep information architecture, interaction order, component choices, copy semantics, loading/empty/error states, confirmation flows, notifications, quick settings, service controls, and accessibility behavior aligned across the apps.
-- Confine product differences to core adapters, configuration compilation, and resource packaging boundaries. META-specific Mihomo behavior belongs in dedicated areas such as `engine/mihomo`, `features/mihomo`, or `cmfa-core`; do not spread it into shared UI or runtime flows.
+- Confine product differences to core adapters, configuration compilation, and resource packaging boundaries. META-specific Mihomo behavior belongs in dedicated areas such as `engine/mihomo` or `features/mihomo`; do not spread it into shared UI or runtime flows.
 - Do not invent unsupported capabilities in another app merely to create superficial consistency. When a difference is necessary, document its reason in the implementation, tests, or handoff notes.
 - If a shared capability is changed only in this repository, explain why the other two apps are not affected or are intentionally deferred.
 
@@ -44,7 +44,7 @@ VPN Service is an independent non-ROOT execution path. Even on a rooted device, 
 - Core: Mihomo; ROOT owner/core: `asteriskmeta` / `mihomo`.
 - ROOT modes: TPROXY, TUN, TUN2SOCKS, and BPF2SOCKS.
 - `app/`: Android application, Compose UI, data layer, VPN/ROOT orchestration, and core adapters.
-- `cmfa-core/`: Mihomo/CMFA native core build and packaging.
+- `app/src/main/kotlin/engine/mihomo/binding/`: application models and coroutine adapters for the independently built AndroidLibClashLite AAR. Its gomobile JNI and bundled ROOT launcher share one native Core.
 - `asteriskd/`: the ROOT supervisor native submodule shared by all three apps.
 - `bpfmatcher/`, `bpf2socks/`, and `hevtun/`: native helper modules.
 - `buildSrc/`: versions, package name, SDK levels, dependency versions, and build conventions.
@@ -84,8 +84,7 @@ Use the repository's Gradle wrapper on Windows/PowerShell. When native submodule
   -x :asteriskd:syncAsteriskdVersion `
   -x :bpfmatcher:syncBpfMatcherVersion `
   -x :bpf2socks:syncBpf2SocksVersion `
-  -x :hevtun:syncHevSocks5TunnelVersion `
-  -x :cmfa-core:syncMihomoCoreVersion
+  -x :hevtun:syncHevSocks5TunnelVersion
 ```
 
 - When changing another module, add that module's `test`, `lintDebug`, and `assembleDebug` tasks. ROOT/native changes must at least build `:asteriskd:assembleDebug` and `:app:assembleDebug`.

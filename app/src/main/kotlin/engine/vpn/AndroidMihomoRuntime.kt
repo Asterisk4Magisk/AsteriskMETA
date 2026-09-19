@@ -6,7 +6,7 @@ package engine.vpn
 import android.content.Context
 import android.os.ParcelFileDescriptor
 import app.R
-import com.github.kr328.clash.core.Clash
+import engine.mihomo.binding.MihomoBridge as Clash
 import engine.mihomo.MihomoCoreLogSubscriber
 import features.logs.AndroidAppLogger
 import kotlinx.coroutines.runBlocking
@@ -59,24 +59,21 @@ internal object AndroidMihomoRuntime {
     ) {
         ensureLoadedLocked(context, config)
 
-        val tunFd = tunFileDescriptor.detachFd()
         runCatching {
-            Clash.startTun(
-                fd = tunFd,
-                stack = config.mihomoTunStack,
-                gateway = config.tunGatewayAddresses(),
-                portal = "",
-                dns = if (config.enableLocalDns) VpnDefaults.IPV4_DNS_HIJACK_ALL else "",
-                markSocket = markSocket,
-                querySocketUid = querySocketUid,
-            )
+            tunFileDescriptor.use {
+                Clash.startTun(
+                    fd = it.fd,
+                    stack = config.mihomoTunStack,
+                    gateway = config.tunGatewayAddresses(),
+                    portal = "",
+                    dns = if (config.enableLocalDns) VpnDefaults.IPV4_DNS_HIJACK_ALL else "",
+                    markSocket = markSocket,
+                    querySocketUid = querySocketUid,
+                )
+            }
         }.onFailure { error ->
             coreLogSubscriber?.stop()
             coreLogSubscriber = null
-            runCatching { ParcelFileDescriptor.adoptFd(tunFd).close() }
-                .onFailure { closeError ->
-                    AndroidAppLogger.warn(LogTag, "Failed to close detached TUN fd after mihomo start failure", closeError)
-                }
             throw error
         }
         running = true
@@ -138,8 +135,6 @@ internal object AndroidMihomoRuntime {
             runCatching { Clash.stopTunContext() }
                 .onFailure { error -> AndroidAppLogger.warn(LogTag, "Failed to stop mihomo TUN context", error) }
         }
-        runCatching { Clash.stopHttp() }
-            .onFailure { error -> AndroidAppLogger.warn(LogTag, "Failed to stop mihomo HTTP runtime", error) }
         if (resetCore) {
             runCatching { Clash.reset() }
                 .onFailure { error -> AndroidAppLogger.warn(LogTag, "Failed to reset mihomo runtime", error) }

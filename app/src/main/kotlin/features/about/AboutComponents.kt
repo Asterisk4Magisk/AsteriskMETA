@@ -46,8 +46,7 @@ internal fun AboutIdentityHeader(
         projectName = ProjectInfo.PROJECT_NAME,
         versionName = ProjectInfo.VERSION_NAME,
         versionCode = ProjectInfo.VERSION_CODE,
-        mihomoVersion = ProjectInfo.MIHOMO_CORE_VERSION,
-        wrapperVersion = ProjectInfo.CMFA_WRAPPER_VERSION,
+        androidLibClashLiteVersion = ProjectInfo.ANDROID_LIB_CLASH_LITE_VERSION,
     )
     Column(
         modifier = modifier
@@ -118,8 +117,7 @@ internal fun AboutRuntimeSection(
         modifier = modifier.fillMaxWidth(),
         title = stringResource(R.string.about_runtime),
     ) {
-        AboutRuntimeRow("CMFA Mihomo wrapper", ProjectInfo.CMFA_WRAPPER_VERSION, Icons.Rounded.Extension)
-        AboutRuntimeRow("Mihomo", ProjectInfo.MIHOMO_CORE_VERSION, Icons.Rounded.Router)
+        AboutRuntimeRow("AndroidLibClashLite", ProjectInfo.ANDROID_LIB_CLASH_LITE_VERSION, Icons.Rounded.Extension)
         AboutRuntimeRow("hev-socks5-tunnel", ProjectInfo.HEV_SOCKS5_TUNNEL_VERSION, Icons.Rounded.VpnLock)
     }
 }

@@ -3,8 +3,6 @@
 
 package features.resources
 
-import app.ProjectInfo
-
 const val ResourceFileSourceMetaCubeXGithub = 0
 const val ResourceFileSourceCustom = 1
 
@@ -16,8 +14,6 @@ const val ResourceFileMmdbName = "geoip.metadb"
 const val ResourceFileAsnName = "ASN.mmdb"
 const val ResourceFileDirectCidrIpv4Name = "direct-cidr-v4.txt"
 const val ResourceFileDirectCidrIpv6Name = "direct-cidr-v6.txt"
-
-const val MihomoCoreVersion = ProjectInfo.MIHOMO_CORE_VERSION
 
 const val ResourceFileGeoIpUrl = "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.dat"
 const val ResourceFileGeoSiteUrl = "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geosite.dat"

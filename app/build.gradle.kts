@@ -14,7 +14,6 @@ plugins {
 }
 
 val generatedSrcDir: Provider<Directory> = layout.buildDirectory.dir("generated/projectInfo")
-val generatedMihomoCoreJniLibsDir: Provider<Directory> = layout.buildDirectory.dir("generated/mihomoCoreJniLibs")
 
 android {
     namespace = "app"
@@ -26,7 +25,6 @@ android {
         targetSdk = ProjectConfig.TARGET_SDK
         versionCode = getGitVersionCode()
         versionName = ProjectConfig.VERSION_NAME
-        missingDimensionStrategy("cmfa", "meta")
     }
 
     androidResources {
@@ -119,7 +117,8 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.dexlib2)
     implementation(libs.haze)
-    implementation(dependencies.project(":cmfa-core"))
+    //noinspection UseTomlInstead
+    implementation("com.github.Asterisk4Magisk:libclash:${ProjectConfig.ANDROID_LIB_CLASH_LITE_VERSION}@aar")
     implementation(dependencies.project(":asteriskd"))
     implementation(dependencies.project(":bpfmatcher"))
     implementation(dependencies.project(":bpf2socks"))
@@ -147,8 +146,7 @@ val generateProjectInfo = tasks.register<GenerateProjectInfoTask>("generateProje
     projectName.set(ProjectConfig.PROJECT_NAME)
     versionName.set(ProjectConfig.VERSION_NAME)
     versionCode.set(getGitVersionCode())
-    cmfaWrapperVersion.set(ProjectConfig.CMFA_WRAPPER_VERSION)
-    mihomoCoreVersion.set(ProjectConfig.MIHOMO_CORE_VERSION)
+    androidLibClashLiteVersion.set(ProjectConfig.ANDROID_LIB_CLASH_LITE_VERSION)
     hevSocks5TunnelVersion.set(ProjectConfig.HEV_SOCKS5_TUNNEL_VERSION)
     outputDirectory.set(generatedSrcDir.map { it.dir("kotlin") })
 }
@@ -167,7 +165,6 @@ androidComponents {
             task.outputDirectory
         }
         variant.sources.assets?.addStaticSourceDirectory("build/generated/resourceFileAssets")
-        variant.sources.jniLibs?.addStaticSourceDirectory("build/generated/mihomoCoreJniLibs")
     }
 }
 

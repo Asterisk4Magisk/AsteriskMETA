@@ -3,8 +3,8 @@
 
 package engine.mihomo
 
-import com.github.kr328.clash.core.Clash
-import com.github.kr328.clash.core.model.LogMessage
+import engine.mihomo.binding.MihomoBridge as Clash
+import engine.mihomo.binding.model.LogMessage
 import features.logs.AndroidAppLogger
 import features.logs.AndroidCoreLogRepository
 import kotlinx.coroutines.CancellationException

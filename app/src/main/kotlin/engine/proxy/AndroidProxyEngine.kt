@@ -63,6 +63,19 @@ internal class AndroidProxyEngine(
         shutdownRunModeUnlocked(runMode)
     }
 
+    suspend fun <T> changeRootCore(
+        runMode: Int,
+        onRootStopped: () -> Unit,
+        action: suspend () -> T,
+    ): T = operationMutex.withLock {
+        // A resident supervisor also retains the old executable path. Republish on next start.
+        if (runMode in rootEnginesByRunMode) {
+            shutdownRunModeUnlocked(runMode)
+            onRootStopped()
+        }
+        action()
+    }
+
     suspend fun restart(request: ProxyEngineStartRequest): ProxyEngineStatus {
         val status = operationMutex.withLock {
             startUnlocked(request, explicitRestart = true)

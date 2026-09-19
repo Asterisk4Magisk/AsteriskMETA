@@ -372,13 +372,22 @@ fun ResourceManagementPage(
                     description = stringResource(R.string.settings_resource_files_root_only),
                     onReplace = {
                         runResourceFileAction(
-                            action = { resourceFileUseCase.replace(kind, appState.customResourceFiles) },
+                            action = {
+                                resourceFileUseCase.replace(kind, appState.customResourceFiles)?.also {
+                                    services.refreshMihomoCoreBoot(appState)
+                                }
+                            },
                             successMessage = replacedMessage.formatTemplate("name" to kind.displayName),
                         )
                     },
                     onRestore = {
                         runResourceFileAction(
-                            action = { resourceFileUseCase.restoreBundled(kind, appState.customResourceFiles) },
+                            action = {
+                                services.restoreSharedMihomoCore(
+                                    state = appState,
+                                    onRootStopped = { updateAppState { it.copy(proxyRunning = false) } },
+                                )
+                            },
                             successMessage = restoredMessage.formatTemplate("name" to kind.displayName),
                         )
                     },

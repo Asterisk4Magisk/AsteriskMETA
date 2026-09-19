@@ -31,10 +31,9 @@ internal fun buildAboutIdentityState(
     projectName: String,
     versionName: String,
     versionCode: Int,
-    mihomoVersion: String,
-    wrapperVersion: String,
+    androidLibClashLiteVersion: String,
 ): AboutIdentityState = AboutIdentityState(
     projectName = projectName,
     versionLabel = "v$versionName ($versionCode)",
-    runtimeSummary = "Mihomo $mihomoVersion · CMFA $wrapperVersion",
+    runtimeSummary = "AndroidLibClashLite $androidLibClashLiteVersion",
 )

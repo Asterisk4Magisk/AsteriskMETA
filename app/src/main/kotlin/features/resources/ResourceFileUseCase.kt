@@ -29,6 +29,8 @@ class ResourceFileUseCase(
         return repository.status(customResourceFiles)
     }
 
+    suspend fun hasCustomMihomoCore(): Boolean = repository.hasCustomMihomoCore()
+
     suspend fun restoreBundledDefaults(resourceFileSource: Int): ResourceFilesStatus {
         return repository.restoreBundledDefaults(resourceFileSource)
     }

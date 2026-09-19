@@ -10,7 +10,7 @@ import features.resources.ResourceFileUpdateCoordinator
 import features.resources.ResourceFileUpdateRequest
 import features.resources.runtime.AndroidResourceFileDownloadCancellation
 import android.app.Application
-import com.github.kr328.clash.common.Global
+import engine.mihomo.binding.MihomoBridge
 import features.logs.AndroidCoreLogRepository
 import features.logs.AndroidAsteriskdLogRepository
 import features.logs.AndroidLogcatRepository
@@ -109,7 +109,7 @@ class AsteriskApplication : Application(), SingletonImageLoader.Factory {
                 .distinctUntilChanged()
                 .collect(scheduler::reconcile)
         }
-        Global.init(this)
+        MihomoBridge.initialize(this)
         AndroidLogcatRepository.initialize(applicationContext)
         AndroidCoreLogRepository.initialize(applicationContext)
         AndroidAsteriskdLogRepository.initialize(applicationContext)

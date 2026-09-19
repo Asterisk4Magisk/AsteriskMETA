@@ -5,7 +5,7 @@ package features.subscription.usecase
 
 import app.MihomoProfileState
 import app.MihomoSubscriptionInfo
-import com.github.kr328.clash.core.model.FetchStatus
+import engine.mihomo.binding.model.FetchStatus
 import features.subscription.runtime.AndroidMihomoProfilePreparation
 import features.subscription.runtime.AndroidMihomoProfilePreparer
 import features.subscription.runtime.AndroidSubscriptionFetchOptions

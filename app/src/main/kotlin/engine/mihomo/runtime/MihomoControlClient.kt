@@ -3,12 +3,11 @@
 
 package engine.mihomo.runtime
 
-import com.github.kr328.clash.core.Clash
-import com.github.kr328.clash.core.bridge.Bridge
-import com.github.kr328.clash.core.model.ConfigurationOverride
-import com.github.kr328.clash.core.model.LogMessage
-import com.github.kr328.clash.core.model.Provider
-import com.github.kr328.clash.core.model.TunnelState
+import engine.mihomo.binding.MihomoBridge as Clash
+import engine.mihomo.binding.model.ConfigurationOverride
+import engine.mihomo.binding.model.LogMessage
+import engine.mihomo.binding.model.Provider
+import engine.mihomo.binding.model.TunnelState
 import engine.mihomo.DefaultMihomoDelayTestUrl
 import engine.mihomo.DefaultMihomoDelayTimeoutMillis
 import engine.mihomo.MihomoControlConfig
@@ -90,7 +89,7 @@ internal class MihomoControlClient(
 
     fun getVersion(config: MihomoControlConfig, useBridge: Boolean): MihomoVersionState {
         if (useBridge) {
-            return MihomoVersionState(version = Bridge.nativeCoreVersion())
+            return MihomoVersionState(version = Clash.coreVersion())
         }
         val root = requestJsonObject(config, "/version")
         return MihomoVersionState(
@@ -191,8 +190,7 @@ internal class MihomoControlClient(
         useBridge: Boolean,
     ): MihomoProxyProviderRuntimeDetail {
         val root = if (useBridge) {
-            val response = Bridge.nativeQueryProvider(Provider.Type.Proxy.toString(), providerName)
-                ?: error("Invalid Mihomo bridge provider response for $providerName")
+            val response = Clash.queryProvider(Provider.Type.Proxy, providerName)
             RuntimeJson.parseToJsonElement(response).jsonObjectOrNull()
                 ?: error("Invalid Mihomo bridge provider response for $providerName")
         } else {
@@ -208,7 +206,7 @@ internal class MihomoControlClient(
     ): Map<String, MihomoRuleProviderRuntimeSummary> {
         if (useBridge) {
             return Clash.queryProviders().queryMihomoRuleProviderSummaries { provider ->
-                Bridge.nativeQueryProvider(Provider.Type.Rule.toString(), provider.name)
+                Clash.queryProvider(Provider.Type.Rule, provider.name)
             }
         }
         return requestJsonObject(config, "/providers/rules")
@@ -806,27 +804,11 @@ private data class TrafficBytes(
     val down: Long,
 )
 
-private fun Long.toTrafficBytes(): TrafficBytes {
+private fun libclash.Traffic.toTrafficBytes(): TrafficBytes {
     return TrafficBytes(
-        up = (this ushr 32).scaledTrafficBytes(),
-        down = (this and 0xFFFF_FFFFL).scaledTrafficBytes(),
+        up = upload,
+        down = download,
     )
-}
-
-private fun Long.scaledTrafficBytes(): Long {
-    val type = (this ushr 30) and 0x3
-    val data = this and 0x3FFF_FFFFL
-    return when (type) {
-        0L -> data
-        1L -> data.toBytesFromHundredths(1024L)
-        2L -> data.toBytesFromHundredths(1024L * 1024L)
-        3L -> data.toBytesFromHundredths(1024L * 1024L * 1024L)
-        else -> 0L
-    }
-}
-
-private fun Long.toBytesFromHundredths(unitBytes: Long): Long {
-    return (this * unitBytes + 50L) / 100L
 }
 
 private fun String.urlEncode(): String {

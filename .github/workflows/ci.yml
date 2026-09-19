@@ -34,12 +34,6 @@ jobs:
           distribution: temurin
           java-version: "26"
 
-      - name: Set up Go
-        uses: actions/setup-go@v7
-        with:
-          go-version: "stable"
-          cache-dependency-path: cmfa-core/src/foss/golang/go.sum
-
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
 

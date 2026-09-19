@@ -8,7 +8,7 @@ on:
         required: false
         type: string
       send_to_telegram:
-        description: "Send release notification to Telegram"
+        description: "Upload release APKs to Telegram"
         required: true
         default: true
         type: boolean
@@ -34,6 +34,7 @@ jobs:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       TELEGRAM_MESSAGE_THREAD_ID: ${{ secrets.TELEGRAM_MESSAGE_THREAD_ID }}
+      TELEGRAM_MAX_DOCUMENT_BYTES: ${{ vars.TELEGRAM_MAX_DOCUMENT_BYTES }}
       RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
       RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
       RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
@@ -85,12 +86,6 @@ jobs:
         with:
           distribution: temurin
           java-version: "26"
-
-      - name: Set up Go
-        uses: actions/setup-go@v7
-        with:
-          go-version: "stable"
-          cache-dependency-path: cmfa-core/src/foss/golang/go.sum
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
@@ -435,23 +430,21 @@ jobs:
             exit 1
           fi
 
-      - name: Send Telegram release notification
+      - name: Upload release APKs to Telegram
         if: env.SEND_TO_TELEGRAM == 'true'
         shell: bash
-        env:
-          CREATE_GITHUB_RELEASE: ${{ steps.version.outputs.create_github_release }}
-          TAG_NAME: ${{ steps.version.outputs.tag_name }}
         run: |
           set -euo pipefail
 
           mapfile -d '' apks < <(find release-artifacts -maxdepth 1 -type f -name '*.apk' -print0 | sort -z)
           if [ "${#apks[@]}" -eq 0 ]; then
-            echo "::error::No APK files were found in release-artifacts before Telegram notification."
+            echo "::error::No APK files were found in release-artifacts before Telegram upload."
             find release-artifacts -maxdepth 1 -type f -print || true
             exit 1
           fi
 
           ls -lh release-artifacts
+          max_document_bytes="${TELEGRAM_MAX_DOCUMENT_BYTES:-52428800}"
           commit_id="$(git rev-parse HEAD)"
           commit_short_id="$(git rev-parse --short=12 HEAD)"
           commit_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/commit/$commit_id"
@@ -465,41 +458,43 @@ jobs:
             commit_message="${commit_message:0:650}"$'\n...'
           fi
           commit_message_html="$(printf '%s' "$commit_message" | python3 -c 'import html, sys; print(html.escape(sys.stdin.read(), quote=False), end="")')"
-          artifact_list="$(
-            for apk in "${apks[@]}"; do
-              apk_name="$(basename "$apk")"
-              apk_size="$(du -h "$apk" | awk '{print $1}')"
-              printf '%s  %s\n' "$apk_size" "$apk_name"
-            done
-          )"
-          artifact_list_html="$(printf '%s' "$artifact_list" | python3 -c 'import html, sys; print(html.escape(sys.stdin.read(), quote=False), end="")')"
 
-          release_link=""
-          if [ "${CREATE_GITHUB_RELEASE:-false}" = "true" ]; then
-            release_link="$(printf ' | <a href="%s">GitHub Release</a>' "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$TAG_NAME")"
-          fi
+          for apk in "${apks[@]}"; do
+            apk_path="$(realpath "$apk")"
+            apk_name="$(basename "$apk")"
+            if [ ! -r "$apk_path" ]; then
+              echo "::error::APK is not readable: $apk_path"
+              exit 1
+            fi
 
-          notification="$(printf 'AsteriskMETA\n\n%s\n\n%s\n\nArtifacts:\n<pre>%s</pre>\n\n<a href="%s">Workflow artifacts</a>%s | <a href="%s">Commit</a>' \
-            "$commit_message_html" \
-            "$commit_short_id" \
-            "$artifact_list_html" \
-            "$workflow_run_url" \
-            "$release_link" \
-            "$commit_url")"
+            apk_size="$(stat -c '%s' "$apk_path")"
+            if [ "$apk_size" -gt "$max_document_bytes" ]; then
+              echo "::warning::Skipping Telegram upload for $apk_name because it is $apk_size bytes, above the $max_document_bytes byte limit."
+              continue
+            fi
 
-          args=(
-            --fail-with-body
-            -sS
-            -X POST
-            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage"
-            --form-string "chat_id=${TELEGRAM_CHAT_ID}"
-            --form-string "text=${notification}"
-            --form-string "parse_mode=HTML"
-            --form-string "disable_web_page_preview=true"
-          )
+            echo "Uploading $apk_name to Telegram"
 
-          if [ -n "${TELEGRAM_MESSAGE_THREAD_ID:-}" ]; then
-            args+=(--form-string "message_thread_id=${TELEGRAM_MESSAGE_THREAD_ID}")
-          fi
+            caption="$(printf 'AsteriskMETA\n\n%s\n\n%s\n<a href="%s">Commit</a> | <a href="%s">Workflow run</a>' \
+              "$commit_message_html" \
+              "$commit_short_id" \
+              "$commit_url" \
+              "$workflow_run_url")"
 
-          curl "${args[@]}"
+            args=(
+              --fail-with-body
+              -sS
+              -X POST
+              "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument"
+              --form-string "chat_id=${TELEGRAM_CHAT_ID}"
+              --form "document=@${apk_path};filename=${apk_name}"
+              --form-string "caption=${caption}"
+              --form-string "parse_mode=HTML"
+            )
+
+            if [ -n "${TELEGRAM_MESSAGE_THREAD_ID:-}" ]; then
+              args+=(--form-string "message_thread_id=${TELEGRAM_MESSAGE_THREAD_ID}")
+            fi
+
+            curl "${args[@]}"
+          done

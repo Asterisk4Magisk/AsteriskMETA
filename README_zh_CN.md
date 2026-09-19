@@ -2,7 +2,7 @@
 
 # AsteriskMETA
 
-一个 Android Mihomo GUI 客户端，使用 [Mihomo](https://github.com/MetaCubeX/mihomo)、[CMFA Mihomo wrapper](https://github.com/MetaCubeX/ClashMetaForAndroid/tree/main/core) 和 [hev-socks5-tunnel](https://github.com/heiher/hev-socks5-tunnel) 实现。
+一个 Android Mihomo GUI 客户端，使用 [Mihomo](https://github.com/MetaCubeX/mihomo)、[AndroidLibClashLite](https://github.com/Asterisk4Magisk/AndroidLibClashLite) 和 [hev-socks5-tunnel](https://github.com/heiher/hev-socks5-tunnel) 实现。
 
 ## Telegram 频道
 
@@ -31,7 +31,7 @@
 
 - 无需 root 权限。
 - 使用 Android `VpnService`。
-- 通过 CMFA bridge 在应用进程中运行 Mihomo。
+- 通过 AndroidLibClashLite 的 gomobile 绑定在应用进程中运行 Mihomo。
 
 ### TPROXY(ROOT)
 
@@ -67,7 +67,8 @@
 ## 资源文件
 
 - 运行文件存储在应用私有的 `files/clash` 目录。
-- 内置 Mihomo 可执行文件可在资源管理中替换。
+- ROOT 直接使用 APK 原生库目录中的小型启动器，与 VPN 共享内置 Core。资源管理仍支持自定义 Mihomo 可执行文件。
+- 首次迁移到共享 Core 时，若存在本地可执行文件，会提示一次选择保留或移除。移除后 ROOT 使用共享 Core，也可随后在资源管理中恢复内置 Core。
 - 自定义资源可在本地添加或替换，也可通过配置的 URL 更新。
 
 ## 广播控制
@@ -112,7 +113,7 @@ macOS 或 Linux：
 ./gradlew assembleDebug
 ```
 
-构建会准备 Mihomo 和 CMFA Go core，构建已配置的 native helper submodule，并生成 ABI split APK 和 universal APK。
+构建会下载固定版本的 AndroidLibClashLite AAR，构建已配置的 native helper submodule，并生成 ABI split APK 和 universal APK。应用不再自行编译 Mihomo，也不再额外下载官方 CLI。
 
 如果 Gradle 找不到 Android NDK，请通过 Android Studio、`local.properties` 中的 `ndk.dir` 或 `ANDROID_NDK_HOME` 配置。
 
@@ -130,6 +131,7 @@ appops set org.asterisk.zcc.ameta ACTIVATE_VPN allow
 
 - [@MetaCubeX/mihomo](https://github.com/MetaCubeX/mihomo)
 - [@MetaCubeX/ClashMetaForAndroid](https://github.com/MetaCubeX/ClashMetaForAndroid)
+- [@Asterisk4Magisk/AndroidLibClashLite](https://github.com/Asterisk4Magisk/AndroidLibClashLite)
 - [@heiher/hev-socks5-tunnel](https://github.com/heiher/hev-socks5-tunnel)
 - [@topjohnwu/libsu](https://github.com/topjohnwu/libsu)
 - [@android/material3](https://developer.android.com/develop/ui/compose/designsystems/material3)

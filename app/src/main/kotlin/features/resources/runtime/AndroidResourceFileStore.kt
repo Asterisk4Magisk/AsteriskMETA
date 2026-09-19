@@ -32,7 +32,10 @@ internal class AndroidResourceFileStore(
 
     fun currentStatus(customResourceFiles: List<CustomResourceFileState> = emptyList()): ResourceFilesStatus {
         return ResourceFilesStatus(
-            resourceFiles = ResourceFileKind.entries.associateWith { kind -> file(kind).toStatus(kind) },
+            resourceFiles = ResourceFileKind.entries.associateWith { kind ->
+                val target = if (kind == ResourceFileKind.MihomoCore) effectiveMihomoCoreFile() else file(kind)
+                target.toStatus(kind)
+            },
             customResourceFiles = customResourceFiles.map { customFile ->
                 CustomResourceFileStatus(
                     file = customFile,
@@ -99,18 +102,13 @@ internal class AndroidResourceFileStore(
         kind.applyPermissions(file(kind))
     }
 
-    fun stageBundledMihomoCoreCandidate(): File {
-        val source = bundledMihomoCoreFileOrNull()
-            ?: error("Bundled ${ResourceFileKind.MihomoCore.fileName} is not available for ${currentRuntimeAbi()}")
-        return source.inputStream().use(::writeMihomoCoreCandidate)
-    }
+    fun hasCustomMihomoCore(): Boolean = file(ResourceFileKind.MihomoCore).coreBinaryOwnerUidOrNull() != null
 
-    fun shouldPublishBundledMihomoCore(resourceFileSource: Int): Boolean {
-        return bundledMihomoCoreFileOrNull() != null && file(ResourceFileKind.MihomoCore).needsBundledRestore(
-            ResourceFileKind.MihomoCore,
-            resourceFileSource,
-            appContext.packageUpdatedAtMillis(),
-        )
+    fun effectiveMihomoCoreFile(): File {
+        val custom = file(ResourceFileKind.MihomoCore)
+        // Keep invalid uploads visible; only an absent custom core falls back.
+        return if (hasCustomMihomoCore()) custom
+        else File(appContext.applicationInfo.nativeLibraryDir, MihomoCoreLibraryName)
     }
 
     private fun bundledMihomoCoreFileOrNull(): File? {
@@ -236,7 +234,7 @@ internal class AndroidResourceFileStore(
             asteriskdPath = File(appContext.applicationInfo.nativeLibraryDir, AsteriskdLibraryName).absolutePath,
             bpfMatcherPath = File(appContext.applicationInfo.nativeLibraryDir, BpfMatcherLibraryName).absolutePath,
             bpf2socksPath = File(appContext.applicationInfo.nativeLibraryDir, Bpf2SocksLibraryName).absolutePath,
-            mihomoCorePath = file(ResourceFileKind.MihomoCore).absolutePath,
+            mihomoCorePath = effectiveMihomoCoreFile().absolutePath,
             directCidrIpv4Path = file(ResourceFileKind.DirectCidrIpv4).absolutePath,
             directCidrIpv6Path = file(ResourceFileKind.DirectCidrIpv6).absolutePath,
             hevSocks5TunnelPath = File(appContext.applicationInfo.nativeLibraryDir, HevSocks5TunnelLibraryName).absolutePath,
@@ -297,11 +295,6 @@ internal fun Context.mihomoResourceFilePaths(): MihomoResourceFilePaths {
     return AndroidResourceFileStore(this).currentPaths()
 }
 
-private fun currentRuntimeAbi(): String {
-    return Build.SUPPORTED_ABIS.firstOrNull { abi -> abi in SupportedAndroidAbis }
-        ?: error("Unsupported CPU ABI: ${Build.SUPPORTED_ABIS.joinToString()}")
-}
-
 private fun Context.packageUpdatedAtMillis(): Long {
     return runCatching {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -321,8 +314,6 @@ private const val Bpf2SocksLibraryName = "libbpf2socks.so"
 private const val MihomoCoreLibraryName = "libmihomo.so"
 private const val HevSocks5TunnelLibraryName = "libhev-socks5-tunnel-cli.so"
 private const val MihomoHomeDirName = "clash"
-
-private val SupportedAndroidAbis = setOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
 
 internal fun resourceFileExists(
     kind: ResourceFileKind?,

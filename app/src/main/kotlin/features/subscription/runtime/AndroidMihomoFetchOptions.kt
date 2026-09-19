@@ -3,7 +3,7 @@
 
 package features.subscription.runtime
 
-import com.github.kr328.clash.core.model.FetchProxy
+import engine.mihomo.binding.model.FetchProxy
 import engine.proxy.LocalProxyLoopbackAddress
 import engine.proxy.LocalProxyRuntime
 

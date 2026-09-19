@@ -9,7 +9,6 @@ import features.resources.ResourceFileDirectCidrIpv4Url
 import features.resources.ResourceFileDirectCidrIpv6Name
 import features.resources.ResourceFileDirectCidrIpv6Url
 import features.resources.ResourceFileMihomoCoreName
-import features.resources.MihomoCoreVersion
 import features.resources.ResourceFileAsnName
 import features.resources.ResourceFileAsnUrl
 import features.resources.ResourceFileGeoIpName
@@ -105,7 +104,7 @@ enum class ResourceFileKind(
 
     val displayName: String
         get() = when (this) {
-            MihomoCore -> "Mihomo $MihomoCoreVersion"
+            MihomoCore -> "Mihomo Core"
             else -> fileName
         }
 }

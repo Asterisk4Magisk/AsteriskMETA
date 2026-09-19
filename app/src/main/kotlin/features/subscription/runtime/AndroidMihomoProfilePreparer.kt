@@ -5,9 +5,9 @@ package features.subscription.runtime
 
 import android.content.Context
 import app.MihomoSubscriptionInfo
-import com.github.kr328.clash.core.Clash
-import com.github.kr328.clash.core.model.FetchOptions
-import com.github.kr328.clash.core.model.FetchStatus
+import engine.mihomo.binding.MihomoBridge as Clash
+import engine.mihomo.binding.model.FetchOptions
+import engine.mihomo.binding.model.FetchStatus
 import features.resources.runtime.prepareMihomoResourceFilePaths
 import java.io.File
 import kotlin.coroutines.cancellation.CancellationException

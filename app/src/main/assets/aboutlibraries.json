@@ -14,6 +14,19 @@
             ]
         },
         {
+            "uniqueId": "github:Asterisk4Magisk/AndroidLibClashLite",
+            "artifactVersion": "v1.19.31",
+            "name": "AndroidLibClashLite",
+            "description": "Gomobile Android bindings and standalone CLI sharing one Mihomo core.",
+            "website": "https://github.com/Asterisk4Magisk/AndroidLibClashLite",
+            "scm": {
+                "url": "https://github.com/Asterisk4Magisk/AndroidLibClashLite"
+            },
+            "licenses": [
+                "GPL-3.0"
+            ]
+        },
+        {
             "uniqueId": "androidx.navigation3:navigation3-runtime",
             "artifactVersion": "1.1.7",
             "name": "Androidx Navigation 3 Runtime",
@@ -41,7 +54,7 @@
         },
         {
             "uniqueId": "github:Asterisk4Magisk/asteriskd",
-            "artifactVersion": "v2.0.32",
+            "artifactVersion": "v2.0.33",
             "name": "asteriskd",
             "description": "A root Android daemon that synchronizes local-address bypass rules and pinned eBPF maps.",
             "website": "https://github.com/Asterisk4Magisk/asteriskd",
@@ -73,19 +86,6 @@
             "website": "https://github.com/Asterisk4Magisk/bpfmatcher",
             "scm": {
                 "url": "https://github.com/Asterisk4Magisk/bpfmatcher"
-            },
-            "licenses": [
-                "GPL-3.0"
-            ]
-        },
-        {
-            "uniqueId": "github:MetaCubeX/ClashMetaForAndroid",
-            "artifactVersion": "v2.11.34-asterisk",
-            "name": "CMFA Mihomo wrapper",
-            "description": "Vendored CMFA Android core bridge module for Mihomo.",
-            "website": "https://github.com/MetaCubeX/ClashMetaForAndroid",
-            "scm": {
-                "url": "https://github.com/MetaCubeX/ClashMetaForAndroid"
             },
             "licenses": [
                 "GPL-3.0"
@@ -170,19 +170,6 @@
             ]
         },
         {
-            "uniqueId": "androidx.core:core-ktx",
-            "artifactVersion": "1.19.0",
-            "name": "Core Kotlin Extensions",
-            "description": "Kotlin extensions for 'core' artifact",
-            "website": "https://developer.android.com/jetpack/androidx/releases/core#1.19.0",
-            "scm": {
-                "url": "https://cs.android.com/androidx/platform/frameworks/support"
-            },
-            "licenses": [
-                "Apache-2.0"
-            ]
-        },
-        {
             "uniqueId": "com.android.tools.smali:smali-dexlib2",
             "artifactVersion": "3.0.10",
             "name": "dexlib2",
@@ -261,19 +248,6 @@
             ]
         },
         {
-            "uniqueId": "org.jetbrains.kotlinx:kotlinx-coroutines-android",
-            "artifactVersion": "1.11.0",
-            "name": "kotlinx-coroutines-android",
-            "description": "Coroutines support libraries for Kotlin",
-            "website": "https://github.com/Kotlin/kotlinx.coroutines",
-            "scm": {
-                "url": "https://github.com/Kotlin/kotlinx.coroutines"
-            },
-            "licenses": [
-                "Apache-2.0"
-            ]
-        },
-        {
             "uniqueId": "org.jetbrains.kotlinx:kotlinx-serialization-json",
             "artifactVersion": "1.11.0",
             "name": "kotlinx-serialization-json",
@@ -340,7 +314,7 @@
         },
         {
             "uniqueId": "github:MetaCubeX/mihomo",
-            "artifactVersion": "v1.19.31",
+            "artifactVersion": null,
             "name": "Mihomo",
             "description": "An open platform for proxy and anti-censorship networking.",
             "website": "https://github.com/MetaCubeX/mihomo",

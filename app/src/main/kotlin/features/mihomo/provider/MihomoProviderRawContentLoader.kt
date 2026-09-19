@@ -4,7 +4,7 @@
 package features.mihomo.provider
 
 import android.content.Context
-import com.github.kr328.clash.core.Clash
+import engine.mihomo.binding.MihomoBridge as Clash
 import engine.mihomo.MihomoProviderDeclaration
 import engine.mihomo.MihomoProviderRawContent
 import engine.mihomo.MihomoProviderRawSource

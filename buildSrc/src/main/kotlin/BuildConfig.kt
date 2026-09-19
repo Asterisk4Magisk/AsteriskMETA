@@ -11,13 +11,12 @@ import org.gradle.api.tasks.TaskAction
 object ProjectConfig {
     const val JVM_VERSION = 26
     const val PROJECT_NAME = "AsteriskMETA"
-    const val VERSION_NAME = "1.2.9"
+    const val VERSION_NAME = "1.2.10-dev"
     const val PACKAGE_NAME = "org.asterisk.zcc.ameta"
-    const val ASTERISKD_VERSION = "v2.0.32"
+    const val ASTERISKD_VERSION = "v2.0.33"
     const val BPF2SOCKS_VERSION = "v1.0.15"
     const val BPF_MATCHER_VERSION = "v1.0.1"
-    const val CMFA_WRAPPER_VERSION = "v2.11.34-asterisk"
-    const val MIHOMO_CORE_VERSION = "v1.19.31"
+    const val ANDROID_LIB_CLASH_LITE_VERSION = "v1.19.31"
     const val HEV_SOCKS5_TUNNEL_VERSION = "2.17.1"
     const val TARGET_SDK = 37
     const val MIN_SDK = 26
@@ -44,10 +43,7 @@ abstract class GenerateProjectInfoTask : DefaultTask() {
     abstract val versionCode: Property<Int>
 
     @get:Input
-    abstract val mihomoCoreVersion: Property<String>
-
-    @get:Input
-    abstract val cmfaWrapperVersion: Property<String>
+    abstract val androidLibClashLiteVersion: Property<String>
 
     @get:Input
     abstract val hevSocks5TunnelVersion: Property<String>
@@ -68,8 +64,7 @@ abstract class GenerateProjectInfoTask : DefaultTask() {
                 const val PROJECT_NAME = "${projectName.get()}"
                 const val VERSION_NAME = "${versionName.get()}"
                 const val VERSION_CODE = ${versionCode.get()}
-                const val CMFA_WRAPPER_VERSION = "${cmfaWrapperVersion.get()}"
-                const val MIHOMO_CORE_VERSION = "${mihomoCoreVersion.get()}"
+                const val ANDROID_LIB_CLASH_LITE_VERSION = "${androidLibClashLiteVersion.get()}"
                 const val HEV_SOCKS5_TUNNEL_VERSION = "${hevSocks5TunnelVersion.get()}"
             }
             """.trimIndent(),

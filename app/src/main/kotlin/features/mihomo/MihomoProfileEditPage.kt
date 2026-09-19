@@ -79,7 +79,7 @@ import app.modes.RunModeTun2Socks
 import app.nextAvailableMihomoProfileId
 import app.withMihomoRestartApplied
 import app.withMihomoRestartRequired
-import com.github.kr328.clash.core.Clash
+import engine.mihomo.binding.MihomoBridge as Clash
 import engine.mihomo.raw.MihomoRawConfigParseResult
 import engine.mihomo.raw.MihomoRawConfigParser
 import engine.mihomo.raw.MihomoRawConfigSnapshot

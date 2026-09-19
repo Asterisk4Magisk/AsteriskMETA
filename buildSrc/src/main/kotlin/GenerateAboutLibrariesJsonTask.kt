@@ -24,7 +24,7 @@ abstract class GenerateAboutLibrariesJsonTask : DefaultTask() {
     @TaskAction
     fun generate() {
         val library =
-            { id: String, version: String, name: String, description: String, website: String, scmUrl: String, licenses: List<String> ->
+            { id: String, version: String?, name: String, description: String, website: String, scmUrl: String, licenses: List<String> ->
                 mapOf(
                     "uniqueId" to id,
                     "artifactVersion" to version,
@@ -49,6 +49,18 @@ abstract class GenerateAboutLibrariesJsonTask : DefaultTask() {
         }
         val dependencyBucketSuffixes = listOf("api", "implementation", "compileonly", "runtimeonly")
         val libraryOverrides = mapOf(
+            "com.github.Asterisk4Magisk:libclash" to
+                { version: String ->
+                    library(
+                        "github:Asterisk4Magisk/AndroidLibClashLite",
+                        version,
+                        "AndroidLibClashLite",
+                        "Gomobile Android bindings and standalone CLI sharing one Mihomo core.",
+                        "https://github.com/Asterisk4Magisk/AndroidLibClashLite",
+                        "https://github.com/Asterisk4Magisk/AndroidLibClashLite",
+                        listOf("GPL-3.0"),
+                    )
+                },
             "com.github.topjohnwu.libsu:core" to
                 { version: String ->
                     library(
@@ -100,17 +112,8 @@ abstract class GenerateAboutLibrariesJsonTask : DefaultTask() {
                 listOf("GPL-3.0"),
             ),
             library(
-                "github:MetaCubeX/ClashMetaForAndroid",
-                ProjectConfig.CMFA_WRAPPER_VERSION,
-                "CMFA Mihomo wrapper",
-                "Vendored CMFA Android core bridge module for Mihomo.",
-                "https://github.com/MetaCubeX/ClashMetaForAndroid",
-                "https://github.com/MetaCubeX/ClashMetaForAndroid",
-                listOf("GPL-3.0"),
-            ),
-            library(
                 "github:MetaCubeX/mihomo",
-                ProjectConfig.MIHOMO_CORE_VERSION,
+                null,
                 "Mihomo",
                 "An open platform for proxy and anti-censorship networking.",
                 "https://github.com/MetaCubeX/mihomo",
