@@ -58,7 +58,7 @@ abstract class GenerateAboutLibrariesJsonTask : DefaultTask() {
                         "Gomobile Android bindings and standalone CLI sharing one Mihomo core.",
                         "https://github.com/Asterisk4Magisk/AndroidLibClashLite",
                         "https://github.com/Asterisk4Magisk/AndroidLibClashLite",
-                        listOf("GPL-3.0"),
+                        listOf("LGPL-3.0"),
                     )
                 },
             "com.github.topjohnwu.libsu:core" to
