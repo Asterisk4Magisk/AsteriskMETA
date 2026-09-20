@@ -3,6 +3,7 @@
 
 package engine.root.mode
 
+import engine.mihomo.fakeIpRelayPort
 import engine.mihomo.raw.runtimeIpv6Enabled
 import engine.proxy.toLocalProxyOptions
 import engine.proxy.toLocalProxyOptionsOrNull
@@ -40,7 +41,11 @@ internal fun RootConfigBuildContext.buildBpf2SocksStartConfig(): RootModeStartCo
             mode = AsteriskdMode.Bpf2Socks,
             iptablesConfig = iptablesConfig,
             virtualInterfaces = emptyList(),
-            modeOptions = AsteriskdModeOptions(transparentPort = null, tunnelName = null),
+            modeOptions = AsteriskdModeOptions(
+                transparentPort = null,
+                tunnelName = null,
+                fakeIpRelayPort = appState.fakeIpRelayPort(),
+            ),
             helper = AsteriskdBpf2SocksHelper(
                 executablePath = rootStartConfig.runtimePaths.bpf2SocksExecutablePath,
                 bridgeListenAddress = RootBpf2SocksListenAddress,

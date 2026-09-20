@@ -4,6 +4,7 @@
 package engine.root.mode
 
 import app.AppState
+import engine.mihomo.fakeIpRelayPort
 import engine.network.NetworkLimits
 import engine.network.toPortOrNull
 import engine.proxy.toLocalProxyOptions
@@ -33,6 +34,7 @@ internal fun RootConfigBuildContext.buildTproxyStartConfig(): RootModeStartConfi
             modeOptions = AsteriskdModeOptions(
                 transparentPort = tproxyPort,
                 tunnelName = null,
+                fakeIpRelayPort = appState.fakeIpRelayPort(),
             ),
         ),
     )

@@ -620,6 +620,8 @@
     <string name="settings_dns_override">覆写 DNS</string>
     <string name="settings_dns_override_summary">替换当前 Mihomo 配置中的 DNS 配置块</string>
     <string name="settings_dns_enhanced_mode">增强模式</string>
+    <string name="settings_dns_hijack_proxy_apps_only">未被代理的应用不受影响</string>
+    <string name="settings_dns_hijack_proxy_apps_only_summary">未走代理的应用照常直连：核心代为连接它们收到的假地址。重新启动代理后生效。</string>
     <string name="settings_dns_respect_rules">遵循规则</string>
     <string name="settings_dns_prefer_h3">优先 HTTP/3</string>
     <string name="settings_dns_fake_ip_range">Fake IP 地址池</string>
@@ -800,6 +802,7 @@
     <string name="proxy_app_list_help_blacklist">黑名单模式：仅名单中的应用不使用代理，其他应用均使用代理。</string>
     <string name="proxy_app_list_help_global">全应用模式：所有应用均使用代理。</string>
     <string name="proxy_app_list_help_whitelist">白名单模式：仅名单中的应用使用代理，其他应用均不使用代理。</string>
+    <string name="proxy_app_list_help_dns">DNS：开启「未被代理的应用不受影响」后，核心代为连接未走代理的应用收到的假地址。</string>
     <string name="proxy_app_list_scan_china_progress">已扫描 %1$d / %2$d，命中 %3$d</string>
     <string name="proxy_app_list_scan_china_done">已扫描 %1$d 个应用，发现 %2$d 个中国应用</string>
     <string name="proxy_app_list_scan_china_no_match">已扫描 {scanned} 个应用，未发现中国应用</string>

@@ -6,6 +6,7 @@
 package features.proxy.app
 
 import android.content.pm.PackageManager
+import app.canScopeDnsToAppList
 import app.modes.ProxyAppListModeBlacklist
 import app.modes.ProxyAppListModeGlobal
 import app.modes.ProxyAppListModeWhitelist
@@ -476,6 +477,11 @@ fun ProxyAppListPage(
                     Text(stringResource(R.string.proxy_app_list_help_blacklist))
                     Text(stringResource(R.string.proxy_app_list_help_global))
                     Text(stringResource(R.string.proxy_app_list_help_whitelist))
+                    // The DNS switch exists only where the daemon enforces the
+                    // application policy itself, so the help follows the switch.
+                    if (appState.canScopeDnsToAppList) {
+                        Text(stringResource(R.string.proxy_app_list_help_dns))
+                    }
                 }
             },
             confirmButton = {

@@ -17,6 +17,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.R
+import app.modes.DnsHijackScopeAllApps
+import app.modes.DnsHijackScopeProxyApps
 import ui.icons.AsteriskIcons as Icons
 import engine.mihomo.DefaultMihomoDnsFakeIpRange
 import engine.mihomo.MihomoDnsModeFakeIp
@@ -62,6 +64,7 @@ internal fun DnsSettingsBottomSheet(
     onDraftChange: (DnsSettingsDraft) -> Unit,
     onDismissRequest: () -> Unit,
     onSave: (DnsSettingsDraft) -> Unit,
+    appListDnsScopeAvailable: Boolean,
 ) {
     val dnsServerInvalidMessage = stringResource(R.string.settings_dns_server_invalid)
     val dnsDomainInvalidMessage = stringResource(R.string.settings_dns_domain_invalid)
@@ -71,6 +74,10 @@ internal fun DnsSettingsBottomSheet(
     val dnsGeoipCodeInvalidMessage = stringResource(R.string.settings_dns_geoip_code_invalid)
 
     val sanitizedDraft = draft.sanitized()
+    // The switch is offered where it can act: fake answers are what make the
+    // applications outside the list depend on the core connecting for them.
+    val appListDnsScopeOffered =
+        appListDnsScopeAvailable && draft.dnsEnhancedMode == MihomoDnsModeFakeIp
     val fakeIpRangeError = if (
         sanitizedDraft.dnsEnhancedMode != MihomoDnsModeFakeIp ||
         isIpv4CidrAddress(draft.dnsFakeIpRange)
@@ -136,6 +143,29 @@ internal fun DnsSettingsBottomSheet(
                         selectedIndex = draft.dnsEnhancedMode.coerceIn(MihomoDnsModeValues.indices),
                         onSelectedIndexChange = { onDraftChange(draft.copy(dnsEnhancedMode = it)) },
                     )
+                    AnimatedVisibility(
+                        visible = appListDnsScopeOffered,
+                        enter = AsteriskMotion.contentEnter(),
+                        exit = AsteriskMotion.contentExit(),
+                    ) {
+                        SwitchPreference(
+                            title = stringResource(R.string.settings_dns_hijack_proxy_apps_only),
+                            icon = Icons.Rounded.FilterAlt,
+                            summary = stringResource(R.string.settings_dns_hijack_proxy_apps_only_summary),
+                            checked = draft.dnsHijackScope == DnsHijackScopeProxyApps,
+                            onCheckedChange = { enabled ->
+                                onDraftChange(
+                                    draft.copy(
+                                        dnsHijackScope = if (enabled) {
+                                            DnsHijackScopeProxyApps
+                                        } else {
+                                            DnsHijackScopeAllApps
+                                        },
+                                    ),
+                                )
+                            },
+                        )
+                    }
                     SwitchPreference(
                         title = stringResource(R.string.settings_dns_respect_rules),
                         icon = Icons.Rounded.Policy,
@@ -372,6 +402,11 @@ internal fun DnsSettingsDraft.sanitized(): DnsSettingsDraft {
         dnsFallbackFilterIpcidr = dnsFallbackFilterIpcidr.toTrimmedNonEmptyDistinctList(),
         dnsFallbackFilterDomain = dnsFallbackFilterDomain.toTrimmedNonEmptyDistinctList(),
         dnsHosts = dnsHosts.toTrimmedNonEmptyDistinctList(),
+        dnsHijackScope = if (dnsHijackScope == DnsHijackScopeAllApps) {
+            DnsHijackScopeAllApps
+        } else {
+            DnsHijackScopeProxyApps
+        },
     )
 }
 

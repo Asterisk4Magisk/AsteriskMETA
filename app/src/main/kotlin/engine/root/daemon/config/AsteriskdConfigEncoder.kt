@@ -74,6 +74,7 @@ private fun AsteriskdNetworkConfig.toJsonObject(): JsonObject = buildJsonObject 
     put("enableLocalDns", enableLocalDns)
     put("enableFakeDns", enableFakeDns)
     put("fakeDnsIpv4Pool", fakeDnsIpv4Pool?.let(::JsonPrimitive) ?: JsonNull)
+    put("dnsHijackScope", dnsHijackScope.wireValue)
     put("ignoredInterfaces", ignoredInterfaces.toJsonArray())
     put("virtualInterfaces", virtualInterfaces.toJsonArray())
     put("hotspotInterfacePrefixes", hotspotInterfacePrefixes.toJsonArray())
@@ -93,6 +94,7 @@ private fun AsteriskdAppPolicy.toJsonObject(): JsonObject = buildJsonObject {
 private fun AsteriskdModeOptions.toJsonObject(): JsonObject = buildJsonObject {
     put("transparentPort", transparentPort?.let(::JsonPrimitive) ?: JsonNull)
     put("tunnelName", tunnelName?.let(::JsonPrimitive) ?: JsonNull)
+    put("fakeIpRelayPort", fakeIpRelayPort?.let(::JsonPrimitive) ?: JsonNull)
 }
 
 private fun AsteriskdMatcher.toJsonObject(): JsonObject = buildJsonObject {

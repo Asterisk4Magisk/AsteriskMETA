@@ -5,6 +5,7 @@ package engine.root.config
 
 import android.content.Context
 import app.AppState
+import app.effectiveDnsHijackScope
 import app.effectiveFakeIpEnabled
 import app.effectiveLocalDnsEnabled
 import engine.mihomo.DefaultMihomoDnsFakeIpRange
@@ -79,6 +80,7 @@ private fun AppState.toRootStartConfig(
         enableLocalDns = if (rawConfig == null) effectiveLocalDnsEnabled else rawDnsHijack,
         enableFakeIp = if (rawConfig == null) effectiveFakeIpEnabled else false,
         fakeIpIpv4Pool = rootFakeIpIpv4Pool(),
+        dnsHijackScope = effectiveDnsHijackScope,
         enableBoot = enableRootBootScript,
         serviceControl = serviceControl,
         manageProviders = selectedMihomoProfileOrNull()?.disableOverrides != true,

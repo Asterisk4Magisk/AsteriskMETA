@@ -220,6 +220,7 @@ internal class AppSettingsPreferences(
                 defaults.dnsFallbackFilterDomain,
             ),
             dnsHosts = preferences.getStringList(KeyDnsHosts, defaults.dnsHosts),
+            dnsHijackScope = preferences.getInt(KeyDnsHijackScope, defaults.dnsHijackScope),
             transparentProxyPort = preferences.getString(
                 KeyTransparentProxyPort,
                 defaults.transparentProxyPort,
@@ -341,6 +342,7 @@ internal class AppSettingsPreferences(
             .putStringList(KeyDnsFallbackFilterIpcidr, state.dnsFallbackFilterIpcidr)
             .putStringList(KeyDnsFallbackFilterDomain, state.dnsFallbackFilterDomain)
             .putStringList(KeyDnsHosts, state.dnsHosts)
+            .putInt(KeyDnsHijackScope, state.dnsHijackScope)
             .putString(KeyTransparentProxyPort, state.transparentProxyPort)
             .putBoolean(KeyEnableRootBootScript, state.enableRootBootScript)
             .putBoolean(KeyEnableRootEbpfRules, state.enableRootEbpfRules)
@@ -558,6 +560,7 @@ private const val KeyDnsFallbackFilterGeosite = "dns_fallback_filter_geosite"
 private const val KeyDnsFallbackFilterIpcidr = "dns_fallback_filter_ipcidr"
 private const val KeyDnsFallbackFilterDomain = "dns_fallback_filter_domain"
 private const val KeyDnsHosts = "dns_hosts"
+private const val KeyDnsHijackScope = "dns_hijack_scope"
 private const val KeyTransparentProxyPort = "transparent_proxy_port"
 private const val KeyEnableRootBootScript = "enable_root_boot_script"
 private const val KeyEnableRootEbpfRules = "enable_root_ebpf_rules"

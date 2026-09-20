@@ -33,6 +33,7 @@ internal class RootStartConfig(
     val enableLocalDns: Boolean,
     val enableFakeIp: Boolean,
     val fakeIpIpv4Pool: String,
+    val dnsHijackScope: Int,
     val enableBoot: Boolean,
     val serviceControl: ServiceControlSettings,
     val manageProviders: Boolean = true,
@@ -60,6 +61,7 @@ internal class RootStartConfig(
             enableLocalDns == other.enableLocalDns &&
             enableFakeIp == other.enableFakeIp &&
             fakeIpIpv4Pool == other.fakeIpIpv4Pool &&
+            dnsHijackScope == other.dnsHijackScope &&
             enableBoot == other.enableBoot &&
             serviceControl == other.serviceControl && manageProviders == other.manageProviders
     }
@@ -75,6 +77,7 @@ internal class RootStartConfig(
         result = 31 * result + enableLocalDns.hashCode()
         result = 31 * result + enableFakeIp.hashCode()
         result = 31 * result + fakeIpIpv4Pool.hashCode()
+        result = 31 * result + dnsHijackScope.hashCode()
         result = 31 * result + enableBoot.hashCode()
         result = 31 * result + serviceControl.hashCode()
         result = 31 * result + manageProviders.hashCode()

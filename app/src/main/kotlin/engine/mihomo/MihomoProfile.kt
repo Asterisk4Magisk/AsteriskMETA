@@ -8,6 +8,7 @@ import app.AppState
 import app.DefaultMihomoOverrideScriptId
 import app.MihomoProfileState
 import app.effectiveLocalDnsEnabled
+import app.fakeIpRelayEnabled
 import app.modes.MihomoModeDirect
 import app.modes.MihomoModeGlobal
 import app.modes.MihomoTunStackGvisor
@@ -21,6 +22,7 @@ import app.modes.RunModeTun2Socks
 import app.modes.isRootRunMode
 import app.resourceFileUpdateSource
 import app.rootIpv6DataPathEnabled
+import engine.network.NetworkLimits
 import engine.network.isIpv4CidrAddress
 import engine.network.toPortOrNull
 import engine.proxy.LocalProxyLoopbackAddress
@@ -42,9 +44,38 @@ import utils.toTrimmedNonEmptyDistinctList
 
 internal const val Bpf2SocksRuntimeMarkerKey = "x-asteriskmeta-root-bpf2socks"
 internal const val MihomoTproxyInboundName = "asterisk-tproxy"
+internal const val MihomoTproxyFakeIpRelayInboundName = "asterisk-fakeip-relay"
 internal const val MihomoTunDevice = "asterisk0"
 internal const val MihomoTunInboundName = "asterisk-tun"
 internal const val MihomoTunRuntimeMarkerKey = "x-asteriskmeta-root-tun"
+
+// Preferred endpoint of the inbound that connects for the applications the
+// policy leaves out. The daemon hands their fake addresses over here, so both
+// sides have to agree on the same port. One endpoint serves both transports,
+// because the core's transparent inbound takes connections and datagrams on the
+// same port.
+internal const val MihomoTproxyFakeIpRelayPort = NetworkLimits.PORT_MAX - 1
+
+// The relay arrives on an inbound of its own, and a port carries one inbound, so
+// it moves aside for every endpoint the mode already has: the ones it proxies
+// with, the control endpoint, and the bridge the BPF helper listens on. The
+// bridge modes keep their SOCKS inbound, which the tunnel helper dials, on the
+// preferred port, which is why the relay takes the next free one there. Both the
+// profile and the daemon are told the same number.
+internal fun AppState.fakeIpRelayPort(): Int {
+    val taken = buildSet {
+        add(mihomoControlConfig().port)
+        if (runMode == RunModeTproxy) {
+            addAll(listOfNotNull(transparentProxyPort.toPortOrNull(), localProxyPort.toPortOrNull()))
+        } else {
+            addAll(listOfNotNull(socks5ProxyPort.toPortOrNull(), localProxyPort.toPortOrNull()))
+        }
+        if (runMode == RunModeBpf2Socks) {
+            add(bpf2SocksBridgePort.toPortOrNull() ?: RootModeEngine.DefaultBpf2SocksBridgePort)
+        }
+    }
+    return (MihomoTproxyFakeIpRelayPort downTo 1).first { it !in taken }
+}
 
 internal object MihomoProfileFactory {
     fun buildProfileBytes(
@@ -183,10 +214,16 @@ private fun MutableMap<String, Any?>.putAsteriskRuntimeOverrides(
             }
         }
         if (runMode == RunModeTproxy) {
-            put("listeners", listOf(appState.toMihomoTproxyListenerYamlMap(tproxyPort)))
+            put("listeners", buildList {
+                add(appState.toMihomoTproxyListenerYamlMap(tproxyPort))
+                addAll(appState.fakeIpRelayListenerYamlMaps())
+            })
         }
         if (runMode == RunModeTun2Socks || runMode == RunModeBpf2Socks) {
             put("socks-port", socksPort)
+            // The bridge modes reach the core through this socket, and the relay
+            // arrives beside it on its own transparent endpoint.
+            put("listeners", appState.fakeIpRelayListenerYamlMaps())
         }
         if (runMode == RunModeBpf2Socks) {
             put(Bpf2SocksRuntimeMarkerKey, true)
@@ -420,6 +457,28 @@ private fun AppState.toMihomoTproxyListenerYamlMap(port: Int): Map<String, Any?>
         "udp" to true,
     )
 }
+
+// The connections and datagrams handed over here keep their original
+// destination, which is the fake address the platform resolver answered with,
+// so the core resolves it back to its domain. The forced outbound keeps those
+// applications out of the proxy. The pool is IPv4 only, so the inbound stays on
+// IPv4 as well. A transparent inbound takes both transports on one port, which
+// is why the relay needs no second endpoint.
+private fun AppState.toMihomoFakeIpRelayListenerYamlMap(): Map<String, Any?> {
+    return linkedMapOf(
+        "name" to MihomoTproxyFakeIpRelayInboundName,
+        "type" to "tproxy",
+        "listen" to "0.0.0.0",
+        "port" to fakeIpRelayPort(),
+        "udp" to true,
+        "proxy" to "DIRECT",
+    )
+}
+
+// The daemon delivers the relay the same way in every mode it enforces the
+// application policy in, so the profile only decides whether the endpoint exists.
+private fun AppState.fakeIpRelayListenerYamlMaps(): List<Map<String, Any?>> =
+    if (fakeIpRelayEnabled) listOf(toMihomoFakeIpRelayListenerYamlMap()) else emptyList()
 
 private fun normalizedProxiesWithDnsOut(value: Any?): List<Any?> {
     val proxies = (value as? List<*>)?.map(::normalizeYamlValue).orEmpty()

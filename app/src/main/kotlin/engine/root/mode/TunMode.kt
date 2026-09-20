@@ -59,6 +59,7 @@ internal fun RootConfigBuildContext.buildTunStartConfig(): RootModeStartConfig {
             modeOptions = AsteriskdModeOptions(
                 transparentPort = null,
                 tunnelName = tunConfig.device,
+                fakeIpRelayPort = null,
             ),
         ),
     )

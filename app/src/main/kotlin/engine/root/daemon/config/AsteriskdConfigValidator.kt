@@ -14,6 +14,12 @@ internal object AsteriskdConfigValidator {
         AsteriskdMetaConfigFactory.requireRunnableMode(mode)
         require(!(network.enableIpv6 && network.disableSystemIpv6))
         require(network.enableFakeDns == (network.fakeDnsIpv4Pool != null))
+        // Following the application policy for DNS only means something while an
+        // application policy exists: the global policy already covers every uid.
+        require(
+            network.dnsHijackScope == AsteriskdDnsHijackScope.Global ||
+                network.appPolicy.mode != AsteriskdAppPolicyMode.Global,
+        )
         require(network.appPolicy.uids == network.appPolicy.uids.distinct().sorted())
         require(network.appPolicy.bypassUids == network.appPolicy.bypassUids.distinct().sorted())
         require((network.appPolicy.directCidrPathV4 == null) == (network.appPolicy.directCidrPathV6 == null))

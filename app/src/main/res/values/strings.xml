@@ -633,6 +633,8 @@
     <string name="settings_dns_override">Override DNS</string>
     <string name="settings_dns_override_summary">Replace the DNS block in the selected Mihomo profile</string>
     <string name="settings_dns_enhanced_mode">Enhanced mode</string>
+    <string name="settings_dns_hijack_proxy_apps_only">Keep unproxied apps working</string>
+    <string name="settings_dns_hijack_proxy_apps_only_summary">Apps the proxy leaves out stay direct: the core connects the fake addresses they receive for them. Restart the proxy to apply.</string>
     <string name="settings_dns_respect_rules">Respect rules</string>
     <string name="settings_dns_prefer_h3">Prefer HTTP/3</string>
     <string name="settings_dns_fake_ip_range">Fake IP range</string>
@@ -814,6 +816,7 @@
     <string name="proxy_app_list_help_blacklist">Blacklist mode: apps on the blacklist bypass the proxy; everything else uses it.</string>
     <string name="proxy_app_list_help_global">All-app mode: every app uses the proxy.</string>
     <string name="proxy_app_list_help_whitelist">Whitelist mode: only apps on the whitelist use the proxy; everything else bypasses it.</string>
+    <string name="proxy_app_list_help_dns">DNS: with this switch enabled, the core connects the fake addresses that apps outside the proxy receive.</string>
     <string name="proxy_app_list_scan_china_progress">Scanned %1$d of %2$d, matched %3$d</string>
     <string name="proxy_app_list_scan_china_done">Apps scanned: %1$d; Chinese apps found: %2$d</string>
     <string name="proxy_app_list_scan_china_no_match">Scanned {scanned} apps, no Chinese apps found</string>

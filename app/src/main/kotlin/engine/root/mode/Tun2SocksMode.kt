@@ -3,6 +3,7 @@
 
 package engine.root.mode
 
+import engine.mihomo.fakeIpRelayPort
 import engine.proxy.toLocalProxyOptions
 import engine.proxy.toLocalProxyOptionsOrNull
 import engine.root.config.RootConfigBuildContext
@@ -36,7 +37,11 @@ internal fun RootConfigBuildContext.buildTun2SocksStartConfig(): RootModeStartCo
             mode = AsteriskdMode.Tun2Socks,
             iptablesConfig = iptablesConfig,
             virtualInterfaces = listOf("asterisk0"),
-            modeOptions = AsteriskdModeOptions(transparentPort = null, tunnelName = null),
+            modeOptions = AsteriskdModeOptions(
+                transparentPort = null,
+                tunnelName = null,
+                fakeIpRelayPort = appState.fakeIpRelayPort(),
+            ),
             helper = AsteriskdHevSocks5TunnelHelper(
                 executablePath = rootStartConfig.runtimePaths.hevSocks5TunnelExecutablePath,
                 socksHost = Tun2SocksListenAddress,
