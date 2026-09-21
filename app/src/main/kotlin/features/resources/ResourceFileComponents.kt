@@ -14,9 +14,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
@@ -110,23 +112,33 @@ internal fun ResourceOverviewCard(
             }
         },
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.Storage,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-            )
-            Text(
-                text = stringResource(R.string.settings_resource_files_overview),
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-            IconButton(onClick = onSettings) {
+        // Move the hit-test bounds with the button, while keeping the title anchored.
+        Box(modifier = Modifier.fillMaxWidth().offset(x = 12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth().offset(x = (-12).dp).padding(end = 48.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Storage,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+                Text(
+                    text = stringResource(R.string.settings_resource_files_overview),
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+            // Keep the full touch target without letting it add space above the title.
+            IconButton(
+                onClick = onSettings,
+                modifier = Modifier
+                    .matchParentSize()
+                    .wrapContentSize(Alignment.CenterEnd, unbounded = true)
+                    .size(48.dp),
+            ) {
                 Icon(
                     imageVector = Icons.Rounded.Settings,
                     contentDescription = stringResource(R.string.settings_title),
