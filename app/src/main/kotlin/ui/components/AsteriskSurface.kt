@@ -191,6 +191,9 @@ internal class SheetGestureHandoffGuard {
 
     fun recordScroll(consumedY: Float, availableY: Float) {
         if (hasScrollDecision) return
+        // Scroll startup or an ancestor consuming the delta can leave no vertical movement.
+        // Wait for movement before deciding who owns this gesture.
+        if (consumedY == 0f && availableY == 0f) return
         hasScrollDecision = true
         // decide once, allowing subpixel consumption at the content boundary.
         canDragSheet = availableY > 0f && abs(consumedY) < 0.5f
