@@ -104,7 +104,7 @@ enum class ResourceFileKind(
 
     val displayName: String
         get() = when (this) {
-            MihomoCore -> "Mihomo Core"
+            MihomoCore -> "Mihomo"
             else -> fileName
         }
 }
