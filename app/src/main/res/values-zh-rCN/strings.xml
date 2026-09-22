@@ -243,7 +243,6 @@
     <string name="mihomo_rule_providers_refresh_done">Rule Provider 已刷新</string>
     <string name="mihomo_rule_providers_refresh_failed">刷新 Rule Provider 失败</string>
     <string name="mihomo_rule_providers_refresh_all_done">Rule Provider 刷新完成：成功 %1$d；失败 %2$d</string>
-    <string name="mihomo_provider_file_content">文件内容</string>
     <string name="mihomo_provider_traffic_unlimited">不限量</string>
     <string name="mihomo_provider_file_missing">Provider 文件不可用</string>
     <string name="mihomo_provider_declarations_load_failed">加载 Provider 声明失败</string>
@@ -310,7 +309,6 @@
     <string name="mihomo_configuration_invalid_age_secret_key">无效的 Age 私钥</string>
     <string name="mihomo_configuration_update_interval">更新间隔（小时）</string>
     <string name="mihomo_configuration_update_via_proxy">通过代理更新</string>
-    <string name="mihomo_configuration_content">YAML 内容</string>
     <string name="mihomo_configuration_type_file">本地文件</string>
     <string name="mihomo_configuration_type_url">远程 URL</string>
     <string name="mihomo_configuration_chip_local_file">本地</string>
@@ -378,7 +376,6 @@
     <string name="mihomo_configuration_provider_usage_expanded">已展开</string>
     <string name="mihomo_configuration_provider_usage_collapsed">已折叠</string>
     <string name="mihomo_configuration_override_script">覆写脚本</string>
-    <string name="mihomo_configuration_override_script_content">JavaScript 内容</string>
     <string name="mihomo_configuration_override_script_none">不应用</string>
     <string name="mihomo_configuration_override_script_applied">脚本：{name}</string>
     <string name="mihomo_override_scripts_title">覆写脚本</string>

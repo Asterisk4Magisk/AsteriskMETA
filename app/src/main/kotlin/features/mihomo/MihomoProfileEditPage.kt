@@ -640,7 +640,6 @@ fun MihomoProfileEditPage(
                             }
                         }
                         YamlCodeEditor(
-                            label = stringResource(R.string.mihomo_configuration_content),
                             state = contentEditorState,
                             modifier = Modifier
                                 .fillMaxWidth()

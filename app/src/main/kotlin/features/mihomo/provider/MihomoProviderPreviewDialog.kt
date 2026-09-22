@@ -153,7 +153,6 @@ private fun ProviderTextPreviewContent(
     }
     if (content.isNotBlank() || rawContent.lastError.isBlank()) {
         YamlCodeEditor(
-            label = stringResource(R.string.mihomo_provider_file_content),
             state = previewEditorState,
             readOnly = true,
             modifier = Modifier

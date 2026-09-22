@@ -1385,7 +1385,6 @@ private fun MihomoProfilePreviewDialog(
                     modifier = Modifier.padding(bottom = 16.dp),
                 )
                 YamlCodeEditor(
-                    label = stringResource(R.string.mihomo_configuration_content),
                     state = previewEditorState,
                     readOnly = true,
                     modifier = Modifier

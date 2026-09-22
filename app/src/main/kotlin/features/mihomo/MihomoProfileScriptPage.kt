@@ -567,7 +567,6 @@ fun MihomoOverrideScriptEditPage(
                         }
                     }
                     JavaScriptCodeEditor(
-                        label = stringResource(R.string.mihomo_configuration_override_script_content),
                         state = scriptEditorState,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -742,7 +741,6 @@ private fun MihomoOverrideScriptDebugDialog(
             ) { showingOutput ->
                 if (showingOutput) {
                     YamlCodeEditor(
-                        label = stringResource(R.string.mihomo_override_script_debug_output),
                         state = outputEditorState,
                         readOnly = true,
                         modifier = Modifier

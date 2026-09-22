@@ -245,7 +245,6 @@
     <string name="mihomo_rule_providers_refresh_done">Rule Provider refreshed</string>
     <string name="mihomo_rule_providers_refresh_failed">Failed to refresh Rule Provider</string>
     <string name="mihomo_rule_providers_refresh_all_done">Rule Providers refresh complete: success %1$d; failed %2$d</string>
-    <string name="mihomo_provider_file_content">File content</string>
     <string name="mihomo_provider_traffic_unlimited">Unlimited</string>
     <string name="mihomo_provider_file_missing">Provider file is unavailable</string>
     <string name="mihomo_provider_declarations_load_failed">Failed to load Provider declarations</string>
@@ -314,7 +313,6 @@
     <string name="mihomo_configuration_invalid_age_secret_key">Invalid Age secret key</string>
     <string name="mihomo_configuration_update_interval">Update interval (hours)</string>
     <string name="mihomo_configuration_update_via_proxy">Update via proxy</string>
-    <string name="mihomo_configuration_content">YAML content</string>
     <string name="mihomo_configuration_type_file">Local file</string>
     <string name="mihomo_configuration_type_url">Remote URL</string>
     <string name="mihomo_configuration_chip_local_file">Local</string>
@@ -386,7 +384,6 @@
     <string name="mihomo_configuration_provider_usage_expanded">Expanded</string>
     <string name="mihomo_configuration_provider_usage_collapsed">Collapsed</string>
     <string name="mihomo_configuration_override_script">Override script</string>
-    <string name="mihomo_configuration_override_script_content">JavaScript content</string>
     <string name="mihomo_configuration_override_script_none">Do not apply</string>
     <string name="mihomo_configuration_override_script_applied">Script: {name}</string>
     <string name="mihomo_override_scripts_title">Override scripts</string>

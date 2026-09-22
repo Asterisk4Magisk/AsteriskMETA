@@ -27,7 +27,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -68,9 +67,6 @@ internal class MihomoCodeEditorState(
     var documentVersion by mutableIntStateOf(0)
         private set
 
-    var isEmpty by mutableStateOf(initialText.isEmpty())
-        private set
-
     var isFocused by mutableStateOf(false)
         private set
 
@@ -83,14 +79,12 @@ internal class MihomoCodeEditorState(
     internal fun detach(editor: CodeEditor) {
         if (this.editor !== editor) return
         retainedText = editor.text.toString()
-        isEmpty = editor.text.isEmpty()
         isFocused = false
         this.editor = null
     }
 
     internal fun onContentChanged(editor: CodeEditor, action: Int) {
         if (this.editor !== editor || action == ContentChangeEvent.ACTION_SET_NEW_TEXT) return
-        isEmpty = editor.text.isEmpty()
         documentVersion += 1
     }
 
@@ -106,7 +100,6 @@ internal class MihomoCodeEditorState(
         if (text == retainedText && editor?.text?.toString() == text) return
         retainedText = text
         moveCursorToEnd = placeCursorAtEnd
-        isEmpty = text.isEmpty()
         editor?.let(::applyRetainedText)
         documentVersion += 1
     }
@@ -141,13 +134,11 @@ internal class MihomoCodeEditorState(
 
 @Composable
 internal fun JavaScriptCodeEditor(
-    label: String,
     state: MihomoCodeEditorState,
     modifier: Modifier = Modifier,
     readOnly: Boolean = false,
 ) {
     SoraCodeEditor(
-        label = label,
         state = state,
         language = MihomoCodeLanguage.JavaScript,
         readOnly = readOnly,
@@ -157,13 +148,11 @@ internal fun JavaScriptCodeEditor(
 
 @Composable
 internal fun YamlCodeEditor(
-    label: String,
     state: MihomoCodeEditorState,
     modifier: Modifier = Modifier,
     readOnly: Boolean = false,
 ) {
     SoraCodeEditor(
-        label = label,
         state = state,
         language = MihomoCodeLanguage.Yaml,
         readOnly = readOnly,
@@ -173,7 +162,6 @@ internal fun YamlCodeEditor(
 
 @Composable
 private fun SoraCodeEditor(
-    label: String,
     state: MihomoCodeEditorState,
     language: MihomoCodeLanguage,
     readOnly: Boolean,
@@ -284,16 +272,6 @@ private fun SoraCodeEditor(
                         }
                     }
                 }
-            }
-            if (state.isEmpty) {
-                Text(
-                    text = label,
-                    color = colors.placeholder,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(start = PlaceholderStartPadding, top = PlaceholderTopPadding),
-                )
             }
         }
     }
@@ -429,7 +407,6 @@ private fun rememberCodeEditorColors(): CodeEditorColors {
             separator = colorScheme.outlineVariant.copy(alpha = 0.72f),
             border = colorScheme.outlineVariant.copy(alpha = 0.48f),
             lineNumber = colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
-            placeholder = colorScheme.onSurfaceVariant.copy(alpha = 0.62f),
             selection = colorScheme.primary.copy(alpha = if (darkTheme) 0.34f else 0.24f),
             currentLine = colorScheme.primary.copy(alpha = if (darkTheme) 0.10f else 0.06f),
             keyword = colorScheme.primary,
@@ -455,7 +432,6 @@ private data class CodeEditorColors(
     val separator: Color,
     val border: Color,
     val lineNumber: Color,
-    val placeholder: Color,
     val selection: Color,
     val currentLine: Color,
     val keyword: Color,
@@ -509,5 +485,3 @@ private const val EditorTabWidth = 2
 private const val LineNumberMargin = 4f
 private const val DividerWidth = 1f
 private val FocusedBorderWidth = 2.dp
-private val PlaceholderStartPadding = 50.dp
-private val PlaceholderTopPadding = 9.dp
