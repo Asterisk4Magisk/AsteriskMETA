@@ -19,6 +19,12 @@ android {
     namespace = "app"
     compileSdk = ProjectConfig.TARGET_SDK
 
+    // Built-in Kotlin inherits this JVM target.
+    compileOptions {
+        sourceCompatibility = JavaVersion.toVersion(ProjectConfig.JVM_VERSION)
+        targetCompatibility = JavaVersion.toVersion(ProjectConfig.JVM_VERSION)
+    }
+
     defaultConfig {
         applicationId = ProjectConfig.PACKAGE_NAME
         minSdk = ProjectConfig.MIN_SDK
