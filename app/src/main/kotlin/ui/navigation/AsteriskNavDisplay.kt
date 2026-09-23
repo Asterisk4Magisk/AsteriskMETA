@@ -16,7 +16,11 @@ import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.core.SeekableTransitionState
 import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.rememberTransition
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -27,6 +31,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.rememberLifecycleOwner
@@ -116,6 +123,8 @@ internal fun <T : Any> AsteriskNavDisplay(
     layers[targetKey] = targetLayer
 
     val reducedMotion = LocalReduceMotion.current
+    val cornerRadius = rememberNavigationCornerRadius()
+    val cornerShape = remember(cornerRadius) { RoundedCornerShape(cornerRadius) }
     if (inPredictiveBack && previousScene != null) {
         LaunchedEffect(scene.key, previousScene.key) {
             val entryInterruptionFraction = transitionState.fraction
@@ -192,6 +201,16 @@ internal fun <T : Any> AsteriskNavDisplay(
         },
     ) { targetSceneKey ->
         val targetScene = renderedScenes.getValue(targetSceneKey)
+        val sceneLayer = remember(targetSceneKey) { layers.getValue(targetSceneKey) }
+        val dimAlpha = transition.animateFloat(
+            transitionSpec = {
+                if (inPredictiveBack) AsteriskMotion.predictiveNavigation(reducedMotion)
+                else AsteriskMotion.navigation(reducedMotion)
+            },
+            label = "navigation-scene-dim",
+        ) { topSceneKey ->
+            if ((layers[topSceneKey] ?: sceneLayer) > sceneLayer) 0.5f else 0f
+        }
         val settled = transition.currentState == transition.targetState
         val lifecycleOwner = rememberLifecycleOwner(
             maxLifecycle = if (settled) Lifecycle.State.RESUMED else Lifecycle.State.STARTED,
@@ -200,7 +219,23 @@ internal fun <T : Any> AsteriskNavDisplay(
             LocalLifecycleOwner provides lifecycleOwner,
             LocalNavAnimatedContentScope provides this,
         ) {
-            targetScene.content()
+            // Clip the moving foreground page, so its corners travel with the slide.
+            // Keep clipping through predictive-back cancellation and interrupted entry.
+            Box(
+                modifier = Modifier.fillMaxSize().graphicsLayer {
+                    shape = cornerShape
+                    clip = (transition.currentState != transition.targetState ||
+                        transition.isRunning || inPredictiveBack) &&
+                        layers[targetSceneKey] == layers.values.maxOrNull()
+                }.drawWithContent {
+                    drawContent()
+                    // Dim only the covered page, with the same clock and easing as its slide.
+                    // Reading in draw keeps animation frames out of composition.
+                    drawRect(Color.Black, alpha = dimAlpha.value.coerceIn(0f, 0.5f))
+                },
+            ) {
+                targetScene.content()
+            }
         }
     }
 
