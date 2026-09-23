@@ -99,7 +99,7 @@ internal class SwitchRunModeUseCase(
         }
         // A failed/inactive ROOT cycle may still be collecting its diagnostic report.
         if (currentState.runMode.isRootRunMode()) {
-            RootFailureWatcher.stop(suspendUntilNextAttempt = true)
+            RootFailureWatcher.stop()
         }
         return SwitchRunModeResult.Success(
             runMode = normalizedTargetMode,

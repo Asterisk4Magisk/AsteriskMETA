@@ -32,6 +32,8 @@ import features.subscription.runtime.mihomoCoreFetchLock
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import system.RootShellGateway
 import system.ShellExecOptions
@@ -84,7 +86,7 @@ internal class RootSupervisorController(
         status().boundSnapshot()?.let { snapshot ->
             val disposition = snapshot.ordinaryStartDisposition(AsteriskdOwner.AsteriskMeta, config.mode)
             if (disposition == RootOrdinaryStartDisposition.Reuse) {
-                observeRunningFailure(snapshot)
+                observeRunningFailure(snapshot, explicitRootAction = true)
                 return snapshot
             }
             if (disposition.shutdownBeforeLaunch) shutdownOwn()
@@ -156,7 +158,7 @@ internal class RootSupervisorController(
         launchMode: RootPublicationLaunchMode,
     ): AsteriskdSnapshot {
         var stage = "prepare_directories"
-        RootFailureWatcher.ensureStarted(appContext, shell, runtimeLayout)
+        RootFailureWatcher.ensureStarted(appContext, shell, runtimeLayout, explicitRootAction = true, running = false)
         runCatching { AndroidAppLogger.info(LogTag, "root_start mode=${config.mode.wireValue} launch=$launchMode stage=$stage") }
         try {
             preparePublication()
@@ -203,9 +205,16 @@ internal class RootSupervisorController(
             } ?: throw IllegalStateException("asteriskd did not reach the requested phase before timeout")
             if (snapshot.owner != AsteriskdOwner.AsteriskMeta) throw RootRuntimeConflictException(snapshot)
             require(snapshot.mode == config.mode) { "Unexpected ROOT mode ${snapshot.mode.wireValue}" }
+            if (launchMode == RootPublicationLaunchMode.Service) {
+                observeRunningFailure(snapshot, explicitRootAction = true)
+            } else {
+                // A resident supervisor waiting for a trigger has no running core to monitor.
+                RootFailureWatcher.stop()
+            }
             runCatching { AndroidAppLogger.info(LogTag, "root_start stage=ready phase=${snapshot.phase}") }
             return snapshot
         } catch (error: Exception) {
+            withContext(NonCancellable) { RootFailureWatcher.stop() }
             val outcome = if (error is kotlinx.coroutines.CancellationException) "cancelled" else "failed"
             runCatching { AndroidAppLogger.warn(LogTag, "root_start stage=$stage result=$outcome type=${error.javaClass.simpleName}") }
             throw error
