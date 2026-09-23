@@ -38,9 +38,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -51,8 +51,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import app.CustomResourceFileState
-import app.CustomResourceFileStatus
 import app.R
 import app.ResourceFileStatus
 import ui.components.AsteriskActionButton
@@ -281,41 +279,6 @@ internal fun ResourceFileCard(
     )
 }
 
-@Composable
-internal fun CustomResourceFileCard(
-    fileStatus: CustomResourceFileStatus,
-    onUpdate: (CustomResourceFileState) -> Unit,
-    onReplace: (CustomResourceFileState) -> Unit,
-    onEdit: (CustomResourceFileState) -> Unit,
-    onDelete: (CustomResourceFileState) -> Unit,
-    modifier: Modifier = Modifier,
-    updateState: ResourceFileUpdateDisplayState = ResourceFileUpdateDisplayState.Idle,
-    actionsEnabled: Boolean = true,
-) {
-    val file = fileStatus.file
-    val callbacks = mapOf(
-        ResourceDisplayAction.Update to { onUpdate(file) },
-        ResourceDisplayAction.Replace to { onReplace(file) },
-        ResourceDisplayAction.Edit to { onEdit(file) },
-        ResourceDisplayAction.Delete to { onDelete(file) },
-    )
-    ResourceFileCardSurface(
-        fileName = file.name,
-        status = fileStatus.status,
-        description = if (file.url.isBlank()) {
-            stringResource(R.string.settings_resource_files_local_only)
-        } else {
-            null
-        },
-        modifier = modifier,
-        updateState = updateState,
-        actionsEnabled = actionsEnabled,
-        actions = customResourceDisplayActions(file).mapNotNull { action ->
-            callbacks[action]?.let { callback -> ResourceMenuEntry(action, callback) }
-        },
-    )
-}
-
 private data class ResourceMenuEntry(
     val action: ResourceDisplayAction,
     val onClick: () -> Unit,
@@ -478,8 +441,6 @@ private fun ResourceDisplayAction.icon(): ImageVector {
         ResourceDisplayAction.Update -> Icons.Rounded.Refresh
         ResourceDisplayAction.Replace -> Icons.Rounded.FileUpload
         ResourceDisplayAction.Restore -> Icons.Rounded.History
-        ResourceDisplayAction.Edit -> Icons.Rounded.Edit
-        ResourceDisplayAction.Delete -> Icons.Rounded.Delete
     }
 }
 
@@ -490,8 +451,6 @@ private fun ResourceDisplayAction.label(): String {
             ResourceDisplayAction.Update -> R.string.common_update
             ResourceDisplayAction.Replace -> R.string.common_replace
             ResourceDisplayAction.Restore -> R.string.common_restore
-            ResourceDisplayAction.Edit -> R.string.common_edit
-            ResourceDisplayAction.Delete -> R.string.common_delete
         },
     )
 }
@@ -502,83 +461,6 @@ private fun ResourceFileStatusChip(text: String, ready: Boolean) {
         text = text,
         tone = if (ready) AsteriskChipTone.Primary else AsteriskChipTone.Error,
     )
-}
-
-@Composable
-internal fun CustomResourceFileEditorSheet(
-    show: Boolean,
-    nameState: TextFieldState,
-    urlState: TextFieldState,
-    reservedNames: Set<String>,
-    onDismissRequest: () -> Unit,
-    onSave: (name: String, url: String) -> Boolean,
-) {
-    var error by remember { mutableStateOf<CustomResourceDraftError?>(null) }
-    AsteriskModalBottomSheet(
-        show = show,
-        onDismissRequest = onDismissRequest,
-        title = stringResource(R.string.settings_resource_files_custom_file),
-        startAction = {
-            AsteriskActionButton(
-                text = stringResource(R.string.common_cancel),
-                icon = Icons.Rounded.Close,
-                onClick = onDismissRequest,
-            )
-        },
-        endAction = {
-            AsteriskActionButton(
-                text = stringResource(R.string.common_save),
-                icon = Icons.Rounded.Save,
-                onClick = {
-                    val validation = validateCustomResourceDraft(
-                        name = nameState.text.toString(),
-                        url = urlState.text.toString(),
-                        reservedNames = reservedNames,
-                    )
-                    error = validation.error
-                    if (validation.valid && onSave(validation.name, validation.url)) {
-                        onDismissRequest()
-                    }
-                },
-            )
-        },
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 24.dp),
-        ) {
-            OutlinedTextField(
-                state = nameState,
-                label = { Text(stringResource(R.string.settings_resource_files_custom_name)) },
-                lineLimits = TextFieldLineLimits.SingleLine,
-                isError = error == CustomResourceDraftError.InvalidName ||
-                    error == CustomResourceDraftError.DuplicateName,
-                supportingText = error.nameErrorText(),
-                modifier = Modifier.fillMaxWidth(),
-            )
-            OutlinedTextField(
-                state = urlState,
-                label = { Text(stringResource(R.string.settings_resource_files_custom_url_optional)) },
-                lineLimits = TextFieldLineLimits.SingleLine,
-                isError = error == CustomResourceDraftError.InvalidUrl,
-                supportingText = if (error == CustomResourceDraftError.InvalidUrl) {
-                    { Text(stringResource(R.string.settings_resource_files_custom_url_invalid)) }
-                } else {
-                    null
-                },
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-            )
-        }
-    }
-}
-
-@Composable
-private fun CustomResourceDraftError?.nameErrorText(): (@Composable () -> Unit)? {
-    val text = when (this) {
-        CustomResourceDraftError.InvalidName -> stringResource(R.string.settings_resource_files_custom_name_invalid)
-        CustomResourceDraftError.DuplicateName -> stringResource(R.string.settings_resource_files_custom_name_duplicate)
-        else -> return null
-    }
-    return { Text(text) }
 }
 
 @Composable

@@ -6,7 +6,6 @@ package data
 import android.content.Context
 import android.content.SharedPreferences
 import app.AppState
-import app.CustomResourceFileState
 import app.ServiceControlSchedule
 import app.ServiceControlSettings
 import app.ServiceControlWifi
@@ -23,14 +22,6 @@ internal class AppSettingsPreferences(
 
     fun load(): AppState {
         val defaults = AppState()
-        val customResourceFiles = preferences.getCustomResourceFileList(
-            KeyCustomResourceFiles,
-            defaults.customResourceFiles,
-        )
-        val nextCustomResourceFileId = maxOf(
-            preferences.getInt(KeyNextCustomResourceFileId, defaults.nextCustomResourceFileId),
-            (customResourceFiles.maxOfOrNull { file -> file.id } ?: 0) + 1,
-        )
         val mihomoControlSecret = preferences.getString(KeyMihomoControlSecret, null)
             ?.takeIf(String::isNotBlank)
             ?: UUID.randomUUID().toString().also { secret ->
@@ -137,8 +128,6 @@ internal class AppSettingsPreferences(
                 KeyCustomResourceFileDirectCidrIpv6Url,
                 defaults.customResourceFileDirectCidrIpv6Url,
             ) ?: defaults.customResourceFileDirectCidrIpv6Url,
-            customResourceFiles = customResourceFiles,
-            nextCustomResourceFileId = nextCustomResourceFileId,
             enableSniffer = preferences.getBoolean(KeyEnableSniffer, defaults.enableSniffer),
             enableSnifferOverrideDestination = preferences.getBoolean(
                 KeyEnableSnifferOverrideDestination,
@@ -304,8 +293,6 @@ internal class AppSettingsPreferences(
             .putString(KeyCustomResourceFileAsnUrl, state.customResourceFileAsnUrl)
             .putString(KeyCustomResourceFileDirectCidrIpv4Url, state.customResourceFileDirectCidrIpv4Url)
             .putString(KeyCustomResourceFileDirectCidrIpv6Url, state.customResourceFileDirectCidrIpv6Url)
-            .putCustomResourceFileList(KeyCustomResourceFiles, state.customResourceFiles)
-            .putInt(KeyNextCustomResourceFileId, state.nextCustomResourceFileId)
             .putBoolean(KeyEnableSniffer, state.enableSniffer)
             .putBoolean(KeyEnableSnifferOverrideDestination, state.enableSnifferOverrideDestination)
             .putBoolean(KeySnifferForceDnsMapping, state.snifferForceDnsMapping)
@@ -464,19 +451,6 @@ internal class AppSettingsPreferences(
         return putString(key, StringListJson.encode(values))
     }
 
-    private fun SharedPreferences.getCustomResourceFileList(
-        key: String,
-        defaultValue: List<CustomResourceFileState>,
-    ): List<CustomResourceFileState> {
-        return getString(key, null)?.let(CustomResourceFileListJson::decode) ?: defaultValue
-    }
-
-    private fun SharedPreferences.Editor.putCustomResourceFileList(
-        key: String,
-        values: List<CustomResourceFileState>,
-    ): SharedPreferences.Editor {
-        return putString(key, CustomResourceFileListJson.encode(values))
-    }
 }
 
 private const val PreferencesName = "asteriskmeta_settings"
@@ -521,8 +495,6 @@ private const val KeyCustomResourceFileMmdbUrl = "custom_resource_file_mmdb_url"
 private const val KeyCustomResourceFileAsnUrl = "custom_resource_file_asn_url"
 private const val KeyCustomResourceFileDirectCidrIpv4Url = "custom_resource_file_direct_cidr_ipv4_url"
 private const val KeyCustomResourceFileDirectCidrIpv6Url = "custom_resource_file_direct_cidr_ipv6_url"
-private const val KeyCustomResourceFiles = "custom_resource_files"
-private const val KeyNextCustomResourceFileId = "next_custom_resource_file_id"
 private const val KeyEnableSniffer = "enable_sniffer"
 private const val KeyEnableSnifferOverrideDestination = "enable_sniffer_override_destination"
 private const val KeySnifferForceDnsMapping = "sniffer_force_dns_mapping"

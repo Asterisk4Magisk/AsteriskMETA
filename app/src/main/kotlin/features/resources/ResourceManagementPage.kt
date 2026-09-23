@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.text.input.clearText
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material3.Icon
@@ -18,19 +17,17 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import app.CustomResourceFileState
-import app.CustomResourceFileStatus
 import app.LocalAppServices
 import app.LocalAppStateStore
 import app.LocalIsWideScreen
@@ -40,13 +37,10 @@ import app.R
 import app.ResourceFileKind
 import app.ResourceFilesStatus
 import app.collectAppState
-import app.customResourceFileNameOrNull
-import app.nextAvailableCustomResourceFileId
 import app.resourceFileUpdateSource
 import app.statusOf
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.launch
-import ui.components.AsteriskExtendedFab
 import ui.components.AsteriskScaffold
 import ui.components.AsteriskTopAppBar
 import ui.layout.pageContentPaddingWithCutout
@@ -72,12 +66,6 @@ fun ResourceManagementPage(
     val scope = rememberCoroutineScope()
     var status by remember { mutableStateOf(ResourceFilesStatus()) }
     var resourceActionRunning by remember { mutableStateOf(false) }
-    val showCustomResourceFileDialog = remember { mutableStateOf(false) }
-    var editingCustomResourceFile by remember { mutableStateOf<CustomResourceFileState?>(null) }
-    val customResourceFileNameState = rememberTextFieldState()
-    val customResourceFileUrlState = rememberTextFieldState()
-    val editCustomResourceFileNameState = rememberTextFieldState()
-    val editCustomResourceFileUrlState = rememberTextFieldState()
     var showCustomSourceEditor by remember { mutableStateOf(false) }
     var showResourceAutoUpdateSheet by remember { mutableStateOf(false) }
     val sourceGeoIpUrlState = rememberTextFieldState()
@@ -90,13 +78,6 @@ fun ResourceManagementPage(
     val updatedOneMessage = stringResource(R.string.settings_resource_file_updated)
     val replacedMessage = stringResource(R.string.settings_resource_files_replaced)
     val restoredMessage = stringResource(R.string.settings_resource_files_restored)
-    val deletedMessage = stringResource(R.string.settings_resource_files_deleted)
-    val customResourceFileNameInvalidMessage = stringResource(
-        R.string.settings_resource_files_custom_name_invalid,
-    )
-    val customResourceFileNameDuplicateMessage = stringResource(
-        R.string.settings_resource_files_custom_name_duplicate,
-    )
 
     fun runResourceFileAction(
         action: suspend () -> ResourceFilesStatus?,
@@ -131,121 +112,14 @@ fun ResourceManagementPage(
         }
     }
 
-    fun showResourceFileEditorError(message: String) {
-        services.appScope.launch {
-            tipNotifier.show(message)
-        }
-    }
-
     fun updateResourceFile(kind: ResourceFileKind) {
         resourceFileUpdateCoordinator.enqueue(
             ResourceFileUpdateRequest.BuiltIn(
                 kind = kind,
                 source = appState.resourceFileUpdateSource(),
                 options = appState.resourceFileUpdateOptions(),
-                customResourceFiles = appState.customResourceFiles.toList(),
             ),
         )
-    }
-
-    fun updateCustomResourceFile(file: CustomResourceFileState) {
-        resourceFileUpdateCoordinator.enqueue(
-            ResourceFileUpdateRequest.Custom(
-                file = file,
-                options = appState.resourceFileUpdateOptions(),
-                customResourceFiles = appState.customResourceFiles.toList(),
-            ),
-        )
-    }
-
-    fun customResourceFileReservedNames(editingFileId: Int? = null): Set<String> {
-        return ResourceFileKind.entries.map { kind -> kind.fileName }.toSet() +
-            appState.customResourceFiles
-                .filterNot { file -> file.id == editingFileId }
-                .map { file -> file.name }
-    }
-
-    fun validatedCustomResourceFileName(name: String, reservedNames: Set<String>): String? {
-        val fileName = customResourceFileNameOrNull(name)
-        if (fileName == null) {
-            showResourceFileEditorError(customResourceFileNameInvalidMessage)
-            return null
-        }
-        if (fileName in reservedNames) {
-            showResourceFileEditorError(customResourceFileNameDuplicateMessage)
-            return null
-        }
-        return fileName
-    }
-
-    fun addCustomResourceFile(name: String, url: String): Boolean {
-        val fileName = validatedCustomResourceFileName(
-            name = name,
-            reservedNames = customResourceFileReservedNames(),
-        ) ?: return false
-        var addedFile: CustomResourceFileState? = null
-        var nextCustomResourceFiles = appState.customResourceFiles
-        updateAppState { state ->
-            val updateUrl = url.trim()
-            val fileId = state.nextAvailableCustomResourceFileId()
-            val nextCustomFile = CustomResourceFileState(
-                id = fileId,
-                name = fileName,
-                url = updateUrl,
-            )
-            addedFile = nextCustomFile
-            nextCustomResourceFiles = state.customResourceFiles + nextCustomFile
-            state.copy(
-                customResourceFiles = nextCustomResourceFiles,
-                nextCustomResourceFileId = fileId + 1,
-            )
-        }
-        addedFile?.takeIf { file -> file.url.isBlank() }?.let { file ->
-            runResourceFileAction(
-                action = {
-                    resourceFileUseCase.replaceCustom(
-                        customFile = file,
-                        customResourceFiles = nextCustomResourceFiles,
-                    )
-                },
-                successMessage = replacedMessage.formatTemplate("name" to file.name),
-            )
-        }
-        return true
-    }
-
-    fun editCustomResourceFile(file: CustomResourceFileState, name: String, url: String): Boolean {
-        val fileName = validatedCustomResourceFileName(
-            name = name,
-            reservedNames = customResourceFileReservedNames(editingFileId = file.id),
-        ) ?: return false
-        var editedFile: CustomResourceFileState? = null
-        var nextCustomResourceFiles = appState.customResourceFiles
-        updateAppState { state ->
-            val updateUrl = url.trim()
-            val nextCustomFile = file.copy(
-                name = fileName,
-                url = updateUrl,
-            )
-            editedFile = nextCustomFile
-            nextCustomResourceFiles = state.customResourceFiles.map { customFile ->
-                if (customFile.id == file.id) nextCustomFile else customFile
-            }
-            state.copy(customResourceFiles = nextCustomResourceFiles)
-        }
-        editedFile?.let { nextFile ->
-            runResourceFileAction(
-                action = {
-                    resourceFileUseCase.renameCustom(
-                        previousFile = file,
-                        customFile = nextFile,
-                        customResourceFiles = nextCustomResourceFiles,
-                    )
-                },
-                successMessage = null,
-            )
-        }
-        return true
     }
 
     fun openCustomSourceEditor() {
@@ -265,8 +139,8 @@ fun ResourceManagementPage(
         showCustomSourceEditor = true
     }
 
-    LaunchedEffect(appState.customResourceFiles, updateQueueState.completionRevision) {
-        status = resourceFileUseCase.status(appState.customResourceFiles)
+    LaunchedEffect(updateQueueState.completionRevision) {
+        status = resourceFileUseCase.status()
     }
     LaunchedEffect(resourceFileUpdateCoordinator, updatedMessage, updatedOneMessage) {
         resourceFileUpdateCoordinator.results.collect { result ->
@@ -277,9 +151,6 @@ fun ResourceManagementPage(
                         is ResourceFileUpdateRequest.BuiltIn -> updatedOneMessage.formatTemplate(
                             "name" to request.kind.displayName,
                         )
-                        is ResourceFileUpdateRequest.Custom -> updatedOneMessage.formatTemplate(
-                            "name" to request.file.name,
-                        )
                     }
                     tipNotifier.show(message)
                 }
@@ -289,10 +160,9 @@ fun ResourceManagementPage(
         }
     }
 
-    val overview = reduceResourceOverview(status, appState.customResourceFiles)
+    val overview = reduceResourceOverview(status)
     val lastUpdatedAtMillis = (
-        ResourceFileKind.entries.map { kind -> status.statusOf(kind).updatedAtMillis } +
-            status.customResourceFiles.map { file -> file.status.updatedAtMillis }
+        ResourceFileKind.entries.map { kind -> status.statusOf(kind).updatedAtMillis }
         ).maxOrNull() ?: 0L
 
     AsteriskScaffold(
@@ -309,24 +179,13 @@ fun ResourceManagementPage(
                 },
             )
         },
-        floatingActionButton = {
-            AsteriskExtendedFab(
-                onClick = {
-                    customResourceFileNameState.clearText()
-                    customResourceFileUrlState.clearText()
-                    showCustomResourceFileDialog.value = true
-                },
-                icon = Icons.Rounded.Add,
-                text = stringResource(R.string.settings_resource_files_add_custom),
-            )
-        },
     ) { innerPadding ->
         val contentPadding = pageContentPaddingWithCutout(
             innerPadding = innerPadding,
             outerPadding = padding,
             isWideScreen = isWideScreen,
         )
-        val listPadding = pageListPadding(contentPadding, bottomExtra = 88.dp)
+        val listPadding = pageListPadding(contentPadding)
 
         LazyColumn(
             contentPadding = listPadding,
@@ -352,7 +211,6 @@ fun ResourceManagementPage(
                             ResourceFileUpdateRequest.All(
                                 source = appState.resourceFileUpdateSource(),
                                 options = appState.resourceFileUpdateOptions(),
-                                customResourceFiles = appState.customResourceFiles.toList(),
                             ),
                         )
                     },
@@ -373,7 +231,7 @@ fun ResourceManagementPage(
                     onReplace = {
                         runResourceFileAction(
                             action = {
-                                resourceFileUseCase.replace(kind, appState.customResourceFiles)?.also {
+                                resourceFileUseCase.replace(kind)?.also {
                                     services.refreshMihomoCoreBoot(appState)
                                 }
                             },
@@ -408,62 +266,20 @@ fun ResourceManagementPage(
                         onUpdate = { updateResourceFile(kind) },
                         onReplace = {
                             runResourceFileAction(
-                                action = { resourceFileUseCase.replace(kind, appState.customResourceFiles) },
+                                action = { resourceFileUseCase.replace(kind) },
                                 successMessage = replacedMessage.formatTemplate("name" to kind.displayName),
                             )
                         },
                         onRestore = {
                             runResourceFileAction(
-                                action = { resourceFileUseCase.restoreBundled(kind, appState.customResourceFiles) },
+                                action = { resourceFileUseCase.restoreBundled(kind) },
                                 successMessage = restoredMessage.formatTemplate("name" to kind.displayName),
                             )
                         },
                     )
                 }
             }
-            if (appState.customResourceFiles.isNotEmpty()) {
-                item(key = "resource_custom_section") {
-                    ResourceSectionTitle(stringResource(R.string.settings_resource_files_custom_section))
-                }
-            }
-            appState.customResourceFiles.forEach { customFile ->
-                item(key = "custom_resource_file_${customFile.id}") {
-                    CustomResourceFileCard(
-                        fileStatus = status.statusOf(customFile),
-                        updateState = updateQueueState.displayStateOf(
-                            ResourceFileUpdateTarget.Custom(customFile.id),
-                        ),
-                        actionsEnabled = !resourceActionRunning,
-                        onUpdate = ::updateCustomResourceFile,
-                        onReplace = { file ->
-                            runResourceFileAction(
-                                action = {
-                                    resourceFileUseCase.replaceCustom(file, appState.customResourceFiles)
-                                },
-                                successMessage = replacedMessage.formatTemplate("name" to file.name),
-                            )
-                        },
-                        onEdit = { file ->
-                            editCustomResourceFileNameState.setTextAndPlaceCursorAtEnd(file.name)
-                            editCustomResourceFileUrlState.setTextAndPlaceCursorAtEnd(file.url)
-                            editingCustomResourceFile = file
-                        },
-                        onDelete = { file ->
-                            runResourceFileAction(
-                                action = {
-                                    var remaining = emptyList<CustomResourceFileState>()
-                                    updateAppState { state ->
-                                        remaining = state.customResourceFiles.filterNot { it.id == file.id }
-                                        state.copy(customResourceFiles = remaining)
-                                    }
-                                    resourceFileUseCase.deleteCustom(file, remaining)
-                                },
-                                successMessage = deletedMessage.formatTemplate("name" to file.name),
-                            )
-                        },
-                    )
-                }
-            }
+
         }
         ResourceAutoUpdateSheet(
             show = showResourceAutoUpdateSheet,
@@ -475,24 +291,6 @@ fun ResourceManagementPage(
                     state.copy(enableResourceAutoUpdate = enabled, resourceAutoUpdateInterval = interval)
                 }
                 showResourceAutoUpdateSheet = false
-            },
-        )
-        CustomResourceFileEditorSheet(
-            show = showCustomResourceFileDialog.value,
-            nameState = customResourceFileNameState,
-            urlState = customResourceFileUrlState,
-            reservedNames = customResourceFileReservedNames(),
-            onDismissRequest = { showCustomResourceFileDialog.value = false },
-            onSave = ::addCustomResourceFile,
-        )
-        CustomResourceFileEditorSheet(
-            show = editingCustomResourceFile != null,
-            nameState = editCustomResourceFileNameState,
-            urlState = editCustomResourceFileUrlState,
-            reservedNames = customResourceFileReservedNames(editingCustomResourceFile?.id),
-            onDismissRequest = { editingCustomResourceFile = null },
-            onSave = { name, url ->
-                editingCustomResourceFile?.let { file -> editCustomResourceFile(file, name, url) } ?: false
             },
         )
         CustomResourceSourceEditorSheet(
@@ -531,11 +329,4 @@ private fun ResourceSectionTitle(text: String) {
         color = MaterialTheme.colorScheme.primary,
         modifier = Modifier.fillMaxWidth().padding(start = 4.dp, top = 10.dp, bottom = 2.dp),
     )
-}
-
-
-
-private fun ResourceFilesStatus.statusOf(customFile: CustomResourceFileState): CustomResourceFileStatus {
-    return customResourceFiles.firstOrNull { fileStatus -> fileStatus.file.id == customFile.id }
-        ?: CustomResourceFileStatus(file = customFile)
 }

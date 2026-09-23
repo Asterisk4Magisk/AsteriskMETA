@@ -178,7 +178,6 @@ class AndroidAppStateStore private constructor(
 private fun AppState.isCheapNoopUpdate(previous: AppState): Boolean {
     return mihomoProfiles === previous.mihomoProfiles &&
         mihomoOverrideScripts === previous.mihomoOverrideScripts &&
-        customResourceFiles === previous.customResourceFiles &&
         dnsFakeIpFilter === previous.dnsFakeIpFilter &&
         dnsDefaultNameserver === previous.dnsDefaultNameserver &&
         dnsNameserver === previous.dnsNameserver &&

@@ -82,17 +82,10 @@ class AsteriskApplication : Application(), SingletonImageLoader.Factory {
                         kind = request.kind,
                         source = request.source,
                         options = request.options,
-                        customResourceFiles = request.customResourceFiles,
-                    )
-                    is ResourceFileUpdateRequest.Custom -> resourceFileUseCase.updateCustom(
-                        customFile = request.file,
-                        options = request.options,
-                        customResourceFiles = request.customResourceFiles,
                     )
                     is ResourceFileUpdateRequest.All -> resourceFileUseCase.update(
                         source = request.source,
                         options = request.options,
-                        customResourceFiles = request.customResourceFiles,
                     )
                 }
             },

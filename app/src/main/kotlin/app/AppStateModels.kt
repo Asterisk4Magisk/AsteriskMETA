@@ -117,22 +117,8 @@ data class ResourceFileStatus(
 )
 
 @Stable
-data class CustomResourceFileState(
-    val id: Int,
-    val name: String,
-    val url: String,
-)
-
-@Stable
-data class CustomResourceFileStatus(
-    val file: CustomResourceFileState,
-    val status: ResourceFileStatus = ResourceFileStatus(),
-)
-
-@Stable
 data class ResourceFilesStatus(
     val resourceFiles: Map<ResourceFileKind, ResourceFileStatus> = emptyMap(),
-    val customResourceFiles: List<CustomResourceFileStatus> = emptyList(),
 )
 
 data class ResourceFileUpdateSource(
@@ -179,15 +165,6 @@ fun AppState.nextAvailableMihomoOverrideScriptId(): Int {
     return candidate
 }
 
-fun AppState.nextAvailableCustomResourceFileId(): Int {
-    val usedIds = customResourceFiles.mapTo(mutableSetOf()) { file -> file.id }
-    var candidate = nextCustomResourceFileId.coerceAtLeast(1)
-    while (candidate in usedIds) {
-        candidate += 1
-    }
-    return candidate
-}
-
 fun AppState.resourceFileUpdateSource(): ResourceFileUpdateSource {
     if (resourceFileSource != ResourceFileSourceCustom) {
         return resourceFileUpdateSourceAt(resourceFileSource)
@@ -228,28 +205,4 @@ fun ResourceFileUpdateSource.urlFor(kind: ResourceFileKind): String? {
 
 fun ResourceFilesStatus.statusOf(kind: ResourceFileKind): ResourceFileStatus {
     return resourceFiles[kind] ?: ResourceFileStatus()
-}
-
-fun sanitizeCustomResourceFileName(value: String, fallback: String): String {
-    val candidate = value
-        .trim()
-        .replace('\\', '/')
-        .substringAfterLast('/')
-        .map { char -> if (char.isResourceFileNameChar()) char else '_' }
-        .joinToString("")
-        .trim()
-    return candidate
-        .takeUnless { it.isBlank() || it == "." || it == ".." }
-        ?: fallback
-}
-
-fun customResourceFileNameOrNull(value: String): String? {
-    if (value.isBlank() || value != value.trim()) return null
-    if (value.any { char -> char.isWhitespace() || char == ':' }) return null
-    return sanitizeCustomResourceFileName(value, fallback = "")
-        .takeIf { sanitized -> sanitized == value }
-}
-
-private fun Char.isResourceFileNameChar(): Boolean {
-    return code >= 32 && this != '/' && this != '\\'
 }

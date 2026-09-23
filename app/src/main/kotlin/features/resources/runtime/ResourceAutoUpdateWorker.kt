@@ -8,7 +8,6 @@ import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import app.AsteriskApplication
-import app.ResourceFileKind
 import app.resourceFileUpdateSource
 import features.logs.AndroidAppLogger
 import features.resources.ResourceAutoUpdateOutcome
@@ -39,28 +38,18 @@ internal class ResourceAutoUpdateWorker(context: Context, parameters: WorkerPara
             return@withContext Result.success()
         }
         val state = application.stateStore.state.value
-        // Core urlFor() is null; reserved names are excluded from custom downloads too.
+        // Only fixed Mihomo resources are scheduled; the core has no automatic URL.
         val all = ResourceFileUpdateRequest.All(
             state.resourceFileUpdateSource(), state.resourceFileUpdateOptions(),
-            state.customResourceFiles.filter { file ->
-                ResourceFileKind.entries.none { it.fileName.equals(file.name, ignoreCase = true) }
-            },
         )
         val requests = all.targets.associate { target ->
             val request = when (target) {
                 is ResourceFileUpdateTarget.BuiltIn -> ResourceFileUpdateRequest.BuiltIn(
-                    target.kind, all.source, all.options, all.customResourceFiles,
-                )
-                is ResourceFileUpdateTarget.Custom -> ResourceFileUpdateRequest.Custom(
-                    all.customResourceFiles.first { it.id == target.id }, all.options, all.customResourceFiles,
+                    target.kind, all.source, all.options,
                 )
             }
             // A changed URL/name must be fetched even when the previous target completed before a retry.
-            val identity = when (request) {
-                is ResourceFileUpdateRequest.BuiltIn -> "$target|${all.source}"
-                is ResourceFileUpdateRequest.Custom -> "$target|${request.file}"
-                else -> error("Unexpected automatic resource request")
-            }
+            val identity = "$target|${all.source}"
             identity.sha256() to request
         }
         val runner = ResourceAutoUpdateRunner(
@@ -75,11 +64,7 @@ internal class ResourceAutoUpdateWorker(context: Context, parameters: WorkerPara
                 val result = withTimeoutOrNull((2 * 60 * 1000L).milliseconds) {
                     application.resourceFileUpdateCoordinator.enqueueAndAwait(request) {
                         val current = application.stateStore.state.value
-                        enabled() && when (request) {
-                            is ResourceFileUpdateRequest.BuiltIn -> current.resourceFileUpdateSource() == all.source
-                            is ResourceFileUpdateRequest.Custom -> request.file in current.customResourceFiles
-                            else -> false
-                        }
+                        enabled() && current.resourceFileUpdateSource() == all.source
                     }
                 }
                 when (result) {

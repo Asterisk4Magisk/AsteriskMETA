@@ -7,12 +7,9 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
-import app.CustomResourceFileState
-import app.CustomResourceFileStatus
 import app.ResourceFileKind
 import app.ResourceFileStatus
 import app.ResourceFilesStatus
-import app.sanitizeCustomResourceFileName
 import features.resources.ResourceFileSourceMetaCubeXGithub
 import utils.writeAtomically
 import java.io.File
@@ -26,37 +23,21 @@ internal class AndroidResourceFileStore(
     private val appContext = context.applicationContext
     val dataDir: File = appContext.mihomoResourceFilesDir()
 
-    fun status(customResourceFiles: List<CustomResourceFileState> = emptyList()): ResourceFilesStatus {
-        return currentStatus(customResourceFiles)
+    fun status(): ResourceFilesStatus {
+        return currentStatus()
     }
 
-    fun currentStatus(customResourceFiles: List<CustomResourceFileState> = emptyList()): ResourceFilesStatus {
+    fun currentStatus(): ResourceFilesStatus {
         return ResourceFilesStatus(
             resourceFiles = ResourceFileKind.entries.associateWith { kind ->
                 val target = if (kind == ResourceFileKind.MihomoCore) effectiveMihomoCoreFile() else file(kind)
                 target.toStatus(kind)
-            },
-            customResourceFiles = customResourceFiles.map { customFile ->
-                CustomResourceFileStatus(
-                    file = customFile,
-                    status = file(customFile).toStatus(),
-                )
             },
         )
     }
 
     fun file(kind: ResourceFileKind): File {
         return File(dataDir, kind.fileName)
-    }
-
-    fun file(customFile: CustomResourceFileState): File {
-        return File(
-            dataDir,
-            sanitizeCustomResourceFileName(
-                value = customFile.name,
-                fallback = "custom-resource-${customFile.id}.dat",
-            ),
-        )
     }
 
     fun restoreBundledDefaults(resourceFileSource: Int = ResourceFileSourceMetaCubeXGithub) {
@@ -182,45 +163,8 @@ internal class AndroidResourceFileStore(
         return File.createTempFile(prefix, ".candidate", appContext.cacheDir)
     }
 
-    fun replaceCustom(customFile: CustomResourceFileState, uri: Uri) {
-        val target = file(customFile)
-        if (ResourceFileKind.entries.any { kind -> kind.fileName == target.name }) return
-        dataDir.mkdirs()
-        val replaceTempFile = target.resolveSibling("${target.name}.replace.tmp")
-        appContext.contentResolver.openInputStream(uri)?.use { input ->
-            replaceTempFile.outputStream().use { output -> input.copyTo(output) }
-        } ?: throw FileNotFoundException(uri.toString())
-
-        replaceFile(replaceTempFile, target)
-    }
-
     fun applyPermissions(kind: ResourceFileKind) {
         kind.applyPermissions(file(kind))
-    }
-
-    fun deleteCustom(customFile: CustomResourceFileState) {
-        val target = file(customFile)
-        if (ResourceFileKind.entries.any { kind -> kind.fileName == target.name }) return
-        target.delete()
-    }
-
-    fun renameCustom(previousFile: CustomResourceFileState, customFile: CustomResourceFileState) {
-        val source = file(previousFile)
-        val target = file(customFile)
-        if (ResourceFileKind.entries.any { kind -> kind.fileName == source.name || kind.fileName == target.name }) return
-        if (source.absolutePath == target.absolutePath) return
-        if (!source.isFile) return
-
-        dataDir.mkdirs()
-        if (target.exists()) {
-            target.delete()
-        }
-        if (!source.renameTo(target)) {
-            source.inputStream().use { input ->
-                writeAtomically(target) { output -> input.copyTo(output) }
-            }
-            source.delete()
-        }
     }
 
     fun preparePaths(): MihomoResourceFilePaths {

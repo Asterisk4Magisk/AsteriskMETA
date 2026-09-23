@@ -85,7 +85,6 @@ internal class BroadcastUpdateWorker(
                     val all = ResourceFileUpdateRequest.All(
                         source = state.resourceFileUpdateSource(),
                         options = state.resourceFileUpdateOptions(),
-                        customResourceFiles = state.customResourceFiles,
                     )
                     for (target in all.targets) {
                         currentCoroutineContext().ensureActive()
@@ -93,10 +92,7 @@ internal class BroadcastUpdateWorker(
                         if (checkpoint.completed(key)) continue
                         val request = when (target) {
                             is ResourceFileUpdateTarget.BuiltIn -> ResourceFileUpdateRequest.BuiltIn(
-                                target.kind, all.source, all.options, all.customResourceFiles,
-                            )
-                            is ResourceFileUpdateTarget.Custom -> ResourceFileUpdateRequest.Custom(
-                                all.customResourceFiles.first { it.id == target.id }, all.options, all.customResourceFiles,
+                                target.kind, all.source, all.options,
                             )
                         }
                         val result = if (foreground) {

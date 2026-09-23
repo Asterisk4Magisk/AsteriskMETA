@@ -8,7 +8,6 @@ import kotlinx.coroutines.ensureActive
 import android.content.Context
 import android.net.Uri
 import app.R
-import app.CustomResourceFileState
 import app.ResourceFileKind
 import app.ResourceFileUpdateSource
 import app.ResourceFilesStatus
@@ -36,9 +35,9 @@ internal class AndroidResourceFileRepository(
     private val store = AndroidResourceFileStore(appContext)
     private val downloader = AndroidResourceFileDownloader()
 
-    suspend fun status(customResourceFiles: List<CustomResourceFileState> = emptyList()): ResourceFilesStatus =
+    suspend fun status(): ResourceFilesStatus =
         withContext(Dispatchers.IO) {
-            store.status(customResourceFiles)
+            store.status()
         }
 
     suspend fun hasCustomMihomoCore(): Boolean = withContext(Dispatchers.IO) {
@@ -50,33 +49,13 @@ internal class AndroidResourceFileRepository(
         store.currentStatus()
     }
 
-    suspend fun deleteCustom(
-        customFile: CustomResourceFileState,
-        customResourceFiles: List<CustomResourceFileState>,
-    ): ResourceFilesStatus = withContext(Dispatchers.IO) {
-        store.deleteCustom(customFile)
-        store.currentStatus(customResourceFiles)
-    }
-
-    suspend fun renameCustom(
-        previousFile: CustomResourceFileState,
-        customFile: CustomResourceFileState,
-        customResourceFiles: List<CustomResourceFileState>,
-    ): ResourceFilesStatus = withContext(Dispatchers.IO) {
-        store.renameCustom(previousFile, customFile)
-        store.currentStatus(customResourceFiles)
-    }
-
     suspend fun update(
         source: ResourceFileUpdateSource,
         options: ResourceFileUpdateOptions,
-        customResourceFiles: List<CustomResourceFileState> = emptyList(),
     ): ResourceFilesStatus = withContext(Dispatchers.IO) {
         updateTargets(
-            downloads = ResourceFileKind.entries.mapNotNull { kind -> kind.toDownloadTargetOrNull(source) } +
-                customResourceFiles.mapNotNull { customFile -> customFile.toDownloadTargetOrNull() },
+            downloads = ResourceFileKind.entries.mapNotNull { kind -> kind.toDownloadTargetOrNull(source) },
             options = options,
-            customResourceFiles = customResourceFiles,
         )
     }
 
@@ -84,34 +63,19 @@ internal class AndroidResourceFileRepository(
         kind: ResourceFileKind,
         source: ResourceFileUpdateSource,
         options: ResourceFileUpdateOptions,
-        customResourceFiles: List<CustomResourceFileState> = emptyList(),
     ): ResourceFilesStatus = withContext(Dispatchers.IO) {
         updateTargets(
             downloads = listOfNotNull(kind.toDownloadTargetOrNull(source)),
             options = options,
-            customResourceFiles = customResourceFiles,
-        )
-    }
-
-    suspend fun updateCustom(
-        customFile: CustomResourceFileState,
-        options: ResourceFileUpdateOptions,
-        customResourceFiles: List<CustomResourceFileState> = emptyList(),
-    ): ResourceFilesStatus = withContext(Dispatchers.IO) {
-        updateTargets(
-            downloads = listOfNotNull(customFile.toDownloadTargetOrNull()),
-            options = options,
-            customResourceFiles = customResourceFiles,
         )
     }
 
     private suspend fun updateTargets(
         downloads: List<ResourceFileDownloadTarget>,
         options: ResourceFileUpdateOptions,
-        customResourceFiles: List<CustomResourceFileState>,
     ): ResourceFilesStatus {
         if (downloads.isEmpty()) {
-            return store.currentStatus(customResourceFiles)
+            return store.currentStatus()
         }
         store.dataDir.mkdirs()
         AndroidResourceFileDownloadCancellation.begin()
@@ -153,7 +117,7 @@ internal class AndroidResourceFileRepository(
                     if (download.coreCandidate) download.targetFile.delete()
                 }
             }
-            store.currentStatus(customResourceFiles)
+            store.currentStatus()
         }
         result.onSuccess {
             runCatching { notifier.showComplete() }
@@ -181,18 +145,6 @@ internal class AndroidResourceFileRepository(
         }
     }
 
-    private fun CustomResourceFileState.toDownloadTargetOrNull(): ResourceFileDownloadTarget? {
-        val target = store.file(this)
-        if (ResourceFileKind.entries.any { kind -> kind.fileName == target.name }) return null
-        val updateUrl = url.trim()
-        if (updateUrl.isBlank()) return null
-        return ResourceFileDownloadTarget(
-            displayName = name,
-            url = updateUrl,
-            targetFile = target,
-        )
-    }
-
     private fun ResourceFileKind.toDownloadTargetOrNull(source: ResourceFileUpdateSource): ResourceFileDownloadTarget? {
         val updateUrl = source.urlFor(this)?.trim().orEmpty()
         if (updateUrl.isBlank()) return null
@@ -206,19 +158,9 @@ internal class AndroidResourceFileRepository(
         )
     }
 
-    suspend fun replaceCustom(
-        customFile: CustomResourceFileState,
-        uri: Uri,
-        customResourceFiles: List<CustomResourceFileState> = emptyList(),
-    ): ResourceFilesStatus = withContext(Dispatchers.IO) {
-        store.replaceCustom(customFile, uri)
-        store.currentStatus(customResourceFiles)
-    }
-
     suspend fun replace(
         kind: ResourceFileKind,
         uri: Uri,
-        customResourceFiles: List<CustomResourceFileState> = emptyList(),
     ): ResourceFilesStatus = withContext(Dispatchers.IO) {
         if (kind == ResourceFileKind.MihomoCore) {
             installOrPublishCoreCandidate {
@@ -227,19 +169,18 @@ internal class AndroidResourceFileRepository(
         } else {
             store.replace(kind, uri)
         }
-        store.currentStatus(customResourceFiles)
+        store.currentStatus()
     }
 
     suspend fun restoreBundled(
         kind: ResourceFileKind,
-        customResourceFiles: List<CustomResourceFileState> = emptyList(),
     ): ResourceFilesStatus = withContext(Dispatchers.IO) {
         if (kind == ResourceFileKind.MihomoCore) {
             removeCustomMihomoCore()
         } else {
             store.restoreBundled(kind)
         }
-        store.currentStatus(customResourceFiles)
+        store.currentStatus()
     }
 
     private suspend fun removeCustomMihomoCore() {

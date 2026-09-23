@@ -5,7 +5,6 @@ package features.resources
 
 import android.content.Context
 import android.net.Uri
-import app.CustomResourceFileState
 import app.ResourceFileKind
 import app.ResourceFileUpdateSource
 import app.ResourceFilesStatus
@@ -25,8 +24,8 @@ class ResourceFileUseCase(
         rootShell = rootShell,
     )
 
-    suspend fun status(customResourceFiles: List<CustomResourceFileState> = emptyList()): ResourceFilesStatus {
-        return repository.status(customResourceFiles)
+    suspend fun status(): ResourceFilesStatus {
+        return repository.status()
     }
 
     suspend fun hasCustomMihomoCore(): Boolean = repository.hasCustomMihomoCore()
@@ -38,65 +37,31 @@ class ResourceFileUseCase(
     suspend fun update(
         source: ResourceFileUpdateSource,
         options: ResourceFileUpdateOptions = ResourceFileUpdateOptions(),
-        customResourceFiles: List<CustomResourceFileState> = emptyList(),
     ): ResourceFilesStatus {
-        return repository.update(source, options, customResourceFiles)
+        return repository.update(source, options)
     }
 
     suspend fun update(
         kind: ResourceFileKind,
         source: ResourceFileUpdateSource,
         options: ResourceFileUpdateOptions = ResourceFileUpdateOptions(),
-        customResourceFiles: List<CustomResourceFileState> = emptyList(),
     ): ResourceFilesStatus {
-        return repository.update(kind, source, options, customResourceFiles)
-    }
-
-    suspend fun updateCustom(
-        customFile: CustomResourceFileState,
-        options: ResourceFileUpdateOptions = ResourceFileUpdateOptions(),
-        customResourceFiles: List<CustomResourceFileState> = emptyList(),
-    ): ResourceFilesStatus {
-        return repository.updateCustom(customFile, options, customResourceFiles)
-    }
-
-    suspend fun renameCustom(
-        previousFile: CustomResourceFileState,
-        customFile: CustomResourceFileState,
-        customResourceFiles: List<CustomResourceFileState> = emptyList(),
-    ): ResourceFilesStatus {
-        return repository.renameCustom(previousFile, customFile, customResourceFiles)
+        return repository.update(kind, source, options)
     }
 
     suspend fun replace(
         kind: ResourceFileKind,
-        customResourceFiles: List<CustomResourceFileState> = emptyList(),
     ): ResourceFilesStatus? {
         val uri = resourceFilePicker() ?: return null
-        return repository.replace(kind, uri, customResourceFiles)
-    }
-
-    suspend fun replaceCustom(
-        customFile: CustomResourceFileState,
-        customResourceFiles: List<CustomResourceFileState> = emptyList(),
-    ): ResourceFilesStatus? {
-        val uri = resourceFilePicker() ?: return null
-        return repository.replaceCustom(customFile, uri, customResourceFiles)
+        return repository.replace(kind, uri)
     }
 
     suspend fun restoreBundled(
         kind: ResourceFileKind,
-        customResourceFiles: List<CustomResourceFileState> = emptyList(),
     ): ResourceFilesStatus {
-        return repository.restoreBundled(kind, customResourceFiles)
+        return repository.restoreBundled(kind)
     }
 
-    suspend fun deleteCustom(
-        customFile: CustomResourceFileState,
-        customResourceFiles: List<CustomResourceFileState> = emptyList(),
-    ): ResourceFilesStatus {
-        return repository.deleteCustom(customFile, customResourceFiles)
-    }
 }
 
 data class ResourceFileUpdateOptions(

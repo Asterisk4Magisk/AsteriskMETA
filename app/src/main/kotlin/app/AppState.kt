@@ -82,8 +82,6 @@ data class AppState(
     val customResourceFileAsnUrl: String = "",
     val customResourceFileDirectCidrIpv4Url: String = "",
     val customResourceFileDirectCidrIpv6Url: String = "",
-    val customResourceFiles: List<CustomResourceFileState> = emptyList(),
-    val nextCustomResourceFileId: Int = 1,
     val enableSniffer: Boolean = true,
     val enableSnifferOverrideDestination: Boolean = true,
     val snifferForceDnsMapping: Boolean = true,

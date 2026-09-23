@@ -3,7 +3,6 @@
 
 package features.resources
 
-import app.CustomResourceFileState
 import app.ResourceFileKind
 import app.ResourceFileUpdateSource
 import app.ResourceFilesStatus
@@ -30,7 +29,6 @@ import kotlinx.coroutines.launch
 internal sealed interface ResourceFileUpdateTarget {
     data class BuiltIn(val kind: ResourceFileKind) : ResourceFileUpdateTarget
 
-    data class Custom(val id: Int) : ResourceFileUpdateTarget
 }
 
 internal sealed interface ResourceFileUpdateRequest {
@@ -40,38 +38,21 @@ internal sealed interface ResourceFileUpdateRequest {
         val kind: ResourceFileKind,
         val source: ResourceFileUpdateSource,
         val options: ResourceFileUpdateOptions,
-        customResourceFiles: List<CustomResourceFileState>,
     ) : ResourceFileUpdateRequest {
-        val customResourceFiles = customResourceFiles.toList()
         override val targets = setOf(ResourceFileUpdateTarget.BuiltIn(kind))
-    }
-
-    class Custom(
-        val file: CustomResourceFileState,
-        val options: ResourceFileUpdateOptions,
-        customResourceFiles: List<CustomResourceFileState>,
-    ) : ResourceFileUpdateRequest {
-        val customResourceFiles = customResourceFiles.toList()
-        override val targets = setOf(ResourceFileUpdateTarget.Custom(file.id))
     }
 
     class All(
         val source: ResourceFileUpdateSource,
         val options: ResourceFileUpdateOptions,
-        customResourceFiles: List<CustomResourceFileState>,
     ) : ResourceFileUpdateRequest {
-        val customResourceFiles = customResourceFiles.toList()
         override val targets: Set<ResourceFileUpdateTarget> = buildSet {
             ResourceFileKind.entries.forEach { kind ->
                 if (!source.urlFor(kind).isNullOrBlank()) {
                     add(ResourceFileUpdateTarget.BuiltIn(kind))
                 }
             }
-            this@All.customResourceFiles.forEach { customFile ->
-                if (customFile.url.isNotBlank()) {
-                    add(ResourceFileUpdateTarget.Custom(customFile.id))
-                }
-            }
+
         }
     }
 }
