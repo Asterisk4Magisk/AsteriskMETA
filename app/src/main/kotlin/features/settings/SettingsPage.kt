@@ -372,7 +372,7 @@ private fun SettingsContent(
                                             state.copy(
                                                 runMode = result.runMode,
                                                 proxyRunning = result.proxyRunning,
-                                                enableRootBootScript = false,
+                                                enableRootBootScript = state.enableRootBootScript && result.runMode.isRootRunMode(),
                                                 enableRootEbpfRules = state.enableRootEbpfRules && result.runMode.isRootRunMode(),
                                             ).withMihomoRestartApplied()
                                         }
