@@ -20,7 +20,6 @@ internal class RootEbpfProbeUseCase(
                 supported = true,
                 message = "Matcher capability is verified by asteriskd during supervised start",
             ),
-            selinuxPolicyApplicator = "asteriskd",
         )
     }
 }
@@ -28,10 +27,7 @@ internal class RootEbpfProbeUseCase(
 internal sealed interface RootEbpfProbeResult {
     data class Success(
         val probe: NativeMatcherProbe,
-        val selinuxPolicyApplicator: String?,
     ) : RootEbpfProbeResult
 
-    data class Unsupported(val probe: NativeMatcherProbe) : RootEbpfProbeResult
     data object RootUnavailable : RootEbpfProbeResult
-    data class Failed(val error: Throwable) : RootEbpfProbeResult
 }
