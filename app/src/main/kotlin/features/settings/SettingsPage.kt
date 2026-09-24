@@ -373,7 +373,6 @@ private fun SettingsContent(
                                                 runMode = result.runMode,
                                                 proxyRunning = result.proxyRunning,
                                                 enableRootBootScript = state.enableRootBootScript && result.runMode.isRootRunMode(),
-                                                enableRootEbpfRules = state.enableRootEbpfRules && result.runMode.isRootRunMode(),
                                             ).withMihomoRestartApplied()
                                         }
                                     }
