@@ -540,15 +540,6 @@
     <string name="settings_resource_files_auto_update_summary">联网时定期更新资源文件</string>
     <string name="settings_resource_files_auto_update_interval">更新周期（小时）</string>
     <string name="settings_resource_files_update">更新资源文件</string>
-    <string name="settings_resource_files_add_custom">添加自定义资源文件</string>
-    <string name="settings_resource_files_custom_file">自定义资源文件</string>
-    <string name="settings_resource_files_custom_name">文件名</string>
-    <string name="settings_resource_files_custom_url_optional">URL（可选）</string>
-    <string name="settings_resource_files_custom_url_invalid">请输入有效的 HTTP 或 HTTPS URL，或留空</string>
-    <string name="settings_resource_files_custom_section">自定义资源</string>
-    <string name="settings_resource_files_local_only">仅支持本地替换</string>
-    <string name="settings_resource_files_custom_name_invalid">文件名无效</string>
-    <string name="settings_resource_files_custom_name_duplicate">文件名已被占用</string>
     <string name="settings_resource_files_ready">已就绪</string>
     <string name="settings_resource_files_missing">缺失</string>
     <string name="settings_resource_files_updated_at">更新时间 {time}</string>
@@ -559,7 +550,6 @@
     <string name="settings_resource_file_updated">{name} 已更新</string>
     <string name="settings_resource_files_replaced">{name} 已替换</string>
     <string name="settings_resource_files_restored">{name} 已恢复为内置文件</string>
-    <string name="settings_resource_files_deleted">{name} 已删除</string>
     <string name="settings_log_level">日志等级</string>
     <string name="settings_geodata_mode">Geodata 模式</string>
     <string name="settings_geodata_mode_summary">使用 geodata 文件处理 GeoIP 规则</string>

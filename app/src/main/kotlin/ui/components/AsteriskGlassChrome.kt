@@ -54,9 +54,10 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.HazeStyle
-import dev.chrisbanes.haze.HazeTint
-import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.HazeInput
+import dev.chrisbanes.haze.blur.HazeBlurStyle
+import dev.chrisbanes.haze.blur.HazeColorEffect
+import dev.chrisbanes.haze.blur.hazeBlur
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 
@@ -66,16 +67,16 @@ internal val LocalChromeBackdrop = compositionLocalOf<HazeState?> { null }
 private const val ChromeTransparency = 0.60f
 
 @Composable
-internal fun chromeStyle(): HazeStyle {
+internal fun chromeStyle(): HazeBlurStyle {
     val surface = MaterialTheme.colorScheme.surface
-    val tint = HazeTint(surface.copy(alpha = 1f - ChromeTransparency))
-    return HazeStyle(
-        backgroundColor = surface,
-        tint = tint,
-        blurRadius = 18.dp,
-        noiseFactor = 0f,
-        fallbackTint = tint,
-    )
+    val tint = HazeColorEffect.tint(surface.copy(alpha = 1f - ChromeTransparency))
+    return HazeBlurStyle {
+        backgroundColor(surface)
+        colorEffects(listOf(tint))
+        blurRadius(18.dp)
+        noiseFactor(0f)
+        fallbackColorEffect(tint)
+    }
 }
 
 /** Keep each page's backdrop separate so transitions never sample another page. */
@@ -97,7 +98,7 @@ internal fun AsteriskScaffold(
     Scaffold(
         modifier = modifier,
         topBar = {
-            Box(Modifier.fillMaxWidth().clipToBounds().hazeEffect(backdrop, style)) {
+            Box(Modifier.fillMaxWidth().clipToBounds().hazeBlur(HazeInput.Sources(backdrop), style)) {
                 topBar()
             }
         },
@@ -165,7 +166,11 @@ internal fun AsteriskFloatingNavigationBar(
                     .matchParentSize()
                     .shadow(6.dp, CircleShape)
                     .clip(CircleShape)
-                    .hazeEffect(LocalChromeBackdrop.current, chromeStyle())
+                    .hazeBlur(
+                        input = LocalChromeBackdrop.current?.let { HazeInput.Sources(it) }
+                            ?: HazeInput.Content,
+                        style = chromeStyle(),
+                    )
                     .border(0.5.dp, colors.outlineVariant.copy(alpha = 0.45f), CircleShape),
             )
             Row(

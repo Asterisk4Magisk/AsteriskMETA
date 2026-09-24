@@ -28,10 +28,10 @@
         },
         {
             "uniqueId": "androidx.navigation3:navigation3-runtime",
-            "artifactVersion": "1.1.7",
+            "artifactVersion": "1.2.0",
             "name": "Androidx Navigation 3 Runtime",
             "description": "Provides the building blocks for a Compose first Navigation solution that easily supports extensions.",
-            "website": "https://developer.android.com/jetpack/androidx/releases/navigation3#1.1.7",
+            "website": "https://developer.android.com/jetpack/androidx/releases/navigation3#1.2.0",
             "scm": {
                 "url": "https://cs.android.com/androidx/platform/frameworks/support"
             },
@@ -41,10 +41,10 @@
         },
         {
             "uniqueId": "androidx.navigation3:navigation3-ui",
-            "artifactVersion": "1.1.7",
+            "artifactVersion": "1.2.0",
             "name": "Androidx Navigation 3 UI",
             "description": "Provides a Navigation3 display that uses the building blocks from runtime to create a higher level solution.",
-            "website": "https://developer.android.com/jetpack/androidx/releases/navigation3#1.1.7",
+            "website": "https://developer.android.com/jetpack/androidx/releases/navigation3#1.2.0",
             "scm": {
                 "url": "https://cs.android.com/androidx/platform/frameworks/support"
             },
@@ -119,7 +119,7 @@
         },
         {
             "uniqueId": "org.jetbrains.compose.foundation:foundation",
-            "artifactVersion": "1.12.0",
+            "artifactVersion": "1.12.1",
             "name": "Compose Foundation",
             "description": "Higher level abstractions of the Compose UI primitives. This library is design system agnostic, providing the high-level building blocks for both application and design-system developers",
             "website": "https://github.com/JetBrains/compose-multiplatform",
@@ -158,7 +158,7 @@
         },
         {
             "uniqueId": "org.jetbrains.compose.ui:ui",
-            "artifactVersion": "1.12.0",
+            "artifactVersion": "1.12.1",
             "name": "Compose UI",
             "description": "Compose UI primitives. This library contains the primitives that form the Compose UI Toolkit, such as drawing, measurement and layout.",
             "website": "https://github.com/JetBrains/compose-multiplatform",
@@ -197,8 +197,21 @@
         },
         {
             "uniqueId": "dev.chrisbanes.haze:haze",
-            "artifactVersion": "1.7.3",
+            "artifactVersion": "2.0.0",
             "name": "Haze",
+            "description": "Haze",
+            "website": "https://github.com/chrisbanes/haze/",
+            "scm": {
+                "url": "https://github.com/chrisbanes/haze/"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ]
+        },
+        {
+            "uniqueId": "dev.chrisbanes.haze:haze-blur",
+            "artifactVersion": "2.0.0",
+            "name": "Haze Blur",
             "description": "Haze",
             "website": "https://github.com/chrisbanes/haze/",
             "scm": {
@@ -379,10 +392,10 @@
         },
         {
             "uniqueId": "androidx.work:work-runtime",
-            "artifactVersion": "2.11.2",
+            "artifactVersion": "2.12.0",
             "name": "WorkManager Runtime",
             "description": "Android WorkManager runtime library",
-            "website": "https://developer.android.com/jetpack/androidx/releases/work#2.11.2",
+            "website": "https://developer.android.com/jetpack/androidx/releases/work#2.12.0",
             "scm": {
                 "url": "https://cs.android.com/androidx/platform/frameworks/support"
             },

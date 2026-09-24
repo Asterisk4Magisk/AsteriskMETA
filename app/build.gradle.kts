@@ -123,6 +123,7 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.dexlib2)
     implementation(libs.haze)
+    implementation(libs.haze.blur)
     //noinspection UseTomlInstead
     implementation("com.github.Asterisk4Magisk:libclash:${ProjectConfig.ANDROID_LIB_CLASH_LITE_VERSION}@aar")
     implementation(dependencies.project(":asteriskd"))

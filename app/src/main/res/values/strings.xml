@@ -553,15 +553,6 @@
     <string name="settings_resource_files_auto_update_summary">Periodically update resource files when connected</string>
     <string name="settings_resource_files_auto_update_interval">Update interval (hours)</string>
     <string name="settings_resource_files_update">Update resource files</string>
-    <string name="settings_resource_files_add_custom">Add custom resource file</string>
-    <string name="settings_resource_files_custom_file">Custom resource file</string>
-    <string name="settings_resource_files_custom_name">File name</string>
-    <string name="settings_resource_files_custom_url_optional">URL (optional)</string>
-    <string name="settings_resource_files_custom_url_invalid">Use a valid HTTP or HTTPS URL, or leave it empty</string>
-    <string name="settings_resource_files_custom_section">Custom resources</string>
-    <string name="settings_resource_files_local_only">Local replacement only</string>
-    <string name="settings_resource_files_custom_name_invalid">Invalid file name</string>
-    <string name="settings_resource_files_custom_name_duplicate">File name is already used</string>
     <string name="settings_resource_files_ready">Ready</string>
     <string name="settings_resource_files_missing">Missing</string>
     <string name="settings_resource_files_updated_at">Updated {time}</string>
@@ -572,7 +563,6 @@
     <string name="settings_resource_file_updated">{name} updated</string>
     <string name="settings_resource_files_replaced">{name} replaced</string>
     <string name="settings_resource_files_restored">{name} restored from bundled assets</string>
-    <string name="settings_resource_files_deleted">{name} deleted</string>
     <string name="settings_log_level">Log level</string>
     <string name="settings_geodata_mode">Geodata mode</string>
     <string name="settings_geodata_mode_summary">Use geodata files for GeoIP rules</string>
