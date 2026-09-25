@@ -3,6 +3,10 @@
 
 package features.settings.sheets
 
+import android.os.Build
+import app.ServiceControlKeyguardRule
+import app.supportsKeyguardControl
+import app.withRule
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -45,6 +49,7 @@ internal fun ServiceControlBottomSheet(
 ) {
     var pendingEditors by remember(show) { mutableStateOf(emptySet<String>()) }
     val scheduleEffective = draft.enabled && draft.schedule.enabled
+    val keyguardSupported = supportsKeyguardControl(Build.VERSION.SDK_INT)
     val wifiEffective = draft.enabled && draft.wifi.enabled
     val startCronInvalid = scheduleEffective &&
         parseServiceCron(draft.schedule.startCron) is ServiceCronParseResult.Invalid
@@ -105,6 +110,17 @@ internal fun ServiceControlBottomSheet(
                             onDraftChange(draft.copy(wifi = draft.wifi.copy(enabled = it)))
                         },
                     )
+                    if (keyguardSupported) {
+                        SwitchPreference(
+                            title = stringResource(R.string.settings_service_control_keyguard_enable),
+                            icon = Icons.Rounded.Lock,
+                            checked = draft.keyguard.enabled,
+                            enabled = draft.enabled,
+                            onCheckedChange = {
+                                onDraftChange(draft.copy(keyguard = draft.keyguard.copy(enabled = it)))
+                            },
+                        )
+                    }
                 }
 
                 AnimatedVisibility(
@@ -160,6 +176,34 @@ internal fun ServiceControlBottomSheet(
                                     pendingEditors = if (pending) pendingEditors + key else pendingEditors - key
                                 },
                             )
+                        }
+                    }
+                }
+
+                if (keyguardSupported) {
+                    AnimatedVisibility(
+                        visible = draft.enabled && draft.keyguard.enabled,
+                        enter = AsteriskMotion.contentEnter(),
+                        exit = AsteriskMotion.contentExit(),
+                        label = "service-control-keyguard",
+                    ) {
+                        ServiceControlSection(stringResource(R.string.settings_service_control_keyguard)) {
+                            ServiceControlKeyguardRule.entries.forEach { rule ->
+                                val (title, checked) = when (rule) {
+                                    ServiceControlKeyguardRule.LockStart -> R.string.settings_service_control_lock_start to draft.keyguard.lockStart
+                                    ServiceControlKeyguardRule.LockStop -> R.string.settings_service_control_lock_stop to draft.keyguard.lockStop
+                                    ServiceControlKeyguardRule.UnlockStart -> R.string.settings_service_control_unlock_start to draft.keyguard.unlockStart
+                                    ServiceControlKeyguardRule.UnlockStop -> R.string.settings_service_control_unlock_stop to draft.keyguard.unlockStop
+                                }
+                                SwitchPreference(
+                                    title = stringResource(title),
+                                    icon = Icons.Rounded.Lock,
+                                    checked = checked,
+                                    onCheckedChange = {
+                                        onDraftChange(draft.copy(keyguard = draft.keyguard.withRule(rule, it)))
+                                    },
+                                )
+                            }
                         }
                     }
                 }
