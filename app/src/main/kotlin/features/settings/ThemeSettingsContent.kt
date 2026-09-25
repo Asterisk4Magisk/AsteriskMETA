@@ -61,17 +61,35 @@ internal fun ThemeSettingsContent(
     onColorModeChange: (Int) -> Unit,
     onSeedIndexChange: (Int) -> Unit,
 ) {
+    val showColorMode = settingsRowMatchesQuery(
+        title = stringResource(R.string.settings_color_mode),
+        summary = "",
+        value = colorModeOptions.getOrNull(colorMode).orEmpty(),
+        optionText = colorModeOptions,
+    )
+    val showThemeColor = settingsRowMatchesQuery(
+        title = stringResource(R.string.settings_theme_color),
+        summary = "",
+        value = keyColorOptions.getOrNull(seedIndex).orEmpty(),
+        optionText = keyColorOptions,
+    )
+    if (!showColorMode && !showThemeColor) return
+
     SettingsSectionCard {
-        ThemeModeSegmentedRow(
-            options = colorModeOptions,
-            selectedIndex = colorMode,
-            onSelectedIndexChange = onColorModeChange,
-        )
-        ThemeColorDotPicker(
-            options = keyColorOptions,
-            selectedIndex = seedIndex,
-            onSelectedIndexChange = onSeedIndexChange,
-        )
+        if (showColorMode) {
+            ThemeModeSegmentedRow(
+                options = colorModeOptions,
+                selectedIndex = colorMode,
+                onSelectedIndexChange = onColorModeChange,
+            )
+        }
+        if (showThemeColor) {
+            ThemeColorDotPicker(
+                options = keyColorOptions,
+                selectedIndex = seedIndex,
+                onSelectedIndexChange = onSeedIndexChange,
+            )
+        }
     }
 }
 
@@ -82,7 +100,6 @@ private fun ThemeModeSegmentedRow(
     onSelectedIndexChange: (Int) -> Unit,
 ) {
     val title = stringResource(R.string.settings_color_mode)
-    if (!settingsRowMatchesQuery(title, "", options.getOrNull(selectedIndex).orEmpty(), options)) return
     val safeIndex = if (selectedIndex in options.indices) selectedIndex else 0
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
         Text(
@@ -121,7 +138,6 @@ private fun ThemeColorDotPicker(
     onSelectedIndexChange: (Int) -> Unit,
 ) {
     val title = stringResource(R.string.settings_theme_color)
-    if (!settingsRowMatchesQuery(title, "", options.getOrNull(selectedIndex).orEmpty(), options)) return
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
         Text(
             text = title,
