@@ -3,6 +3,7 @@
 
 package features.settings
 
+import android.os.Build
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
@@ -59,7 +60,7 @@ internal fun settingsTopLevelSearchItems(
         stringResource(R.string.settings_ignored_interfaces),
         stringResource(R.string.settings_private_addresses),
     )
-    return listOf(
+    return listOfNotNull(
         SettingsSearchItem(
             SettingsSectionId.Apps,
             stringResource(R.string.settings_color_mode),
@@ -140,11 +141,15 @@ internal fun settingsTopLevelSearchItems(
             stringResource(R.string.settings_traffic_stats_notification),
             stringResource(R.string.settings_traffic_stats_notification_summary),
         ),
-        SettingsSearchItem(
-            SettingsSectionId.Vpn,
-            stringResource(R.string.settings_vpn_append_http_proxy),
-            stringResource(R.string.settings_vpn_append_http_proxy_summary),
-        ),
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            SettingsSearchItem(
+                SettingsSectionId.Vpn,
+                stringResource(R.string.settings_vpn_append_http_proxy),
+                stringResource(R.string.settings_vpn_append_http_proxy_summary),
+            )
+        } else {
+            null
+        },
         SettingsSearchItem(
             SettingsSectionId.Vpn,
             stringResource(R.string.settings_vpn_hev_tun),
