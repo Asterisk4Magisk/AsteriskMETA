@@ -44,7 +44,7 @@ internal fun reduceResourceOverview(
 
 internal fun resourceVisualKind(fileName: String): ResourceVisualKind {
     return when (fileName) {
-        ResourceFileMihomoCoreName -> ResourceVisualKind.Core
+        ResourceFileMihomoCoreName, ResourceFileKind.MihomoCore.displayName -> ResourceVisualKind.Core
         ResourceFileGeoIpName -> ResourceVisualKind.GeoIp
         ResourceFileGeoSiteName -> ResourceVisualKind.GeoSite
         ResourceFileMmdbName -> ResourceVisualKind.Database

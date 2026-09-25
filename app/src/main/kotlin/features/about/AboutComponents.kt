@@ -117,7 +117,7 @@ internal fun AboutRuntimeSection(
         modifier = modifier.fillMaxWidth(),
         title = stringResource(R.string.about_runtime),
     ) {
-        AboutRuntimeRow("AndroidLibClashLite", ProjectInfo.ANDROID_LIB_CLASH_LITE_VERSION, Icons.Rounded.Extension)
+        AboutRuntimeRow("AndroidLibClashLite", ProjectInfo.ANDROID_LIB_CLASH_LITE_VERSION, Icons.Rounded.Memory)
         AboutRuntimeRow("hev-socks5-tunnel", ProjectInfo.HEV_SOCKS5_TUNNEL_VERSION, Icons.Rounded.VpnLock)
     }
 }
