@@ -214,7 +214,11 @@ private fun PublicAddressCard(
                 if (result.stale) {
                     Text(stringResource(R.string.monitor_data_stale), style = MaterialTheme.typography.bodySmall)
                 }
-                TextButton(onClick = onRetry, enabled = !refreshing) {
+                TextButton(
+                    onClick = onRetry,
+                    enabled = !refreshing,
+                    modifier = Modifier.align(Alignment.End),
+                ) {
                     Text(stringResource(R.string.monitor_retry))
                 }
             }

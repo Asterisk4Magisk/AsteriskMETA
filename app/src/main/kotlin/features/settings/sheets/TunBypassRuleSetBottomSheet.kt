@@ -108,11 +108,16 @@ internal fun TunBypassRuleSetBottomSheet(
                             text = state.error,
                             isError = true,
                         )
-                        TextButton(
-                            text = stringResource(R.string.common_retry),
-                            icon = Icons.Rounded.Refresh,
-                            onClick = { reloadToken += 1 },
-                        )
+                        Box(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                            contentAlignment = Alignment.CenterEnd,
+                        ) {
+                            TextButton(
+                                text = stringResource(R.string.common_retry),
+                                icon = Icons.Rounded.Refresh,
+                                onClick = { reloadToken += 1 },
+                            )
+                        }
                     }
                     else -> {
                         if (providers.isEmpty()) {
