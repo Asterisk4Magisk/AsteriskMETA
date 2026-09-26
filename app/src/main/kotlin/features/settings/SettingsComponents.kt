@@ -212,6 +212,7 @@ internal fun SettingsDropdownRow(
     modifier: Modifier = Modifier,
     summary: String = "",
     accent: IconAccent = IconAccent.Surface,
+    horizontalPadding: Dp = 16.dp,
 ) {
     if (items.isEmpty()) return
     val safeIndex = selectedIndex.coerceIn(items.indices)
@@ -221,6 +222,7 @@ internal fun SettingsDropdownRow(
     Box(modifier = modifier.fillMaxWidth()) {
         SettingsRow(
             accent = accent,
+            horizontalPadding = horizontalPadding,
             title = title,
             icon = icon,
             summary = summary,
@@ -285,12 +287,13 @@ private fun SettingsRow(
     value: String = "",
     trailing: (@Composable () -> Unit)? = null,
     accent: IconAccent = IconAccent.Surface,
+    horizontalPadding: Dp = 16.dp,
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = 64.dp)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = horizontalPadding, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         MaskedPreferenceIcon(icon = icon, accent = accent)

@@ -603,6 +603,7 @@ private fun DebugProfileSelector(
     if (profiles.isEmpty()) {
         AsteriskListRow(
             title = stringResource(R.string.mihomo_override_script_debug_profile),
+            horizontalPadding = 0.dp,
             summary = stringResource(R.string.mihomo_override_script_debug_profile_none),
             leadingIcon = Icons.Rounded.Description,
             enabled = false,
@@ -613,6 +614,7 @@ private fun DebugProfileSelector(
     val selectedIndex = profiles.indexOfFirst { profile -> profile.id == selectedProfileId }.coerceAtLeast(0)
     SettingsDropdownRow(
         title = stringResource(R.string.mihomo_override_script_debug_profile),
+        horizontalPadding = 0.dp,
         icon = Icons.Rounded.Description,
         items = profiles.map(MihomoProfileState::name),
         selectedIndex = selectedIndex,

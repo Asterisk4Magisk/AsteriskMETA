@@ -28,6 +28,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import ui.theme.AsteriskShapeTokens
 
@@ -74,6 +75,7 @@ internal fun AsteriskListRow(
     selected: Boolean? = null,
     role: Role? = null,
     onClick: (() -> Unit)? = null,
+    horizontalPadding: Dp = 16.dp,
     trailingContent: @Composable RowScope.() -> Unit = {},
 ) {
     val selectionModifier = if (selected == null) {
@@ -93,7 +95,7 @@ internal fun AsteriskListRow(
             .heightIn(min = 64.dp)
             .then(selectionModifier)
             .then(clickModifier)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = horizontalPadding, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

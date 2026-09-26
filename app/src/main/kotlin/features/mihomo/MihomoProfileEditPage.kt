@@ -1079,6 +1079,7 @@ private fun ProfileOverrideScriptSelector(
     if (readOnly) {
         AsteriskListRow(
             title = stringResource(R.string.mihomo_configuration_override_script),
+            horizontalPadding = 0.dp,
             summary = stringResource(R.string.mihomo_configuration_override_script_stopped),
             leadingIcon = Icons.Rounded.Lock,
             enabled = false,
@@ -1087,6 +1088,7 @@ private fun ProfileOverrideScriptSelector(
     }
     SettingsDropdownRow(
         title = stringResource(R.string.mihomo_configuration_override_script),
+        horizontalPadding = 0.dp,
         icon = Icons.Rounded.Code,
         items = options,
         selectedIndex = selectedIndex,
