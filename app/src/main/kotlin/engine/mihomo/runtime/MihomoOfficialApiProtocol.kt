@@ -10,6 +10,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
+import java.time.Instant
 
 internal fun parseMihomoOfficialProxySnapshot(json: String): MihomoProxiesState {
     val root = OfficialApiJson.parseToJsonElement(json) as? JsonObject
@@ -35,13 +36,24 @@ internal fun parseMihomoOfficialProxySnapshot(json: String): MihomoProxiesState 
                 testUrl = item.string("testUrl"),
             )
         }
+        val latestHistory = (item["history"] as? JsonArray)?.lastOrNull() as? JsonObject
+        val latestDelay = (latestHistory?.get("delay") as? JsonPrimitive)?.intValue()
+        val measuredDelay = latestDelay?.takeIf { it in 1 until MihomoOfficialUntestedDelay }
         nodes[id] = MihomoProxyNode(
             id = id,
             type = type,
             title = item.string("title").ifBlank { name },
             subtitle = item.string("subtitle").ifBlank { type },
             udp = item.boolean("udp") ?: false,
-            delay = item.latestPositiveDelay(),
+            delay = measuredDelay,
+            delayStatus = when {
+                latestDelay == null -> null
+                measuredDelay != null -> MihomoDelayStatus.Success
+                else -> MihomoDelayStatus.Timeout
+            },
+            delayUpdatedAtMillis = latestHistory?.string("time")?.let { time ->
+                runCatching { Instant.parse(time).toEpochMilli() }.getOrNull()
+            },
         )
     }
     val topLevelProxyIds = nodes.keys.toSet()
@@ -232,17 +244,6 @@ private fun JsonObject.stringList(name: String): List<String> {
         .orEmpty()
         .mapNotNull { element ->
             (element as? JsonPrimitive)?.contentOrNull?.takeIf(String::isNotBlank)
-        }
-}
-
-private fun JsonObject.latestPositiveDelay(): Int? {
-    return (this["history"] as? JsonArray)
-        .orEmpty()
-        .asReversed()
-        .firstNotNullOfOrNull { element ->
-            ((element as? JsonObject)?.get("delay") as? JsonPrimitive)
-                ?.intValue()
-                ?.takeIf { delay -> delay in 1 until MihomoOfficialUntestedDelay }
         }
 }
 

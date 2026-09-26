@@ -11,10 +11,7 @@ internal data class MihomoTrafficSample(
     val totalUp: Long? = null,
     val totalDown: Long? = null,
     val timestampMillis: Long = System.currentTimeMillis(),
-) {
-    val speed: Long
-        get() = up + down
-}
+)
 
 internal data class MihomoTrafficState(
     val latest: MihomoTrafficSample = MihomoTrafficSample(),
@@ -69,24 +66,13 @@ internal data class MihomoProxyNode(
     val delay: Int? = null,
     val delayStatus: MihomoDelayStatus? = delay?.let { MihomoDelayStatus.Success },
     val delayError: String = "",
+    val delayUpdatedAtMillis: Long? = null,
 ) {
     val name: String
         get() = id.name
 
     val providerName: String?
         get() = id.providerName
-
-    constructor(
-        name: String,
-        type: String,
-        udp: Boolean = false,
-        delay: Int? = null,
-    ) : this(
-        id = MihomoProxyNodeId(name),
-        type = type,
-        udp = udp,
-        delay = delay,
-    )
 }
 
 internal data class MihomoProxyGroup(
@@ -170,14 +156,6 @@ internal data class MihomoRuntimeState(
 internal data class MihomoDelayResult(
     val measurements: Map<MihomoProxyNodeId, MihomoDelayMeasurement> = emptyMap(),
 ) {
-    val delays: Map<MihomoProxyNodeId, Int>
-        get() = measurements.mapNotNull { (id, measurement) ->
-            measurement.delay?.let { delay -> id to delay }
-        }.toMap()
-
-    val firstDelay: Int?
-        get() = measurements.values.firstNotNullOfOrNull(MihomoDelayMeasurement::delay)
-
     fun measurement(id: MihomoProxyNodeId): MihomoDelayMeasurement? = measurements[id]
 }
 

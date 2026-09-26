@@ -1033,7 +1033,7 @@ internal class MihomoRuntimeRepository(
         updateRuntimeStateIfCurrent(generation, configKey) { current ->
             val nodes = current.proxies.nodes.map { node ->
                 if (node.id in targetIds) {
-                    node.copy(delay = null, delayStatus = null, delayError = "")
+                    node.copy(delay = null, delayStatus = null, delayError = "", delayUpdatedAtMillis = null)
                 } else {
                     node
                 }
@@ -1046,30 +1046,6 @@ internal class MihomoRuntimeRepository(
                 ),
             )
         }
-    }
-
-    private fun MihomoProxiesState.withPreservedDelays(previous: MihomoProxiesState): MihomoProxiesState {
-        val previousDelayStates = previous.nodes
-            .filter { node -> node.delayStatus != null }
-            .associateBy(MihomoProxyNode::id)
-        if (previousDelayStates.isEmpty()) return this
-        val nodes = nodes.map { node ->
-            if (node.delayStatus != null) {
-                node
-            } else {
-                previousDelayStates[node.id]?.let { previousNode ->
-                    node.copy(
-                        delay = previousNode.delay,
-                        delayStatus = previousNode.delayStatus,
-                        delayError = previousNode.delayError,
-                    )
-                } ?: node
-            }
-        }
-        return copy(
-            nodes = nodes,
-            nodeById = nodes.associateBy(MihomoProxyNode::id),
-        )
     }
 
     private data class MihomoRuntimeSignature(

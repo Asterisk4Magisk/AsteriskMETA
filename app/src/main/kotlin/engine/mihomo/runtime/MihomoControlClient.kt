@@ -848,12 +848,8 @@ private fun JsonObject.objectValue(name: String): JsonObject? {
 }
 
 private fun JsonObject.latestDelay(): Int? {
-    val history = this["history"].jsonArrayOrNull().orEmpty()
-    return history
-        .asReversed()
-        .firstNotNullOfOrNull { entry ->
-            entry.jsonObjectOrNull()?.intValue("delay")?.toMihomoHistoryDelayOrNull()
-        }
+    return this["history"].jsonArrayOrNull()?.lastOrNull()
+        .jsonObjectOrNull()?.intValue("delay")?.toMihomoHistoryDelay()
 }
 
 private fun JsonObject.toProxyProviderRuntimeDetail(fallbackName: String): MihomoProxyProviderRuntimeDetail {
@@ -877,8 +873,8 @@ private fun JsonObject.toProxyProviderRuntimeDetail(fallbackName: String): Mihom
 private fun JsonObject.toMihomoProxyProviderNode(): MihomoProxyProviderNode {
     val name = stringValue("name") ?: stringValue("Name") ?: ""
     val type = stringValue("type") ?: stringValue("Type") ?: ""
-    val normalizedDelay = intValue("delay")?.toMihomoHistoryDelayOrNull()
-        ?: intValue("Delay")?.toMihomoHistoryDelayOrNull()
+    val normalizedDelay = intValue("delay")?.toMihomoHistoryDelay()
+        ?: intValue("Delay")?.toMihomoHistoryDelay()
         ?: latestDelay()
     return MihomoProxyProviderNode(
         name = name,
@@ -907,12 +903,11 @@ private fun JsonObject.errorMessageOrNull(): String? {
     return stringValue("error") ?: stringValue("Error")
 }
 
-private fun Int.toMihomoHistoryDelayOrNull(
+private fun Int.toMihomoHistoryDelay(
     timeoutMillis: Int = DefaultMihomoDelayTimeoutMillis,
-): Int? {
+): Int {
     return when {
-        this <= 0 -> null
-        this == MihomoUntestedDelay -> null
+        this <= 0 -> MihomoTimeoutDelay
         this >= timeoutMillis -> MihomoTimeoutDelay
         else -> this
     }
@@ -944,7 +939,6 @@ private fun Throwable.mihomoDelayFailureStatus(): MihomoDelayStatus {
     }
 }
 
-private const val MihomoUntestedDelay = 65_535
 private const val MihomoTimeoutDelay = -1
 private const val MihomoGlobalGroupName = "GLOBAL"
 private val ExpectedStreamCloseMessages = listOf(
