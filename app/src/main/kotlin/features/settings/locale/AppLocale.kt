@@ -12,6 +12,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import app.modes.ColorModeDark
 import app.modes.ColorModeLight
 import app.modes.LanguageModeEnglish
@@ -49,6 +50,9 @@ fun ProvideAppLanguage(
     CompositionLocalProvider(
         LocalContext provides localizedContext,
         LocalConfiguration provides configuration,
+        // Dialog and sheet windows use the Activity's Context. Keep resource lookups
+        // tied to the current app language across those separate compositions.
+        LocalResources provides localizedContext.resources,
         content = content,
     )
 }

@@ -9,6 +9,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import androidx.annotation.StringRes
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -37,7 +38,7 @@ import ui.feedback.AndroidToastTipNotifier
 
 class MainActivity : ComponentActivity() {
     private val vpnPermissionRequester = AndroidVpnPermissionRequester {
-        getString(R.string.error_vpn_permission_launcher_missing)
+        appString(R.string.error_vpn_permission_launcher_missing)
     }
 
     private val qrCodeScanRequester = AndroidQrCodeScanRequester(
@@ -45,28 +46,28 @@ class MainActivity : ComponentActivity() {
             checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
         },
         permissionDeniedMessage = {
-            getString(R.string.error_qr_camera_permission_denied)
+            appString(R.string.error_qr_camera_permission_denied)
         },
         missingLauncherMessage = {
-            getString(R.string.error_qr_scan_launcher_missing)
+            appString(R.string.error_qr_scan_launcher_missing)
         },
     )
 
     private val resourceFilePicker = AndroidResourceFilePicker(
         missingLauncherMessage = {
-            getString(R.string.error_resource_file_picker_missing)
+            appString(R.string.error_resource_file_picker_missing)
         },
     )
 
     private val mihomoProfileFilePicker = AndroidResourceFilePicker(
         missingLauncherMessage = {
-            getString(R.string.error_resource_file_picker_missing)
+            appString(R.string.error_resource_file_picker_missing)
         },
     )
 
     private val logFileCreator = AndroidLogFileCreator(
         missingLauncherMessage = {
-            getString(R.string.error_log_export_launcher_missing)
+            appString(R.string.error_log_export_launcher_missing)
         },
     )
     private val tipNotifier by lazy { AndroidToastTipNotifier(this) }
@@ -116,6 +117,11 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.CreateDocument("*/*"),
     ) { uri ->
         logFileCreator.complete(uri)
+    }
+
+    private fun appString(@StringRes id: Int, vararg args: Any): String {
+        val languageMode = (application as AsteriskApplication).stateStore.state.value.languageMode
+        return applicationContext.localizedAppContext(languageMode).getString(id, *args)
     }
 
     override fun attachBaseContext(newBase: Context) {
@@ -203,7 +209,7 @@ class MainActivity : ComponentActivity() {
         val config = intent.toSubscriptionInstallConfigOrNull()
         if (config == null) {
             (application as AsteriskApplication).appScope.launch {
-                tipNotifier.show(getString(R.string.subscription_install_config_invalid))
+                tipNotifier.show(appString(R.string.subscription_install_config_invalid))
             }
             return
         }
@@ -214,12 +220,12 @@ class MainActivity : ComponentActivity() {
                 tipNotifier.show(
                     subscriptionUpdateMessage(
                         result = result.updateResult,
-                        successTemplate = getString(R.string.subscription_update_result),
-                        failedTemplate = getString(R.string.subscription_update_result_with_failed),
+                        successTemplate = appString(R.string.subscription_update_result),
+                        failedTemplate = appString(R.string.subscription_update_result_with_failed),
                     ),
                 )
             }.onFailure { error ->
-                tipNotifier.showError(error, getString(R.string.subscription_install_config_failed))
+                tipNotifier.showError(error, appString(R.string.subscription_install_config_failed))
             }
         }
     }
