@@ -137,7 +137,7 @@ internal fun StringListEditor(
                 }
             }
             AnimatedVisibility(
-                visible = hasPendingInput && onPendingChange != null,
+                visible = hasPendingInput,
                 enter = AsteriskMotion.contentEnter(),
                 exit = AsteriskMotion.contentExit(),
                 label = "string-list-pending-value",
