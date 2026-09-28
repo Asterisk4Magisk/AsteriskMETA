@@ -656,7 +656,7 @@ private fun ProxyAppListLoadingState(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier.background(MaterialTheme.colorScheme.surface),
+        modifier = modifier.background(MaterialTheme.colorScheme.background),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
