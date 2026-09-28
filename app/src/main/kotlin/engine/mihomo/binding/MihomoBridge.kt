@@ -36,6 +36,7 @@ internal object MihomoBridge {
                     ?: throw java.io.FileNotFoundException("Content provider returned no descriptor")
             }
         })
+        AndroidMihomoPlatformContext.start(application)
         true
     }
 
@@ -375,7 +376,9 @@ internal object MihomoBridge {
 private val nextFetchTaskId = AtomicLong(1L)
 
 private fun JsonObject.errorOrNull(): String? {
-    return this["error"]?.jsonPrimitive?.contentOrNull?.takeIf(String::isNotBlank)
+    // Group delay responses may contain a numeric delay for a proxy named "error".
+    return this["error"]?.jsonPrimitive?.takeIf { it.isString }
+        ?.contentOrNull?.takeIf(String::isNotBlank)
 }
 
 private class MihomoCoreException(message: String) : Exception(message)

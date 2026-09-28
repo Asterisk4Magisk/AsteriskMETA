@@ -402,7 +402,11 @@ internal class MihomoControlClient(
                 bridgeGroupDelay(groupName, url, timeoutMillis, expectedStatus)
             }.getOrElse { error ->
                 if (error is CancellationException) throw error
-                emptyMap()
+                return mihomoDelayFailureResult(
+                    ids = expectedProxyIds,
+                    status = MihomoDelayStatus.Timeout,
+                    error = error.message.orEmpty(),
+                )
             }
             return mihomoBridgeGroupDelayResult(
                 delays = delays,
