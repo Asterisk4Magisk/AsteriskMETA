@@ -128,7 +128,8 @@ private fun SettingsContent(
         outerPadding = outerPadding,
         isWideScreen = isWideScreen,
     )
-    val listPadding = pageListPadding(contentPadding)
+    // Section titles and search results already provide their own top spacing.
+    val listPadding = pageListPadding(contentPadding, topExtra = 0.dp)
 
     val colorModeOptions = listOf(
         stringResource(R.string.option_follow_system),
