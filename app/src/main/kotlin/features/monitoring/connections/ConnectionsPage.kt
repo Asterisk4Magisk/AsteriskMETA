@@ -16,7 +16,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -370,12 +370,10 @@ private fun ConnectionsMonitorStatus(
         value = state.activeCount?.toString() ?: "—",
         summary = summary,
         modifier = ContentWidthModifier,
-        compactStatus = true,
         controls = {
             TextButton(
                 onClick = { showStateMenu = true },
-                modifier = Modifier.height(24.dp),
-                contentPadding = PaddingValues(0.dp),
+                modifier = Modifier.heightIn(min = 48.dp),
             ) {
                 Text(text = if (showClosed) closedLabel else activeLabel, maxLines = 1)
                 Spacer(Modifier.width(4.dp))
