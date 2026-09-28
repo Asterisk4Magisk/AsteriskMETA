@@ -8,56 +8,33 @@
 
 [Asterisk4Magisk](https://t.me/Asterisk4Magisk)
 
-## 功能
-
-- VPN Service、TPROXY(ROOT)、TUN(ROOT)、TUN2SOCKS(ROOT) 和 BPF2SOCKS(ROOT) 运行模式
-- 通过二维码、本地文件或 URL 订阅导入并管理 Mihomo 配置
-- 支持 JavaScript 覆写脚本，用于进阶配置调整
-- 配置、代理、连接、日志和资源管理
-- Material 3 Compose UI
-
-## 预览
-
-<p align="center">
-  <img src="image/screenshot/1.jpg" width="24%" alt="截图 1" />
-  <img src="image/screenshot/2.jpg" width="24%" alt="截图 2" />
-  <img src="image/screenshot/3.jpg" width="24%" alt="截图 3" />
-  <img src="image/screenshot/4.jpg" width="24%" alt="截图 4" />
-</p>
-
 ## 运行模式
 
 ### VPN Service
 
 - 无需 root 权限。
 - 使用 Android `VpnService`。
-- 通过 AndroidLibClashLite 的 gomobile 绑定在应用进程中运行 Mihomo。
 
 ### TPROXY(ROOT)
 
 - 通过 libsu 直接运行本地 Mihomo 可执行文件。
-- 使用 TPROXY listener、iptables 和策略路由处理透明代理流量。
+- 使用 iptables 和策略路由处理透明代理流量。
 
 ### TUN(ROOT)
 
 - 通过 libsu 直接运行本地 Mihomo 可执行文件。
-- 托管配置使用固定 TUN 设备 `asterisk0`，并由 Mihomo 的 `auto-route`、`auto-detect-interface` 和 `auto-redirect` 管理路由。
-- 支持配置 Mihomo TUN 栈。
-- 所选 IP CIDR 规则集会写入 `route-exclude-address-set`，域名规则不生效。
-- 可加入准确的下游接口名以接管热点和网络共享流量。
+- 使用 Mihomo TUN 入站的 `auto-route` 和 `auto-redirect` 管理路由。
 
 ### TUN2SOCKS(ROOT)
 
 - 通过 libsu 直接运行本地 Mihomo 可执行文件。
-- 使用 `hev-socks5-tunnel` 创建固定 TUN 设备 `asterisk0`。
-- 将隧道流量送入本地 Mihomo SOCKS5 listener。
+- 使用 `hev-socks5-tunnel` 创建 TUN 设备并将流量送入 Mihomo SOCKS5 入站
 
 ### BPF2SOCKS(ROOT)
 
-- 通过 libsu 直接运行本地 Mihomo 可执行文件和 native `bpf2socks` helper。
-- 使用 eBPF 接管 TCP、UDP 流量并送入本地 Mihomo SOCKS5 listener，不创建 TUN 设备。
-- 默认 bridge 端口为 `65532`，SOCKS5 listener 端口为 `65534`。
-- 启动前要求 eBPF probe 通过。设备支持不足时，该模式无法启动。
+- 通过 libsu 直接运行本地 Mihomo 可执行文件。
+- 使用 `bpf2socks` 劫持流量并送入 Mihomo SOCKS5 入站。
+- 是否可用取决于设备内核 eBPF 支持情况。
 
 ### asteriskd
 
@@ -66,9 +43,7 @@
 
 ## 资源文件
 
-- 运行文件存储在应用私有的 `files/clash` 目录。
-- ROOT 直接使用 APK 原生库目录中的小型启动器，与 VPN 共享内置 Core。资源管理仍支持自定义 Mihomo 可执行文件。
-- 首次迁移到共享 Core 时，若存在本地可执行文件，会提示一次选择保留或移除。移除后 ROOT 使用共享 Core，也可随后在资源管理中恢复内置 Core。
+- ROOT 运行文件存储在应用私有的 `files/clash` 目录。
 - 自定义资源可在本地添加或替换，也可通过配置的 URL 更新。
 
 ## 广播控制
@@ -113,15 +88,9 @@ macOS 或 Linux：
 ./gradlew assembleDebug
 ```
 
-构建会下载固定版本的 AndroidLibClashLite AAR，构建已配置的 native helper submodule，并生成 ABI split APK 和 universal APK。应用不再自行编译 Mihomo，也不再额外下载官方 CLI。
+构建会下载固定版本的 AndroidLibClashLite AAR，构建 native submodule，并生成 ABI split APK 和 universal APK。
 
 如果 Gradle 找不到 Android NDK，请通过 Android Studio、`local.properties` 中的 `ndk.dir` 或 `ANDROID_NDK_HOME` 配置。
-
-## WSA
-
-```bash
-appops set org.asterisk.zcc.ameta ACTIVATE_VPN allow
-```
 
 ## 许可
 
