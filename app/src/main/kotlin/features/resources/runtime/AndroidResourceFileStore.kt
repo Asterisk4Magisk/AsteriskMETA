@@ -31,7 +31,9 @@ internal class AndroidResourceFileStore(
         return ResourceFilesStatus(
             resourceFiles = ResourceFileKind.entries.associateWith { kind ->
                 val target = if (kind == ResourceFileKind.MihomoCore) effectiveMihomoCoreFile() else file(kind)
-                target.toStatus(kind)
+                target.toStatus(kind).copy(
+                    isBundledCore = kind == ResourceFileKind.MihomoCore && target != file(kind),
+                )
             },
         )
     }
