@@ -555,7 +555,7 @@ fun MihomoProfileEditPage(
                         .fillMaxSize()
                         .then(scrollModifier)
                         .padding(contentPadding)
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                        .padding(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 12.dp),
                 ) {
                     if (profileType == MihomoProfileType.Url) {
                         OutlinedTextField(
