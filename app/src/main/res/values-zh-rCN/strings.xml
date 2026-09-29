@@ -104,6 +104,7 @@
     <!-- Monitoring - Connections -->
     <string name="monitor_connections_active">活动连接</string>
     <string name="monitor_connections_chain">策略链</string>
+    <string name="monitor_connections_provider_sources">Provider 来源</string>
     <string name="monitor_connections_close_all">关闭全部连接</string>
     <string name="monitor_connections_close_all_confirm">全部关闭</string>
     <string name="monitor_connections_close_all_failed">无法关闭全部连接</string>

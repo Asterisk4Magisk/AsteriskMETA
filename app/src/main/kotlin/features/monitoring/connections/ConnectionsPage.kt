@@ -454,6 +454,9 @@ private fun ConnectionCard(
     closeEnabled: Boolean,
     detectedClosedAt: Long? = null,
 ) {
+    // The core reports the final outbound first, followed by its enclosing groups.
+    val policyChain = connection.chains.asReversed().joinToString(" → ")
+    val providerSources = connection.providerChains.filter(String::isNotBlank).distinct().joinToString(" · ")
     Card(
         onClick = onOpen,
         modifier = ContentWidthModifier,
@@ -483,7 +486,7 @@ private fun ConnectionCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                val routing = (connection.chains + connection.providerChains).joinToString(" → ")
+                val routing = policyChain
                     .ifBlank { listOf(connection.rule, connection.rulePayload).filter(String::isNotBlank).joinToString(" · ") }
                 if (routing.isNotBlank()) {
                     Text(
@@ -535,8 +538,14 @@ private fun ConnectionCard(
                 )
                 DetailRow(
                     stringResource(R.string.monitor_connections_chain),
-                    (connection.chains + connection.providerChains).joinToString(" → "),
+                    policyChain,
                 )
+                if (providerSources.isNotBlank()) {
+                    DetailRow(
+                        stringResource(R.string.monitor_connections_provider_sources),
+                        providerSources,
+                    )
+                }
                 DetailRow(stringResource(R.string.monitor_connections_download), connection.downloadBytes.toReadableBytes())
                 DetailRow(stringResource(R.string.monitor_connections_upload), connection.uploadBytes.toReadableBytes())
             }

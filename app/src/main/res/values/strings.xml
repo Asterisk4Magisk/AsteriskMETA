@@ -105,6 +105,7 @@
     <!-- Monitoring - Connections -->
     <string name="monitor_connections_active">Active</string>
     <string name="monitor_connections_chain">Policy chain</string>
+    <string name="monitor_connections_provider_sources">Provider sources</string>
     <string name="monitor_connections_close_all">Close all connections</string>
     <string name="monitor_connections_close_all_confirm">Close all</string>
     <string name="monitor_connections_close_all_failed">Could not close all connections</string>
