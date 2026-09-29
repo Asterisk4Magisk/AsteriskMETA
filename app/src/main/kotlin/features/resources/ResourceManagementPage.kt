@@ -5,11 +5,10 @@
 
 package features.resources
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
+import ui.components.SectionedLazyColumn
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material3.Icon
@@ -187,9 +186,9 @@ fun ResourceManagementPage(
         )
         val listPadding = pageListPadding(contentPadding)
 
-        LazyColumn(
+        SectionedLazyColumn(
             contentPadding = listPadding,
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            itemSpacing = 10.dp,
         ) {
             item(key = "resource_overview") {
                 ResourceOverviewCard(
@@ -218,7 +217,7 @@ fun ResourceManagementPage(
                     onSettings = { showResourceAutoUpdateSheet = true },
                 )
             }
-            item(key = "resource_core_section") {
+            sectionTitleItem(key = "resource_core_section") {
                 ResourceSectionTitle(stringResource(R.string.settings_resource_files_core_files))
             }
             item(key = ResourceFileKind.MihomoCore.fileName) {
@@ -251,7 +250,7 @@ fun ResourceManagementPage(
                     },
                 )
             }
-            item(key = "resource_rules_section") {
+            sectionTitleItem(key = "resource_rules_section") {
                 ResourceSectionTitle(stringResource(R.string.settings_resource_files_files))
             }
             ResourceFileKind.entries.filterNot { it == ResourceFileKind.MihomoCore }.forEach { kind ->
@@ -327,6 +326,6 @@ private fun ResourceSectionTitle(text: String) {
         style = MaterialTheme.typography.titleSmall,
         fontWeight = FontWeight.SemiBold,
         color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.fillMaxWidth().padding(start = 4.dp, top = 10.dp, bottom = 2.dp),
+        modifier = Modifier.fillMaxWidth().padding(start = 4.dp),
     )
 }
