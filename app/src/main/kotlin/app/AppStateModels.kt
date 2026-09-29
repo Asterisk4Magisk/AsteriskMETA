@@ -27,6 +27,7 @@ data class MihomoProfileState(
     val type: MihomoProfileType = MihomoProfileType.File,
     val url: String = "",
     val userAgent: String = DefaultMihomoProfileUserAgent,
+    val hwid: String = "",
     val updateInterval: String = DefaultMihomoProfileUpdateInterval,
     val updateViaProxy: Boolean = false,
     val ageSecretKey: String = "",

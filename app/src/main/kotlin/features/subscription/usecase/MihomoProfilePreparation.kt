@@ -45,6 +45,7 @@ internal suspend fun prepareMihomoProfile(
             profileContent = localContent,
             sourceUrl = profile.url,
             userAgent = profile.userAgent,
+            hwid = profile.hwid,
             ageSecretKey = profile.ageSecretKey,
             fetchOptions = fetchOptions,
             onStatus = { status ->

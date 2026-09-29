@@ -6,6 +6,7 @@ import kotlinx.serialization.Serializable
 data class FetchOptions(
     val force: Boolean = false,
     val userAgent: String = "",
+    val hwid: String = "",
     val proxy: FetchProxy? = null,
 )
 

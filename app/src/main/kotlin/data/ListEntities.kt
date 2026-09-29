@@ -22,6 +22,7 @@ internal data class MihomoProfileEntity(
     val type: Int,
     val url: String,
     val userAgent: String,
+    @ColumnInfo(defaultValue = "''") val hwid: String,
     val updateInterval: String,
     val updateViaProxy: Boolean,
     @ColumnInfo(defaultValue = "")
@@ -49,6 +50,7 @@ internal data class MihomoProfileEntity(
             type = MihomoProfileType.fromStorageValue(type),
             url = url,
             userAgent = userAgent,
+            hwid = hwid,
             updateInterval = updateInterval,
             updateViaProxy = updateViaProxy,
             ageSecretKey = ageSecretKey,
@@ -79,6 +81,7 @@ internal data class MihomoProfileEntity(
                 type = profile.type.storageValue,
                 url = profile.url,
                 userAgent = profile.userAgent,
+                hwid = profile.hwid,
                 updateInterval = profile.updateInterval,
                 updateViaProxy = profile.updateViaProxy,
                 ageSecretKey = profile.ageSecretKey,

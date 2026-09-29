@@ -212,6 +212,10 @@
     <string name="mihomo_proxies_title">代理</string>
 
     <!-- Subscription groups -->
+    <string name="subscription_hwid">HWID</string>
+    <string name="subscription_hwid_invalid">HWID 无效</string>
+    <string name="subscription_hwid_limit_reached">订阅设备数量已达上限</string>
+    <string name="subscription_hwid_not_supported">服务端拒绝了 HWID</string>
     <string name="subscription_install_config_failed">导入订阅失败</string>
     <string name="subscription_install_config_invalid">无效的订阅链接</string>
     <string name="subscription_update_result">已更新 {profileCount} 个配置</string>

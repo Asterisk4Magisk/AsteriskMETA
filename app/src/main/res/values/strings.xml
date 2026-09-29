@@ -214,6 +214,10 @@
     <string name="mihomo_proxies_title">Proxies</string>
 
     <!-- Subscription groups -->
+    <string name="subscription_hwid">HWID</string>
+    <string name="subscription_hwid_invalid">Invalid HWID</string>
+    <string name="subscription_hwid_limit_reached">Subscription device limit reached</string>
+    <string name="subscription_hwid_not_supported">HWID rejected by server</string>
     <string name="subscription_install_config_failed">Failed to import subscription</string>
     <string name="subscription_install_config_invalid">Invalid subscription link</string>
     <string name="subscription_update_result">Updated {profileCount} profiles</string>

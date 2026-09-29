@@ -21,6 +21,17 @@ internal class AppSettingsPreferences(
 ) {
     private val preferences = context.getSharedPreferences(PreferencesName, Context.MODE_PRIVATE)
 
+    @android.annotation.SuppressLint("UseKtx") // Check that the installation identity was persisted before sending it.
+    fun getOrCreateSubscriptionHwid(): String = synchronized(SubscriptionHwidLock) {
+        preferences.getString(KeySubscriptionHwid, null)
+            ?.takeIf(String::isNotBlank)
+            ?: UUID.randomUUID().toString().also { generated ->
+                check(preferences.edit().putString(KeySubscriptionHwid, generated).commit()) {
+                    "Failed to persist subscription HWID"
+                }
+            }
+    }
+
     fun load(): AppState {
         val defaults = AppState()
         val mihomoControlSecret = preferences.getString(KeyMihomoControlSecret, null)
@@ -583,3 +594,6 @@ internal const val KeyServiceControlKeyguardLockStop = "service_control_keyguard
 internal const val KeyServiceControlKeyguardUnlockStart = "service_control_keyguard_unlock_start"
 
 internal const val KeyServiceControlKeyguardUnlockStop = "service_control_keyguard_unlock_stop"
+
+private const val KeySubscriptionHwid = "subscription_hwid"
+private val SubscriptionHwidLock = Any()

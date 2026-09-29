@@ -144,6 +144,7 @@ class AndroidAppStateStore private constructor(
                 AsteriskAppDatabase.Migration1To2,
                 AsteriskAppDatabase.Migration2To3,
                 AsteriskAppDatabase.Migration3To4,
+                AsteriskAppDatabase.Migration4To5,
             )
             .fallbackToDestructiveMigration(dropAllTables = true)
             .build()

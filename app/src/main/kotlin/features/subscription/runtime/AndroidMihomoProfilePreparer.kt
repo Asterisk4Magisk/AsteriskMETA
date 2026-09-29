@@ -44,6 +44,7 @@ internal class AndroidMihomoProfilePreparer(
         profileContent: String?,
         sourceUrl: String,
         userAgent: String,
+        hwid: String,
         ageSecretKey: String,
         fetchOptions: AndroidSubscriptionFetchOptions,
         onStatus: (FetchStatus) -> Unit = {},
@@ -89,6 +90,14 @@ internal class AndroidMihomoProfilePreparer(
                                 options = FetchOptions(
                                     force = profileContent == null,
                                     userAgent = userAgent,
+                                    hwid = if (profileContent == null &&
+                                        (sourceUrl.startsWith("https://", ignoreCase = true) ||
+                                            sourceUrl.startsWith("http://", ignoreCase = true))
+                                    ) {
+                                        features.subscription.resolveSubscriptionHwid(hwid) {
+                                            data.AppSettingsPreferences(appContext).getOrCreateSubscriptionHwid()
+                                        }
+                                    } else "",
                                     proxy = fetchOptions.toCoreFetchProxy(),
                                 ),
                                 reportStatus = { status -> statuses.trySend(status) },
@@ -115,7 +124,7 @@ internal class AndroidMihomoProfilePreparer(
             } catch (error: Throwable) {
                 AndroidMihomoProfilePreparation.Failure(
                     action = lastAction,
-                    error = error,
+                    error = localizeHwidError(error),
                     content = runCatching {
                         withContext(Dispatchers.IO) {
                             processingDir.readPreparedProfileContent(ageSecretKey)
@@ -130,6 +139,15 @@ internal class AndroidMihomoProfilePreparer(
                 processingDir.deleteRecursively()
             }
         }
+    }
+    private fun localizeHwidError(error: Throwable): Throwable {
+        val message = when (error.message) {
+            "HWID_LIMIT_REACHED" -> app.R.string.subscription_hwid_limit_reached
+            "HWID_NOT_SUPPORTED" -> app.R.string.subscription_hwid_not_supported
+            "HWID_INVALID" -> app.R.string.subscription_hwid_invalid
+            else -> return error
+        }
+        return IllegalStateException(appContext.getString(message), error)
     }
 }
 

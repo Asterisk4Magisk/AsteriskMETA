@@ -88,6 +88,7 @@ import engine.mihomo.raw.check
 import engine.mihomo.sha256Hex
 import engine.proxy.ProxyServiceResult
 import features.settings.SettingsDropdownRow
+import features.subscription.isValidSubscriptionHwid
 import features.subscription.isPlainHttpSubscriptionUrl
 import features.subscription.isValidSubscriptionIntervalInput
 import features.subscription.isValidManualSubscriptionUrl
@@ -159,6 +160,8 @@ fun MihomoProfileEditPage(
     val userAgentState = rememberTextFieldState(
         initialText = targetProfile?.userAgent ?: app.DefaultMihomoProfileUserAgent,
     )
+    val hwidState = rememberTextFieldState(initialText = targetProfile?.hwid.orEmpty())
+    val invalidHwidMessage = stringResource(R.string.subscription_hwid_invalid)
     val ageSecretKeyState = rememberTextFieldState(initialText = targetProfile?.ageSecretKey.orEmpty())
     val updateIntervalState = rememberTextFieldState(
         initialText = targetProfile?.updateInterval ?: DefaultMihomoProfileUpdateInterval,
@@ -396,6 +399,11 @@ fun MihomoProfileEditPage(
 
         val trimmedUrl = urlState.text.toString().trim()
         val cleanUserAgent = userAgentState.text.toString().trim().ifBlank { app.DefaultMihomoProfileUserAgent }
+        val cleanHwid = hwidState.text.toString().trim()
+        if (!cleanHwid.isValidSubscriptionHwid()) {
+            scope.launch { services.tipNotifier.show(invalidHwidMessage) }
+            return
+        }
         val cleanAgeSecretKey = ageSecretKeyState.text.toString().trim()
         val cleanInterval = updateIntervalState.text.toString().trim()
         if (!isValidSubscriptionIntervalInput(cleanInterval)) return
@@ -418,6 +426,7 @@ fun MihomoProfileEditPage(
         val remoteOptionsChanged = targetProfile == null ||
             urlChanged ||
             targetProfile.userAgent != cleanUserAgent ||
+            targetProfile.hwid != cleanHwid ||
             targetProfile.ageSecretKey != cleanAgeSecretKey ||
             targetProfile.updateViaProxy != updateViaProxy
         val desiredProfile = if (targetProfile != null) {
@@ -426,6 +435,7 @@ fun MihomoProfileEditPage(
                 type = MihomoProfileType.Url,
                 url = trimmedUrl,
                 userAgent = cleanUserAgent,
+                hwid = cleanHwid,
                 updateInterval = cleanInterval,
                 updateViaProxy = updateViaProxy,
                 ageSecretKey = cleanAgeSecretKey,
@@ -439,6 +449,7 @@ fun MihomoProfileEditPage(
                 type = MihomoProfileType.Url,
                 url = trimmedUrl,
                 userAgent = cleanUserAgent,
+                hwid = cleanHwid,
                 updateInterval = cleanInterval,
                 updateViaProxy = updateViaProxy,
                 ageSecretKey = cleanAgeSecretKey,
@@ -569,6 +580,7 @@ fun MihomoProfileEditPage(
                             enabled = !saving,
                             urlState = urlState,
                             userAgentState = userAgentState,
+                            hwidState = hwidState,
                             ageSecretKeyState = ageSecretKeyState,
                             updateIntervalState = updateIntervalState,
                             updateViaProxy = updateViaProxy,
@@ -894,6 +906,7 @@ private fun ColumnScope.UrlProfileFields(
     enabled: Boolean,
     urlState: TextFieldState,
     userAgentState: TextFieldState,
+    hwidState: TextFieldState,
     ageSecretKeyState: TextFieldState,
     updateIntervalState: TextFieldState,
     updateViaProxy: Boolean,
@@ -977,6 +990,13 @@ private fun ColumnScope.UrlProfileFields(
                 state = ageSecretKeyState,
                 enabled = enabled,
                 label = { Text(stringResource(R.string.mihomo_configuration_age_secret_key)) },
+                lineLimits = TextFieldLineLimits.SingleLine,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+            )
+            OutlinedTextField(
+                state = hwidState,
+                enabled = enabled,
+                label = { Text(stringResource(R.string.subscription_hwid)) },
                 lineLimits = TextFieldLineLimits.SingleLine,
                 modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
             )

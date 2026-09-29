@@ -16,13 +16,19 @@ internal const val AsteriskDatabaseName = "asteriskmeta.db"
         MihomoOverrideScriptEntity::class,
         ProxyAppListSelectedAppEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 internal abstract class AsteriskAppDatabase : RoomDatabase() {
     abstract fun appStateDao(): AppStateDao
 
     companion object {
+        val Migration4To5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE mihomo_profiles ADD COLUMN hwid TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
         val Migration1To2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE mihomo_profiles ADD COLUMN ageSecretKey TEXT NOT NULL DEFAULT ''")

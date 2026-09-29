@@ -245,6 +245,9 @@ internal object MihomoBridge {
     ) {
         ensureInitialized()
         val taskId = nextFetchTaskId.getAndIncrement()
+        if (options.hwid.isNotEmpty()) {
+            check(Libclash.supportsSubscriptionHwid()) { "The bundled core does not support subscription HWID" }
+        }
         val completion = CompletableDeferred<Unit>()
         Libclash.fetchAndValid(
             object : FetchCallback {
