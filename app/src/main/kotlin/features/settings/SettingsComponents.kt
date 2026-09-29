@@ -120,7 +120,7 @@ internal fun SettingsRawConfigProvider(
 internal fun SettingsSectionTitle(text: String) {
     Text(
         text = text,
-        modifier = Modifier.padding(start = 8.dp, end = 8.dp, top = 12.dp, bottom = 8.dp),
+        modifier = Modifier.padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
         color = MaterialTheme.colorScheme.primary,
         style = MaterialTheme.typography.labelLarge,
         fontWeight = FontWeight.SemiBold,

@@ -119,7 +119,7 @@ fun pageListPadding(
     contentPadding: PaddingValues,
     bottomExtra: Dp = 12.dp,
     horizontalExtra: Dp = rememberPageGutter(),
-    topExtra: Dp = 12.dp,
+    topExtra: Dp = 8.dp,
 ): PaddingValues {
     val layoutDirection = LocalLayoutDirection.current
     return PaddingValues(
