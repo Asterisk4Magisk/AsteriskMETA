@@ -202,14 +202,6 @@ private fun ProxyProviderStatusCard(
         modifier = modifier,
         status = updated,
         controls = {
-            AsteriskInfoChip(
-                text = pluralStringResource(
-                    R.plurals.mihomo_provider_focus_progress,
-                    state.readyCount,
-                    state.readyCount,
-                    state.providerCount,
-                ),
-            )
             Text(
                 text = stringResource(R.string.mihomo_provider_nodes_count)
                     .formatTemplate("count" to state.nodeCount),
@@ -229,7 +221,20 @@ private fun ProxyProviderStatusCard(
                 modifier = Modifier.size(24.dp),
                 tint = MaterialTheme.colorScheme.primary,
             )
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f),
+            )
+            AsteriskInfoChip(
+                text = pluralStringResource(
+                    R.plurals.mihomo_provider_focus_progress,
+                    state.readyCount,
+                    state.readyCount,
+                    state.providerCount,
+                ),
+            )
         }
     }
 }
@@ -273,14 +278,6 @@ private fun RuleProviderStatusCard(
         modifier = modifier,
         status = status,
         controls = {
-            AsteriskInfoChip(
-                text = pluralStringResource(
-                    R.plurals.mihomo_provider_focus_progress,
-                    readyCount,
-                    readyCount,
-                    providerCount,
-                ),
-            )
             Text(
                 text = pluralStringResource(
                     R.plurals.mihomo_rule_provider_rules_count,
@@ -308,7 +305,20 @@ private fun RuleProviderStatusCard(
                 modifier = Modifier.size(24.dp),
                 tint = MaterialTheme.colorScheme.primary,
             )
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f),
+            )
+            AsteriskInfoChip(
+                text = pluralStringResource(
+                    R.plurals.mihomo_provider_focus_progress,
+                    readyCount,
+                    readyCount,
+                    providerCount,
+                ),
+            )
         }
     }
 }
