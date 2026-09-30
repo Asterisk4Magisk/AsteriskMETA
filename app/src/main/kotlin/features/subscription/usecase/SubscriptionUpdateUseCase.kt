@@ -9,6 +9,8 @@ import app.MihomoProfileType
 import app.withMihomoRestartRequired
 import engine.mihomo.MihomoProfileContentRef
 import engine.mihomo.MihomoProfileContentStore
+import engine.mihomo.selectedMihomoProfileOrNull
+import engine.proxy.toLocalProxyOptions
 import features.logs.AndroidAppLogger
 import features.subscription.runtime.AndroidMihomoProfilePreparer
 import features.subscription.runtime.AndroidSubscriptionFetchOptions
@@ -273,7 +275,6 @@ private suspend fun updateMihomoProfile(
                         sourceIdentity = profile.subscriptionFetchIdentity(),
                         contentRef = contentRef,
                         subscriptionInfo = prepared.subscriptionInfo,
-                        updateInterval = prepared.updateIntervalMillis?.toStoredUpdateInterval(),
                     ),
                 )
             }
@@ -341,8 +342,11 @@ internal fun CoroutineScope.launchMihomoProfileSubscriptionUpdate(
 }
 
 internal fun AppState.toSubscriptionFetchOptions(profile: MihomoProfileState): AndroidSubscriptionFetchOptions {
+    val rawProfile = selectedMihomoProfileOrNull()?.takeIf { it.disableOverrides }
     return AndroidSubscriptionFetchOptions(
-        useRunningProxy = profile.updateViaProxy && proxyRunning,
+        useRunningProxy = profile.updateViaProxy,
+        fallbackProxy = if (rawProfile == null) toLocalProxyOptions() else null,
+        fallbackRawConfigPath = rawProfile?.contentPath,
     )
 }
 
@@ -371,7 +375,6 @@ internal fun AppState.withUpdatedMihomoProfiles(
                 contentSha256 = update.contentRef.sha256,
                 contentSizeBytes = update.contentRef.sizeBytes,
                 subscriptionInfo = update.subscriptionInfo,
-                updateInterval = update.updateInterval ?: profile.updateInterval,
                 lastUpdatedAtMillis = updatedAtMillis,
                 syncFailed = false,
             )
@@ -462,10 +465,3 @@ private fun String.toLogHost(): String {
         ?.takeIf(String::isNotBlank)
         ?: "<unknown>"
 }
-
-private fun Long.toStoredUpdateInterval(): String {
-    if (this <= 0L) return "0"
-    return (this / MillisPerHour).coerceAtLeast(1L).toString()
-}
-
-private const val MillisPerHour = 60L * 60L * 1000L

@@ -106,15 +106,11 @@ internal class MihomoProfileSaveUseCase(
             desired.type == MihomoProfileType.File && draft.contentChanged -> nowMillis()
             else -> original?.lastUpdatedAtMillis ?: desired.lastUpdatedAtMillis
         }
-        val updateInterval = preparation.updateIntervalMillisOrNull()
-            ?.toStoredUpdateInterval()
-            ?: desired.updateInterval
         return desired.copy(
             contentPath = contentRef?.path.orEmpty(),
             contentSha256 = contentRef?.sha256.orEmpty(),
             contentSizeBytes = contentRef?.sizeBytes ?: 0L,
             subscriptionInfo = subscriptionInfo,
-            updateInterval = updateInterval,
             lastUpdatedAtMillis = lastUpdatedAtMillis,
             syncFailed = failed,
         )
@@ -235,17 +231,3 @@ private fun MihomoProfileSavePreparation.subscriptionInfoOrNull(): MihomoSubscri
 private fun MihomoProfileSavePreparation.isSynchronized(): Boolean {
     return this is MihomoProfileSavePreparation.Success && synchronized
 }
-
-private fun MihomoProfileSavePreparation.updateIntervalMillisOrNull(): Long? {
-    return when (this) {
-        is MihomoProfileSavePreparation.Success -> updateIntervalMillis
-        is MihomoProfileSavePreparation.Failure -> updateIntervalMillis
-    }
-}
-
-private fun Long.toStoredUpdateInterval(): String {
-    if (this <= 0L) return "0"
-    return (this / MillisPerHour).coerceAtLeast(1L).toString()
-}
-
-private const val MillisPerHour = 60L * 60L * 1000L
