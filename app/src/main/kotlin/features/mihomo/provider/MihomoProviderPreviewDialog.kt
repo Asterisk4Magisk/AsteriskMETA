@@ -17,7 +17,6 @@ import ui.icons.AsteriskIcons as Icons
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -79,38 +78,38 @@ internal fun MihomoProviderPreviewDialog(
             ),
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
-                Row(
+                Text(
+                    text = stringResource(R.string.mihomo_configuration_preview_title)
+                        .formatTemplate("name" to providerName.ifBlank { "-" }),
+                    style = MaterialTheme.typography.headlineSmall,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = stringResource(R.string.mihomo_configuration_preview_title)
-                            .formatTemplate("name" to providerName.ifBlank { "-" }),
-                        style = MaterialTheme.typography.headlineSmall,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f),
-                    )
-                    if (content.isNotBlank()) {
-                        IconButton(onClick = copyTextContent) {
-                            Icon(
-                                imageVector = Icons.Rounded.ContentCopy,
-                                contentDescription = stringResource(R.string.common_copy),
-                            )
-                        }
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Column(modifier = Modifier.fillMaxWidth().weight(1f, fill = false)) {
+                    when (rawContent) {
+                        is MihomoProviderRawContent.Text -> ProviderTextPreviewContent(rawContent)
+                        is MihomoProviderRawContent.Binary -> ProviderBinaryPreviewContent(rawContent)
                     }
                 }
-                Spacer(modifier = Modifier.height(16.dp))
-                when (rawContent) {
-                    is MihomoProviderRawContent.Text -> ProviderTextPreviewContent(rawContent)
-                    is MihomoProviderRawContent.Binary -> ProviderBinaryPreviewContent(rawContent)
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                ) {
+                    if (content.isNotBlank()) {
+                        AsteriskActionButton(
+                            text = stringResource(R.string.common_copy),
+                            icon = Icons.Rounded.ContentCopy,
+                            onClick = copyTextContent,
+                        )
+                    }
+                    AsteriskActionButton(
+                        text = stringResource(R.string.common_complete),
+                        icon = Icons.Rounded.Check,
+                        onClick = onDismissRequest,
+                    )
                 }
-                AsteriskActionButton(
-                    text = stringResource(R.string.common_complete),
-                    icon = Icons.Rounded.Check,
-                    onClick = onDismissRequest,
-                    modifier = Modifier.align(Alignment.End).padding(top = 8.dp),
-                )
             }
         }
     }

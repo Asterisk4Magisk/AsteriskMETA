@@ -53,6 +53,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -73,6 +74,7 @@ import app.MihomoProfileState
 import app.MihomoProfileType
 import app.R
 import app.collectAppState
+import ui.clipboard.setPlainText
 import app.navigation.Route
 import app.nextAvailableMihomoProfileId
 import app.hasRuntimeRelevantChanges
@@ -1360,6 +1362,10 @@ private fun MihomoProfilePreviewDialog(
     onDismissRequest: () -> Unit,
 ) {
     if (!show) return
+    val clipboard = LocalClipboard.current
+    val services = LocalAppServices.current
+    val scope = rememberCoroutineScope()
+    val copiedMessage = stringResource(R.string.logs_copied_to_clipboard)
     val previewEditorState = remember(content) {
         MihomoCodeEditorState(content).also { state ->
             state.replaceText(content, placeCursorAtEnd = false)
@@ -1382,21 +1388,40 @@ private fun MihomoProfilePreviewDialog(
                     text = stringResource(R.string.mihomo_configuration_preview_title)
                         .formatTemplate("name" to profileName.ifBlank { "-" }),
                     style = MaterialTheme.typography.headlineSmall,
-                    modifier = Modifier.padding(bottom = 16.dp),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
                 )
                 YamlCodeEditor(
                     state = previewEditorState,
                     readOnly = true,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .weight(1f, fill = false)
                         .heightIn(min = 360.dp, max = 560.dp),
                 )
-                AsteriskActionButton(
-                    text = stringResource(R.string.common_complete),
-                    icon = Icons.Rounded.Check,
-                    onClick = onDismissRequest,
-                    modifier = Modifier.align(Alignment.End).padding(top = 8.dp),
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                ) {
+                    if (content.isNotBlank()) {
+                        AsteriskActionButton(
+                            text = stringResource(R.string.common_copy),
+                            icon = Icons.Rounded.ContentCopy,
+                            onClick = {
+                                scope.launch {
+                                    clipboard.setPlainText(content)
+                                    services.tipNotifier.show(copiedMessage)
+                                }
+                            },
+                        )
+                    }
+                    AsteriskActionButton(
+                        text = stringResource(R.string.common_complete),
+                        icon = Icons.Rounded.Check,
+                        onClick = onDismissRequest,
+                    )
+                }
             }
         }
     }
