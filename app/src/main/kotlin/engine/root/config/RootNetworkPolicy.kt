@@ -5,6 +5,7 @@ package engine.root.config
 
 import android.content.Context
 import app.AppState
+import app.withCompatibleProxyAppListMode
 import app.modes.ProxyAppListModeGlobal
 import utils.toTrimmedNonEmptyDistinctList
 
@@ -38,7 +39,7 @@ internal fun RootIptablesConfig.withAppSettings(
     val proxyPrivateCidrs = appState.privateAddressCidrs.toTrimmedNonEmptyDistinctList()
     val bypassPrivateCidrs = RootDefaultBypassPrivateCidrs.toTrimmedNonEmptyDistinctList()
     val selectedAppKeys = appState.proxyAppListSelectedApps.toTrimmedNonEmptyDistinctList()
-    val appListMode = appState.proxyAppListMode.toRootProxyAppListMode()
+    val appListMode = appState.withCompatibleProxyAppListMode().proxyAppListMode.toRootProxyAppListMode()
 
     return copy(
         externalInterfacePrefixes = appState.externalInterfaces.toTrimmedNonEmptyDistinctList(),

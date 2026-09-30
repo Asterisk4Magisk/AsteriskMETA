@@ -5,6 +5,7 @@ package engine.mihomo
 
 import android.content.Context
 import app.AppState
+import app.withCompatibleProxyAppListMode
 import app.DefaultMihomoOverrideScriptId
 import app.MihomoProfileState
 import app.effectiveLocalDnsEnabled
@@ -394,7 +395,7 @@ internal fun AppState.toMihomoTunListenerYamlMap(
         "inet4-address" to listOf("${tunOptions.ipv4Address.address}/${tunOptions.ipv4Address.prefixLength}"),
     ).apply {
         putAll(mihomoRootTunPolicy(
-            proxyAppListMode,
+            withCompatibleProxyAppListMode().proxyAppListMode,
             applicationUids, tunSharedNetworkInterfaces,
             tunBypassRuleSetTags, ruleProviders,
         ))

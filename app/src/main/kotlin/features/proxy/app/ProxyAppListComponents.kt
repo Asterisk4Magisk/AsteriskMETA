@@ -45,6 +45,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.R
+import app.modes.ProxyAppListModeGlobal
 import coil3.compose.AsyncImage
 import features.proxy.app.model.AppPackageEntry
 import features.proxy.app.model.ProxyAppIconRequest
@@ -175,6 +176,7 @@ internal fun ProxyAppListMoreActionsMenu(
 internal fun ProxyAppListModeSegmentedRow(
     modes: List<String>,
     selectedIndex: Int,
+    requiresGlobalProxyAppMode: Boolean,
     onSelectedIndexChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -184,6 +186,10 @@ internal fun ProxyAppListModeSegmentedRow(
             SegmentedButton(
                 selected = safeIndex == index,
                 onClick = { onSelectedIndexChange(index) },
+                // Keep unavailable modes tappable so an attempt can show a brief tip.
+                modifier = Modifier.graphicsLayer {
+                    alpha = if (requiresGlobalProxyAppMode && index != ProxyAppListModeGlobal) 0.38f else 1f
+                },
                 shape = SegmentedButtonDefaults.itemShape(
                     index = index,
                     count = modes.size,

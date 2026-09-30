@@ -11,6 +11,7 @@ import app.modes.MihomoProxySortDefault
 import app.modes.MihomoTunStackGvisor
 import app.modes.ProxyAppListModeGlobal
 import app.modes.RunModeVpnService
+import app.modes.isRootRunMode
 import engine.root.RootModeEngine
 import engine.vpn.VpnDefaults
 import engine.mihomo.DefaultMihomoDnsDefaultNameserver
@@ -148,6 +149,16 @@ val AppState.rootIpv6DataPathEnabled: Boolean
 
 val AppState.effectiveFakeIpEnabled: Boolean
     get() = effectiveLocalDnsEnabled && dnsEnhancedMode == MihomoDnsModeFakeIp
+
+val AppState.requiresGlobalProxyAppMode: Boolean
+    get() = runMode.isRootRunMode() && effectiveFakeIpEnabled
+
+internal fun AppState.withCompatibleProxyAppListMode(): AppState =
+    if (requiresGlobalProxyAppMode && proxyAppListMode != ProxyAppListModeGlobal) {
+        copy(proxyAppListMode = ProxyAppListModeGlobal)
+    } else {
+        this
+    }
 
 fun AppState.withMihomoRestartRequired(
     profileId: Int,

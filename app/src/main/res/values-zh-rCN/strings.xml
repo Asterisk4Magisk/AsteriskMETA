@@ -727,6 +727,7 @@
     <string name="proxy_app_list_loading">正在加载应用列表…</string>
     <string name="proxy_app_list_mode_blacklist">黑名单模式</string>
     <string name="proxy_app_list_mode_global">全应用模式</string>
+    <string name="proxy_app_list_fake_dns_requires_global">ROOT 模式开启 FakeIP 时仅支持全应用模式</string>
     <string name="proxy_app_list_mode_whitelist">白名单模式</string>
     <string name="proxy_app_list_more_actions">更多操作</string>
     <string name="proxy_app_list_scan_china_apps">扫描中国应用</string>
