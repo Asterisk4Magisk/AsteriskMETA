@@ -64,6 +64,7 @@ internal object AndroidMihomoRuntime {
                 Clash.startTun(
                     fd = it.fd,
                     stack = config.mihomoTunStack,
+                    congestionController = config.mihomoTunCongestionController,
                     gateway = config.tunGatewayAddresses(),
                     portal = "",
                     dns = if (config.enableLocalDns) VpnDefaults.IPV4_DNS_HIJACK_ALL else "",

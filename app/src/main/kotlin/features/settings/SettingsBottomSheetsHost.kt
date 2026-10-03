@@ -138,13 +138,17 @@ internal fun SettingsBottomSheetsHost(
         show = sheetState.showTunSettings,
         tunStackOptions = tunStackOptions,
         tunStack = sheetState.tunSettingsDraft.tunStack,
+        congestionController = sheetState.tunSettingsDraft.congestionController,
         mtu = sheetState.tunSettingsDraft.mtu,
         vpnDns = sheetState.tunSettingsDraft.vpnDns,
         ipv4Cidr = sheetState.tunSettingsDraft.ipv4Cidr,
         ipv6Cidr = sheetState.tunSettingsDraft.ipv6Cidr,
-        showTunStack = appState.runMode != RunModeTun2Socks,
+        showTunStack = appState.showMihomoTunStackSettings,
         showVpnDns = appState.runMode == RunModeVpnService,
         onTunStackChange = { sheetState.tunSettingsDraft = sheetState.tunSettingsDraft.copy(tunStack = it) },
+        onCongestionControllerChange = {
+            sheetState.tunSettingsDraft = sheetState.tunSettingsDraft.copy(congestionController = it)
+        },
         onMtuChange = {
             sheetState.tunSettingsDraft = sheetState.tunSettingsDraft.copy(mtu = it)
         },
@@ -152,10 +156,15 @@ internal fun SettingsBottomSheetsHost(
         onIpv4CidrChange = { sheetState.tunSettingsDraft = sheetState.tunSettingsDraft.copy(ipv4Cidr = it) },
         onIpv6CidrChange = { sheetState.tunSettingsDraft = sheetState.tunSettingsDraft.copy(ipv6Cidr = it) },
         onDismissRequest = { sheetState.showTunSettings = false },
-        onSave = { tunStack, mtu, vpnDns, ipv4Cidr, ipv6Cidr ->
+        onSave = { tunStack, congestionController, mtu, vpnDns, ipv4Cidr, ipv6Cidr ->
             updateAppState { state ->
                 state.copy(
-                    mihomoTunStack = if (state.runMode == RunModeTun2Socks) state.mihomoTunStack else tunStack,
+                    mihomoTunStack = if (state.showMihomoTunStackSettings) tunStack else state.mihomoTunStack,
+                    mihomoTunCongestionController = if (!state.showMihomoTunStackSettings) {
+                        state.mihomoTunCongestionController
+                    } else {
+                        congestionController
+                    },
                     tunMtu = mtu,
                     tunVpnDns = if (state.runMode == RunModeVpnService) vpnDns else state.tunVpnDns,
                     tunIpv4Cidr = ipv4Cidr,

@@ -214,6 +214,7 @@ internal fun SettingsNestedSearchResults(
 @Composable
 internal fun settingsNestedSearchEntries(
     runMode: Int,
+    showTunStack: Boolean,
     onOpenTunBypassRuleSets: () -> Unit,
     onOpenDns: () -> Unit,
     onOpenSniffer: () -> Unit,
@@ -275,13 +276,16 @@ internal fun settingsNestedSearchEntries(
         stringResource(R.string.settings_local_proxy_username),
         stringResource(R.string.settings_local_proxy_password),
     )
-    val tunItems = listOf(
-        stringResource(R.string.settings_tun_stack),
-        stringResource(R.string.settings_tun_mtu),
-        stringResource(R.string.settings_tun_vpn_dns),
-        stringResource(R.string.settings_tun_ipv4_cidr),
-        stringResource(R.string.settings_tun_ipv6_cidr),
-    )
+    val tunItems = buildList {
+        if (showTunStack) {
+            add(stringResource(R.string.settings_tun_stack))
+            add(stringResource(R.string.settings_tun_congestion_controller))
+        }
+        add(stringResource(R.string.settings_tun_mtu))
+        add(stringResource(R.string.settings_tun_vpn_dns))
+        add(stringResource(R.string.settings_tun_ipv4_cidr))
+        add(stringResource(R.string.settings_tun_ipv6_cidr))
+    }
     val externalItems = listOf(
         stringResource(R.string.settings_external_interfaces_wifi),
         stringResource(R.string.settings_external_interfaces_usb),

@@ -4,14 +4,22 @@
 package features.settings
 
 import app.AppState
+import app.modes.MihomoTunStackMips
+import app.modes.RunModeTun2Socks
+import app.modes.RunModeVpnService
+import engine.mihomo.DefaultMihomoTunCongestionController
 import engine.mihomo.DefaultMihomoSnifferHttpPorts
 import engine.mihomo.DefaultMihomoSnifferQuicPorts
 import engine.mihomo.DefaultMihomoSnifferTlsPorts
 import engine.mihomo.MihomoDnsModeRedirHost
 import engine.mihomo.MihomoSnifferProtocolOverrideFollowGlobal
 
+internal val AppState.showMihomoTunStackSettings: Boolean
+    get() = runMode != RunModeTun2Socks && !(runMode == RunModeVpnService && enableVpnHevTun)
+
 internal data class TunSettingsDraft(
-    val tunStack: Int = 0,
+    val tunStack: Int = MihomoTunStackMips,
+    val congestionController: String = DefaultMihomoTunCongestionController,
     val mtu: String = "",
     val vpnDns: String = "",
     val ipv4Cidr: String = "",
@@ -21,6 +29,7 @@ internal data class TunSettingsDraft(
 internal fun AppState.toTunSettingsDraft(): TunSettingsDraft {
     return TunSettingsDraft(
         tunStack = mihomoTunStack,
+        congestionController = mihomoTunCongestionController,
         mtu = tunMtu,
         vpnDns = tunVpnDns,
         ipv4Cidr = tunIpv4Cidr,

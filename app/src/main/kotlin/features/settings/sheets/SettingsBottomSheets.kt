@@ -7,6 +7,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.ui.res.stringResource
 import app.R
+import app.modes.MihomoTunStackMips
+import engine.mihomo.MihomoTunCongestionControllers
 import ui.icons.AsteriskIcons as Icons
 import engine.network.isCidrAddress
 import engine.network.isIpAddress
@@ -27,7 +29,8 @@ internal fun tunSettingsSummary(
 ): String {
     val template = stringResource(
         when {
-            showVpnDns -> R.string.settings_tun_summary
+            showVpnDns && showTunStack -> R.string.settings_tun_summary
+            showVpnDns -> R.string.settings_tun_summary_without_stack_with_dns
             showTunStack -> R.string.settings_tun_summary_without_dns
             else -> R.string.settings_tun_summary_without_stack
         },
@@ -46,6 +49,7 @@ internal fun TunSettingsBottomSheet(
     show: Boolean,
     tunStackOptions: List<String>,
     tunStack: Int,
+    congestionController: String,
     mtu: String,
     vpnDns: String,
     ipv4Cidr: String,
@@ -53,12 +57,13 @@ internal fun TunSettingsBottomSheet(
     showTunStack: Boolean,
     showVpnDns: Boolean,
     onTunStackChange: (Int) -> Unit,
+    onCongestionControllerChange: (String) -> Unit,
     onMtuChange: (String) -> Unit,
     onVpnDnsChange: (String) -> Unit,
     onIpv4CidrChange: (String) -> Unit,
     onIpv6CidrChange: (String) -> Unit,
     onDismissRequest: () -> Unit,
-    onSave: (Int, String, String, String, String) -> Unit,
+    onSave: (Int, String, String, String, String, String) -> Unit,
 ) {
     val mtuError = if (isTunMtu(mtu)) null else stringResource(R.string.settings_tun_mtu_invalid)
     val vpnDnsError = if (!showVpnDns || isTunVpnDns(vpnDns)) {
@@ -96,6 +101,7 @@ internal fun TunSettingsBottomSheet(
                     if (canSave) {
                         onSave(
                             tunStack.coerceIn(tunStackOptions.indices),
+                            congestionController,
                             mtu.trim(),
                             vpnDns.trim(),
                             ipv4Cidr.trim(),
@@ -117,6 +123,15 @@ internal fun TunSettingsBottomSheet(
                         selectedIndex = tunStack.coerceIn(tunStackOptions.indices),
                         onSelectedIndexChange = onTunStackChange,
                     )
+                    if (tunStack == MihomoTunStackMips) {
+                        WindowDropdownPreference(
+                            title = stringResource(R.string.settings_tun_congestion_controller),
+                            icon = Icons.Rounded.Speed,
+                            items = MihomoTunCongestionControllers,
+                            selectedIndex = MihomoTunCongestionControllers.indexOf(congestionController).coerceAtLeast(0),
+                            onSelectedIndexChange = { onCongestionControllerChange(MihomoTunCongestionControllers[it]) },
+                        )
+                    }
                 }
                 SettingsTextField(
                     value = mtu,

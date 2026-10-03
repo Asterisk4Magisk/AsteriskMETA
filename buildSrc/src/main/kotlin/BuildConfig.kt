@@ -16,7 +16,7 @@ object ProjectConfig {
     const val ASTERISKD_VERSION = "v2.0.36"
     const val BPF2SOCKS_VERSION = "v1.0.15"
     const val BPF_MATCHER_VERSION = "v1.0.1"
-    const val ANDROID_LIB_CLASH_LITE_VERSION = "v1.19.31-android.2"
+    const val ANDROID_LIB_CLASH_LITE_VERSION = "v1.19.32-android.1"
     const val HEV_SOCKS5_TUNNEL_VERSION = "2.18.0"
     const val TARGET_SDK = 37
     const val MIN_SDK = 26

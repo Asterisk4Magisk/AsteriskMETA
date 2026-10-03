@@ -12,6 +12,8 @@ import engine.hevtun.HevSocks5TunnelLogFileName
 import engine.hevtun.hevSocks5TunnelLogFile
 import engine.hevtun.hevSocks5TunnelSocksTargetAddress
 import engine.mihomo.MihomoProfileFactory
+import engine.mihomo.DefaultMihomoTunCongestionController
+import engine.mihomo.effectiveMihomoTunCongestionController
 import engine.mihomo.sha256Hex
 import engine.mihomo.selectedMihomoProfileOrNull
 import engine.proxy.LocalProxyOptions
@@ -41,6 +43,7 @@ internal data class VpnServiceStartConfig(
     val mihomoProfileSignature: String,
     val ageSecretKey: String = "",
     val mihomoTunStack: String,
+    val mihomoTunCongestionController: String = DefaultMihomoTunCongestionController,
     val applicationPolicy: VpnApplicationPolicy,
     val localProxyOptions: LocalProxyOptions,
     val appendHttpProxyOptions: VpnAppendHttpProxyOptions,
@@ -103,6 +106,11 @@ internal object VpnMihomoConfigFactory {
             standbyProfileContent = profileBytes.takeUnless { exposePorts },
             ageSecretKey = ageSecretKey,
             mihomoTunStack = rawConfig?.tunInbound?.value?.stack ?: MihomoProfileFactory.tunStack(appState),
+            mihomoTunCongestionController = if (rawConfig == null) {
+                appState.effectiveMihomoTunCongestionController
+            } else {
+                rawConfig.tunInbound.value?.congestionController.orEmpty()
+            },
             applicationPolicy = appState.toVpnApplicationPolicy(Process.myUid().toAndroidUserId()),
             localProxyOptions = localProxyOptions,
             appendHttpProxyOptions = appendHttpProxyOptions,

@@ -5,6 +5,7 @@ package engine.mihomo.raw
 
 import engine.mihomo.MihomoControlConfig
 import engine.mihomo.MihomoYamlLoadSettings
+import engine.mihomo.MihomoTunCongestionControllers
 import engine.mihomo.sha256Hex
 import engine.network.isCidrAddress
 import engine.network.toPortOrNull
@@ -157,14 +158,24 @@ private fun parseTunInbound(root: Map<*, *>): RawConfigField<MihomoRawTunInbound
     val (path, value) = candidates.single()
     val device = value["device"]?.toString().orEmpty().trim()
     val stack = value["stack"]?.toString().orEmpty().trim().lowercase()
+    val congestionController = value["congestion-controller"]?.toString().orEmpty().trim().lowercase()
     val mtu = value["mtu"].intOrNull()
     val ipv4 = value.firstString("inet4-address") ?: value.firstString("inet4_address")
     val ipv6 = value.firstString("inet6-address") ?: value.firstString("inet6_address")
     val valid = device.isNotBlank() && stack in setOf("system", "gvisor", "mixed", "mips") &&
+        (congestionController.isEmpty() || congestionController in MihomoTunCongestionControllers) &&
         mtu != null && mtu in 576..9000 && ipv4 != null && isCidrAddress(ipv4) && ":" !in ipv4
     if (!valid) return RawConfigField(path = path, problem = "TUN inbound is incomplete or invalid")
     return RawConfigField(
-        value = MihomoRawTunInbound(device, stack, mtu, ipv4, ipv6, path),
+        value = MihomoRawTunInbound(
+            device = device,
+            stack = stack,
+            congestionController = congestionController,
+            mtu = mtu,
+            ipv4Address = ipv4,
+            ipv6Address = ipv6,
+            path = path,
+        ),
         path = path,
     )
 }

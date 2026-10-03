@@ -8,7 +8,8 @@ import app.modes.LanguageModeSystem
 import app.modes.MihomoModeRule
 import app.modes.MihomoProxyLayoutAuto
 import app.modes.MihomoProxySortDefault
-import app.modes.MihomoTunStackGvisor
+import app.modes.MihomoTunStackMips
+import engine.mihomo.DefaultMihomoTunCongestionController
 import app.modes.ProxyAppListModeGlobal
 import app.modes.RunModeVpnService
 import app.modes.isRootRunMode
@@ -50,7 +51,8 @@ data class AppState(
     val mihomoProxyExcludeNotSelectable: Boolean = false,
     val mihomoProxyLayout: Int = MihomoProxyLayoutAuto,
     val mihomoProxySort: Int = MihomoProxySortDefault,
-    val mihomoTunStack: Int = MihomoTunStackGvisor,
+    val mihomoTunStack: Int = MihomoTunStackMips,
+    val mihomoTunCongestionController: String = DefaultMihomoTunCongestionController,
     val mihomoControlPort: String = DefaultMihomoControlPort.toString(),
     val mihomoControlSecret: String = "",
     val enableLocalDns: Boolean = true,

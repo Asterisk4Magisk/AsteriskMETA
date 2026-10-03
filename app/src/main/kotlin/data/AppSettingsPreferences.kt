@@ -6,6 +6,7 @@ package data
 import android.content.Context
 import android.content.SharedPreferences
 import app.AppState
+import engine.mihomo.normalizeMihomoTunCongestionController
 import app.ServiceControlSchedule
 import app.ServiceControlKeyguard
 import app.ServiceControlSettings
@@ -66,6 +67,10 @@ internal class AppSettingsPreferences(
             mihomoProxyLayout = preferences.getInt(KeyMihomoProxyLayout, defaults.mihomoProxyLayout),
             mihomoProxySort = preferences.getInt(KeyMihomoProxySort, defaults.mihomoProxySort),
             mihomoTunStack = preferences.getInt(KeyMihomoTunStack, defaults.mihomoTunStack),
+            mihomoTunCongestionController = normalizeMihomoTunCongestionController(
+                preferences.getString(KeyMihomoTunCongestionController, defaults.mihomoTunCongestionController)
+                    ?: defaults.mihomoTunCongestionController,
+            ),
             mihomoControlPort = preferences.getString(
                 KeyMihomoControlPort,
                 defaults.mihomoControlPort,
@@ -277,6 +282,7 @@ internal class AppSettingsPreferences(
             .putInt(KeyMihomoProxyLayout, state.mihomoProxyLayout)
             .putInt(KeyMihomoProxySort, state.mihomoProxySort)
             .putInt(KeyMihomoTunStack, state.mihomoTunStack)
+            .putString(KeyMihomoTunCongestionController, state.mihomoTunCongestionController)
             .putString(KeyMihomoControlPort, state.mihomoControlPort)
             .putString(KeyMihomoControlSecret, state.mihomoControlSecret)
             .putBoolean(KeyEnableLocalDns, state.enableLocalDns)
@@ -491,6 +497,7 @@ private const val KeyMihomoProxyExcludeNotSelectable = "mihomo_proxy_exclude_not
 private const val KeyMihomoProxyLayout = "mihomo_proxy_layout"
 private const val KeyMihomoProxySort = "mihomo_proxy_sort"
 private const val KeyMihomoTunStack = "mihomo_tun_stack"
+private const val KeyMihomoTunCongestionController = "mihomo_tun_congestion_controller"
 private const val KeyMihomoControlPort = "mihomo_control_port"
 private const val KeyMihomoControlSecret = "mihomo_control_secret"
 private const val KeyEnableLocalDns = "enable_local_dns"

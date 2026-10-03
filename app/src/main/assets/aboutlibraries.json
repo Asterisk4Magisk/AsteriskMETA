@@ -15,7 +15,7 @@
         },
         {
             "uniqueId": "github:Asterisk4Magisk/AndroidLibClashLite",
-            "artifactVersion": "v1.19.31-android.2",
+            "artifactVersion": "v1.19.32-android.1",
             "name": "AndroidLibClashLite",
             "description": "Gomobile Android bindings and standalone CLI sharing one Mihomo core.",
             "website": "https://github.com/Asterisk4Magisk/AndroidLibClashLite",

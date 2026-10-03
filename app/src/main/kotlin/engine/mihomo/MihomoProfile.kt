@@ -47,6 +47,19 @@ internal const val MihomoTunDevice = "asterisk0"
 internal const val MihomoTunInboundName = "asterisk-tun"
 internal const val MihomoTunRuntimeMarkerKey = "x-asteriskmeta-root-tun"
 
+internal const val DefaultMihomoTunCongestionController = "cubic"
+internal val MihomoTunCongestionControllers = listOf("cubic", "reno", "bbr", "bbr3")
+
+internal fun normalizeMihomoTunCongestionController(value: String): String =
+    value.takeIf { it in MihomoTunCongestionControllers } ?: DefaultMihomoTunCongestionController
+
+internal val AppState.effectiveMihomoTunCongestionController: String
+    get() = if (mihomoTunStack == MihomoTunStackMips) {
+        normalizeMihomoTunCongestionController(mihomoTunCongestionController)
+    } else {
+        ""
+    }
+
 internal object MihomoProfileFactory {
     fun buildProfileBytes(
         context: Context,
@@ -399,6 +412,9 @@ internal fun AppState.toMihomoTunListenerYamlMap(
             applicationUids, tunSharedNetworkInterfaces,
             tunBypassRuleSetTags, ruleProviders,
         ))
+        effectiveMihomoTunCongestionController.takeIf(String::isNotEmpty)?.let {
+            put("congestion-controller", it)
+        }
         if (effectiveLocalDnsEnabled) {
             put(
                 "dns-hijack",

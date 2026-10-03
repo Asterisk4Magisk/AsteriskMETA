@@ -118,11 +118,12 @@ internal object MihomoBridge {
         gateway: String,
         portal: String,
         dns: String,
+        congestionController: String,
         markSocket: (Int) -> Boolean,
         querySocketUid: (protocol: Int, source: InetSocketAddress, target: InetSocketAddress) -> Int
     ) {
         ensureInitialized()
-        Libclash.startTun(fd, stack, gateway, portal, dns, object : TunInterface {
+        Libclash.startTunWithCongestionController(fd, stack, gateway, portal, dns, congestionController, object : TunInterface {
             override fun markSocket(fd: Int) {
                 markSocket(fd)
             }

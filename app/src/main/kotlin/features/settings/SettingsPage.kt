@@ -196,7 +196,7 @@ private fun SettingsContent(
         vpnDns = appState.tunVpnDns,
         ipv4Cidr = appState.tunIpv4Cidr,
         ipv6Cidr = appState.tunIpv6Cidr,
-        showTunStack = appState.runMode != RunModeTun2Socks,
+        showTunStack = appState.showMihomoTunStackSettings,
         showVpnDns = appState.runMode == RunModeVpnService,
     )
     val sheetState = rememberSettingsSheetState(updateAppState)
@@ -229,6 +229,7 @@ private fun SettingsContent(
         }
     }
     val nestedSearchEntries = settingsNestedSearchEntries(
+        showTunStack = appState.showMihomoTunStackSettings,
         runMode = appState.runMode,
         onOpenTunBypassRuleSets = { sheetState.openTunBypassRuleSets(appState) },
         onOpenDns = { sheetState.openDnsSettings(appState) },

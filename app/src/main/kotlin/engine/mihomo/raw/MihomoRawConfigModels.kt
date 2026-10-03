@@ -24,6 +24,7 @@ internal data class MihomoRawSocksInbound(
 internal data class MihomoRawTunInbound(
     val device: String,
     val stack: String,
+    val congestionController: String = "",
     val mtu: Int,
     val ipv4Address: String,
     val ipv6Address: String? = null,

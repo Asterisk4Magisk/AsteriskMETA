@@ -555,6 +555,7 @@
     <string name="settings_tun_mtu">MTU</string>
     <string name="settings_tun_mtu_invalid">MTU must be 1280–65535</string>
     <string name="settings_tun_stack">TUN stack</string>
+    <string name="settings_tun_congestion_controller">TCP congestion control</string>
     <string name="settings_tun_stack_gvisor">gVisor</string>
     <string name="settings_tun_stack_mips">Mips</string>
     <string name="settings_tun_stack_mixed">Mixed</string>
@@ -562,6 +563,7 @@
     <string name="settings_tun_summary">TUN stack {stack}, MTU {mtu}, VPN DNS {vpnDns}, IPv4 {ipv4}, IPv6 {ipv6}</string>
     <string name="settings_tun_summary_without_dns">TUN stack {stack}, MTU {mtu}, IPv4 {ipv4}, IPv6 {ipv6}</string>
     <string name="settings_tun_summary_without_stack">MTU {mtu}, IPv4 {ipv4}, IPv6 {ipv6}</string>
+    <string name="settings_tun_summary_without_stack_with_dns">MTU {mtu}, VPN DNS {vpnDns}, IPv4 {ipv4}, IPv6 {ipv6}</string>
     <string name="settings_tun_vpn_dns">VPN DNS</string>
 
     <!-- Local proxy -->

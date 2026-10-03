@@ -13,6 +13,7 @@ import engine.hevtun.HevSocks5TunnelConfig
 import engine.proxy.LocalProxyLoopbackAddress
 import engine.proxy.LocalProxyOptions
 import engine.mihomo.MihomoCoreLogPaths
+import engine.mihomo.DefaultMihomoTunCongestionController
 
 internal object AsteriskVpnServiceIntents {
     const val ACTION_START = "app.action.START_VPN"
@@ -60,7 +61,9 @@ internal fun Intent.readVpnServiceStartConfig(): VpnServiceStartConfig? {
         mihomoProfilePath = mihomoProfilePath,
         mihomoProfileSignature = mihomoProfileSignature,
         ageSecretKey = getStringExtra(EXTRA_AGE_SECRET_KEY).orEmpty(),
-        mihomoTunStack = getStringExtra(EXTRA_MIHOMO_TUN_STACK).orEmpty().ifBlank { "system" },
+        mihomoTunStack = getStringExtra(EXTRA_MIHOMO_TUN_STACK).orEmpty().ifBlank { "mips" },
+        mihomoTunCongestionController = getStringExtra(EXTRA_MIHOMO_TUN_CONGESTION_CONTROLLER)
+            ?: DefaultMihomoTunCongestionController,
         applicationPolicy = VpnApplicationPolicy(
             mode = getIntExtra(EXTRA_PROXY_APP_LIST_MODE, ProxyAppListModeGlobal),
             packageNames = getStringArrayExtra(EXTRA_PROXY_APP_LIST_PACKAGES)?.toList().orEmpty(),
@@ -92,6 +95,7 @@ private fun Intent.writeStartConfig(config: VpnServiceStartConfig) {
     putExtra(EXTRA_MIHOMO_PROFILE_SIGNATURE, config.mihomoProfileSignature)
     putExtra(EXTRA_AGE_SECRET_KEY, config.ageSecretKey)
     putExtra(EXTRA_MIHOMO_TUN_STACK, config.mihomoTunStack)
+    putExtra(EXTRA_MIHOMO_TUN_CONGESTION_CONTROLLER, config.mihomoTunCongestionController)
     putExtra(EXTRA_PROXY_APP_LIST_MODE, config.applicationPolicy.mode)
     putExtra(EXTRA_PROXY_APP_LIST_PACKAGES, config.applicationPolicy.packageNames.toTypedArray())
     putExtra(EXTRA_LOCAL_PROXY_LISTEN_ADDRESS, config.localProxyOptions.listenAddress)
@@ -174,6 +178,7 @@ private const val EXTRA_MIHOMO_PROFILE_PATH = "mihomo_profile_path"
 private const val EXTRA_MIHOMO_PROFILE_SIGNATURE = "mihomo_profile_signature"
 private const val EXTRA_AGE_SECRET_KEY = "age_secret_key"
 private const val EXTRA_MIHOMO_TUN_STACK = "mihomo_tun_stack"
+private const val EXTRA_MIHOMO_TUN_CONGESTION_CONTROLLER = "mihomo_tun_congestion_controller"
 private const val EXTRA_PROXY_APP_LIST_MODE = "proxy_app_list_mode"
 private const val EXTRA_PROXY_APP_LIST_PACKAGES = "proxy_app_list_packages"
 private const val EXTRA_LOCAL_PROXY_LISTEN_ADDRESS = "local_proxy_listen_address"
