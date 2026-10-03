@@ -185,7 +185,7 @@ internal fun AsteriskFloatingNavigationAction(
     val interactionSource = remember { MutableInteractionSource() }
     Box(
         modifier = modifier
-            .size(72.dp)
+            .size(64.dp)
             .clickable(
                 enabled = enabled,
                 role = Role.Button,
