@@ -44,11 +44,13 @@ internal fun AsteriskSearchField(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val focused by interactionSource.collectIsFocusedAsState()
-    val trailingSpace by animateDpAsState(
+    val animatedTrailingSpace by animateDpAsState(
         targetValue = if (focused) 8.dp else 0.dp,
         animationSpec = AsteriskMotion.fastSpatial(),
         label = "searchTrailingSpace",
     )
+    // Spatial springs can overshoot below zero when focus is cleared during the exit fade.
+    val trailingSpace = animatedTrailingSpace.coerceAtLeast(0.dp)
     TextField(
         value = query,
         onValueChange = onQueryChange,

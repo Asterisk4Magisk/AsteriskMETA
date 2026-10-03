@@ -1,19 +1,9 @@
 // Copyright 2026, AsteriskMETA contributors
 // SPDX-License-Identifier: GPL-3.0
 
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
-
 package features.proxy.app
 
 import android.content.pm.PackageManager
-import app.modes.ProxyAppListModeBlacklist
-import app.modes.ProxyAppListModeGlobal
-import app.modes.ProxyAppListModeWhitelist
-import features.proxy.app.model.name
-import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.Dispatchers
-
 import android.os.SystemClock
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -24,7 +14,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -48,12 +37,9 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -66,16 +52,23 @@ import app.LocalIsWideScreen
 import app.LocalUpdateAppState
 import app.R
 import app.collectAppState
-import app.requiresGlobalProxyAppMode
+import app.modes.ProxyAppListModeBlacklist
+import app.modes.ProxyAppListModeGlobal
+import app.modes.ProxyAppListModeWhitelist
 import app.modes.RunModeVpnService
+import app.requiresGlobalProxyAppMode
 import features.proxy.app.model.ProxyAppListItem
 import features.proxy.app.model.ProxyAppListUserSpaceTabUi
+import features.proxy.app.model.name
 import features.proxy.app.usecase.ProxyAppListClipboardData
 import features.proxy.app.usecase.applyProxyAppListClipboardImport
 import features.proxy.app.usecase.decodeProxyAppListFromClipboard
 import features.proxy.app.usecase.encodeProxyAppListForClipboard
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import system.ANDROID_APP_ICON_SIZE_DP
 import ui.clipboard.ClipboardImportException
 import ui.clipboard.ClipboardImportFailure
@@ -84,12 +77,8 @@ import ui.clipboard.getPlainText
 import ui.clipboard.setPlainText
 import ui.components.AsteriskPullToRefreshBox
 import ui.components.AsteriskScaffold
-import ui.components.AsteriskSearchField
-import ui.components.AsteriskTopAppBar
+import ui.components.AsteriskSearchTopAppBar
 import ui.components.ImportModeDialog
-import androidx.navigationevent.NavigationEventInfo
-import androidx.navigationevent.compose.NavigationBackHandler
-import androidx.navigationevent.compose.rememberNavigationEventState
 import ui.layout.cutoutHorizontalPadding
 import ui.layout.pageContentPaddingWithCutout
 import ui.layout.pageHorizontalPadding
@@ -136,7 +125,6 @@ fun ProxyAppListPage(
     val clearDoneMessage = stringResource(R.string.proxy_app_list_clear_done)
     var pendingScanJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     var showHelpDialog by remember { mutableStateOf(false) }
-    var searchActive by rememberSaveable { mutableStateOf(false) }
 
     val appSelectionKeyGroups = remember(pageState.appPackages) {
         pageState.appPackages.groupBy { entry ->
@@ -210,13 +198,8 @@ fun ProxyAppListPage(
                 ProxyAppListTopBar(
                     onBack = onBack,
                     searchValue = pageState.searchValue,
-                    searchActive = searchActive,
                     showSystemApps = pageState.showSystemApps,
                     onSearchValueChange = { value -> pageState.searchValue = value },
-                    onSearchActiveChange = { active ->
-                        searchActive = active
-                        if (!active) pageState.searchValue = ""
-                    },
                     onMoreAction = { action ->
                         when (action) {
                             ProxyAppListMoreAction.ToggleSystemApps -> {
@@ -297,7 +280,6 @@ fun ProxyAppListPage(
                                             tipNotifier.show(scanNoMatchTemplate.formatTemplate("scanned" to 0))
                                         }
                                     } else {
-                                        val snapshotMode = currentMode
                                         pageState.scanProgress = ScanProgressState(
                                             total = snapshot.size,
                                             scanned = 0,
@@ -336,8 +318,8 @@ fun ProxyAppListPage(
                                                     "${entry.userId ?: 0}:${entry.packageName}"
                                                 }
                                                 updateAppState { state ->
-                                                    if (state.proxyAppListMode != snapshotMode) return@updateAppState state
-                                                    val nextSelection = when (snapshotMode) {
+                                                    if (state.proxyAppListMode != currentMode) return@updateAppState state
+                                                    val nextSelection = when (currentMode) {
                                                         ProxyAppListModeBlacklist -> mergeSelectedAppsForScan(
                                                             current = state.proxyAppListSelectedApps,
                                                             matched = finalKeys,
@@ -504,77 +486,32 @@ fun ProxyAppListPage(
 private fun ProxyAppListTopBar(
     onBack: (() -> Unit)?,
     searchValue: String,
-    searchActive: Boolean,
     showSystemApps: Boolean,
     onSearchValueChange: (String) -> Unit,
-    onSearchActiveChange: (Boolean) -> Unit,
     onMoreAction: (ProxyAppListMoreAction) -> Unit,
 ) {
-    if (searchActive) {
-        // Intercept the system back action so it exits search mode first
-        // instead of navigating away from the page. Without this, dismissing
-        // the IME with back would still pop the destination when the user
-        // taps back a second time.
-        val searchBackEventState = rememberNavigationEventState(NavigationEventInfo.None)
-        NavigationBackHandler(
-            state = searchBackEventState,
-            isBackEnabled = true,
-            onBackCompleted = { onSearchActiveChange(false) },
-        )
-        val focusRequester = remember { FocusRequester() }
-        LaunchedEffect(Unit) {
-            focusRequester.requestFocus()
-        }
-        AsteriskTopAppBar(
-            navigationIcon = {
-                IconButton(onClick = { onSearchActiveChange(false) }) {
+    AsteriskSearchTopAppBar(
+        query = searchValue,
+        onQueryChange = onSearchValueChange,
+        placeholder = stringResource(R.string.proxy_app_list_search_label),
+        title = { Text(stringResource(R.string.proxy_app_list_title)) },
+        navigationIcon = {
+            onBack?.let { navigateBack ->
+                IconButton(onClick = navigateBack) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                         contentDescription = stringResource(R.string.common_back),
                     )
                 }
-            },
-            title = {
-                AsteriskSearchField(
-                    query = searchValue,
-                    onQueryChange = onSearchValueChange,
-                    placeholder = stringResource(R.string.proxy_app_list_search_label),
-                    clearContentDescription = stringResource(R.string.common_clear),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .focusRequester(focusRequester),
-                )
-            },
-        )
-    } else {
-        AsteriskTopAppBar(
-            navigationIcon = {
-                onBack?.let { navigateBack ->
-                    IconButton(onClick = navigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                            contentDescription = stringResource(R.string.common_back),
-                        )
-                    }
-                }
-            },
-            title = {
-                Text(stringResource(R.string.proxy_app_list_title))
-            },
-            actions = {
-                IconButton(onClick = { onSearchActiveChange(true) }) {
-                    Icon(
-                        imageVector = Icons.Rounded.Search,
-                        contentDescription = stringResource(R.string.common_search),
-                    )
-                }
-                ProxyAppListMoreActionsMenu(
-                    showSystemApps = showSystemApps,
-                    onAction = onMoreAction,
-                )
-            },
-        )
-    }
+            }
+        },
+        actions = {
+            ProxyAppListMoreActionsMenu(
+                showSystemApps = showSystemApps,
+                onAction = onMoreAction,
+            )
+        },
+    )
 }
 
 @Composable
