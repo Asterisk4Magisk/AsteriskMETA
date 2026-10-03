@@ -13,7 +13,6 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
-import ui.components.AsteriskTextFieldLabel
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -93,7 +92,7 @@ internal fun ResourceAutoUpdateSheet(
                 onValueChange = { intervalDraft = it },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                label = { AsteriskTextFieldLabel(stringResource(R.string.settings_resource_files_auto_update_interval)) },
+                label = { Text(stringResource(R.string.settings_resource_files_auto_update_interval)) },
                 supportingText = if (!valid) {
                     { Text(stringResource(R.string.common_error_update_interval)) }
                 } else {

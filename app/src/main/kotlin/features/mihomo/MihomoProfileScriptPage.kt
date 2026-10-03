@@ -41,7 +41,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import ui.components.AsteriskTextFieldLabel
 import androidx.compose.material3.OutlinedTextField
 import ui.components.AsteriskScaffold
 import androidx.compose.material3.Surface
@@ -559,7 +558,7 @@ fun MihomoOverrideScriptEditPage(
                         Column {
                             OutlinedTextField(
                                 state = nameState,
-                                label = { AsteriskTextFieldLabel(stringResource(R.string.mihomo_override_script_name)) },
+                                label = { Text(stringResource(R.string.mihomo_override_script_name)) },
                                 lineLimits = TextFieldLineLimits.SingleLine,
                                 modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
                             )
