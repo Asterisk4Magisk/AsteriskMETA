@@ -1,8 +1,6 @@
 // Copyright 2026, AsteriskMETA contributors
 // SPDX-License-Identifier: GPL-3.0
 
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
-
 package features.monitoring.connections
 
 import android.text.format.DateUtils
@@ -23,6 +21,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -31,8 +31,6 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -70,12 +68,12 @@ import features.monitoring.discardDisplayedConnection
 import features.monitoring.reduceConnections
 import features.monitoring.resolveDisplayedConnections
 import kotlinx.coroutines.launch
+import ui.components.AsteriskTopBarControls
 import ui.components.AsteriskActionButton
 import ui.components.AsteriskDropdownAnchor
 import ui.components.AsteriskDropdownMenuItem
 import ui.components.AsteriskExpansionIndicator
 import ui.components.AsteriskFilterChip
-import ui.components.AsteriskPinnedSearchArea
 import ui.layout.rememberPageGutter
 import ui.theme.AsteriskMotion
 import utils.toReadableBytes
@@ -98,7 +96,7 @@ internal fun ConnectionsMonitorPage(padding: PaddingValues) {
     var operationInProgress by rememberSaveable { mutableStateOf(false) }
     var paused by remember { mutableStateOf(false) }
     var frozenConnections by remember { mutableStateOf(connections) }
-    val history = remember { ConnectionPageHistory<MihomoConnection>(MihomoConnection::id) }
+    val history = remember { ConnectionPageHistory(MihomoConnection::id) }
     var pageSnapshot by remember { mutableStateOf(ConnectionPageSnapshot<MihomoConnection>()) }
     var frozenPageSnapshot by remember { mutableStateOf(pageSnapshot) }
     var showClosed by remember { mutableStateOf(false) }
@@ -164,6 +162,9 @@ internal fun ConnectionsMonitorPage(padding: PaddingValues) {
     }
 
     MonitoringScaffold(
+        searchQuery = query,
+        onSearchQueryChange = { query = it },
+        searchPlaceholder = stringResource(R.string.monitor_connections_search),
         title = stringResource(R.string.monitor_connections_title),
         outerPadding = padding,
         actions = {
@@ -203,12 +204,7 @@ internal fun ConnectionsMonitorPage(padding: PaddingValues) {
             }
         },
         toolbar = {
-            AsteriskPinnedSearchArea(
-                query = query,
-                onQueryChange = { query = it },
-                placeholder = stringResource(R.string.monitor_connections_search),
-                clearContentDescription = stringResource(R.string.common_clear),
-            ) {
+            AsteriskTopBarControls {
                 ConnectionControls(
                     route = route,
                     onRouteChange = { route = it },

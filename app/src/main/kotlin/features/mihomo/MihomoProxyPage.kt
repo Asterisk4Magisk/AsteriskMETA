@@ -1,11 +1,13 @@
 // Copyright 2026, AsteriskMETA contributors
 // SPDX-License-Identifier: GPL-3.0
 
-@file:OptIn(ExperimentalFoundationApi::class, androidx.compose.material3.ExperimentalMaterial3Api::class)
+@file:OptIn(ExperimentalFoundationApi::class)
 
 package features.mihomo
 
 import ui.isInDarkTheme
+import ui.components.AsteriskSearchTopAppBar
+import ui.components.AsteriskTopBarControls
 import ui.components.AsteriskDropdownMenuItem
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -31,6 +33,8 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import ui.icons.AsteriskIcons as Icons
+import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -38,11 +42,8 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
 import ui.components.AsteriskScaffold
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import ui.components.AsteriskTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -98,7 +99,6 @@ import ui.components.AsteriskCheckbox
 import ui.components.AsteriskFilterChip
 import ui.components.AsteriskInfoChip
 import ui.components.AsteriskPageCard
-import ui.components.AsteriskPinnedSearchArea
 import ui.components.AsteriskSelectionCard
 import ui.components.AsteriskTonalButton
 import app.navigation.Route
@@ -225,19 +225,15 @@ fun MihomoProxyPage(
         )
     }
     LaunchedEffect(hasUsableProfile, providerDetectionSignature) {
-        hasProviders = if (hasUsableProfile) {
-            withContext(Dispatchers.IO) {
-                runCatching {
-                    val runtimeProfile = MihomoProfileFactory.buildProfile(appContext, appState)
-                    MihomoProviderMetadataCache.hasProviders(
-                        key = "runtime:${runtimeProfile.sha256Hex()}",
-                    ) {
-                        runtimeProfile
-                    }
-                }.getOrDefault(false)
-            }
-        } else {
-            false
+        hasProviders = hasUsableProfile && withContext(Dispatchers.IO) {
+            runCatching {
+                val runtimeProfile = MihomoProfileFactory.buildProfile(appContext, appState)
+                MihomoProviderMetadataCache.hasProviders(
+                    key = "runtime:${runtimeProfile.sha256Hex()}",
+                ) {
+                    runtimeProfile
+                }
+            }.getOrDefault(false)
         }
     }
     val runtimeProxies = runtimeState.proxies
@@ -367,7 +363,11 @@ fun MihomoProxyPage(
     AsteriskScaffold(
         topBar = {
             Column {
-                AsteriskTopAppBar(
+                AsteriskSearchTopAppBar(
+                    query = searchQuery,
+                    onQueryChange = { searchQuery = it },
+                    placeholder = stringResource(R.string.mihomo_proxies_search),
+                    searchAvailable = hasProfiles,
                     title = { Text(stringResource(R.string.mihomo_proxies_title)) },
                     actions = {
                         if (hasProviders) {
@@ -402,20 +402,13 @@ fun MihomoProxyPage(
                         )
                     },
                 )
-                if (hasProfiles) {
-                    AsteriskPinnedSearchArea(
-                        query = searchQuery,
-                        onQueryChange = { searchQuery = it },
-                        placeholder = stringResource(R.string.mihomo_proxies_search),
-                        clearContentDescription = stringResource(R.string.common_clear),
-                    ) {
-                        if (visibleProxies.groups.size > 1) {
-                            ProxyGroupTabs(
-                                groups = visibleProxies.groups,
-                                selectedGroupName = resolvedSelectedGroupName,
-                                onSelectedGroupNameChange = { selectedGroupName = it },
-                            )
-                        }
+                if (hasProfiles && visibleProxies.groups.size > 1) {
+                    AsteriskTopBarControls {
+                        ProxyGroupTabs(
+                            groups = visibleProxies.groups,
+                            selectedGroupName = resolvedSelectedGroupName,
+                            onSelectedGroupNameChange = { selectedGroupName = it },
+                        )
                     }
                 }
             }

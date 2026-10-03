@@ -1,8 +1,6 @@
 // Copyright 2026, AsteriskMETA contributors
 // SPDX-License-Identifier: GPL-3.0
 
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
-
 package features.logs
 
 import android.content.Context
@@ -21,13 +19,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -51,12 +49,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import ui.clipboard.setPlainText
+import ui.components.AsteriskSearchTopAppBar
+import ui.components.AsteriskTopBarControls
 import ui.components.AsteriskActionButton
 import ui.components.AsteriskFilterChip
-import ui.components.AsteriskPinnedSearchArea
 import ui.components.AsteriskPullToRefreshBox
 import ui.components.AsteriskScaffold
-import ui.components.AsteriskTopAppBar
 import ui.layout.pageContentPaddingWithCutout
 import ui.layout.pageListPadding
 import ui.icons.AsteriskIcons as Icons
@@ -155,7 +153,10 @@ private fun LogViewerPage(
     AsteriskScaffold(
         topBar = {
             Column {
-                AsteriskTopAppBar(
+                AsteriskSearchTopAppBar(
+                    query = query,
+                    onQueryChange = { query = it },
+                    placeholder = stringResource(R.string.common_search),
                     title = {
                         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -224,12 +225,7 @@ private fun LogViewerPage(
                         }
                     },
                 )
-                AsteriskPinnedSearchArea(
-                    query = query,
-                    onQueryChange = { query = it },
-                    placeholder = stringResource(R.string.common_search),
-                    clearContentDescription = stringResource(R.string.common_clear),
-                ) {
+                AsteriskTopBarControls {
                     LogLevelFilterRow(
                         selected = levelFilter,
                         onSelected = { levelFilter = it },

@@ -11,12 +11,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import ui.icons.AsteriskIcons as Icons
+import androidx.compose.material3.Text
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import ui.components.AsteriskSearchTopAppBar
 import ui.components.AsteriskScaffold
-import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import ui.components.AsteriskTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -37,7 +37,6 @@ import features.about.license.decodeAboutLibraries
 import ui.layout.pageContentPaddingWithCutout
 import ui.layout.pageListPadding
 import ui.components.AsteriskContentHeader
-import ui.components.AsteriskPinnedSearchArea
 
 private sealed interface LicenseLoadState {
     data object Loading : LicenseLoadState
@@ -74,7 +73,10 @@ fun LicensePage(
     AsteriskScaffold(
         topBar = {
             Column {
-                AsteriskTopAppBar(
+                AsteriskSearchTopAppBar(
+                    query = query,
+                    onQueryChange = { query = it },
+                    placeholder = stringResource(R.string.common_search),
                     title = { Text(stringResource(R.string.license_title)) },
                     navigationIcon = {
                         IconButton(onClick = { navigator.pop() }) {
@@ -84,12 +86,6 @@ fun LicensePage(
                             )
                         }
                     },
-                )
-                AsteriskPinnedSearchArea(
-                    query = query,
-                    onQueryChange = { query = it },
-                    placeholder = stringResource(R.string.common_search),
-                    clearContentDescription = stringResource(R.string.common_clear),
                 )
             }
         },

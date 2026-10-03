@@ -1,8 +1,6 @@
 // Copyright 2026, AsteriskMETA contributors
 // SPDX-License-Identifier: GPL-3.0
 
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
-
 package features.mihomo.provider
 
 import androidx.compose.foundation.clickable
@@ -27,13 +25,14 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
+import ui.components.AsteriskSearchTopAppBar
+import ui.components.AsteriskTopBarControls
 import ui.components.AsteriskScaffold
-import androidx.compose.material3.Text
-import ui.components.AsteriskTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -77,7 +76,6 @@ import kotlinx.coroutines.launch
 import ui.components.AsteriskExpressiveCard
 import ui.components.AsteriskFilterChip
 import ui.components.AsteriskInfoChip
-import ui.components.AsteriskPinnedSearchArea
 import ui.layout.pageContentPaddingWithCutout
 import ui.layout.pageListPadding
 import ui.theme.AsteriskMotion
@@ -216,7 +214,10 @@ fun MihomoProxyProviderDetailPage(
     AsteriskScaffold(
         topBar = {
             Column {
-                AsteriskTopAppBar(
+                AsteriskSearchTopAppBar(
+                    query = nodeSearchQuery,
+                    onQueryChange = { nodeSearchQuery = it },
+                    placeholder = stringResource(R.string.mihomo_provider_nodes_search),
                     title = { Text(provider?.name ?: providerName, maxLines = 1) },
                     navigationIcon = {
                         IconButton(onClick = { navigator.pop() }) {
@@ -227,12 +228,7 @@ fun MihomoProxyProviderDetailPage(
                         }
                     },
                 )
-                AsteriskPinnedSearchArea(
-                    query = nodeSearchQuery,
-                    onQueryChange = { nodeSearchQuery = it },
-                    placeholder = stringResource(R.string.mihomo_provider_nodes_search),
-                    clearContentDescription = stringResource(R.string.common_clear),
-                ) {
+                AsteriskTopBarControls {
                     ProxyProviderNodeFilterChips(
                         selected = nodeFilter,
                         onSelected = selectNodeFilter,

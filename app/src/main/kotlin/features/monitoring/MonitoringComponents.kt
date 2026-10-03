@@ -1,8 +1,6 @@
 // Copyright 2026, AsteriskMETA contributors
 // SPDX-License-Identifier: GPL-3.0
 
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
-
 package features.monitoring
 
 import androidx.compose.foundation.layout.Box
@@ -12,13 +10,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
+import ui.components.AsteriskSearchTopAppBar
 import ui.components.AsteriskScaffold
-import androidx.compose.material3.Text
 import ui.components.AsteriskTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -39,24 +38,45 @@ internal fun MonitoringScaffold(
     outerPadding: PaddingValues,
     actions: @Composable () -> Unit = {},
     toolbar: @Composable () -> Unit = {},
+    searchQuery: String? = null,
+    onSearchQueryChange: (String) -> Unit = {},
+    searchPlaceholder: String = "",
     content: @Composable (PaddingValues) -> Unit,
 ) {
     val navigator = LocalNavigator.current
     AsteriskScaffold(
         topBar = {
             Column {
-                AsteriskTopAppBar(
-                    title = { Text(title) },
-                    navigationIcon = {
-                        IconButton(onClick = navigator::pop) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                                contentDescription = stringResource(R.string.common_back),
-                            )
-                        }
-                    },
-                    actions = { actions() },
-                )
+                if (searchQuery != null) {
+                    AsteriskSearchTopAppBar(
+                        query = searchQuery,
+                        onQueryChange = onSearchQueryChange,
+                        placeholder = searchPlaceholder,
+                        title = { Text(title) },
+                        navigationIcon = {
+                            IconButton(onClick = navigator::pop) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                                    contentDescription = stringResource(R.string.common_back),
+                                )
+                            }
+                        },
+                        actions = { actions() },
+                    )
+                } else {
+                    AsteriskTopAppBar(
+                        title = { Text(title) },
+                        navigationIcon = {
+                            IconButton(onClick = navigator::pop) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                                    contentDescription = stringResource(R.string.common_back),
+                                )
+                            }
+                        },
+                        actions = { actions() },
+                    )
+                }
                 toolbar()
             }
         },
