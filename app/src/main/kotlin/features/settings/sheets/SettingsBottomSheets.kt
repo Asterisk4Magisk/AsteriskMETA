@@ -3,9 +3,14 @@
 
 package features.settings.sheets
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import app.R
 import app.modes.MihomoTunStackMips
 import engine.mihomo.MihomoTunCongestionControllers
@@ -14,6 +19,7 @@ import engine.network.isCidrAddress
 import engine.network.isIpAddress
 import engine.vpn.VpnDefaults
 import ui.text.formatTemplate
+import ui.theme.AsteriskMotion
 import utils.toIntInRangeOrNull
 
 
@@ -113,24 +119,38 @@ internal fun TunSettingsBottomSheet(
         },
         onDismissRequest = onDismissRequest,
     ) {
-        key(show, showTunStack) {
+        key(show) {
             SettingsSheetContent {
-                if (showTunStack) {
-                    WindowDropdownPreference(
-                        title = stringResource(R.string.settings_tun_stack),
-                        icon = Icons.Rounded.AccountTree,
-                        items = tunStackOptions,
-                        selectedIndex = tunStack.coerceIn(tunStackOptions.indices),
-                        onSelectedIndexChange = onTunStackChange,
-                    )
-                    if (tunStack == MihomoTunStackMips) {
+                AnimatedVisibility(
+                    visible = showTunStack,
+                    enter = AsteriskMotion.contentEnter(),
+                    exit = AsteriskMotion.contentExit(),
+                    label = "tun-stack",
+                ) {
+                    Column(Modifier.padding(bottom = 12.dp)) {
                         WindowDropdownPreference(
-                            title = stringResource(R.string.settings_tun_congestion_controller),
-                            icon = Icons.Rounded.Speed,
-                            items = MihomoTunCongestionControllers,
-                            selectedIndex = MihomoTunCongestionControllers.indexOf(congestionController).coerceAtLeast(0),
-                            onSelectedIndexChange = { onCongestionControllerChange(MihomoTunCongestionControllers[it]) },
+                            title = stringResource(R.string.settings_tun_stack),
+                            icon = Icons.Rounded.AccountTree,
+                            items = tunStackOptions,
+                            selectedIndex = tunStack.coerceIn(tunStackOptions.indices),
+                            onSelectedIndexChange = onTunStackChange,
                         )
+                        AnimatedVisibility(
+                            visible = tunStack == MihomoTunStackMips,
+                            enter = AsteriskMotion.contentEnter(),
+                            exit = AsteriskMotion.contentExit(),
+                            label = "tun-congestion-controller",
+                        ) {
+                            Column(Modifier.padding(top = 12.dp)) {
+                                WindowDropdownPreference(
+                                    title = stringResource(R.string.settings_tun_congestion_controller),
+                                    icon = Icons.Rounded.Speed,
+                                    items = MihomoTunCongestionControllers,
+                                    selectedIndex = MihomoTunCongestionControllers.indexOf(congestionController).coerceAtLeast(0),
+                                    onSelectedIndexChange = { onCongestionControllerChange(MihomoTunCongestionControllers[it]) },
+                                )
+                            }
+                        }
                     }
                 }
                 SettingsTextField(

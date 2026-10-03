@@ -32,6 +32,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import ui.components.AsteriskTextFieldLabel
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -245,7 +246,7 @@ internal fun CustomResourceSourceEditorSheet(
 private fun ResourceUrlField(state: TextFieldState, label: String) {
     OutlinedTextField(
         state = state,
-        label = { Text(label) },
+        label = { AsteriskTextFieldLabel(label) },
         lineLimits = TextFieldLineLimits.SingleLine,
         modifier = Modifier.fillMaxWidth(),
     )

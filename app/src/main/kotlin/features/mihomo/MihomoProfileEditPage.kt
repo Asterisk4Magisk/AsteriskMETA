@@ -36,6 +36,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import ui.components.AsteriskTextFieldLabel
 import androidx.compose.material3.OutlinedTextField
 import ui.components.AsteriskScaffold
 import androidx.compose.material3.Surface
@@ -572,7 +573,7 @@ fun MihomoProfileEditPage(
                         OutlinedTextField(
                             state = nameState,
                             enabled = !saving,
-                            label = { Text(stringResource(R.string.mihomo_configuration_name)) },
+                            label = { AsteriskTextFieldLabel(stringResource(R.string.mihomo_configuration_name)) },
                             lineLimits = TextFieldLineLimits.SingleLine,
                             modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
                         )
@@ -925,14 +926,14 @@ private fun ColumnScope.UrlProfileFields(
     OutlinedTextField(
         state = urlState,
         enabled = enabled,
-        label = { Text(stringResource(R.string.mihomo_configuration_url)) },
+        label = { AsteriskTextFieldLabel(stringResource(R.string.mihomo_configuration_url)) },
         lineLimits = TextFieldLineLimits.SingleLine,
         modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
     )
     OutlinedTextField(
         state = updateIntervalState,
         enabled = enabled,
-        label = { Text(stringResource(R.string.mihomo_configuration_update_interval)) },
+        label = { AsteriskTextFieldLabel(stringResource(R.string.mihomo_configuration_update_interval)) },
         lineLimits = TextFieldLineLimits.SingleLine,
         inputTransformation = InputTransformation.byValue { _, proposed ->
             sanitizeSubscriptionIntervalInput(proposed.toString())
@@ -982,21 +983,21 @@ private fun ColumnScope.UrlProfileFields(
             OutlinedTextField(
                 state = userAgentState,
                 enabled = enabled,
-                label = { Text(stringResource(R.string.mihomo_configuration_user_agent)) },
+                label = { AsteriskTextFieldLabel(stringResource(R.string.mihomo_configuration_user_agent)) },
                 lineLimits = TextFieldLineLimits.SingleLine,
                 modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
             )
             OutlinedTextField(
                 state = ageSecretKeyState,
                 enabled = enabled,
-                label = { Text(stringResource(R.string.mihomo_configuration_age_secret_key)) },
+                label = { AsteriskTextFieldLabel(stringResource(R.string.mihomo_configuration_age_secret_key)) },
                 lineLimits = TextFieldLineLimits.SingleLine,
                 modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
             )
             OutlinedTextField(
                 state = hwidState,
                 enabled = enabled,
-                label = { Text(stringResource(R.string.subscription_hwid)) },
+                label = { AsteriskTextFieldLabel(stringResource(R.string.subscription_hwid)) },
                 lineLimits = TextFieldLineLimits.SingleLine,
                 modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
             )
@@ -1052,7 +1053,7 @@ private fun FileProfilePropertiesSheet(
         ) {
             OutlinedTextField(
                 state = nameState,
-                label = { Text(stringResource(R.string.mihomo_configuration_name)) },
+                label = { AsteriskTextFieldLabel(stringResource(R.string.mihomo_configuration_name)) },
                 lineLimits = TextFieldLineLimits.SingleLine,
                 modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
             )
