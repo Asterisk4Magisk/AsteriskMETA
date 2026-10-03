@@ -146,7 +146,8 @@ fun AppContent(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.surface),
+                .background(MaterialTheme.colorScheme.surface)
+                .imePadding(),
         ) {
             val entryProvider = remember(backStack) {
                 entryProvider<NavKey> {
