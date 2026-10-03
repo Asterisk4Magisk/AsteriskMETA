@@ -141,15 +141,13 @@ internal fun TunSettingsBottomSheet(
                             exit = AsteriskMotion.contentExit(),
                             label = "tun-congestion-controller",
                         ) {
-                            Column(Modifier.padding(top = 12.dp)) {
-                                WindowDropdownPreference(
-                                    title = stringResource(R.string.settings_tun_congestion_controller),
-                                    icon = Icons.Rounded.Speed,
-                                    items = MihomoTunCongestionControllers,
-                                    selectedIndex = MihomoTunCongestionControllers.indexOf(congestionController).coerceAtLeast(0),
-                                    onSelectedIndexChange = { onCongestionControllerChange(MihomoTunCongestionControllers[it]) },
-                                )
-                            }
+                            WindowDropdownPreference(
+                                title = stringResource(R.string.settings_tun_congestion_controller),
+                                icon = Icons.Rounded.Speed,
+                                items = MihomoTunCongestionControllers,
+                                selectedIndex = MihomoTunCongestionControllers.indexOf(congestionController).coerceAtLeast(0),
+                                onSelectedIndexChange = { onCongestionControllerChange(MihomoTunCongestionControllers[it]) },
+                            )
                         }
                     }
                 }
