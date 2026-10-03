@@ -41,6 +41,7 @@ internal fun AsteriskSearchField(
     modifier: Modifier = Modifier,
     clearContentDescription: String = placeholder,
     onSearch: (() -> Unit)? = null,
+    highlightContainerOnFocus: Boolean = true,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val focused by interactionSource.collectIsFocusedAsState()
@@ -51,6 +52,11 @@ internal fun AsteriskSearchField(
     )
     // Spatial springs can overshoot below zero when focus is cleared during the exit fade.
     val trailingSpace = animatedTrailingSpace.coerceAtLeast(0.dp)
+    val focusedContainerColor = if (highlightContainerOnFocus) {
+        MaterialTheme.colorScheme.surfaceContainerHigh
+    } else {
+        MaterialTheme.colorScheme.surfaceContainer
+    }
     TextField(
         value = query,
         onValueChange = onQueryChange,
@@ -81,7 +87,7 @@ internal fun AsteriskSearchField(
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
         keyboardActions = KeyboardActions(onSearch = { onSearch?.invoke() }),
         colors = TextFieldDefaults.colors(
-            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = SearchFieldContainerAlpha),
+            focusedContainerColor = focusedContainerColor.copy(alpha = SearchFieldContainerAlpha),
             unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = SearchFieldContainerAlpha),
             disabledContainerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = SearchFieldContainerAlpha * 0.6f),
             focusedIndicatorColor = Color.Transparent,

@@ -54,6 +54,7 @@ internal fun AsteriskSearchTopAppBar(
             placeholder = placeholder,
             clearContentDescription = stringResource(R.string.common_clear),
             modifier = fieldModifier,
+            highlightContainerOnFocus = false,
         )
     },
 ) {
