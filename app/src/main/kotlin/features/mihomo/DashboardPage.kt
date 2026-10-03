@@ -1029,7 +1029,7 @@ private fun HomeServiceRuntimeSummary() {
         Text(
             text = uptime,
             modifier = Modifier.semantics { contentDescription = description },
-            style = MaterialTheme.typography.labelMedium,
+            style = MaterialTheme.typography.bodyMedium,
             fontFamily = FontFamily.Monospace,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
