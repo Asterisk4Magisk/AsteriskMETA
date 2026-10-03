@@ -217,7 +217,7 @@ fun MihomoProxyProviderDetailPage(
                 AsteriskSearchTopAppBar(
                     query = nodeSearchQuery,
                     onQueryChange = { nodeSearchQuery = it },
-                    placeholder = stringResource(R.string.mihomo_provider_nodes_search),
+                    placeholder = stringResource(R.string.mihomo_provider_proxy_servers_search),
                     title = { Text(provider?.name ?: providerName, maxLines = 1) },
                     navigationIcon = {
                         IconButton(onClick = { navigator.pop() }) {
@@ -329,7 +329,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.providerNodeItems(
         }
 
         allNodes.isEmpty() -> item(key = "node_empty") {
-            ProviderEmptyState(text = stringResource(R.string.mihomo_provider_nodes_empty))
+            ProviderEmptyState(text = stringResource(R.string.mihomo_provider_proxy_servers_empty))
         }
 
         nodes.isEmpty() -> item(key = "node_search_empty") {

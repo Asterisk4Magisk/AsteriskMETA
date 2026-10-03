@@ -116,11 +116,11 @@ private fun MihomoProviderUsageVisibleContent(
                 MihomoProviderUsageLoadState.Hidden -> Unit
                 MihomoProviderUsageLoadState.Loading -> MihomoProviderUsageLoading()
                 MihomoProviderUsageLoadState.RequiresProxyRunning -> MihomoProviderUsageMessage(
-                    text = stringResource(R.string.mihomo_configuration_provider_usage_requires_proxy),
+                    text = stringResource(R.string.mihomo_profile_provider_usage_requires_proxy),
                 )
                 MihomoProviderUsageLoadState.Failed -> MihomoProviderUsageMessage(
-                    text = stringResource(R.string.mihomo_configuration_provider_usage_failed),
-                    supportingText = stringResource(R.string.mihomo_configuration_provider_usage_retry),
+                    text = stringResource(R.string.mihomo_profile_provider_usage_failed),
+                    supportingText = stringResource(R.string.mihomo_profile_provider_usage_retry),
                     onClick = onRetry,
                 )
                 is MihomoProviderUsageLoadState.Ready -> MihomoProviderUsageReady(
@@ -148,7 +148,7 @@ private fun MihomoProviderUsageLoading() {
         )
         Spacer(modifier = Modifier.width(10.dp))
         Text(
-            text = stringResource(R.string.mihomo_configuration_provider_usage_loading),
+            text = stringResource(R.string.mihomo_profile_provider_usage_loading),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -196,14 +196,14 @@ private fun MihomoProviderUsageReady(
 ) {
     val expansionState = stringResource(
         if (expanded) {
-            R.string.mihomo_configuration_provider_usage_expanded
+            R.string.mihomo_profile_provider_usage_expanded
         } else {
-            R.string.mihomo_configuration_provider_usage_collapsed
+            R.string.mihomo_profile_provider_usage_collapsed
         },
     )
     val meteredSummary = if (summary.totalBytes > 0L) {
         stringResource(
-            R.string.mihomo_configuration_provider_usage_total,
+            R.string.mihomo_profile_provider_usage_total,
             summary.usedBytes.toReadableBytes(maxUnit = ReadableByteUnit.GiB),
             summary.totalBytes.toReadableBytes(maxUnit = ReadableByteUnit.GiB),
         )
@@ -214,7 +214,7 @@ private fun MihomoProviderUsageReady(
         if (summary.unlimitedCount > 0) {
             add(
                 pluralStringResource(
-                    R.plurals.mihomo_configuration_provider_usage_unlimited_count,
+                    R.plurals.mihomo_profile_provider_usage_unlimited_count,
                     summary.unlimitedCount,
                     summary.unlimitedCount,
                 ),
@@ -223,7 +223,7 @@ private fun MihomoProviderUsageReady(
         if (summary.missingCount > 0) {
             add(
                 pluralStringResource(
-                    R.plurals.mihomo_configuration_provider_usage_missing_count,
+                    R.plurals.mihomo_profile_provider_usage_missing_count,
                     summary.missingCount,
                     summary.missingCount,
                 ),
@@ -232,7 +232,7 @@ private fun MihomoProviderUsageReady(
         if (summary.unavailableCount > 0) {
             add(
                 pluralStringResource(
-                    R.plurals.mihomo_configuration_provider_usage_unavailable_count,
+                    R.plurals.mihomo_profile_provider_usage_unavailable_count,
                     summary.unavailableCount,
                     summary.unavailableCount,
                 ),
@@ -251,7 +251,7 @@ private fun MihomoProviderUsageReady(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = stringResource(R.string.mihomo_configuration_provider_usage_title),
+                    text = stringResource(R.string.mihomo_profile_provider_usage_title),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -259,7 +259,7 @@ private fun MihomoProviderUsageReady(
                 Text(
                     text = listOfNotNull(
                         pluralStringResource(
-                            R.plurals.mihomo_configuration_provider_usage_count,
+                            R.plurals.mihomo_profile_provider_usage_count,
                             summary.providerCount,
                             summary.providerCount,
                         ),
@@ -313,7 +313,7 @@ private fun MihomoProviderUsageReady(
                     onClick = onOpenDetails,
                     modifier = Modifier.align(Alignment.End),
                 ) {
-                    Text(stringResource(R.string.mihomo_configuration_provider_usage_open_details))
+                    Text(stringResource(R.string.mihomo_profile_provider_usage_open_details))
                 }
             }
         }
@@ -329,16 +329,16 @@ private fun MihomoProviderUsageItemRow(
             "${item.usedBytes.toReadableBytes(maxUnit = ReadableByteUnit.GiB)} / " +
                 item.totalBytes.toReadableBytes(maxUnit = ReadableByteUnit.GiB),
             stringResource(
-                R.string.mihomo_configuration_provider_usage_remaining,
+                R.string.mihomo_profile_provider_usage_remaining,
                 item.remainingPercent,
             ),
         ).joinToString(" · ")
         MihomoProviderUsageKind.Unlimited -> stringResource(R.string.mihomo_provider_traffic_unlimited)
         MihomoProviderUsageKind.Missing -> {
-            stringResource(R.string.mihomo_configuration_provider_usage_missing)
+            stringResource(R.string.mihomo_profile_provider_usage_missing)
         }
         MihomoProviderUsageKind.Unavailable -> {
-            stringResource(R.string.mihomo_configuration_provider_usage_unavailable)
+            stringResource(R.string.mihomo_profile_provider_usage_unavailable)
         }
     }
     Column(
@@ -384,11 +384,11 @@ private fun MihomoProviderUsageItemRow(
             Text(
                 text = if (item.expireAtSeconds > 0L) {
                     stringResource(
-                        R.string.mihomo_configuration_provider_usage_expires,
+                        R.string.mihomo_profile_provider_usage_expires,
                         item.expireAtSeconds.toEpochMillis().toReadableDateOrDash(),
                     )
                 } else {
-                    stringResource(R.string.mihomo_configuration_provider_usage_no_expiry)
+                    stringResource(R.string.mihomo_profile_provider_usage_no_expiry)
                 },
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

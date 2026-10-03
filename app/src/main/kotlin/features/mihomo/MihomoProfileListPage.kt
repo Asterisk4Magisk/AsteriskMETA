@@ -176,24 +176,24 @@ fun MihomoProfileListPage(
     }
     val syncSuccessMessage = stringResource(R.string.subscription_update_result)
     val syncFailedMessage = stringResource(R.string.subscription_update_result_with_failed)
-    val syncCancelledMessage = stringResource(R.string.mihomo_configuration_sync_all_cancelled)
-    val syncInterruptedMessage = stringResource(R.string.mihomo_configuration_sync_all_interrupted)
-    val syncBusyMessage = stringResource(R.string.mihomo_configuration_sync_all_busy)
-    val providerSyncResultMessage = stringResource(R.string.mihomo_configuration_provider_sync_result)
-    val providerSyncEmptyMessage = stringResource(R.string.mihomo_configuration_provider_sync_empty)
-    val providerSyncFailedMessage = stringResource(R.string.mihomo_configuration_provider_sync_failed)
+    val syncCancelledMessage = stringResource(R.string.mihomo_profile_sync_all_cancelled)
+    val syncInterruptedMessage = stringResource(R.string.mihomo_profile_sync_all_interrupted)
+    val syncBusyMessage = stringResource(R.string.mihomo_profile_sync_all_busy)
+    val providerSyncResultMessage = stringResource(R.string.mihomo_profile_provider_sync_result)
+    val providerSyncEmptyMessage = stringResource(R.string.mihomo_profile_provider_sync_empty)
+    val providerSyncFailedMessage = stringResource(R.string.mihomo_profile_provider_sync_failed)
     val providerSyncUsageReloadFailedMessage = stringResource(
-        R.string.mihomo_configuration_provider_sync_usage_reload_failed,
+        R.string.mihomo_profile_provider_sync_usage_reload_failed,
     )
-    val previewFailedMessage = stringResource(R.string.mihomo_configuration_preview_failed)
-    val importedMessage = stringResource(R.string.mihomo_configuration_imported)
-    val importFileFailedMessage = stringResource(R.string.mihomo_configuration_import_file_failed)
-    val syncFailedSavedMessage = stringResource(R.string.mihomo_configuration_save_sync_failed_saved)
-    val importQrFailedMessage = stringResource(R.string.mihomo_configuration_import_qr_failed)
-    val invalidQrMessage = stringResource(R.string.mihomo_configuration_invalid_qr_content)
+    val previewFailedMessage = stringResource(R.string.mihomo_profile_preview_failed)
+    val importedMessage = stringResource(R.string.mihomo_profile_imported)
+    val importFileFailedMessage = stringResource(R.string.mihomo_profile_import_file_failed)
+    val syncFailedSavedMessage = stringResource(R.string.mihomo_profile_save_sync_failed_saved)
+    val importQrFailedMessage = stringResource(R.string.mihomo_profile_import_qr_failed)
+    val invalidQrMessage = stringResource(R.string.mihomo_profile_invalid_qr_content)
     val serviceStoppedMessage = stringResource(R.string.proxy_service_stopped)
     val stopFailedMessage = stringResource(R.string.mihomo_dashboard_stop_failed)
-    val restartFailedMessage = stringResource(R.string.mihomo_configuration_restart_failed)
+    val restartFailedMessage = stringResource(R.string.mihomo_profile_restart_failed)
 
     val profileContentSignatures = appState.mihomoProfiles.map { profile ->
         MihomoProfileContentSignature(
@@ -775,7 +775,7 @@ fun MihomoProfileListPage(
             AsteriskTopAppBar(
                 title = {
                     Text(
-                        text = stringResource(R.string.mihomo_configurations_title),
+                        text = stringResource(R.string.mihomo_profiles_title),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -800,7 +800,7 @@ fun MihomoProfileListPage(
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Sync,
-                            contentDescription = stringResource(R.string.mihomo_configuration_sync_all),
+                            contentDescription = stringResource(R.string.mihomo_profile_sync_all),
                         )
                     }
                 },
@@ -810,7 +810,7 @@ fun MihomoProfileListPage(
             AsteriskExtendedFab(
                 onClick = { showImportDialog = true },
                 icon = Icons.Rounded.Add,
-                text = stringResource(R.string.mihomo_configuration_add),
+                text = stringResource(R.string.mihomo_profile_add),
                 modifier = Modifier.padding(bottom = floatingActionButtonBottomPadding),
             )
         },
@@ -912,11 +912,11 @@ fun MihomoProfileListPage(
             MihomoProfileSyncProgressDialog(
                 stage = progress.stage,
                 onCancel = { batchSyncJob?.cancel() },
-                title = stringResource(R.string.mihomo_configuration_sync_all_in_progress_title),
+                title = stringResource(R.string.mihomo_profile_sync_all_in_progress_title),
                 profileName = progress.profileName,
                 progress = progress.fraction,
                 progressLabel = stringResource(
-                    R.string.mihomo_configuration_sync_all_progress,
+                    R.string.mihomo_profile_sync_all_progress,
                     progress.currentIndex,
                     progress.totalCount,
                 ),
@@ -1055,7 +1055,7 @@ private fun MihomoProfileCard(
                     IconButton(onClick = { menuExpanded = true }) {
                         Icon(
                             imageVector = Icons.Rounded.MoreVert,
-                            contentDescription = stringResource(R.string.mihomo_configuration_actions),
+                            contentDescription = stringResource(R.string.mihomo_profile_actions),
                         )
                     }
                     DropdownMenu(
@@ -1069,14 +1069,14 @@ private fun MihomoProfileCard(
                             onDismiss = { menuExpanded = false },
                         )
                         MihomoProfileMenuItem(
-                            text = stringResource(R.string.mihomo_configuration_preview),
+                            text = stringResource(R.string.mihomo_profile_preview),
                             action = MihomoProfileAction.Preview,
                             onAction = onAction,
                             onDismiss = { menuExpanded = false },
                         )
                         if (displayState.showSync && !syncing) {
                             MihomoProfileMenuItem(
-                                text = stringResource(R.string.mihomo_configuration_sync),
+                                text = stringResource(R.string.mihomo_profile_sync),
                                 action = MihomoProfileAction.Sync,
                                 onAction = onAction,
                                 onDismiss = { menuExpanded = false },
@@ -1084,7 +1084,7 @@ private fun MihomoProfileCard(
                         }
                         if (hasProxyProviders && !syncing) {
                             MihomoProfileMenuItem(
-                                text = stringResource(R.string.mihomo_configuration_sync_providers),
+                                text = stringResource(R.string.mihomo_profile_sync_providers),
                                 action = MihomoProfileAction.SyncProviders,
                                 onAction = onAction,
                                 onDismiss = { menuExpanded = false },
@@ -1125,7 +1125,7 @@ private fun MihomoProfileCard(
             ) {
                 if (displayState.syncFailed) {
                     AsteriskInfoChip(
-                        text = stringResource(R.string.mihomo_configuration_sync_failed_chip),
+                        text = stringResource(R.string.mihomo_profile_sync_failed_chip),
                         tone = AsteriskChipTone.Error,
                     )
                 }
@@ -1133,31 +1133,31 @@ private fun MihomoProfileCard(
                     text = stringResource(
                         when (displayState.kind) {
                             MihomoProfileDisplayKind.RemoteSubscription -> {
-                                R.string.mihomo_configuration_chip_remote_subscription
+                                R.string.mihomo_profile_chip_remote_subscription
                             }
-                            MihomoProfileDisplayKind.LocalFile -> R.string.mihomo_configuration_chip_local_file
+                            MihomoProfileDisplayKind.LocalFile -> R.string.mihomo_profile_chip_local_file
                         },
                     ),
                     emphasized = selected,
                 )
                 if (displayState.rawConfiguration) {
                     AsteriskInfoChip(
-                        text = stringResource(R.string.mihomo_configuration_raw_chip),
+                        text = stringResource(R.string.mihomo_profile_raw_chip),
                         emphasized = selected,
                     )
                 }
                 if (restartRequired) {
                     AsteriskInfoChip(
-                        text = stringResource(R.string.mihomo_configuration_restart_required),
+                        text = stringResource(R.string.mihomo_profile_restart_required),
                         emphasized = selected,
                     )
                 }
                 if (overrideScriptName != null) {
                     AsteriskInfoChip(
                         text = if (displayState.rawConfiguration) {
-                            stringResource(R.string.mihomo_configuration_override_script_stopped)
+                            stringResource(R.string.mihomo_profile_override_script_stopped)
                         } else {
-                            stringResource(R.string.mihomo_configuration_override_script_applied)
+                            stringResource(R.string.mihomo_profile_override_script_applied)
                                 .formatTemplate("name" to overrideScriptName)
                         },
                         emphasized = selected,
@@ -1227,25 +1227,25 @@ private fun MihomoProfileImportDialog(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text(
-                text = stringResource(R.string.mihomo_configuration_add_method_title),
+                text = stringResource(R.string.mihomo_profile_add_method_title),
                 style = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.padding(bottom = 6.dp),
             )
             MihomoProfileImportOption(
-                title = stringResource(R.string.mihomo_configuration_add_qr),
-                summary = stringResource(R.string.mihomo_configuration_add_qr_summary),
+                title = stringResource(R.string.mihomo_profile_add_qr),
+                summary = stringResource(R.string.mihomo_profile_add_qr_summary),
                 icon = { Icon(imageVector = Icons.Rounded.QrCodeScanner, contentDescription = null) },
                 onClick = { onAction(MihomoProfileImportAction.QrCode) },
             )
             MihomoProfileImportOption(
-                title = stringResource(R.string.mihomo_configuration_add_file),
-                summary = stringResource(R.string.mihomo_configuration_add_file_summary),
+                title = stringResource(R.string.mihomo_profile_add_file),
+                summary = stringResource(R.string.mihomo_profile_add_file_summary),
                 icon = { Icon(imageVector = Icons.Rounded.FolderOpen, contentDescription = null) },
                 onClick = { onAction(MihomoProfileImportAction.File) },
             )
             MihomoProfileImportOption(
-                title = stringResource(R.string.mihomo_configuration_add_url),
-                summary = stringResource(R.string.mihomo_configuration_add_url_summary),
+                title = stringResource(R.string.mihomo_profile_add_url),
+                summary = stringResource(R.string.mihomo_profile_add_url_summary),
                 icon = { Icon(imageVector = Icons.Rounded.Link, contentDescription = null) },
                 onClick = { onAction(MihomoProfileImportAction.Url) },
             )
@@ -1323,7 +1323,7 @@ private fun MihomoProfileSubscriptionInfo(
             trackColor = MaterialTheme.colorScheme.primaryContainer,
         )
         Text(
-            text = stringResource(R.string.mihomo_configuration_traffic_summary)
+            text = stringResource(R.string.mihomo_profile_traffic_summary)
                 .formatTemplate(
                     "used" to info.usedBytes.toReadableBytes(maxUnit = ReadableByteUnit.GiB),
                     "total" to info.totalBytes.toReadableBytes(maxUnit = ReadableByteUnit.GiB),
@@ -1340,10 +1340,10 @@ private fun MihomoProfileSubscriptionInfo(
 
 @Composable
 private fun MihomoProfileState.summaryText(): String {
-    if (disableOverrides) return stringResource(R.string.mihomo_configuration_raw_summary)
+    if (disableOverrides) return stringResource(R.string.mihomo_profile_raw_summary)
     return when (type) {
-        MihomoProfileType.Url -> url.ifBlank { stringResource(R.string.mihomo_configuration_type_url) }
-        MihomoProfileType.File -> stringResource(R.string.mihomo_configuration_type_file)
+        MihomoProfileType.Url -> url.ifBlank { stringResource(R.string.mihomo_profile_type_url) }
+        MihomoProfileType.File -> stringResource(R.string.mihomo_profile_type_file)
     }
 }
 
@@ -1385,7 +1385,7 @@ private fun MihomoProfilePreviewDialog(
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
                 Text(
-                    text = stringResource(R.string.mihomo_configuration_preview_title)
+                    text = stringResource(R.string.mihomo_profile_preview_title)
                         .formatTemplate("name" to profileName.ifBlank { "-" }),
                     style = MaterialTheme.typography.headlineSmall,
                     maxLines = 2,
@@ -1431,15 +1431,15 @@ private fun MihomoProfilePreviewDialog(
 private fun MihomoProfileState.lastUpdatedText(): String {
     val value = lastUpdatedAtMillis.toReadableDateTimeOrDash()
     val label = when (type) {
-        MihomoProfileType.File -> R.string.mihomo_configuration_last_modified
-        MihomoProfileType.Url -> R.string.mihomo_configuration_last_sync
+        MihomoProfileType.File -> R.string.mihomo_profile_last_modified
+        MihomoProfileType.Url -> R.string.mihomo_profile_last_sync
     }
     return stringResource(label).formatTemplate("time" to value)
 }
 
 @Composable
 private fun app.MihomoSubscriptionInfo.expireText(): String {
-    if (expireAtSeconds <= 0L) return stringResource(R.string.mihomo_configuration_expire_unlimited)
+    if (expireAtSeconds <= 0L) return stringResource(R.string.mihomo_profile_expire_unlimited)
     return (expireAtSeconds * 1000L).toReadableDateOrDash()
 }
 

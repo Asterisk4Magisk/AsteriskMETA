@@ -378,7 +378,7 @@ private fun ResourceFileCardSurface(
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.MoreVert,
-                            contentDescription = stringResource(R.string.mihomo_configuration_actions),
+                            contentDescription = stringResource(R.string.mihomo_profile_actions),
                         )
                     }
 

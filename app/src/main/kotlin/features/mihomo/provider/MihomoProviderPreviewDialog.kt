@@ -79,7 +79,7 @@ internal fun MihomoProviderPreviewDialog(
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
                 Text(
-                    text = stringResource(R.string.mihomo_configuration_preview_title)
+                    text = stringResource(R.string.mihomo_profile_preview_title)
                         .formatTemplate("name" to providerName.ifBlank { "-" }),
                     style = MaterialTheme.typography.headlineSmall,
                     maxLines = 2,

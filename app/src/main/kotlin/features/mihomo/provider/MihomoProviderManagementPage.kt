@@ -89,7 +89,7 @@ fun MihomoProviderManagementPage(
     val ruleRefreshedMessage = stringResource(R.string.mihomo_rule_providers_refresh_done)
     val ruleRefreshFailedMessage = stringResource(R.string.mihomo_rule_providers_refresh_failed)
     val ruleRefreshAllMessage = stringResource(R.string.mihomo_rule_providers_refresh_all_done)
-    val previewFailedMessage = stringResource(R.string.mihomo_configuration_preview_failed)
+    val previewFailedMessage = stringResource(R.string.mihomo_profile_preview_failed)
     val providerFileUnavailableMessage = stringResource(R.string.mihomo_provider_file_missing)
     var selectedTab by remember { mutableStateOf(defaultMihomoProviderManagementTab()) }
     val providerPagerState = rememberPagerState(

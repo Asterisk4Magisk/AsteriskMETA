@@ -131,14 +131,14 @@ fun MihomoProfileEditPage(
     }
     val profileType = targetProfile?.type ?: MihomoProfileType.fromStorageValue(type)
     val title = when {
-        isNew && profileType == MihomoProfileType.Url -> stringResource(R.string.mihomo_configuration_add_url)
-        profileType == MihomoProfileType.Url -> stringResource(R.string.mihomo_configuration_edit_url)
-        else -> stringResource(R.string.mihomo_configuration_edit_file)
+        isNew && profileType == MihomoProfileType.Url -> stringResource(R.string.mihomo_profile_add_url)
+        profileType == MihomoProfileType.Url -> stringResource(R.string.mihomo_profile_edit_url)
+        else -> stringResource(R.string.mihomo_profile_edit_file)
     }
-    val syncSuccessMessage = stringResource(R.string.mihomo_configuration_save_sync_success)
-    val syncFailedSavedMessage = stringResource(R.string.mihomo_configuration_save_sync_failed_saved)
-    val saveFailedMessage = stringResource(R.string.mihomo_configuration_save_failed)
-    val restartFailedMessage = stringResource(R.string.mihomo_configuration_restart_failed)
+    val syncSuccessMessage = stringResource(R.string.mihomo_profile_save_sync_success)
+    val syncFailedSavedMessage = stringResource(R.string.mihomo_profile_save_sync_failed_saved)
+    val saveFailedMessage = stringResource(R.string.mihomo_profile_save_failed)
+    val restartFailedMessage = stringResource(R.string.mihomo_profile_restart_failed)
     val profileSaveUseCase = remember(
         services.mihomoProfilePreparer,
         services.mihomoProfileContentStore,
@@ -184,14 +184,14 @@ fun MihomoProfileEditPage(
     val selectedOverrideScript = appState.mihomoOverrideScripts.firstOrNull { script ->
         script.id == overrideScriptId
     }
-    val overrideScriptOptions = listOf(stringResource(R.string.mihomo_configuration_override_script_none)) +
+    val overrideScriptOptions = listOf(stringResource(R.string.mihomo_profile_override_script_none)) +
         appState.mihomoOverrideScripts.map { script -> script.name }
     val selectedOverrideScriptIndex = selectedOverrideScript
         ?.let { script -> appState.mihomoOverrideScripts.indexOfFirst { it.id == script.id } + 1 }
         ?: 0
-    val nameRequiredMessage = stringResource(R.string.mihomo_configuration_name_required)
-    val invalidUrlMessage = stringResource(R.string.mihomo_configuration_invalid_subscription_url)
-    val invalidAgeSecretKeyMessage = stringResource(R.string.mihomo_configuration_invalid_age_secret_key)
+    val nameRequiredMessage = stringResource(R.string.mihomo_profile_name_required)
+    val invalidUrlMessage = stringResource(R.string.mihomo_profile_invalid_subscription_url)
+    val invalidAgeSecretKeyMessage = stringResource(R.string.mihomo_profile_invalid_age_secret_key)
     var showHttpSubscriptionWarning by remember { mutableStateOf(false) }
     var showAdvancedOptions by remember { mutableStateOf(false) }
     var showFileProperties by remember { mutableStateOf(false) }
@@ -549,7 +549,7 @@ fun MihomoProfileEditPage(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = stringResource(R.string.mihomo_configuration_missing),
+                    text = stringResource(R.string.mihomo_profile_missing),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -572,7 +572,7 @@ fun MihomoProfileEditPage(
                         OutlinedTextField(
                             state = nameState,
                             enabled = !saving,
-                            label = { Text(stringResource(R.string.mihomo_configuration_name)) },
+                            label = { Text(stringResource(R.string.mihomo_profile_name)) },
                             lineLimits = TextFieldLineLimits.SingleLine,
                             modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
                         )
@@ -631,12 +631,12 @@ fun MihomoProfileEditPage(
                                         Spacer(Modifier.width(14.dp))
                                         Column(modifier = Modifier.weight(1f)) {
                                             Text(
-                                                text = stringResource(R.string.mihomo_configuration_properties),
+                                                text = stringResource(R.string.mihomo_profile_properties),
                                                 style = MaterialTheme.typography.titleMedium,
                                             )
                                             Text(
                                                 text = nameState.text.toString().ifBlank {
-                                                    stringResource(R.string.mihomo_configuration_name)
+                                                    stringResource(R.string.mihomo_profile_name)
                                                 },
                                                 style = MaterialTheme.typography.bodyMedium,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -739,10 +739,10 @@ internal fun MihomoProfileSyncProgressDialog(
     if (stage == null) return
     val message = stringResource(
         when (stage) {
-            MihomoProfileSyncStage.Downloading -> R.string.mihomo_configuration_save_sync_downloading
-            MihomoProfileSyncStage.Decrypting -> R.string.mihomo_configuration_save_sync_decrypting
-            MihomoProfileSyncStage.PreparingProviders -> R.string.mihomo_configuration_save_sync_preparing
-            MihomoProfileSyncStage.Verifying -> R.string.mihomo_configuration_save_sync_verifying
+            MihomoProfileSyncStage.Downloading -> R.string.mihomo_profile_save_sync_downloading
+            MihomoProfileSyncStage.Decrypting -> R.string.mihomo_profile_save_sync_decrypting
+            MihomoProfileSyncStage.PreparingProviders -> R.string.mihomo_profile_save_sync_preparing
+            MihomoProfileSyncStage.Verifying -> R.string.mihomo_profile_save_sync_verifying
         },
     )
     AlertDialog(
@@ -754,7 +754,7 @@ internal fun MihomoProfileSyncProgressDialog(
             )
         },
         title = {
-            Text(title ?: stringResource(R.string.mihomo_configuration_save_sync_in_progress_title))
+            Text(title ?: stringResource(R.string.mihomo_profile_save_sync_in_progress_title))
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -801,10 +801,10 @@ internal fun MihomoProfileSyncFailureDialog(
 ) {
     val stage = stringResource(
         when (failure.stage) {
-            MihomoProfileSyncStage.Downloading -> R.string.mihomo_configuration_save_sync_stage_download
-            MihomoProfileSyncStage.Decrypting -> R.string.mihomo_configuration_save_sync_stage_decrypt
-            MihomoProfileSyncStage.PreparingProviders -> R.string.mihomo_configuration_save_sync_stage_preparing
-            MihomoProfileSyncStage.Verifying -> R.string.mihomo_configuration_save_sync_stage_verifying
+            MihomoProfileSyncStage.Downloading -> R.string.mihomo_profile_save_sync_stage_download
+            MihomoProfileSyncStage.Decrypting -> R.string.mihomo_profile_save_sync_stage_decrypt
+            MihomoProfileSyncStage.PreparingProviders -> R.string.mihomo_profile_save_sync_stage_preparing
+            MihomoProfileSyncStage.Verifying -> R.string.mihomo_profile_save_sync_stage_verifying
         },
     )
     val detail = failure.error.localizedMessage
@@ -813,9 +813,9 @@ internal fun MihomoProfileSyncFailureDialog(
     AlertDialog(
         onDismissRequest = onCancel,
         icon = { Icon(Icons.Rounded.Warning, contentDescription = null) },
-        title = { Text(stringResource(R.string.mihomo_configuration_save_sync_failed_title)) },
+        title = { Text(stringResource(R.string.mihomo_profile_save_sync_failed_title)) },
         text = {
-            Text(stringResource(R.string.mihomo_configuration_save_sync_failed_message, stage, detail))
+            Text(stringResource(R.string.mihomo_profile_save_sync_failed_message, stage, detail))
         },
         dismissButton = {
             Row {
@@ -825,7 +825,7 @@ internal fun MihomoProfileSyncFailureDialog(
                     onClick = onCancel,
                 )
                 AsteriskActionButton(
-                    text = stringResource(R.string.mihomo_configuration_save_anyway),
+                    text = stringResource(R.string.mihomo_profile_save_anyway),
                     icon = Icons.Rounded.Save,
                     onClick = onSaveAnyway,
                 )
@@ -852,11 +852,11 @@ internal fun RestartRequiredDialog(
     AlertDialog(
         onDismissRequest = { if (!restarting) onLater() },
         icon = { Icon(Icons.Rounded.Tune, contentDescription = null) },
-        title = { Text(stringResource(R.string.mihomo_configuration_restart_required)) },
-        text = { Text(stringResource(R.string.mihomo_configuration_restart_required_message)) },
+        title = { Text(stringResource(R.string.mihomo_profile_restart_required)) },
+        text = { Text(stringResource(R.string.mihomo_profile_restart_required_message)) },
         dismissButton = {
             AsteriskActionButton(
-                text = stringResource(R.string.mihomo_configuration_restart_later),
+                text = stringResource(R.string.mihomo_profile_restart_later),
                 icon = Icons.Rounded.History,
                 onClick = onLater,
                 enabled = !restarting,
@@ -864,7 +864,7 @@ internal fun RestartRequiredDialog(
         },
         confirmButton = {
             AsteriskActionButton(
-                text = stringResource(R.string.mihomo_configuration_restart_now),
+                text = stringResource(R.string.mihomo_profile_restart_now),
                 icon = Icons.Rounded.Refresh,
                 onClick = onRestartNow,
                 enabled = !restarting,
@@ -882,8 +882,8 @@ private fun HttpSubscriptionWarningDialog(
     if (!show) return
     AlertDialog(
         onDismissRequest = onDismissRequest,
-        title = { Text(stringResource(R.string.mihomo_configuration_http_subscription_warning_title)) },
-        text = { Text(stringResource(R.string.mihomo_configuration_http_subscription_warning_message)) },
+        title = { Text(stringResource(R.string.mihomo_profile_http_subscription_warning_title)) },
+        text = { Text(stringResource(R.string.mihomo_profile_http_subscription_warning_message)) },
         dismissButton = {
             AsteriskActionButton(
                 text = stringResource(R.string.common_cancel),
@@ -893,7 +893,7 @@ private fun HttpSubscriptionWarningDialog(
         },
         confirmButton = {
             AsteriskActionButton(
-                text = stringResource(R.string.mihomo_configuration_http_subscription_warning_confirm),
+                text = stringResource(R.string.mihomo_profile_http_subscription_warning_confirm),
                 icon = Icons.Rounded.Check,
                 onClick = onConfirm,
             )
@@ -925,14 +925,14 @@ private fun ColumnScope.UrlProfileFields(
     OutlinedTextField(
         state = urlState,
         enabled = enabled,
-        label = { Text(stringResource(R.string.mihomo_configuration_url)) },
+        label = { Text(stringResource(R.string.mihomo_profile_url)) },
         lineLimits = TextFieldLineLimits.SingleLine,
         modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
     )
     OutlinedTextField(
         state = updateIntervalState,
         enabled = enabled,
-        label = { Text(stringResource(R.string.mihomo_configuration_update_interval)) },
+        label = { Text(stringResource(R.string.mihomo_profile_update_interval)) },
         lineLimits = TextFieldLineLimits.SingleLine,
         inputTransformation = InputTransformation.byValue { _, proposed ->
             sanitizeSubscriptionIntervalInput(proposed.toString())
@@ -953,7 +953,7 @@ private fun ColumnScope.UrlProfileFields(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = stringResource(R.string.mihomo_configuration_update_via_proxy),
+                text = stringResource(R.string.mihomo_profile_update_via_proxy),
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.weight(1f),
             )
@@ -982,14 +982,14 @@ private fun ColumnScope.UrlProfileFields(
             OutlinedTextField(
                 state = userAgentState,
                 enabled = enabled,
-                label = { Text(stringResource(R.string.mihomo_configuration_user_agent)) },
+                label = { Text(stringResource(R.string.mihomo_profile_user_agent)) },
                 lineLimits = TextFieldLineLimits.SingleLine,
                 modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
             )
             OutlinedTextField(
                 state = ageSecretKeyState,
                 enabled = enabled,
-                label = { Text(stringResource(R.string.mihomo_configuration_age_secret_key)) },
+                label = { Text(stringResource(R.string.mihomo_profile_age_secret_key)) },
                 lineLimits = TextFieldLineLimits.SingleLine,
                 modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
             )
@@ -1035,7 +1035,7 @@ private fun FileProfilePropertiesSheet(
     AsteriskModalBottomSheet(
         show = show,
         onDismissRequest = onDismissRequest,
-        title = stringResource(R.string.mihomo_configuration_properties),
+        title = stringResource(R.string.mihomo_profile_properties),
         endAction = {
             AsteriskActionButton(
                 text = stringResource(R.string.common_complete),
@@ -1052,7 +1052,7 @@ private fun FileProfilePropertiesSheet(
         ) {
             OutlinedTextField(
                 state = nameState,
-                label = { Text(stringResource(R.string.mihomo_configuration_name)) },
+                label = { Text(stringResource(R.string.mihomo_profile_name)) },
                 lineLimits = TextFieldLineLimits.SingleLine,
                 modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
             )
@@ -1098,16 +1098,16 @@ private fun ProfileOverrideScriptSelector(
 ) {
     if (readOnly) {
         AsteriskListRow(
-            title = stringResource(R.string.mihomo_configuration_override_script),
+            title = stringResource(R.string.mihomo_profile_override_script),
             horizontalPadding = 0.dp,
-            summary = stringResource(R.string.mihomo_configuration_override_script_stopped),
+            summary = stringResource(R.string.mihomo_profile_override_script_stopped),
             leadingIcon = Icons.Rounded.Lock,
             enabled = false,
         )
         return
     }
     SettingsDropdownRow(
-        title = stringResource(R.string.mihomo_configuration_override_script),
+        title = stringResource(R.string.mihomo_profile_override_script),
         horizontalPadding = 0.dp,
         icon = Icons.Rounded.Code,
         items = options,
@@ -1133,11 +1133,11 @@ private fun RawConfigModeControl(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(
-                        text = stringResource(R.string.mihomo_configuration_raw_mode),
+                        text = stringResource(R.string.mihomo_profile_raw_mode),
                         style = MaterialTheme.typography.titleMedium,
                     )
                     Text(
-                        text = stringResource(R.string.mihomo_configuration_raw_mode_summary),
+                        text = stringResource(R.string.mihomo_profile_raw_mode_summary),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -1148,10 +1148,10 @@ private fun RawConfigModeControl(
                 Text(
                     text = stringResource(
                         when (readiness) {
-                            RawConfigReadiness.Ready -> R.string.mihomo_configuration_raw_mode_ready
-                            RawConfigReadiness.Degraded -> R.string.mihomo_configuration_raw_mode_degraded
-                            RawConfigReadiness.Blocked -> R.string.mihomo_configuration_raw_mode_blocked
-                            null -> R.string.mihomo_configuration_raw_mode_unchecked
+                            RawConfigReadiness.Ready -> R.string.mihomo_profile_raw_mode_ready
+                            RawConfigReadiness.Degraded -> R.string.mihomo_profile_raw_mode_degraded
+                            RawConfigReadiness.Blocked -> R.string.mihomo_profile_raw_mode_blocked
+                            null -> R.string.mihomo_profile_raw_mode_unchecked
                         },
                     ),
                     modifier = Modifier.padding(top = 8.dp),
@@ -1166,23 +1166,23 @@ private fun RawConfigModeControl(
                     color = MaterialTheme.colorScheme.outlineVariant,
                 )
                 RawCapabilityRow(
-                    title = stringResource(R.string.mihomo_configuration_raw_api),
+                    title = stringResource(R.string.mihomo_profile_raw_api),
                     value = snapshot?.api?.value?.control?.let { control ->
                         "${control.scheme.uppercase()} · ${control.host}:${control.port}"
-                    } ?: stringResource(R.string.mihomo_configuration_raw_unavailable),
+                    } ?: stringResource(R.string.mihomo_profile_raw_unavailable),
                     source = snapshot?.api?.path ?: "external-controller",
                 )
                 RawCapabilityRow(
-                    title = stringResource(R.string.mihomo_configuration_raw_dns_hijack),
+                    title = stringResource(R.string.mihomo_profile_raw_dns_hijack),
                     value = if (snapshot?.dnsHijack?.value?.proven == true) {
-                        stringResource(R.string.mihomo_configuration_raw_configured)
+                        stringResource(R.string.mihomo_profile_raw_configured)
                     } else {
-                        stringResource(R.string.mihomo_configuration_raw_unavailable)
+                        stringResource(R.string.mihomo_profile_raw_unavailable)
                     },
                     source = snapshot?.dnsHijack?.path ?: "dns.enable + rules",
                 )
                 RawCapabilityRow(
-                    title = stringResource(R.string.mihomo_configuration_raw_run_mode),
+                    title = stringResource(R.string.mihomo_profile_raw_run_mode),
                     value = rawRunModeLabel(runMode),
                     source = when (runMode) {
                         RunModeTproxy -> snapshot?.tproxyPort?.path
@@ -1241,8 +1241,8 @@ private fun RawModeConfirmationDialog(
     AlertDialog(
         onDismissRequest = onDismissRequest,
         icon = { Icon(Icons.Rounded.Lock, contentDescription = null) },
-        title = { Text(stringResource(R.string.mihomo_configuration_raw_mode_confirm_title)) },
-        text = { Text(stringResource(R.string.mihomo_configuration_raw_mode_confirm_message)) },
+        title = { Text(stringResource(R.string.mihomo_profile_raw_mode_confirm_title)) },
+        text = { Text(stringResource(R.string.mihomo_profile_raw_mode_confirm_message)) },
         dismissButton = {
             AsteriskActionButton(
                 text = stringResource(R.string.common_cancel),
@@ -1252,7 +1252,7 @@ private fun RawModeConfirmationDialog(
         },
         confirmButton = {
             AsteriskActionButton(
-                text = stringResource(R.string.mihomo_configuration_raw_mode_confirm),
+                text = stringResource(R.string.mihomo_profile_raw_mode_confirm),
                 icon = Icons.Rounded.Check,
                 onClick = onConfirm,
             )

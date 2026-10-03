@@ -316,7 +316,7 @@ private fun MihomoOverrideScriptCard(
                 Text(
                     text = listOf(
                         pluralStringResource(
-                            R.plurals.mihomo_override_script_configuration_count,
+                            R.plurals.mihomo_override_script_profile_count,
                             referenceCount,
                             referenceCount,
                         ),
@@ -335,7 +335,7 @@ private fun MihomoOverrideScriptCard(
                 IconButton(onClick = { menuExpanded = true }) {
                     Icon(
                         imageVector = Icons.Rounded.MoreVert,
-                        contentDescription = stringResource(R.string.mihomo_configuration_actions),
+                        contentDescription = stringResource(R.string.mihomo_profile_actions),
                     )
                 }
                 DropdownMenu(
@@ -544,7 +544,7 @@ fun MihomoOverrideScriptEditPage(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = stringResource(R.string.mihomo_configuration_missing),
+                        text = stringResource(R.string.mihomo_profile_missing),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }

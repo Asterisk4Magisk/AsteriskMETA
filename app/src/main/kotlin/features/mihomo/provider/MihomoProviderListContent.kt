@@ -124,7 +124,7 @@ internal fun MihomoProviderManagementList(
             state.providers.isEmpty() -> item(key = "${tab.name}_empty") {
                 ProviderMessageCard(
                     text = if (!hasUsableProfile) {
-                        stringResource(R.string.mihomo_proxies_no_configuration_summary)
+                        stringResource(R.string.mihomo_proxies_no_profile_summary)
                     } else if (tab == MihomoProviderManagementTab.Proxy) {
                         stringResource(R.string.mihomo_proxy_providers_empty)
                     } else {
@@ -203,7 +203,7 @@ private fun ProxyProviderStatusCard(
         status = updated,
         controls = {
             Text(
-                text = stringResource(R.string.mihomo_provider_nodes_count)
+                text = stringResource(R.string.mihomo_provider_proxy_servers_count)
                     .formatTemplate("count" to state.nodeCount),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
@@ -407,7 +407,7 @@ private fun MihomoProxyProviderCard(
                 IconButton(onClick = { menuExpanded = true }) {
                     Icon(
                         imageVector = Icons.Rounded.MoreVert,
-                        contentDescription = stringResource(R.string.mihomo_configuration_actions),
+                        contentDescription = stringResource(R.string.mihomo_profile_actions),
                     )
                 }
                 DropdownMenu(
@@ -415,7 +415,7 @@ private fun MihomoProxyProviderCard(
                     onDismissRequest = { menuExpanded = false },
                 ) {
                     DropdownMenuItem(
-                        text = { Text(stringResource(R.string.mihomo_configuration_preview)) },
+                        text = { Text(stringResource(R.string.mihomo_profile_preview)) },
                         onClick = {
                             menuExpanded = false
                             onAction(MihomoProviderAction.Preview)
@@ -424,7 +424,7 @@ private fun MihomoProxyProviderCard(
                     )
                     if (refreshEnabled && !refreshing) {
                         DropdownMenuItem(
-                            text = { Text(stringResource(R.string.mihomo_configuration_sync)) },
+                            text = { Text(stringResource(R.string.mihomo_profile_sync)) },
                             onClick = {
                                 menuExpanded = false
                                 onAction(MihomoProviderAction.Sync)
@@ -545,7 +545,7 @@ private fun MihomoRuleProviderCard(
                 IconButton(onClick = { menuExpanded = true }) {
                     Icon(
                         imageVector = Icons.Rounded.MoreVert,
-                        contentDescription = stringResource(R.string.mihomo_configuration_actions),
+                        contentDescription = stringResource(R.string.mihomo_profile_actions),
                     )
                 }
                 DropdownMenu(
@@ -553,7 +553,7 @@ private fun MihomoRuleProviderCard(
                     onDismissRequest = { menuExpanded = false },
                 ) {
                     DropdownMenuItem(
-                        text = { Text(stringResource(R.string.mihomo_configuration_preview)) },
+                        text = { Text(stringResource(R.string.mihomo_profile_preview)) },
                         onClick = {
                             menuExpanded = false
                             onAction(MihomoProviderAction.Preview)
@@ -562,7 +562,7 @@ private fun MihomoRuleProviderCard(
                     )
                     if (refreshEnabled && !refreshing) {
                         DropdownMenuItem(
-                            text = { Text(stringResource(R.string.mihomo_configuration_sync)) },
+                            text = { Text(stringResource(R.string.mihomo_profile_sync)) },
                             onClick = {
                                 menuExpanded = false
                                 onAction(MihomoProviderAction.Sync)
@@ -654,7 +654,7 @@ private fun MihomoProxyProviderTrafficInfo(
             trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
         )
         Text(
-            text = stringResource(R.string.mihomo_configuration_traffic_summary)
+            text = stringResource(R.string.mihomo_profile_traffic_summary)
                 .formatTemplate(
                     "used" to usedBytes.toReadableBytes(maxUnit = ReadableByteUnit.GiB),
                     "total" to info.total.toProviderTrafficTotalText(),
@@ -674,7 +674,7 @@ private fun MihomoProviderDeclaration.proxyRuntimeSummaryText(
     runtimeDetail: MihomoProxyProviderRuntimeDetail?,
 ): String {
     val nodeText = runtimeDetail?.nodes?.size?.let { count ->
-        stringResource(R.string.mihomo_provider_nodes_count).formatTemplate("count" to count)
+        stringResource(R.string.mihomo_provider_proxy_servers_count).formatTemplate("count" to count)
     }
     val updatedText = runtimeDetail?.updatedAtMillis
         ?.takeIf { timestamp -> timestamp > 0L }
@@ -705,6 +705,6 @@ private fun Long.toProviderExpireText(): String {
     return if (this > 0L) {
         (this * 1_000L).toReadableDateOrDash()
     } else {
-        stringResource(R.string.mihomo_configuration_expire_unlimited)
+        stringResource(R.string.mihomo_profile_expire_unlimited)
     }
 }

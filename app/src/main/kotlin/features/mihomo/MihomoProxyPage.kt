@@ -1002,17 +1002,17 @@ private fun MihomoProxyNoConfigurationCard(
                 }
             }
             Text(
-                text = stringResource(R.string.mihomo_proxies_no_configuration_title),
+                text = stringResource(R.string.mihomo_proxies_no_profile_title),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
-                text = stringResource(R.string.mihomo_proxies_no_configuration_summary),
+                text = stringResource(R.string.mihomo_proxies_no_profile_summary),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             AsteriskTonalButton(
-                text = stringResource(R.string.mihomo_configuration_add),
+                text = stringResource(R.string.mihomo_profile_add),
                 icon = Icons.Rounded.Add,
                 onClick = onAddConfiguration,
                 modifier = Modifier.align(Alignment.End),

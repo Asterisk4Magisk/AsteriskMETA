@@ -102,7 +102,7 @@ private data class MainNavigationItem(
 private fun mainNavigationItems(): List<MainNavigationItem> {
     val home = stringResource(R.string.nav_dashboard)
     val proxies = stringResource(R.string.nav_proxies)
-    val configurations = stringResource(R.string.nav_configurations)
+    val configurations = stringResource(R.string.nav_profiles)
     val settings = stringResource(R.string.nav_settings)
 
     return remember(home, proxies, configurations, settings) {
@@ -430,8 +430,8 @@ private fun rememberHomeServiceControl(): HomeServiceControl {
     val services = LocalAppServices.current
     val control = remember(services) { HomeServiceControl(services.homeServiceOperationState) }
     val startFailedMessage = stringResource(R.string.mihomo_dashboard_start_failed)
-    val startNoConfigurationMessage = stringResource(R.string.mihomo_dashboard_start_no_configuration)
-    val startEmptyConfigurationMessage = stringResource(R.string.mihomo_dashboard_start_empty_configuration)
+    val startNoConfigurationMessage = stringResource(R.string.mihomo_dashboard_start_no_profile)
+    val startEmptyConfigurationMessage = stringResource(R.string.mihomo_dashboard_start_empty_profile)
     val stopFailedMessage = stringResource(R.string.mihomo_dashboard_stop_failed)
     val serviceStartedMessage = stringResource(R.string.proxy_service_started)
     val serviceStoppedMessage = stringResource(R.string.proxy_service_stopped)

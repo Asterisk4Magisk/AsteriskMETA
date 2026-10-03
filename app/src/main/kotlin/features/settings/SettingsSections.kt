@@ -238,7 +238,7 @@ internal fun SettingsAdvancedSection(
                 )
             }
             ArrowPreference(
-                title = stringResource(R.string.mihomo_configuration_override_script),
+                title = stringResource(R.string.mihomo_profile_override_script),
                 accent = IconAccent.MaskPurple,
                 icon = Icons.Rounded.Code,
                 summary = overrideScriptSummary,
@@ -254,10 +254,10 @@ internal fun SettingsAdvancedSection(
                 icon = Icons.Rounded.Public,
             )
             SettingsReadOnlyRow(
-                title = stringResource(R.string.mihomo_configuration_override_script),
+                title = stringResource(R.string.mihomo_profile_override_script),
                 accent = IconAccent.MaskPurple,
-                value = stringResource(R.string.mihomo_configuration_override_script_stopped),
-                source = stringResource(R.string.mihomo_configuration_raw_chip),
+                value = stringResource(R.string.mihomo_profile_override_script_stopped),
+                source = stringResource(R.string.mihomo_profile_raw_chip),
                 icon = Icons.Rounded.Lock,
             )
         }

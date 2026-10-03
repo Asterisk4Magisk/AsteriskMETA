@@ -417,7 +417,7 @@ private fun HomeControllerCard(
                             Icon(Icons.Rounded.Tune, contentDescription = null)
                             Spacer(Modifier.size(12.dp))
                             Text(
-                                text = stringResource(R.string.mihomo_configuration_restart_required),
+                                text = stringResource(R.string.mihomo_profile_restart_required),
                                 modifier = Modifier.weight(1f),
                                 style = MaterialTheme.typography.labelLarge,
                             )
@@ -431,8 +431,8 @@ private fun HomeControllerCard(
                     .forEach { row ->
                         HomePrimaryRow(
                             icon = Icons.Rounded.Route,
-                            label = stringResource(R.string.home_current_node),
-                            value = row.value ?: stringResource(R.string.home_no_node),
+                            label = stringResource(R.string.home_current_proxy_server),
+                            value = row.value ?: stringResource(R.string.home_no_proxy_server),
                             onClick = onOpenNode,
                         )
                     }
@@ -442,8 +442,8 @@ private fun HomeControllerCard(
                     .forEach { row ->
                         HomePrimaryRow(
                             icon = Icons.Rounded.Description,
-                            label = stringResource(R.string.home_current_configuration),
-                            value = row.value ?: stringResource(R.string.mihomo_dashboard_no_configuration),
+                            label = stringResource(R.string.home_current_profile),
+                            value = row.value ?: stringResource(R.string.mihomo_dashboard_no_profile),
                             onClick = onOpenConfiguration,
                         )
                     }
@@ -714,7 +714,7 @@ private fun HomeProviderUsageSummary(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
-            text = stringResource(R.string.mihomo_configuration_provider_usage_title),
+            text = stringResource(R.string.mihomo_profile_provider_usage_title),
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface,
@@ -727,14 +727,14 @@ private fun HomeProviderUsageSummary(
             ) {
                 CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                 Text(
-                    text = stringResource(R.string.mihomo_configuration_provider_usage_loading),
+                    text = stringResource(R.string.mihomo_profile_provider_usage_loading),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
             MihomoProviderUsageLoadState.RequiresProxyRunning -> Text(
-                text = stringResource(R.string.mihomo_configuration_provider_usage_requires_proxy),
+                text = stringResource(R.string.mihomo_profile_provider_usage_requires_proxy),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -751,12 +751,12 @@ private fun HomeProviderUsageSummary(
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
                     Text(
-                        text = stringResource(R.string.mihomo_configuration_provider_usage_failed),
+                        text = stringResource(R.string.mihomo_profile_provider_usage_failed),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
-                        text = stringResource(R.string.mihomo_configuration_provider_usage_retry),
+                        text = stringResource(R.string.mihomo_profile_provider_usage_retry),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary,
                     )
@@ -814,11 +814,11 @@ private fun HomeProviderUsageItemRow(item: MihomoProviderUsageItem) {
             }
 
             MihomoProviderUsageKind.Missing -> ProviderUsageStatus(
-                text = stringResource(R.string.mihomo_configuration_provider_usage_missing),
+                text = stringResource(R.string.mihomo_profile_provider_usage_missing),
             )
 
             MihomoProviderUsageKind.Unavailable -> ProviderUsageStatus(
-                text = stringResource(R.string.mihomo_configuration_provider_usage_unavailable),
+                text = stringResource(R.string.mihomo_profile_provider_usage_unavailable),
                 error = true,
             )
         }

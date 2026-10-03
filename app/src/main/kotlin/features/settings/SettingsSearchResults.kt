@@ -126,7 +126,7 @@ internal fun settingsTopLevelSearchItems(
         ),
         SettingsSearchItem(
             SettingsSectionId.Advanced,
-            stringResource(R.string.mihomo_configuration_override_script),
+            stringResource(R.string.mihomo_profile_override_script),
             overrideScriptSummary,
         ),
         SettingsSearchItem(
