@@ -4,66 +4,68 @@
 package ui.components
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.material3.Icon
-import androidx.compose.material3.ripple
-import androidx.compose.material3.Text
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
-import ui.theme.AsteriskMotion
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FabPosition
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
+import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.material3.contentColorFor
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeInput
+import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.blur.HazeBlurStyle
 import dev.chrisbanes.haze.blur.HazeColorEffect
 import dev.chrisbanes.haze.blur.hazeBlur
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
+import ui.theme.AsteriskMotion
 
 internal val LocalChromeBackdrop = compositionLocalOf<HazeState?> { null }
 
-// Shared by top bars, floating navigation, and the no-blur fallback.
+// Shared by top bars, floating navigation controls, and the no-blur fallback.
 private const val ChromeTransparency = 0.60f
 
 @Composable
@@ -126,7 +128,6 @@ internal fun AsteriskScaffold(
 }
 
 @Composable
-@OptIn(ExperimentalMaterial3Api::class)
 internal fun AsteriskTopAppBar(
     title: @Composable () -> Unit,
     modifier: Modifier = Modifier,
@@ -148,11 +149,72 @@ internal fun AsteriskTopAppBar(
 }
 
 @Composable
+private fun Modifier.floatingChrome(): Modifier =
+    shadow(6.dp, CircleShape)
+        .clip(CircleShape)
+        .hazeBlur(
+            input = LocalChromeBackdrop.current?.let { HazeInput.Sources(it) }
+                ?: HazeInput.Content,
+            style = chromeStyle(),
+        )
+        .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f), CircleShape)
+
+@Composable
+private fun floatingNavigationContentColor(selected: Boolean): Color {
+    val color by animateColorAsState(
+        targetValue = if (selected) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        },
+        animationSpec = AsteriskMotion.fastEffects(),
+        label = "navigation-item-color",
+    )
+    return color
+}
+
+@Composable
+internal fun AsteriskFloatingNavigationAction(
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    content: @Composable BoxScope.() -> Unit,
+) {
+    val contentColor = floatingNavigationContentColor(selected)
+    val interactionSource = remember { MutableInteractionSource() }
+    Box(
+        modifier = modifier
+            .size(72.dp)
+            .clickable(
+                enabled = enabled,
+                role = Role.Button,
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(Modifier.matchParentSize().floatingChrome())
+        Box(
+            Modifier
+                .matchParentSize()
+                .clip(CircleShape)
+                .asteriskNavigationSelection(selected)
+                .indication(interactionSource, ripple()),
+        )
+        CompositionLocalProvider(LocalContentColor provides contentColor) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center, content = content)
+        }
+    }
+}
+
+@Composable
 internal fun AsteriskFloatingNavigationBar(
     modifier: Modifier = Modifier,
+    trailingAction: (@Composable () -> Unit)? = null,
     content: @Composable RowScope.() -> Unit,
 ) {
-    val colors = MaterialTheme.colorScheme
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -160,27 +222,23 @@ internal fun AsteriskFloatingNavigationBar(
             .padding(horizontal = 16.dp, vertical = 10.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Box(Modifier.widthIn(max = 480.dp).fillMaxWidth()) {
-            Box(
-                Modifier
-                    .matchParentSize()
-                    .shadow(6.dp, CircleShape)
-                    .clip(CircleShape)
-                    .hazeBlur(
-                        input = LocalChromeBackdrop.current?.let { HazeInput.Sources(it) }
-                            ?: HazeInput.Content,
-                        style = chromeStyle(),
-                    )
-                    .border(0.5.dp, colors.outlineVariant.copy(alpha = 0.45f), CircleShape),
-            )
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(6.dp)
-                    .selectableGroup(),
-                verticalAlignment = Alignment.CenterVertically,
-                content = content,
-            )
+        Row(
+            modifier = Modifier.widthIn(max = 480.dp).fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(Modifier.weight(1f)) {
+                Box(Modifier.matchParentSize().floatingChrome())
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(6.dp)
+                        .selectableGroup(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    content = content,
+                )
+            }
+            trailingAction?.invoke()
         }
     }
 }
@@ -192,15 +250,7 @@ internal fun RowScope.AsteriskFloatingNavigationItem(
     icon: ImageVector,
     label: String,
 ) {
-    val contentColor by animateColorAsState(
-        targetValue = if (selected) {
-            MaterialTheme.colorScheme.primary
-        } else {
-            MaterialTheme.colorScheme.onSurfaceVariant
-        },
-        animationSpec = AsteriskMotion.fastEffects(),
-        label = "navigation-item-color",
-    )
+    val contentColor = floatingNavigationContentColor(selected)
     val interactionSource = remember { MutableInteractionSource() }
     Box(
         modifier = Modifier

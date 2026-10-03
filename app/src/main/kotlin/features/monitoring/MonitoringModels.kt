@@ -15,6 +15,7 @@ internal data class MonitoringResourceSummary(
     val memoryBytes: Long? = null,
     val source: ProcessStatsSourceKind? = null,
     val uptimeMillis: Long? = null,
+    val uptimeMeasuredAtElapsedMillis: Long = 0L,
     val processId: Int? = null,
     val memoryLimitBytes: Long? = null,
     val sampleIntervalMillis: Long? = null,

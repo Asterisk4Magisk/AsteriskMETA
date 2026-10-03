@@ -1,4 +1,4 @@
-<resources xmlns:tools="http://schemas.android.com/tools">
+<resources>
     <!-- Keep Common first; group other resources by feature, with names sorted within each section.
          Keep section and resource order aligned across translations and sibling apps. -->
 
@@ -66,6 +66,11 @@
     <string name="home_resource_summary">CPU %1$s · %2$s</string>
     <string name="home_service_disabled">Service disabled</string>
     <string name="home_service_enabled">Service enabled</string>
+    <string name="home_service_start">Start service</string>
+    <string name="home_service_starting">Starting…</string>
+    <string name="home_service_stop">Stop service</string>
+    <string name="home_service_stopping">Stopping…</string>
+    <string name="home_service_uptime">Run time: %1$s</string>
     <string name="home_subscription_expiry">Expires %1$s</string>
     <string name="home_subscription_remaining">Remaining</string>
     <string name="home_subscription_summary">Subscription</string>

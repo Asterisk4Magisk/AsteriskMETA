@@ -21,6 +21,7 @@ import features.settings.usecase.RootEbpfProbeUseCase
 import features.subscription.runtime.AndroidMihomoProviderFetcher
 import features.subscription.runtime.AndroidMihomoProfilePreparer
 import kotlinx.coroutines.CoroutineScope
+import features.home.HomeServiceOperationState
 import system.AndroidNetworkInterfaceProvider
 import system.AndroidPackageProvider
 import system.AndroidRootShellGateway
@@ -29,6 +30,7 @@ import ui.feedback.AndroidToastTipNotifier
 
 internal data class AppServices(
     val appScope: CoroutineScope,
+    val homeServiceOperationState: HomeServiceOperationState,
     val proxyEngine: AndroidProxyEngine,
     val rootAccess: AndroidRootShellGateway,
     val userSpaces: AndroidUserSpaceProvider,

@@ -91,6 +91,7 @@ internal fun AsteriskFocusSurface(
     metrics: (@Composable RowScope.() -> Unit)? = null,
     primaryAction: (@Composable BoxScope.() -> Unit)? = null,
     keepPrimaryActionInline: Boolean = false,
+    forcePrimaryActionStacked: Boolean = false,
     content: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
     val shape = rememberExpressiveShape(
@@ -98,7 +99,7 @@ internal fun AsteriskFocusSurface(
         state = ExpressiveInteractionState.Rest,
     )
     val accentColor = focusAccentColor(tone)
-    val stackPrimaryAction = shouldStackPrimaryAction(
+    val stackPrimaryAction = forcePrimaryActionStacked || shouldStackPrimaryAction(
         fontScale = LocalDensity.current.fontScale,
         keepPrimaryActionInline = keepPrimaryActionInline,
     )

@@ -4,6 +4,7 @@
 package engine.vpn
 
 import android.content.Context
+import android.os.SystemClock
 import android.os.ParcelFileDescriptor
 import app.R
 import engine.mihomo.binding.MihomoBridge as Clash
@@ -21,6 +22,10 @@ internal object AndroidMihomoRuntime {
 
     @Volatile
     private var running = false
+
+    @Volatile
+    var serviceStartedElapsedMillis = 0L
+        private set
 
     @Volatile
     private var nativeTunRunning = false
@@ -77,6 +82,7 @@ internal object AndroidMihomoRuntime {
             coreLogSubscriber = null
             throw error
         }
+        serviceStartedElapsedMillis = SystemClock.elapsedRealtime()
         running = true
         nativeTunRunning = true
         tunContextRunning = true
@@ -102,6 +108,7 @@ internal object AndroidMihomoRuntime {
             coreLogSubscriber = null
             throw error
         }
+        serviceStartedElapsedMillis = SystemClock.elapsedRealtime()
         running = true
         nativeTunRunning = false
         tunContextRunning = true
@@ -112,6 +119,7 @@ internal object AndroidMihomoRuntime {
     @Synchronized
     fun stop(resetCore: Boolean = true) {
         if (!loaded) {
+            serviceStartedElapsedMillis = 0L
             running = false
             nativeTunRunning = false
             tunContextRunning = false
@@ -125,6 +133,7 @@ internal object AndroidMihomoRuntime {
         }
         val shouldStopTun = nativeTunRunning
         val shouldStopTunContext = !nativeTunRunning && tunContextRunning
+        serviceStartedElapsedMillis = 0L
         running = false
         nativeTunRunning = false
         tunContextRunning = false
@@ -214,6 +223,7 @@ internal object AndroidMihomoRuntime {
             throw error
         }
         loaded = true
+        serviceStartedElapsedMillis = 0L
         running = false
         nativeTunRunning = false
         tunContextRunning = false

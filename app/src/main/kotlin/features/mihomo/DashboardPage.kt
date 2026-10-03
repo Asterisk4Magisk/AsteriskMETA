@@ -2,14 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0
 
 @file:OptIn(
-    androidx.compose.material3.ExperimentalMaterial3Api::class,
     kotlinx.coroutines.FlowPreview::class,
 )
 
 package features.mihomo
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
+import android.os.SystemClock
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,30 +28,27 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import ui.components.AsteriskScaffold
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import ui.components.AsteriskTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -62,6 +57,7 @@ import app.AppServices
 import app.AppState
 import app.LocalAppServices
 import app.LocalAppStateStore
+import app.LocalHomeServiceControl
 import app.LocalIsWideScreen
 import app.LocalMainDestinationState
 import app.LocalNavigator
@@ -75,16 +71,13 @@ import app.modes.RunModeBpf2Socks
 import app.modes.RunModeTproxy
 import app.modes.RunModeTun
 import app.modes.RunModeTun2Socks
+import app.modes.isRootRunMode
 import app.navigation.MainDestination
-import app.withMihomoRestartApplied
-import engine.mihomo.MihomoProfileEmptyErrorMessage
-import engine.mihomo.MihomoProfileMissingErrorMessage
 import engine.mihomo.mihomoModeName
 import engine.mihomo.raw.MihomoRawConfigParser
 import engine.mihomo.runtime.MihomoTrafficSample
 import engine.mihomo.runtime.MihomoTrafficState
 import engine.mihomo.selectedMihomoProfileOrNull
-import engine.proxy.ProxyServiceResult
 import features.home.HomeControllerState
 import features.home.HomeMonitoringOverviewState
 import features.home.HomeNetworkActivityState
@@ -99,6 +92,7 @@ import features.home.buildHomeMonitoringOverviewState
 import features.home.buildHomeNetworkActivityState
 import features.home.buildHomeSubscriptionContent
 import features.home.formatHomeRuntimeBytes
+import features.home.formatHomeServiceUptime
 import features.home.homeFocusTone
 import features.home.toHomeSubscriptionSummaryOrNull
 import features.home.toMihomoModeOrNull
@@ -110,6 +104,7 @@ import features.mihomo.provider.selectedMihomoProviderUsageLoadKeyOrNull
 import features.monitoring.MonitoringIntent
 import features.monitoring.ObserveMonitoring
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.sample
@@ -118,11 +113,12 @@ import kotlinx.coroutines.withContext
 import ui.components.AsteriskExpressiveCard
 import ui.components.AsteriskFocusSurface
 import ui.components.AsteriskPageCard
+import ui.components.AsteriskScaffold
 import ui.components.AsteriskSegmentItem
 import ui.components.AsteriskSegmentedControl
+import ui.components.AsteriskTopAppBar
 import ui.layout.pageContentPaddingWithCutout
 import ui.layout.pageListPadding
-import ui.theme.AsteriskMotion
 import ui.theme.AsteriskShapeTokens
 import ui.theme.ExpressiveShapeRole
 import ui.theme.FocusDensity
@@ -185,10 +181,10 @@ fun MihomoDashboardPage(
     val navigator = LocalNavigator.current
     val isWideScreen = LocalIsWideScreen.current
     val mainDestinationState = LocalMainDestinationState.current
-    val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
     ObserveMonitoring(MonitoringIntent.Home)
-    var operationInProgress by rememberSaveable { mutableStateOf(false) }
+    val serviceControl = LocalHomeServiceControl.current
+    val operationInProgress = serviceControl.busy
     val selectedProfile = appState.selectedMihomoProfileOrNull()
     val keyedProviderUsageState by services.mihomoProviderUsage.state.collectAsState()
     val providerUsageLoadKey = appState.selectedMihomoProviderUsageLoadKeyOrNull()
@@ -229,67 +225,10 @@ fun MihomoDashboardPage(
     val latestAppState = rememberUpdatedState(appState)
     val latestControllerState = rememberUpdatedState(controllerState)
 
-    val startFailedMessage = stringResource(R.string.mihomo_dashboard_start_failed)
-    val startNoConfigurationMessage = stringResource(R.string.mihomo_dashboard_start_no_configuration)
-    val startEmptyConfigurationMessage = stringResource(R.string.mihomo_dashboard_start_empty_configuration)
-    val stopFailedMessage = stringResource(R.string.mihomo_dashboard_stop_failed)
-    val serviceStartedMessage = stringResource(R.string.proxy_service_started)
-    val serviceStoppedMessage = stringResource(R.string.proxy_service_stopped)
     val modeFailedMessage = stringResource(R.string.home_mode_change_failed)
 
-    suspend fun handleProxyServiceResult(result: ProxyServiceResult, wasRunning: Boolean) {
-        when (result) {
-            is ProxyServiceResult.Success -> {
-                updateAppState { state ->
-                    state.copy(
-                        proxyRunning = result.proxyRunning,
-                        localProxyPort = result.appState?.localProxyPort ?: state.localProxyPort,
-                        mihomoControlPort = result.appState?.mihomoControlPort ?: state.mihomoControlPort,
-                    ).withMihomoRestartApplied()
-                }
-                services.tipNotifier.show(if (result.proxyRunning) serviceStartedMessage else serviceStoppedMessage)
-            }
-
-            is ProxyServiceResult.Failed -> {
-                updateAppState { state -> state.copy(proxyRunning = false) }
-                val localizedStartMessage = if (wasRunning) {
-                    null
-                } else {
-                    result.error.mihomoProfileStartFailureMessage(
-                        missingConfigurationMessage = startNoConfigurationMessage,
-                        emptyConfigurationMessage = startEmptyConfigurationMessage,
-                    )
-                }
-                if (localizedStartMessage != null) {
-                    services.tipNotifier.show(localizedStartMessage)
-                } else {
-                    services.tipNotifier.showError(
-                        result.error,
-                        if (wasRunning) stopFailedMessage else startFailedMessage,
-                    )
-                }
-            }
-        }
-    }
-
-    fun toggleService() {
-        if (operationInProgress) return
-        val stateSnapshot = appState
-        val wasRunning = stateSnapshot.proxyRunning
-        operationInProgress = true
-        val operationJob = services.appScope.launch {
-            handleProxyServiceResult(services.proxyServiceUseCase.toggle(stateSnapshot), wasRunning)
-        }
-        scope.launch {
-            try {
-                operationJob.join()
-            } finally {
-                operationInProgress = false
-            }
-        }
-    }
-
     fun changeMode(mode: Int) {
+        if (serviceControl.busy) return
         val stateSnapshot = latestAppState.value
         val modeChange = buildHomeModeChange(
             appState = stateSnapshot,
@@ -301,19 +240,24 @@ fun MihomoDashboardPage(
             updateAppState { state -> state.copy(mihomoMode = mode) }
         }
         if (modeChange.patchRuntime) {
-            scope.launch {
-                services.mihomoRuntime.patchMode(
-                    modeChange.runtimeAppState,
-                    modeChange.runtimeAppState.mihomoModeName(),
-                )
-                    .onFailure { error ->
-                        if (modeChange.persistSelection) {
-                            updateAppState { state ->
-                                if (state.mihomoMode == mode) state.copy(mihomoMode = previousMode) else state
+            serviceControl.modeOperationInProgress = true
+            services.appScope.launch {
+                try {
+                    services.mihomoRuntime.patchMode(
+                        modeChange.runtimeAppState,
+                        modeChange.runtimeAppState.mihomoModeName(),
+                    )
+                        .onFailure { error ->
+                            if (modeChange.persistSelection) {
+                                updateAppState { state ->
+                                    if (state.mihomoMode == mode) state.copy(mihomoMode = previousMode) else state
+                                }
                             }
+                            services.tipNotifier.showError(error, modeFailedMessage)
                         }
-                        services.tipNotifier.showError(error, modeFailedMessage)
-                    }
+                } finally {
+                    serviceControl.modeOperationInProgress = false
+                }
             }
         }
     }
@@ -345,7 +289,6 @@ fun MihomoDashboardPage(
                     controllerState = controllerState,
                     networkActivityState = networkActivityState,
                     operationInProgress = operationInProgress,
-                    onToggleService = ::toggleService,
                     onModeSelected = ::changeMode,
                     onOpenConfiguration = { mainDestinationState?.select(MainDestination.Configurations) },
                     onOpenNode = { mainDestinationState?.select(MainDestination.Proxies) },
@@ -423,17 +366,10 @@ private fun HomeControllerCard(
     controllerState: HomeControllerState,
     networkActivityState: HomeNetworkActivityState,
     operationInProgress: Boolean,
-    onToggleService: () -> Unit,
     onModeSelected: (Int) -> Unit,
     onOpenConfiguration: () -> Unit,
     onOpenNode: () -> Unit,
 ) {
-    val serviceMotion = AsteriskMotion.fastEffects<Float>()
-    val serviceSwitchAlpha by animateFloatAsState(
-        targetValue = if (operationInProgress) 0f else 1f,
-        animationSpec = serviceMotion,
-        label = "home-service-switch-alpha",
-    )
     AsteriskFocusSurface(
         title = if (controllerState.serviceStatus == HomeServiceStatus.Enabled) {
             stringResource(R.string.home_service_enabled)
@@ -459,28 +395,8 @@ private fun HomeControllerCard(
                 modifier = Modifier.weight(1f),
             )
         },
-        primaryAction = {
-            Box(
-                modifier = Modifier.size(52.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Switch(
-                    checked = controllerState.serviceStatus == HomeServiceStatus.Enabled,
-                    onCheckedChange = { onToggleService() },
-                    modifier = Modifier.alpha(serviceSwitchAlpha),
-                    enabled = !operationInProgress,
-                )
-                AnimatedVisibility(
-                    visible = operationInProgress,
-                    enter = AsteriskMotion.fadeEnter(serviceMotion),
-                    exit = AsteriskMotion.fadeExit(serviceMotion),
-                    label = "home-service-loading",
-                ) {
-                    CircularProgressIndicator(modifier = Modifier.size(28.dp), strokeWidth = 3.dp)
-                }
-            }
-        },
-        keepPrimaryActionInline = true,
+        primaryAction = { HomeServiceRuntimeSummary() },
+        forcePrimaryActionStacked = shouldStackHomeServiceRuntimeSummary(),
     ) {
         Box(modifier = Modifier.offset(y = HomeControllerContentOffset)) {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -538,7 +454,7 @@ private fun HomeControllerCard(
                     },
                     selectedValue = controllerState.mihomoMode,
                     onSelected = onModeSelected,
-                    enabled = !controllerState.mihomoModeReadOnly,
+                    enabled = !controllerState.mihomoModeReadOnly && !operationInProgress,
                 )
                 if (controllerState.mihomoModeReadOnly) {
                     Text(
@@ -1063,17 +979,6 @@ private fun formatExpiry(expireAtSeconds: Long): String {
     return DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(expireAtSeconds * 1_000L))
 }
 
-private fun Throwable.mihomoProfileStartFailureMessage(
-    missingConfigurationMessage: String,
-    emptyConfigurationMessage: String,
-): String? {
-    return when (message) {
-        MihomoProfileMissingErrorMessage -> missingConfigurationMessage
-        MihomoProfileEmptyErrorMessage -> emptyConfigurationMessage
-        else -> null
-    }
-}
-
 private data class HomeModeOption(
     val mode: Int,
     val label: String,
@@ -1092,3 +997,42 @@ private val HomeControllerTrafficIconSize = 28.dp
 private val HomeControllerTrafficIconOffsetY = 0.5.dp
 private val HomeControllerContentOffset = 10.dp
 private val HomeControllerItemTextSpacing = 14.dp
+
+@Composable
+private fun shouldStackHomeServiceRuntimeSummary(): Boolean =
+    LocalWindowInfo.current.containerSize.width / LocalDensity.current.density < 360f
+
+@Composable
+private fun HomeServiceRuntimeSummary() {
+    val appState by LocalAppStateStore.current.collectAppState()
+    val services = LocalAppServices.current
+    val uptimeMillis by produceState<Long?>(null, appState.proxyRunning, appState.runMode) {
+        value = null
+        if (!appState.proxyRunning) return@produceState
+        while (true) {
+            value = if (appState.runMode.isRootRunMode()) {
+                val resource = services.monitoring.state.value.resource
+                resource.uptimeMillis
+                    .takeIf { resource.source == features.monitoring.resource.ProcessStatsSourceKind.CoreProcess }
+                    ?.let { it + (SystemClock.elapsedRealtime() - resource.uptimeMeasuredAtElapsedMillis).coerceAtLeast(0L) }
+            } else {
+                engine.vpn.AndroidMihomoRuntime.serviceStartedElapsedMillis
+                    .takeIf { it > 0L }
+                    ?.let { (SystemClock.elapsedRealtime() - it).coerceAtLeast(0L) }
+            }
+            delay(1_000L.milliseconds)
+        }
+    }
+    val uptime = formatHomeServiceUptime(uptimeMillis)
+    if (appState.proxyRunning && uptime != null) {
+        val description = stringResource(R.string.home_service_uptime, uptime)
+        Text(
+            text = uptime,
+            modifier = Modifier.semantics { contentDescription = description },
+            style = MaterialTheme.typography.labelMedium,
+            fontFamily = FontFamily.Monospace,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+        )
+    }
+}

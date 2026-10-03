@@ -151,6 +151,7 @@ fun App(
     ) {
         AppServices(
             appScope = appScope,
+            homeServiceOperationState = application.homeServiceOperationState,
             proxyEngine = proxyEngine,
             rootAccess = rootAccess,
             userSpaces = userSpaces,

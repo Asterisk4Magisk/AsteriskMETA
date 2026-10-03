@@ -4,6 +4,7 @@
 package features.monitoring
 
 import android.content.Context
+import android.os.SystemClock
 import app.modes.isRootRunMode
 import data.AndroidAppStateStore
 import engine.mihomo.runtime.MihomoConnection
@@ -186,6 +187,7 @@ internal class MonitoringRepository(
                             cpuPercent = null,
                             source = null,
                             uptimeMillis = null,
+                            uptimeMeasuredAtElapsedMillis = 0L,
                             processId = null,
                         ),
                     )
@@ -226,6 +228,11 @@ internal class MonitoringRepository(
                             },
                             source = reading?.source ?: current.resource.source,
                             uptimeMillis = reading?.uptimeMillis ?: current.resource.uptimeMillis,
+                            uptimeMeasuredAtElapsedMillis = if (reading?.uptimeMillis != null) {
+                                SystemClock.elapsedRealtime()
+                            } else {
+                                current.resource.uptimeMeasuredAtElapsedMillis
+                            },
                             processId = reading?.snapshot?.pid ?: current.resource.processId,
                             sampleIntervalMillis = intervalMillis,
                             fifteenMinuteSamples = history?.fifteenMinutes.orEmpty(),

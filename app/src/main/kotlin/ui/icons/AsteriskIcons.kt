@@ -31,7 +31,6 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.CloudSync
 import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.ContentCopy
-import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.DataObject
 import androidx.compose.material.icons.rounded.DataUsage
 import androidx.compose.material.icons.rounded.Delete
@@ -41,7 +40,6 @@ import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.EditNote
 import androidx.compose.material.icons.rounded.ExpandMore
-import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.FileUpload
 import androidx.compose.material.icons.rounded.FilterAlt
@@ -62,7 +60,6 @@ import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Notifications
-import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Policy
@@ -122,7 +119,6 @@ internal object AsteriskIcons {
         val CloudSync: ImageVector = MaterialIcons.Rounded.CloudSync
         val Code: ImageVector = MaterialIcons.Rounded.Code
         val ContentCopy: ImageVector = MaterialIcons.Rounded.ContentCopy
-        val DarkMode: ImageVector = MaterialIcons.Rounded.DarkMode
         val DataObject: ImageVector = MaterialIcons.Rounded.DataObject
         val DataUsage: ImageVector = MaterialIcons.Rounded.DataUsage
         val Delete: ImageVector = MaterialIcons.Rounded.Delete
@@ -132,7 +128,6 @@ internal object AsteriskIcons {
         val Edit: ImageVector = MaterialIcons.Rounded.Edit
         val EditNote: ImageVector = MaterialIcons.Rounded.EditNote
         val ExpandMore: ImageVector = MaterialIcons.Rounded.ExpandMore
-        val Extension: ImageVector = MaterialIcons.Rounded.Extension
         val FileDownload: ImageVector = MaterialIcons.Rounded.FileDownload
         val FileUpload: ImageVector = MaterialIcons.Rounded.FileUpload
         val FilterAlt: ImageVector = MaterialIcons.Rounded.FilterAlt
@@ -153,7 +148,6 @@ internal object AsteriskIcons {
         val Memory: ImageVector = MaterialIcons.Rounded.Memory
         val MoreVert: ImageVector = MaterialIcons.Rounded.MoreVert
         val Notifications: ImageVector = MaterialIcons.Rounded.Notifications
-        val Palette: ImageVector = MaterialIcons.Rounded.Palette
         val Pause: ImageVector = MaterialIcons.Rounded.Pause
         val PlayArrow: ImageVector = MaterialIcons.Rounded.PlayArrow
         val Policy: ImageVector = MaterialIcons.Rounded.Policy

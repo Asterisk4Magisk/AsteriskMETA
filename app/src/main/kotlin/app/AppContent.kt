@@ -78,6 +78,19 @@ import ui.layout.shouldShowNavigationRail
 import ui.layout.shouldShowSplitPane
 import ui.theme.AsteriskMotion
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import engine.mihomo.MihomoProfileEmptyErrorMessage
+import engine.mihomo.MihomoProfileMissingErrorMessage
+import engine.proxy.ProxyServiceResult
+import features.home.HomeServiceOperation
+import features.home.HomeServiceOperationState
+import kotlinx.coroutines.launch
+import ui.components.AsteriskFloatingNavigationAction
 
 private data class MainNavigationItem(
     val destination: MainDestination,
@@ -113,6 +126,7 @@ fun AppContent(
     padding: PaddingValues,
 ) {
     val mainDestinationState = rememberMainDestinationState()
+    val serviceControl = rememberHomeServiceControl()
 
     val backStack = remember { mutableStateListOf<NavKey>().apply { add(Route.Main) } }
     val navigator = remember { Navigator(backStack) }
@@ -127,6 +141,7 @@ fun AppContent(
         LocalIsWideScreen provides isWideScreen,
         LocalSupportsSplitPane provides supportsSplitPane,
         LocalMainDestinationState provides mainDestinationState,
+        LocalHomeServiceControl provides serviceControl,
     ) {
         Box(
             modifier = Modifier
@@ -265,6 +280,7 @@ private fun WideScreenContent(
     val selectedDestination = mainDestinationState.current
     Row {
         NavigationRail {
+            HomeServicePowerButton(modifier = Modifier.padding(vertical = 12.dp))
             navigationItems.forEach { item ->
                 NavigationRailItem(
                     selected = selectedDestination == item.destination,
@@ -325,7 +341,10 @@ private fun MainNavigationBar(
     modifier: Modifier = Modifier,
 ) {
     val selectedDestination = mainDestinationState.current
-    AsteriskFloatingNavigationBar(modifier = modifier) {
+    AsteriskFloatingNavigationBar(
+        modifier = modifier,
+        trailingAction = { HomeServicePowerButton() },
+    ) {
         navigationItems.forEach { item ->
             AsteriskFloatingNavigationItem(
                 selected = selectedDestination == item.destination,
@@ -385,4 +404,118 @@ private fun MainScreenBackHandler(
             mainState.select(MainDestination.Home)
         },
     )
+}
+
+internal class HomeServiceControl(private val operationState: HomeServiceOperationState) {
+    var operation: HomeServiceOperation
+        get() = operationState.operation
+        set(value) { operationState.operation = value }
+    var modeOperationInProgress: Boolean
+        get() = operationState.modeOperationInProgress
+        set(value) { operationState.modeOperationInProgress = value }
+    val serviceOperationInProgress: Boolean get() = operation != HomeServiceOperation.Idle
+    val busy: Boolean get() = serviceOperationInProgress || modeOperationInProgress
+    var toggleService: () -> Unit = {}
+}
+
+internal val LocalHomeServiceControl = staticCompositionLocalOf<HomeServiceControl> {
+    error("No home service control found")
+}
+
+@Composable
+private fun rememberHomeServiceControl(): HomeServiceControl {
+    val stateStore = LocalAppStateStore.current
+    val updateAppState = LocalUpdateAppState.current
+    val services = LocalAppServices.current
+    val control = remember(services) { HomeServiceControl(services.homeServiceOperationState) }
+    val startFailedMessage = stringResource(R.string.mihomo_dashboard_start_failed)
+    val startNoConfigurationMessage = stringResource(R.string.mihomo_dashboard_start_no_configuration)
+    val startEmptyConfigurationMessage = stringResource(R.string.mihomo_dashboard_start_empty_configuration)
+    val stopFailedMessage = stringResource(R.string.mihomo_dashboard_stop_failed)
+    val serviceStartedMessage = stringResource(R.string.proxy_service_started)
+    val serviceStoppedMessage = stringResource(R.string.proxy_service_stopped)
+
+    suspend fun handleProxyServiceResult(result: ProxyServiceResult, wasRunning: Boolean) {
+        when (result) {
+            is ProxyServiceResult.Success -> {
+                updateAppState { state ->
+                    state.copy(
+                        proxyRunning = result.proxyRunning,
+                        localProxyPort = result.appState?.localProxyPort ?: state.localProxyPort,
+                        mihomoControlPort = result.appState?.mihomoControlPort ?: state.mihomoControlPort,
+                    ).withMihomoRestartApplied()
+                }
+                services.tipNotifier.show(if (result.proxyRunning) serviceStartedMessage else serviceStoppedMessage)
+            }
+
+            is ProxyServiceResult.Failed -> {
+                updateAppState { state -> state.copy(proxyRunning = false) }
+                val localizedStartMessage = if (wasRunning) {
+                    null
+                } else {
+                    when (result.error.message) {
+                        MihomoProfileMissingErrorMessage -> startNoConfigurationMessage
+                        MihomoProfileEmptyErrorMessage -> startEmptyConfigurationMessage
+                        else -> null
+                    }
+                }
+                if (localizedStartMessage != null) {
+                    services.tipNotifier.show(localizedStartMessage)
+                } else {
+                    services.tipNotifier.showError(
+                        result.error,
+                        if (wasRunning) stopFailedMessage else startFailedMessage,
+                    )
+                }
+            }
+        }
+    }
+
+    control.toggleService = toggle@{
+        if (control.busy) return@toggle
+        val stateSnapshot = stateStore.state.value
+        val wasRunning = stateSnapshot.proxyRunning
+        control.operation = if (wasRunning) HomeServiceOperation.Stopping else HomeServiceOperation.Starting
+        services.appScope.launch {
+            try {
+                handleProxyServiceResult(services.proxyServiceUseCase.toggle(stateSnapshot), wasRunning)
+            } finally {
+                control.operation = HomeServiceOperation.Idle
+            }
+        }
+    }
+    return control
+}
+
+@Composable
+private fun HomeServicePowerButton(modifier: Modifier = Modifier) {
+    val appState by LocalAppStateStore.current.collectAppState()
+    val control = LocalHomeServiceControl.current
+    val label = stringResource(
+        when (control.operation) {
+            HomeServiceOperation.Starting -> R.string.home_service_starting
+            HomeServiceOperation.Stopping -> R.string.home_service_stopping
+            HomeServiceOperation.Idle -> if (appState.proxyRunning) R.string.home_service_stop else R.string.home_service_start
+        },
+    )
+    val status = stringResource(if (appState.proxyRunning) R.string.home_service_enabled else R.string.home_service_disabled)
+    AsteriskFloatingNavigationAction(
+        selected = appState.proxyRunning,
+        onClick = control.toggleService,
+        enabled = !control.busy,
+        modifier = modifier.semantics {
+            contentDescription = label
+            stateDescription = status
+        },
+    ) {
+        if (control.serviceOperationInProgress) {
+            CircularProgressIndicator(modifier = Modifier.size(32.dp), strokeWidth = 3.dp)
+        } else {
+            Icon(
+                imageVector = if (appState.proxyRunning) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                contentDescription = null,
+                modifier = Modifier.size(32.dp),
+            )
+        }
+    }
 }
