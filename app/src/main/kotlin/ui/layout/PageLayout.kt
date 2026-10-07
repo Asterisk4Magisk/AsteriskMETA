@@ -3,7 +3,6 @@
 
 package ui.layout
 
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import ui.components.AsteriskTopAppBar
@@ -131,7 +130,6 @@ fun pageListPadding(
 }
 
 @Composable
-@OptIn(ExperimentalMaterial3Api::class)
 fun AdaptiveTopAppBar(
     title: String,
     isWideScreen: Boolean,
