@@ -565,8 +565,8 @@ internal class MonitoringRepository(
 
     private fun resolvePublicProbeProxy(): PublicProbeProxy? {
         val appState = stateStore.state.value
-        val isRunning = mihomoRuntime.state.value.running || appState.proxyRunning
-        if (!isRunning) return null
+        // The control runtime can remain connected while the proxy service is stopped.
+        if (!appState.proxyRunning) return null
         val runtimeOptions = LocalProxyRuntime.current()
         val usesRawConfig = appState.usesRawMihomoConfig()
         val options = runtimeOptions ?: if (usesRawConfig) {
