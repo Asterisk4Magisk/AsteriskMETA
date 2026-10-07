@@ -3,16 +3,20 @@
 
 package features.mihomo
 
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -26,13 +30,32 @@ internal fun MihomoDelayToolbar(
     onDelayTest: () -> Unit,
     bottomPadding: Dp,
     modifier: Modifier = Modifier,
+    canLocate: Boolean = false,
+    onLocate: () -> Unit = {},
 ) {
-    Box(
+    Row(
         modifier = modifier.padding(
             end = 20.dp,
             bottom = bottomPadding + MihomoFloatingToolbarBottomSpacing,
         ),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
+        if (canLocate) {
+            FloatingActionButton(
+                onClick = onLocate,
+                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                shape = CircleShape,
+                modifier = Modifier.size(56.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.MyLocation,
+                    contentDescription = stringResource(R.string.mihomo_proxies_locate_selected),
+                    modifier = Modifier.size(24.dp),
+                )
+            }
+        }
         ExtendedFloatingActionButton(
             onClick = { if (enabled) onDelayTest() },
             containerColor = MaterialTheme.colorScheme.primaryContainer,

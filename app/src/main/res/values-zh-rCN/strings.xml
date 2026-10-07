@@ -26,6 +26,8 @@
     <string name="common_error_update_interval">请输入不少于 0.25 小时的数值</string>
     <string name="common_export_to_clipboard">导出到剪贴板</string>
     <string name="common_import_from_clipboard">从剪贴板导入</string>
+    <string name="common_ipv4">IPv4</string>
+    <string name="common_ipv6">IPv6</string>
     <string name="common_merge_import">合并导入</string>
     <string name="common_replace">替换</string>
     <string name="common_replace_existing">替换现有</string>
@@ -175,10 +177,34 @@
     <string name="monitor_traffic_trend">5 分钟趋势</string>
 
     <!-- Monitoring - Network -->
+    <string name="monitor_network_colo_ams">阿姆斯特丹</string>
+    <string name="monitor_network_colo_cdg">巴黎</string>
+    <string name="monitor_network_colo_dfw">达拉斯</string>
+    <string name="monitor_network_colo_ewr">纽瓦克</string>
+    <string name="monitor_network_colo_fra">法兰克福</string>
+    <string name="monitor_network_colo_hkg">香港</string>
+    <string name="monitor_network_colo_iad">阿什本</string>
+    <string name="monitor_network_colo_icn">首尔</string>
+    <string name="monitor_network_colo_khh">高雄</string>
+    <string name="monitor_network_colo_kix">大阪</string>
+    <string name="monitor_network_colo_lax">洛杉矶</string>
+    <string name="monitor_network_colo_lhr">伦敦</string>
+    <string name="monitor_network_colo_mel">墨尔本</string>
+    <string name="monitor_network_colo_named">%1$s (%2$s)</string>
+    <string name="monitor_network_colo_nrt">东京</string>
+    <string name="monitor_network_colo_ord">芝加哥</string>
+    <string name="monitor_network_colo_sea">西雅图</string>
+    <string name="monitor_network_colo_sfo">旧金山</string>
+    <string name="monitor_network_colo_sin">新加坡</string>
+    <string name="monitor_network_colo_sjc">圣何塞</string>
+    <string name="monitor_network_colo_syd">悉尼</string>
+    <string name="monitor_network_colo_tpe">台北</string>
+    <string name="monitor_network_colo_unknown">%1$s 机房</string>
     <string name="monitor_network_dns">DNS 服务器</string>
     <string name="monitor_network_error_request">请求失败</string>
     <string name="monitor_network_error_response">探测服务返回了无效地址</string>
     <string name="monitor_network_error_timeout">请求超时</string>
+    <string name="monitor_network_error_unavailable">地址未分配</string>
     <string name="monitor_network_gateway">默认网关</string>
     <string name="monitor_network_interface">网络接口</string>
     <string name="monitor_network_local">本地网络</string>
@@ -186,7 +212,11 @@
     <string name="monitor_network_local_ipv6">本地 IPv6</string>
     <string name="monitor_network_privacy">探测隐私说明</string>
     <string name="monitor_network_privacy_body">进入本页或刷新时，会分别向 %1$s 发送一次地址查询。请求不包含订阅、配置、设备标识、账号或 Mihomo 凭据；结果仅保留在内存中，不写入日志或设置。</string>
+    <string name="monitor_network_probe_cloudflare">Cloudflare 节点出口</string>
+    <string name="monitor_network_probe_general">通用出口</string>
     <string name="monitor_network_probe_source">由探测服务返回</string>
+    <string name="monitor_network_probe_unallocated_ipv4">未分配 IPv4 地址</string>
+    <string name="monitor_network_probe_unallocated_ipv6">未分配 IPv6 地址</string>
     <string name="monitor_network_public">公网地址</string>
     <string name="monitor_network_request_duration_value">请求耗时 %1$d ms</string>
     <string name="monitor_network_title">网络状态</string>
@@ -198,6 +228,7 @@
     <string name="mihomo_proxies_delay_timeout">超时</string>
     <string name="mihomo_proxies_group_test">整组测试</string>
     <string name="mihomo_proxies_loading">正在加载代理…</string>
+    <string name="mihomo_proxies_locate_selected">定位当前选中节点</string>
     <string name="mihomo_proxies_no_profile_summary">请先添加或导入 Mihomo YAML 配置，然后再查看和切换代理节点。</string>
     <string name="mihomo_proxies_no_profile_title">还没有配置文件</string>
     <string name="mihomo_proxies_option_filter_not_selectable">不可选择</string>

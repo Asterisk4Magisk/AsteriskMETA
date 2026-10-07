@@ -17,10 +17,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import ui.icons.AsteriskIcons as Icons
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -39,15 +39,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.LocalAppServices
-import app.R
 import features.monitoring.MonitoringIntent
 import features.monitoring.MonitoringScaffold
 import features.monitoring.MonitoringSectionCard
 import features.monitoring.MonitoringValueRow
 import features.monitoring.ObserveMonitoring
 import kotlinx.coroutines.launch
+import app.R
 import ui.layout.rememberPageGutter
 import java.util.UUID
+import java.util.Locale
+import ui.icons.AsteriskIcons as Icons
 
 @Composable
 internal fun NetworkMonitorPage(padding: PaddingValues) {
@@ -103,18 +105,20 @@ internal fun NetworkMonitorPage(padding: PaddingValues) {
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        PublicAddressCard(
+                        PublicAddressFamilyCard(
                             family = AddressFamily.Ipv4,
-                            result = network.publicProbe.ipv4,
+                            generalResult = network.publicProbe.ipv4,
+                            cloudflareResult = network.publicProbe.cloudflareIpv4,
                             refreshing = network.publicProbe.refreshing,
-                            onCopy = { value -> copy("Public IPv4", value) },
+                            onCopy = { label, value -> copy(label, value) },
                             onRetry = { services.monitoring.refreshPublicNetworkProbe(AddressFamily.Ipv4) },
                         )
-                        PublicAddressCard(
+                        PublicAddressFamilyCard(
                             family = AddressFamily.Ipv6,
-                            result = network.publicProbe.ipv6,
+                            generalResult = network.publicProbe.ipv6,
+                            cloudflareResult = network.publicProbe.cloudflareIpv6,
                             refreshing = network.publicProbe.refreshing,
-                            onCopy = { value -> copy("Public IPv6", value) },
+                            onCopy = { label, value -> copy(label, value) },
                             onRetry = { services.monitoring.refreshPublicNetworkProbe(AddressFamily.Ipv6) },
                         )
                     }
@@ -168,59 +172,143 @@ internal fun NetworkMonitorPage(padding: PaddingValues) {
 }
 
 @Composable
-private fun PublicAddressCard(
+private fun PublicAddressFamilyCard(
     family: AddressFamily,
-    result: PublicAddressProbeResult,
+    generalResult: PublicAddressProbeResult,
+    cloudflareResult: PublicAddressProbeResult,
     refreshing: Boolean,
-    onCopy: (String) -> Unit,
+    onCopy: (String, String) -> Unit,
     onRetry: () -> Unit,
 ) {
+    val familyLabel = stringResource(
+        if (family == AddressFamily.Ipv4) R.string.common_ipv4 else R.string.common_ipv6
+    )
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
         shape = MaterialTheme.shapes.large,
     ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(if (family == AddressFamily.Ipv4) "IPv4" else "IPv6", style = MaterialTheme.typography.labelLarge)
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = familyLabel,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                if (generalResult.hasRetryableError || cloudflareResult.hasRetryableError) {
+                    TextButton(
+                        onClick = onRetry,
+                        enabled = !refreshing,
+                    ) {
+                        Text(stringResource(R.string.monitor_retry))
+                    }
+                }
+            }
+
+            PublicAddressSection(
+                title = stringResource(R.string.monitor_network_probe_general),
+                result = generalResult,
+                family = family,
+                onCopy = { onCopy(familyLabel, it) },
+            )
+
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                modifier = Modifier.padding(vertical = 2.dp),
+            )
+
+            PublicAddressSection(
+                title = stringResource(R.string.monitor_network_probe_cloudflare),
+                result = cloudflareResult,
+                family = family,
+                onCopy = { onCopy(familyLabel, it) },
+            )
+        }
+    }
+}
+
+private val PublicAddressProbeResult.hasRetryableError: Boolean
+    get() = error != null && error != PublicProbeError.Unavailable
+
+@Composable
+private fun PublicAddressSection(
+    title: String,
+    result: PublicAddressProbeResult,
+    family: AddressFamily,
+    onCopy: (String) -> Unit,
+) {
+    val locationSummary = result.locationSummary(formatCloudflareColo(result.colo))
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                if (result.error == PublicProbeError.Unavailable) {
+                    Text(
+                        text = stringResource(
+                            if (family == AddressFamily.Ipv6) {
+                                R.string.monitor_network_probe_unallocated_ipv6
+                            } else {
+                                R.string.monitor_network_probe_unallocated_ipv4
+                            }
+                        ),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
                     Text(
                         text = result.address.ifBlank { "—" },
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    result.durationMillis?.let { duration ->
-                        Text(
-                            stringResource(R.string.monitor_network_request_duration_value, duration),
-                            modifier = Modifier.padding(top = 6.dp),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
                 }
-                if (result.address.isNotBlank()) {
-                    IconButton(onClick = { onCopy(result.address) }) {
-                        Icon(Icons.Rounded.ContentCopy, stringResource(R.string.monitor_copy_value))
-                    }
+                if (locationSummary.isNotBlank()) {
+                    Text(
+                        text = locationSummary,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                result.durationMillis?.let { duration ->
+                    Text(
+                        stringResource(R.string.monitor_network_request_duration_value, duration),
+                        modifier = Modifier.padding(top = 2.dp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
-            if (result.error != null) {
-                Text(
-                    result.errorMessage.ifBlank { publicProbeErrorLabel(result.error) },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                )
-                if (result.stale) {
-                    Text(stringResource(R.string.monitor_data_stale), style = MaterialTheme.typography.bodySmall)
+            if (result.address.isNotBlank() && result.error != PublicProbeError.Unavailable) {
+                IconButton(onClick = { onCopy(result.address) }) {
+                    Icon(Icons.Rounded.ContentCopy, stringResource(R.string.monitor_copy_value))
                 }
-                TextButton(
-                    onClick = onRetry,
-                    enabled = !refreshing,
-                    modifier = Modifier.align(Alignment.End),
-                ) {
-                    Text(stringResource(R.string.monitor_retry))
-                }
+            }
+        }
+        if (result.error != null && result.error != PublicProbeError.Unavailable) {
+            Text(
+                result.errorMessage.ifBlank { publicProbeErrorLabel(result.error) },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+            if (result.stale) {
+                Text(stringResource(R.string.monitor_data_stale), style = MaterialTheme.typography.bodySmall)
             }
         }
     }
@@ -257,7 +345,43 @@ private fun publicProbeErrorLabel(error: PublicProbeError): String = stringResou
         PublicProbeError.Timeout -> R.string.monitor_network_error_timeout
         PublicProbeError.Network -> R.string.monitor_network_error_request
         PublicProbeError.InvalidResponse -> R.string.monitor_network_error_response
+        PublicProbeError.Unavailable -> R.string.monitor_network_error_unavailable
     },
 )
 
 private val NetworkContentModifier = Modifier.fillMaxWidth().widthIn(max = 840.dp)
+
+@Composable
+internal fun formatCloudflareColo(colo: String): String {
+    val code = colo.trim().uppercase(Locale.ROOT)
+    if (code.isEmpty()) return ""
+    val cityResource = when (code) {
+        "AMS" -> R.string.monitor_network_colo_ams
+        "CDG" -> R.string.monitor_network_colo_cdg
+        "DFW" -> R.string.monitor_network_colo_dfw
+        "EWR" -> R.string.monitor_network_colo_ewr
+        "FRA" -> R.string.monitor_network_colo_fra
+        "HKG" -> R.string.monitor_network_colo_hkg
+        "IAD" -> R.string.monitor_network_colo_iad
+        "ICN" -> R.string.monitor_network_colo_icn
+        "KHH" -> R.string.monitor_network_colo_khh
+        "KIX" -> R.string.monitor_network_colo_kix
+        "LAX" -> R.string.monitor_network_colo_lax
+        "LHR" -> R.string.monitor_network_colo_lhr
+        "MEL" -> R.string.monitor_network_colo_mel
+        "NRT" -> R.string.monitor_network_colo_nrt
+        "ORD" -> R.string.monitor_network_colo_ord
+        "SEA" -> R.string.monitor_network_colo_sea
+        "SFO" -> R.string.monitor_network_colo_sfo
+        "SIN" -> R.string.monitor_network_colo_sin
+        "SJC" -> R.string.monitor_network_colo_sjc
+        "SYD" -> R.string.monitor_network_colo_syd
+        "TPE" -> R.string.monitor_network_colo_tpe
+        else -> null
+    }
+    return if (cityResource != null) {
+        stringResource(R.string.monitor_network_colo_named, stringResource(cityResource), code)
+    } else {
+        stringResource(R.string.monitor_network_colo_unknown, code)
+    }
+}

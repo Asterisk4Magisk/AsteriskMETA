@@ -7,6 +7,9 @@ import android.content.Context
 import android.os.SystemClock
 import app.modes.isRootRunMode
 import data.AndroidAppStateStore
+import engine.mihomo.raw.loadSelectedRawConfig
+import engine.mihomo.raw.usesRawMihomoConfig
+import engine.proxy.toLocalProxyOptionsOrNull
 import engine.mihomo.runtime.MihomoConnection
 import engine.mihomo.runtime.MihomoConnectionsState
 import engine.mihomo.runtime.MihomoRuntimeRepository
@@ -48,6 +51,13 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import system.AndroidRootShellGateway
 import kotlin.time.Duration.Companion.milliseconds
+import engine.proxy.LocalProxyLoopbackAddress
+import engine.proxy.LocalProxyRuntime
+import engine.proxy.toLocalProxyOptions
+import features.monitoring.network.PublicProbeProxy
+import java.net.InetSocketAddress
+import java.net.Proxy
+import utils.encodeBase64
 
 internal class MonitoringRepository(
     private val appScope: CoroutineScope,
@@ -56,9 +66,12 @@ internal class MonitoringRepository(
     private val stateStore: AndroidAppStateStore,
     private val mihomoRuntime: MihomoRuntimeRepository,
 ) {
+    private val appContext = context.applicationContext
     private val processStatsSource = AndroidProcessStatsSource(context, rootAccess)
     private val networkMonitor = AndroidNetworkMonitor(context)
-    private val publicNetworkProbeClient = PublicNetworkProbeClient()
+    private val publicNetworkProbeClient = PublicNetworkProbeClient(
+        proxyProvider = { resolvePublicProbeProxy() },
+    )
     private val trafficLedgerStore = TrafficLedgerStore(context)
     private var previousProcessSnapshot: ProcessTickSnapshot? = null
     private var previousProcessSource: ProcessStatsSourceKind? = null
@@ -518,15 +531,14 @@ internal class MonitoringRepository(
                             publicProbe = if (family == null) {
                                 applyPublicProbeAttempts(
                                     previous = current.network.publicProbe,
-                                    ipv4 = checkNotNull(batch).first,
-                                    ipv6 = batch.second,
+                                    batch = checkNotNull(batch),
                                     completedAtMillis = completedAt,
                                 )
                             } else {
                                 applyPublicProbeAttempt(
                                     previous = current.network.publicProbe,
                                     family = family,
-                                    attempt = checkNotNull(single),
+                                    batch = checkNotNull(single),
                                     completedAtMillis = completedAt,
                                 )
                             },
@@ -549,6 +561,34 @@ internal class MonitoringRepository(
                 }
             }
         }
+    }
+
+    private fun resolvePublicProbeProxy(): PublicProbeProxy? {
+        val appState = stateStore.state.value
+        val isRunning = mihomoRuntime.state.value.running || appState.proxyRunning
+        if (!isRunning) return null
+        val runtimeOptions = LocalProxyRuntime.current()
+        val usesRawConfig = appState.usesRawMihomoConfig()
+        val options = runtimeOptions ?: if (usesRawConfig) {
+            appContext.loadSelectedRawConfig(appState)?.snapshot?.toLocalProxyOptionsOrNull()
+        } else {
+            appState.toLocalProxyOptions()
+        }
+        checkNotNull(options) { "No compatible local proxy inbound" }
+        val host = options.listenAddress.takeIf { it != "0.0.0.0" } ?: LocalProxyLoopbackAddress
+        val authHeader = if (options.username.isNotBlank()) {
+            "Basic " + "${options.username}:${options.password}".encodeBase64()
+        } else {
+            null
+        }
+        return PublicProbeProxy(
+            proxy = Proxy(if (usesRawConfig) Proxy.Type.SOCKS else Proxy.Type.HTTP, InetSocketAddress(host, options.port)),
+            host = host,
+            port = options.port,
+            username = options.username,
+            password = options.password,
+            proxyAuthorization = authHeader,
+        )
     }
 }
 

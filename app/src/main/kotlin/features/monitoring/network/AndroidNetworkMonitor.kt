@@ -8,22 +8,20 @@ import android.net.ConnectivityManager
 import android.net.LinkProperties
 import android.net.Network
 import android.net.NetworkCapabilities
-import android.net.NetworkRequest
 import android.os.SystemClock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
-import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeout
+import java.net.Authenticator
 import java.net.HttpURLConnection
 import java.net.Inet4Address
 import java.net.Inet6Address
 import java.net.InetAddress
+import java.net.PasswordAuthentication
+import java.net.Proxy
 import java.net.URI
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.EmptyCoroutineContext
@@ -37,62 +35,47 @@ internal class AndroidNetworkMonitor(context: Context) {
     fun snapshot(): LocalNetworkSnapshot {
         return connectivityManager.readLocalNetworkSnapshot(connectivityManager.allNetworks.toList())
     }
-
-    fun snapshots(): Flow<LocalNetworkSnapshot> = callbackFlow {
-        val knownNetworks = mutableSetOf<Network>()
-        connectivityManager.activeNetwork?.let(knownNetworks::add)
-
-        fun publish() {
-            val networks = synchronized(knownNetworks) { knownNetworks.toList() }
-            trySend(connectivityManager.readLocalNetworkSnapshot(networks))
-        }
-
-        val callback = object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) {
-                synchronized(knownNetworks) { knownNetworks += network }
-                publish()
-            }
-
-            override fun onLost(network: Network) {
-                synchronized(knownNetworks) { knownNetworks -= network }
-                publish()
-            }
-
-            override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
-                synchronized(knownNetworks) { knownNetworks += network }
-                publish()
-            }
-
-            override fun onLinkPropertiesChanged(network: Network, linkProperties: LinkProperties) {
-                synchronized(knownNetworks) { knownNetworks += network }
-                publish()
-            }
-        }
-        val request = NetworkRequest.Builder()
-            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-            .build()
-        runCatching { connectivityManager.registerNetworkCallback(request, callback) }
-            .onFailure { close(it) }
-        publish()
-        awaitClose {
-            runCatching { connectivityManager.unregisterNetworkCallback(callback) }
-        }
-    }.conflate()
 }
+
+internal data class PublicProbeProxy(
+    val proxy: Proxy,
+    val host: String = "",
+    val port: Int = 0,
+    val username: String = "",
+    val password: String = "",
+    val proxyAuthorization: String? = null,
+)
 
 internal class PublicNetworkProbeClient(
     private val endpoints: List<PublicProbeEndpoint> = DefaultPublicProbeEndpoints,
+    private val proxyProvider: (() -> PublicProbeProxy?)? = null,
 ) {
-    suspend fun probe(): Pair<PublicProbeAttempt, PublicProbeAttempt> = coroutineScope {
-        val ipv4Endpoint = endpoints.first { endpoint -> endpoint.family == AddressFamily.Ipv4 }
-        val ipv6Endpoint = endpoints.first { endpoint -> endpoint.family == AddressFamily.Ipv6 }
+    suspend fun probe(): PublicProbeBatch = coroutineScope {
+        val ipv4Endpoint = endpoints.first { it.family == AddressFamily.Ipv4 && it.target == ProbeTarget.General }
+        val ipv6Endpoint = endpoints.first { it.family == AddressFamily.Ipv6 && it.target == ProbeTarget.General }
+        val cfIpv4Endpoint = endpoints.first { it.family == AddressFamily.Ipv4 && it.target == ProbeTarget.Cloudflare }
+        val cfIpv6Endpoint = endpoints.first { it.family == AddressFamily.Ipv6 && it.target == ProbeTarget.Cloudflare }
         val ipv4 = async { probeOne(ipv4Endpoint) }
         val ipv6 = async { probeOne(ipv6Endpoint) }
-        ipv4.await() to ipv6.await()
+        val cfIpv4 = async { probeOne(cfIpv4Endpoint) }
+        val cfIpv6 = async { probeOne(cfIpv6Endpoint) }
+        PublicProbeBatch(
+            ipv4 = ipv4.await(),
+            ipv6 = ipv6.await(),
+            cloudflareIpv4 = cfIpv4.await(),
+            cloudflareIpv6 = cfIpv6.await(),
+        )
     }
 
-    suspend fun probe(family: AddressFamily): PublicProbeAttempt {
-        return probeOne(endpoints.first { endpoint -> endpoint.family == family })
+    suspend fun probe(family: AddressFamily): FamilyProbeBatch = coroutineScope {
+        val generalEndpoint = endpoints.first { it.family == family && it.target == ProbeTarget.General }
+        val cfEndpoint = endpoints.first { it.family == family && it.target == ProbeTarget.Cloudflare }
+        val general = async { probeOne(generalEndpoint) }
+        val cf = async { probeOne(cfEndpoint) }
+        FamilyProbeBatch(
+            general = general.await(),
+            cloudflare = cf.await(),
+        )
     }
 
     private suspend fun probeOne(endpoint: PublicProbeEndpoint): PublicProbeAttempt {
@@ -119,44 +102,78 @@ internal class PublicNetworkProbeClient(
                 if (!continuation.isActive) return@dispatch
                 val startedAt = SystemClock.elapsedRealtime()
                 val attempt = runCatching {
-                    val connection = (URI(endpoint.url).toURL().openConnection() as HttpURLConnection).apply {
-                        requestMethod = "GET"
-                        connectTimeout = PublicProbeSocketTimeoutMillis
-                        readTimeout = PublicProbeSocketTimeoutMillis
-                        instanceFollowRedirects = true
-                        useCaches = false
-                        setRequestProperty("Accept", "application/json, text/plain")
-                        setRequestProperty("User-Agent", "AsteriskMETA")
-                    }
-                    connectionReference.set(connection)
-                    if (!continuation.isActive) {
-                        connection.disconnect()
-                        return@runCatching PublicProbeAttempt.Failure(
-                            PublicProbeError.Network,
-                            "Cancelled",
-                            endpoint.host,
-                        )
-                    }
-                    try {
-                        val status = connection.responseCode
-                        if (status !in 200..299) error("HTTP $status")
-                        val body = connection.inputStream.bufferedReader(Charsets.UTF_8).use { reader ->
-                            reader.readLimited(PublicProbeMaxResponseChars)
+                    val probeProxy = proxyProvider?.invoke()
+                    probeProxy.withAuthenticator {
+                        val rawConnection = if (probeProxy != null) {
+                            URI(endpoint.url).toURL().openConnection(probeProxy.proxy)
+                        } else {
+                            URI(endpoint.url).toURL().openConnection()
                         }
-                        val address = parsePublicAddressResponse(body, endpoint.family)
-                            ?: return@runCatching PublicProbeAttempt.Failure(
-                                PublicProbeError.InvalidResponse,
-                                "Invalid ${endpoint.family.name.uppercase()} address",
+                        val connection = (rawConnection as HttpURLConnection).apply {
+                            requestMethod = "GET"
+                            connectTimeout = PublicProbeSocketTimeoutMillis
+                            readTimeout = PublicProbeSocketTimeoutMillis
+                            instanceFollowRedirects = true
+                            useCaches = false
+                            setRequestProperty("Accept", "application/json, text/plain")
+                            setRequestProperty("User-Agent", "AsteriskMETA")
+                            probeProxy?.proxyAuthorization?.let { auth ->
+                                setRequestProperty("Proxy-Authorization", auth)
+                            }
+                        }
+                        connectionReference.set(connection)
+                        if (!continuation.isActive) {
+                            connection.disconnect()
+                            return@runCatching PublicProbeAttempt.Failure(
+                                PublicProbeError.Network,
+                                "Cancelled",
                                 endpoint.host,
                             )
-                        PublicProbeAttempt.Success(
-                            address = address,
-                            durationMillis = SystemClock.elapsedRealtime() - startedAt,
-                            endpointHost = endpoint.host,
-                        )
-                    } finally {
-                        connectionReference.compareAndSet(connection, null)
-                        connection.disconnect()
+                        }
+                        try {
+                            val status = connection.responseCode
+                            if (status !in 200..299) error("HTTP $status")
+                            val body = connection.inputStream.bufferedReader(Charsets.UTF_8).use { reader ->
+                                reader.readLimited(PublicProbeMaxResponseChars)
+                            }
+                            when (val outcome = parsePublicProbeOutcome(body, endpoint.family, endpoint.target)) {
+                                is PublicProbeParseOutcome.Success -> {
+                                    val parsed = outcome.parsed
+                                    PublicProbeAttempt.Success(
+                                        address = parsed.address,
+                                        durationMillis = SystemClock.elapsedRealtime() - startedAt,
+                                        endpointHost = endpoint.host,
+                                        target = endpoint.target,
+                                        country = parsed.country,
+                                        countryCode = parsed.countryCode,
+                                        region = parsed.region,
+                                        city = parsed.city,
+                                        isp = parsed.isp,
+                                        colo = parsed.colo,
+                                        warp = parsed.warp,
+                                    )
+                                }
+
+                                PublicProbeParseOutcome.FamilyUnavailable -> {
+                                    PublicProbeAttempt.Failure(
+                                        PublicProbeError.Unavailable,
+                                        "",
+                                        endpoint.host,
+                                    )
+                                }
+
+                                PublicProbeParseOutcome.Invalid -> {
+                                    PublicProbeAttempt.Failure(
+                                        PublicProbeError.InvalidResponse,
+                                        "Invalid ${endpoint.family.name.uppercase()} address",
+                                        endpoint.host,
+                                    )
+                                }
+                            }
+                        } finally {
+                            connectionReference.compareAndSet(connection, null)
+                            connection.disconnect()
+                        }
                     }
                 }.getOrElse { error ->
                     PublicProbeAttempt.Failure(
@@ -253,6 +270,28 @@ private data class NetworkCandidate(
     val linkProperties: LinkProperties,
 )
 
-private const val PublicProbeSocketTimeoutMillis = 5_000
-private const val PublicProbeOverallTimeoutMillis = 5_000L
+private fun PublicProbeProxy.toAuthenticator(): Authenticator {
+    return object : Authenticator() {
+        override fun getPasswordAuthentication(): PasswordAuthentication? {
+            if (requestingHost != host || requestingPort != port) return null
+            return PasswordAuthentication(username, password.toCharArray())
+        }
+    }
+}
+
+private inline fun <T> PublicProbeProxy?.withAuthenticator(block: () -> T): T {
+    if (this == null || username.isBlank()) return block()
+    synchronized(PublicProbeAuthenticatorLock) {
+        Authenticator.setDefault(toAuthenticator())
+        return try {
+            block()
+        } finally {
+            Authenticator.setDefault(null)
+        }
+    }
+}
+
+private val PublicProbeAuthenticatorLock = Any()
+private const val PublicProbeSocketTimeoutMillis = 15_000
+private const val PublicProbeOverallTimeoutMillis = 15_000L
 private const val PublicProbeMaxResponseChars = 8_192

@@ -626,7 +626,6 @@ internal class MihomoRuntimeRepository(
                 .firstOrNull { group -> group.name == groupName }
                 ?.all
                 .orEmpty()
-            clearDelays(expectedProxyIds, generation, configKey)
             client.testGroupDelay(
                 config = control,
                 groupName = groupName,
@@ -1017,31 +1016,6 @@ internal class MihomoRuntimeRepository(
             current.copy(
                 proxies = current.proxies.copy(
                     groups = groups,
-                    updatedAtMillis = System.currentTimeMillis(),
-                ),
-            )
-        }
-    }
-
-    private fun clearDelays(
-        proxyIds: List<MihomoProxyNodeId>,
-        generation: Long,
-        configKey: Int,
-    ) {
-        if (proxyIds.isEmpty()) return
-        val targetIds = proxyIds.toSet()
-        updateRuntimeStateIfCurrent(generation, configKey) { current ->
-            val nodes = current.proxies.nodes.map { node ->
-                if (node.id in targetIds) {
-                    node.copy(delay = null, delayStatus = null, delayError = "", delayUpdatedAtMillis = null)
-                } else {
-                    node
-                }
-            }
-            current.copy(
-                proxies = current.proxies.copy(
-                    nodes = nodes,
-                    nodeById = nodes.associateBy(MihomoProxyNode::id),
                     updatedAtMillis = System.currentTimeMillis(),
                 ),
             )

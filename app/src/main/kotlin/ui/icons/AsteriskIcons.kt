@@ -59,6 +59,7 @@ import androidx.compose.material.icons.rounded.LinkOff
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.MyLocation
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -147,6 +148,7 @@ internal object AsteriskIcons {
         val Lock: ImageVector = MaterialIcons.Rounded.Lock
         val Memory: ImageVector = MaterialIcons.Rounded.Memory
         val MoreVert: ImageVector = MaterialIcons.Rounded.MoreVert
+        val MyLocation: ImageVector = MaterialIcons.Rounded.MyLocation
         val Notifications: ImageVector = MaterialIcons.Rounded.Notifications
         val Pause: ImageVector = MaterialIcons.Rounded.Pause
         val PlayArrow: ImageVector = MaterialIcons.Rounded.PlayArrow

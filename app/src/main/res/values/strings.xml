@@ -26,6 +26,8 @@
     <string name="common_error_update_interval">Enter at least 0.25 hours</string>
     <string name="common_export_to_clipboard">Export to clipboard</string>
     <string name="common_import_from_clipboard">Import from clipboard</string>
+    <string name="common_ipv4">IPv4</string>
+    <string name="common_ipv6">IPv6</string>
     <string name="common_merge_import">Merge import</string>
     <string name="common_replace">Replace</string>
     <string name="common_replace_existing">Replace existing</string>
@@ -177,10 +179,34 @@
     <string name="monitor_traffic_trend">5-minute trend</string>
 
     <!-- Monitoring - Network -->
+    <string name="monitor_network_colo_ams">Amsterdam</string>
+    <string name="monitor_network_colo_cdg">Paris</string>
+    <string name="monitor_network_colo_dfw">Dallas</string>
+    <string name="monitor_network_colo_ewr">Newark</string>
+    <string name="monitor_network_colo_fra">Frankfurt</string>
+    <string name="monitor_network_colo_hkg">Hong Kong</string>
+    <string name="monitor_network_colo_iad">Ashburn</string>
+    <string name="monitor_network_colo_icn">Seoul</string>
+    <string name="monitor_network_colo_khh">Kaohsiung</string>
+    <string name="monitor_network_colo_kix">Osaka</string>
+    <string name="monitor_network_colo_lax">Los Angeles</string>
+    <string name="monitor_network_colo_lhr">London</string>
+    <string name="monitor_network_colo_mel">Melbourne</string>
+    <string name="monitor_network_colo_named">%1$s (%2$s)</string>
+    <string name="monitor_network_colo_nrt">Tokyo</string>
+    <string name="monitor_network_colo_ord">Chicago</string>
+    <string name="monitor_network_colo_sea">Seattle</string>
+    <string name="monitor_network_colo_sfo">San Francisco</string>
+    <string name="monitor_network_colo_sin">Singapore</string>
+    <string name="monitor_network_colo_sjc">San Jose</string>
+    <string name="monitor_network_colo_syd">Sydney</string>
+    <string name="monitor_network_colo_tpe">Taipei</string>
+    <string name="monitor_network_colo_unknown">%1$s data center</string>
     <string name="monitor_network_dns">DNS server</string>
     <string name="monitor_network_error_request">The request failed</string>
     <string name="monitor_network_error_response">The service returned an invalid address</string>
     <string name="monitor_network_error_timeout">The request timed out</string>
+    <string name="monitor_network_error_unavailable">Address not allocated</string>
     <string name="monitor_network_gateway">Default gateway</string>
     <string name="monitor_network_interface">Interface</string>
     <string name="monitor_network_local">Local network</string>
@@ -188,7 +214,11 @@
     <string name="monitor_network_local_ipv6">Local IPv6</string>
     <string name="monitor_network_privacy">Probe privacy</string>
     <string name="monitor_network_privacy_body">Entering this page or refreshing sends one address request to %1$s. The request contains no subscription, profile, device identifier, account, or Mihomo credential. Results remain in memory and are not logged or saved.</string>
+    <string name="monitor_network_probe_cloudflare">Cloudflare Exit</string>
+    <string name="monitor_network_probe_general">General Exit</string>
     <string name="monitor_network_probe_source">Returned by the probe service</string>
+    <string name="monitor_network_probe_unallocated_ipv4">No IPv4 address allocated</string>
+    <string name="monitor_network_probe_unallocated_ipv6">No IPv6 address allocated</string>
     <string name="monitor_network_public">Public addresses</string>
     <string name="monitor_network_request_duration_value">Request duration %1$d ms</string>
     <string name="monitor_network_title">Network status</string>
@@ -200,6 +230,7 @@
     <string name="mihomo_proxies_delay_timeout">Timeout</string>
     <string name="mihomo_proxies_group_test">Test group</string>
     <string name="mihomo_proxies_loading">Loading proxies…</string>
+    <string name="mihomo_proxies_locate_selected">Locate current proxy</string>
     <string name="mihomo_proxies_no_profile_summary">Add or import a Mihomo YAML profile before viewing and switching proxy servers.</string>
     <string name="mihomo_proxies_no_profile_title">No profile added</string>
     <string name="mihomo_proxies_option_filter_not_selectable">Not selectable</string>

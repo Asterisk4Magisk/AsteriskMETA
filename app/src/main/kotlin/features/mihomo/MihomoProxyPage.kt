@@ -260,6 +260,7 @@ fun MihomoProxyPage(
     val proxyLayout = resolveMihomoProxyLayout(appState.mihomoProxyLayout, isWideScreen)
     val columns = resolveMihomoProxyColumns(proxyLayout)
     var pendingSelections by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var locateRequestTrigger by remember { mutableIntStateOf(0) }
     val resolvedSelectedGroupIndex = groupNames.indexOf(resolvedSelectedGroupName).coerceAtLeast(0)
     val groupPagerState = key(groupNames) {
         rememberPagerState(
@@ -408,6 +409,7 @@ fun MihomoProxyPage(
                             groups = visibleProxies.groups,
                             selectedGroupName = resolvedSelectedGroupName,
                             onSelectedGroupNameChange = { selectedGroupName = it },
+                            onReselectCurrentGroup = { locateRequestTrigger++ },
                         )
                     }
                 }
@@ -437,6 +439,28 @@ fun MihomoProxyPage(
                     )
                 }
                 val pageGridState = rememberLazyGridState()
+                val selectedNodeName = (pendingSelections[group?.name] ?: group?.now)
+                    .orEmpty().takeIf(String::isNotBlank)
+                var handledLocateRequest by remember { mutableIntStateOf(locateRequestTrigger) }
+
+                LaunchedEffect(locateRequestTrigger) {
+                    if (handledLocateRequest == locateRequestTrigger) return@LaunchedEffect
+                    handledLocateRequest = locateRequestTrigger
+                    if (groupPagerState.currentPage != page || selectedNodeName == null) return@LaunchedEffect
+                    val selectedIndex = pageNodes.indexOfFirst { nodeId -> nodeId.name == selectedNodeName }
+                    if (selectedIndex < 0) return@LaunchedEffect
+                    val targetItemIndex = (selectedIndex / columns) * columns
+                    val firstVisible = pageGridState.firstVisibleItemIndex
+                    if (kotlin.math.abs(firstVisible - targetItemIndex) > 12) {
+                        val preIndex = if (targetItemIndex > firstVisible) {
+                            (targetItemIndex - columns).coerceAtLeast(0)
+                        } else {
+                            (targetItemIndex + columns).coerceAtMost(pageNodes.lastIndex)
+                        }
+                        pageGridState.scrollToItem(preIndex)
+                    }
+                    pageGridState.animateScrollToItem(targetItemIndex)
+                }
 
                 Box(Modifier.fillMaxSize()) {
                     LazyVerticalGrid(
@@ -520,6 +544,8 @@ fun MihomoProxyPage(
                 MihomoDelayToolbar(
                     enabled = runtimeAvailable && testingTarget == null,
                     testing = testingTarget == MihomoDelayTarget.Group(group.name),
+                    canLocate = (pendingSelections[group.name] ?: group.now).isNotBlank(),
+                    onLocate = { locateRequestTrigger++ },
                     onDelayTest = { testGroup(group) },
                     bottomPadding = contentPadding.calculateBottomPadding(),
                     modifier = Modifier
@@ -536,6 +562,7 @@ private fun ProxyGroupTabs(
     selectedGroupName: String,
     onSelectedGroupNameChange: (String) -> Unit,
     modifier: Modifier = Modifier,
+    onReselectCurrentGroup: () -> Unit = {},
 ) {
     if (groups.isEmpty()) return
     val tabScrollState = rememberScrollState()
@@ -567,7 +594,13 @@ private fun ProxyGroupTabs(
             groups.forEach { group ->
                 AsteriskFilterChip(
                     selected = group.name == selectedGroupName,
-                    onClick = { onSelectedGroupNameChange(group.name) },
+                    onClick = {
+                        if (group.name == selectedGroupName) {
+                            onReselectCurrentGroup()
+                        } else {
+                            onSelectedGroupNameChange(group.name)
+                        }
+                    },
                     label = group.name,
                     modifier = Modifier.onGloballyPositioned { coordinates ->
                         val bounds = ProxyGroupTabBounds(
