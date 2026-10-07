@@ -17,7 +17,11 @@ val generatedSrcDir: Provider<Directory> = layout.buildDirectory.dir("generated/
 
 android {
     namespace = "app"
-    compileSdk = ProjectConfig.TARGET_SDK
+    compileSdk {
+        version = release(ProjectConfig.TARGET_SDK) {
+            minorApiLevel = ProjectConfig.TARGET_SDK_MINOR
+        }
+    }
 
     // Built-in Kotlin inherits this JVM target.
     compileOptions {

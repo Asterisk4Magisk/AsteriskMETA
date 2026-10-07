@@ -145,7 +145,7 @@
         },
         {
             "uniqueId": "org.jetbrains.compose.material3:material3",
-            "artifactVersion": "1.13.0-alpha01",
+            "artifactVersion": "1.13.0-alpha02",
             "name": "Compose Material3 Components",
             "description": "Compose Material You Design Components library",
             "website": "https://github.com/JetBrains/compose-multiplatform",
@@ -379,7 +379,7 @@
         },
         {
             "uniqueId": "org.snakeyaml:snakeyaml-engine",
-            "artifactVersion": "3.1.1",
+            "artifactVersion": "3.2",
             "name": "SnakeYAML Engine",
             "description": "Core YAML 1.2 parser and emitter for Java",
             "website": "https://codeberg.org/snakeyaml/snakeyaml-engine",
