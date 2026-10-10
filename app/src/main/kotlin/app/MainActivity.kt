@@ -10,6 +10,9 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import androidx.annotation.StringRes
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -34,6 +37,9 @@ import features.subscription.runtime.AndroidMihomoProfilePreparer
 import features.subscription.toSubscriptionInstallConfigOrNull
 import features.subscription.usecase.subscriptionUpdateMessage
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import system.setRecentTasksHidden
 import ui.feedback.AndroidToastTipNotifier
 
 class MainActivity : ComponentActivity() {
@@ -133,6 +139,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        observeRecentTasksVisibility()
         vpnPermissionRequester.registerLauncher { intent ->
             vpnPermissionLauncher.launch(intent)
         }
@@ -155,6 +162,18 @@ class MainActivity : ComponentActivity() {
         requestStartupPermissions()
         if (savedInstanceState == null) {
             handleExternalIntent(intent)
+        }
+    }
+
+    private fun observeRecentTasksVisibility() {
+        val state = (application as AsteriskApplication).stateStore.state
+        setRecentTasksHidden(state.value.hideRecentTasks)
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                state.map { it.hideRecentTasks }
+                    .distinctUntilChanged()
+                    .collect { setRecentTasksHidden(it) }
+            }
         }
     }
 

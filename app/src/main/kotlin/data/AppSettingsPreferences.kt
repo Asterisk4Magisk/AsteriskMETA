@@ -45,6 +45,7 @@ internal class AppSettingsPreferences(
             colorMode = normalizeColorMode(preferences.getInt(KeyColorMode, defaults.colorMode)),
             languageMode = preferences.getInt(KeyLanguageMode, defaults.languageMode),
             seedIndex = preferences.getInt(KeySeedIndex, defaults.seedIndex),
+            hideRecentTasks = preferences.getBoolean(KeyHideRecentTasks, defaults.hideRecentTasks),
             nextMihomoProfileId = preferences.getInt(KeyNextMihomoProfileId, defaults.nextMihomoProfileId),
             nextMihomoOverrideScriptId = preferences.getInt(
                 KeyNextMihomoOverrideScriptId,
@@ -272,6 +273,7 @@ internal class AppSettingsPreferences(
         return putInt(KeyColorMode, state.colorMode)
             .putInt(KeyLanguageMode, state.languageMode)
             .putInt(KeySeedIndex, state.seedIndex)
+            .putBoolean(KeyHideRecentTasks, state.hideRecentTasks)
             .putInt(KeyNextMihomoProfileId, state.nextMihomoProfileId)
             .putInt(KeyNextMihomoOverrideScriptId, state.nextMihomoOverrideScriptId)
             .putInt(KeySelectedMihomoProfileId, state.selectedMihomoProfileId)
@@ -487,6 +489,7 @@ private const val PreferencesName = "asteriskmeta_settings"
 private const val KeyColorMode = "color_mode"
 private const val KeyLanguageMode = "language_mode"
 private const val KeySeedIndex = "seed_index"
+private const val KeyHideRecentTasks = "hide_recent_tasks"
 private const val KeyNextMihomoProfileId = "next_mihomo_profile_id"
 private const val KeyNextMihomoOverrideScriptId = "next_mihomo_override_script_id"
 private const val KeySelectedMihomoProfileId = "selected_mihomo_profile_id"

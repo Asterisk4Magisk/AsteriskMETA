@@ -63,6 +63,11 @@ internal fun settingsTopLevelSearchItems(
     return listOfNotNull(
         SettingsSearchItem(
             SettingsSectionId.Apps,
+            stringResource(R.string.settings_hide_recent_tasks),
+            stringResource(R.string.settings_hide_recent_tasks_summary),
+        ),
+        SettingsSearchItem(
+            SettingsSectionId.Apps,
             stringResource(R.string.settings_color_mode),
             value = optionValue(colorModeOptions, colorMode),
             optionText = colorModeOptions,

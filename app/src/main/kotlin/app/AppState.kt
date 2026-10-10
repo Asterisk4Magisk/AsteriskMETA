@@ -38,6 +38,7 @@ data class AppState(
     val colorMode: Int = ColorModeSystem,
     val languageMode: Int = LanguageModeSystem,
     val seedIndex: Int = 0,
+    val hideRecentTasks: Boolean = false,
 
     val mihomoProfiles: List<MihomoProfileState> = DefaultMihomoProfiles,
     val nextMihomoProfileId: Int = 1,

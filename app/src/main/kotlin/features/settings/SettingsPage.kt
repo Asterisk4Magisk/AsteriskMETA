@@ -515,6 +515,8 @@ private fun SettingsContent(
             }
             item(key = "settings_app") {
                 SettingsAppSection(
+                    hideRecentTasks = appState.hideRecentTasks,
+                    onHideRecentTasksChange = { hidden -> updateAppState { it.copy(hideRecentTasks = hidden) } },
                     colorModeOptions = colorModeOptions,
                     colorMode = appState.colorMode,
                     keyColorOptions = keyColorOptions,

@@ -865,6 +865,10 @@
     <string name="theme_color_violet">紫罗兰</string>
     <string name="theme_color_yellow">暖黄色</string>
 
+    <!-- General preferences -->
+    <string name="settings_hide_recent_tasks">隐藏最近任务</string>
+    <string name="settings_hide_recent_tasks_summary">开启后应用不在最近任务列表中显示</string>
+
     <!-- Logs -->
     <string name="core_logs_title">核心日志</string>
     <string name="error_log_export_launcher_missing">日志导出请求器未注册</string>
