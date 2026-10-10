@@ -25,7 +25,6 @@ object Parcelizer {
         override fun decodeBooleanElement(descriptor: SerialDescriptor, index: Int) =
             decodeBoolean()
 
-        @ExperimentalSerializationApi
         override fun decodeInlineElement(descriptor: SerialDescriptor, index: Int): Decoder {
             return this
         }
@@ -87,7 +86,6 @@ object Parcelizer {
             return parcel.readFloat()
         }
 
-        @ExperimentalSerializationApi
         override fun decodeInline(descriptor: SerialDescriptor): Decoder {
             return this
         }
@@ -140,7 +138,6 @@ object Parcelizer {
         override fun encodeFloatElement(descriptor: SerialDescriptor, index: Int, value: Float) =
             encodeFloat(value)
 
-        @ExperimentalSerializationApi
         override fun encodeInlineElement(descriptor: SerialDescriptor, index: Int): Encoder {
             return this
         }
@@ -213,7 +210,6 @@ object Parcelizer {
             parcel.writeFloat(value)
         }
 
-        @ExperimentalSerializationApi
         override fun encodeInline(descriptor: SerialDescriptor): Encoder {
             return this
         }

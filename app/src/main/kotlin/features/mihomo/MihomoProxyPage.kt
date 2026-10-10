@@ -1,8 +1,6 @@
 // Copyright 2026, AsteriskMETA contributors
 // SPDX-License-Identifier: GPL-3.0
 
-@file:OptIn(ExperimentalFoundationApi::class)
-
 package features.mihomo
 
 import ui.isInDarkTheme
@@ -10,7 +8,6 @@ import ui.components.AsteriskSearchTopAppBar
 import ui.components.AsteriskTopBarControls
 import ui.components.AsteriskDropdownMenuItem
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement

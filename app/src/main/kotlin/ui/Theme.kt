@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.ColorScheme
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.dynamicDarkColorScheme
@@ -205,7 +204,6 @@ private fun SynchronizeSplashTheme(colorMode: Int) {
 private fun systemAnimationsEnabled(): Boolean = ValueAnimator.areAnimatorsEnabled()
 
 @Composable
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 private fun AsteriskMaterialTheme(
     colorScheme: ColorScheme,
     content: @Composable () -> Unit,
