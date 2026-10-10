@@ -4,7 +4,6 @@
 package features.proxy.app
 
 import android.content.pm.PackageManager
-import android.os.Build
 import android.util.Log
 import com.android.tools.smali.dexlib2.dexbacked.DexBackedDexFile
 import kotlinx.coroutines.currentCoroutineContext
@@ -13,6 +12,7 @@ import kotlinx.coroutines.CancellationException
 import java.io.BufferedInputStream
 import java.io.File
 import java.util.zip.ZipFile
+import system.getPackageInfoCompat
 
 /**
  * Detects Chinese applications by inspecting package name, declared components,
@@ -121,14 +121,7 @@ internal object AppScanner {
                     PackageManager.GET_RECEIVERS or
                     PackageManager.GET_PROVIDERS
 
-            val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                packageManager.getPackageInfo(
-                    packageName,
-                    PackageManager.PackageInfoFlags.of(packageManagerFlags.toLong()),
-                )
-            } else {
-                packageManager.getPackageInfo(packageName, packageManagerFlags)
-            }
+            val packageInfo = packageManager.getPackageInfoCompat(packageName, packageManagerFlags)
 
             packageInfo.services?.forEach { service ->
                 if (service.name.matches(chinaAppRegex)) {

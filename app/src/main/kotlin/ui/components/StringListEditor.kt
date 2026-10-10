@@ -20,6 +20,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import ui.icons.AsteriskIcons as Icons
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -66,7 +70,7 @@ internal fun StringListEditor(
 ) {
     var input by remember(editorKey, title) { mutableStateOf("") }
     var editingIndex by remember(editorKey, title) { mutableIntStateOf(-1) }
-    var editInput by remember(editorKey, title) { mutableStateOf("") }
+    val editInput = key(editorKey, title) { rememberTextFieldState() }
     var showBulkEditor by remember(editorKey, title) { mutableStateOf(false) }
     var bulkInput by remember(editorKey, title) { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
@@ -80,7 +84,7 @@ internal fun StringListEditor(
     LaunchedEffect(editorKey, title) {
         input = ""
         editingIndex = -1
-        editInput = ""
+        editInput.setTextAndPlaceCursorAtEnd("")
         showBulkEditor = false
     }
 
@@ -148,8 +152,8 @@ internal fun StringListEditor(
                 val editing = editingIndex == index
                 val actionMotion = AsteriskMotion.fastSpatial<Float>()
                 val editError = if (editing) {
-                    normalizeInput(editInput).takeIf(String::isNotEmpty)?.let(validateInput)
-                        ?: if (normalizeInput(editInput).isEmpty()) {
+                    normalizeInput(editInput.text.toString()).takeIf(String::isNotEmpty)?.let(validateInput)
+                        ?: if (normalizeInput(editInput.text.toString()).isEmpty()) {
                             stringResource(R.string.string_list_item_empty)
                         } else {
                             null
@@ -180,8 +184,7 @@ internal fun StringListEditor(
                                 StringListItemField(
                                     editing = editing,
                                     value = value,
-                                    editValue = editInput,
-                                    onEditValueChange = { editInput = it },
+                                    editState = editInput,
                                     isError = editError != null,
                                     focusRequester = focusRequester,
                                 )
@@ -202,7 +205,7 @@ internal fun StringListEditor(
                                                 val result = editStringListValue(
                                                     sanitizedValues,
                                                     index,
-                                                    editInput,
+                                                    editInput.text.toString(),
                                                     validateInput,
                                                     normalizeInput,
                                                 )
@@ -226,7 +229,7 @@ internal fun StringListEditor(
                                                 Icons.Rounded.Edit,
                                                 stringResource(R.string.common_edit),
                                             ) {
-                                                editInput = value
+                                                editInput.setTextAndPlaceCursorAtEnd(value)
                                                 editingIndex = index
                                             }
                                             StringListAction(
@@ -278,8 +281,7 @@ internal fun StringListEditor(
 private fun RowScope.StringListItemField(
     editing: Boolean,
     value: String,
-    editValue: String,
-    onEditValueChange: (String) -> Unit,
+    editState: TextFieldState,
     isError: Boolean,
     focusRequester: FocusRequester,
 ) {
@@ -293,17 +295,16 @@ private fun RowScope.StringListItemField(
         }
         val borderWidth = if (focused) 2.dp else 1.dp
         BasicTextField(
-            value = editValue,
-            onValueChange = onEditValueChange,
+            state = editState,
             modifier = Modifier
                 .weight(1f)
                 .heightIn(min = 56.dp)
                 .focusRequester(focusRequester),
-            singleLine = true,
+            lineLimits = TextFieldLineLimits.SingleLine,
             textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
             interactionSource = interactionSource,
-            decorationBox = { innerTextField ->
+            decorator = { innerTextField ->
                 Box(
                     modifier = Modifier.fillMaxWidth(),
                     contentAlignment = Alignment.CenterStart,

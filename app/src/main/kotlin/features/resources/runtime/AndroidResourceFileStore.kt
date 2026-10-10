@@ -4,13 +4,12 @@
 package features.resources.runtime
 
 import android.content.Context
-import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.Build
 import app.ResourceFileKind
 import app.ResourceFileStatus
 import app.ResourceFilesStatus
 import features.resources.ResourceFileSourceMetaCubeXGithub
+import system.getPackageInfoCompat
 import utils.writeAtomically
 import java.io.File
 import java.io.FileNotFoundException
@@ -243,14 +242,7 @@ internal fun Context.mihomoResourceFilePaths(): MihomoResourceFilePaths {
 
 private fun Context.packageUpdatedAtMillis(): Long {
     return runCatching {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            packageManager
-                .getPackageInfo(packageName, PackageManager.PackageInfoFlags.of(0))
-                .lastUpdateTime
-        } else {
-            @Suppress("DEPRECATION")
-            packageManager.getPackageInfo(packageName, 0).lastUpdateTime
-        }
+        packageManager.getPackageInfoCompat(packageName).lastUpdateTime
     }.getOrDefault(0L)
 }
 
@@ -313,7 +305,7 @@ private fun File.extractGzip(target: File): Boolean {
         }
         true
     }.onFailure { error ->
-        AndroidResourceFileLogger.warn("Failed to extract gzip ${absolutePath}", error)
+        AndroidResourceFileLogger.warn("Failed to extract gzip $absolutePath", error)
     }.getOrDefault(false)
 }
 
