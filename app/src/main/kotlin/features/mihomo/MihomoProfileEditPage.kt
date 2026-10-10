@@ -109,6 +109,7 @@ import ui.theme.AsteriskMotion
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration.Companion.milliseconds
 import ui.icons.AsteriskIcons as Icons
+import ui.theme.AsteriskShapeTokens
 
 @Composable
 fun MihomoProfileEditPage(
@@ -427,21 +428,19 @@ fun MihomoProfileEditPage(
             targetProfile.hwid != cleanHwid ||
             targetProfile.ageSecretKey != cleanAgeSecretKey ||
             targetProfile.updateViaProxy != updateViaProxy
-        val desiredProfile = if (targetProfile != null) {
-            targetProfile.copy(
-                name = cleanName,
-                type = MihomoProfileType.Url,
-                url = trimmedUrl,
-                userAgent = cleanUserAgent,
-                hwid = cleanHwid,
-                updateInterval = cleanInterval,
-                updateViaProxy = updateViaProxy,
-                ageSecretKey = cleanAgeSecretKey,
-                overrideScriptId = cleanOverrideScriptId,
-                disableOverrides = disableOverrides,
-            )
-        } else {
-            MihomoProfileState(
+        val desiredProfile = targetProfile?.copy(
+            name = cleanName,
+            type = MihomoProfileType.Url,
+            url = trimmedUrl,
+            userAgent = cleanUserAgent,
+            hwid = cleanHwid,
+            updateInterval = cleanInterval,
+            updateViaProxy = updateViaProxy,
+            ageSecretKey = cleanAgeSecretKey,
+            overrideScriptId = cleanOverrideScriptId,
+            disableOverrides = disableOverrides,
+        )
+            ?: MihomoProfileState(
                 id = DefaultMihomoProfileId,
                 name = cleanName,
                 type = MihomoProfileType.Url,
@@ -454,7 +453,6 @@ fun MihomoProfileEditPage(
                 overrideScriptId = cleanOverrideScriptId,
                 disableOverrides = disableOverrides,
             )
-        }
         launchSave(
             MihomoProfileSaveDraft(
                 desiredProfile = desiredProfile,
@@ -476,11 +474,10 @@ fun MihomoProfileEditPage(
             scope.launch { services.tipNotifier.show(nameRequiredMessage) }
             return
         }
-        val profileSnapshot = targetProfile
         val contentText = contentEditorState.snapshotText()
         val cleanOverrideScriptId = selectedOverrideScriptId()
-        val contentChanged = profileSnapshot == null || profileSnapshot.contentSha256 != contentText.sha256Hex()
-        val desiredProfile = profileSnapshot?.copy(
+        val contentChanged = targetProfile == null || targetProfile.contentSha256 != contentText.sha256Hex()
+        val desiredProfile = targetProfile?.copy(
             name = cleanName,
             type = MihomoProfileType.File,
             url = "",
@@ -497,7 +494,7 @@ fun MihomoProfileEditPage(
         launchSave(
             MihomoProfileSaveDraft(
                 desiredProfile = desiredProfile,
-                originalProfile = profileSnapshot,
+                originalProfile = targetProfile,
                 localContent = contentText,
                 contentChanged = contentChanged,
             ),
@@ -568,6 +565,7 @@ fun MihomoProfileEditPage(
                 ) {
                     if (profileType == MihomoProfileType.Url) {
                         OutlinedTextField(
+                            shape = AsteriskShapeTokens.InnerContainer,
                             state = nameState,
                             enabled = !saving,
                             label = { Text(stringResource(R.string.mihomo_profile_name)) },
@@ -921,6 +919,7 @@ private fun ColumnScope.UrlProfileFields(
     onDisableOverridesChange: (Boolean) -> Unit,
 ) {
     OutlinedTextField(
+        shape = AsteriskShapeTokens.InnerContainer,
         state = urlState,
         enabled = enabled,
         label = { Text(stringResource(R.string.mihomo_profile_url)) },
@@ -928,6 +927,7 @@ private fun ColumnScope.UrlProfileFields(
         modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
     )
     OutlinedTextField(
+        shape = AsteriskShapeTokens.InnerContainer,
         state = updateIntervalState,
         enabled = enabled,
         label = { Text(stringResource(R.string.mihomo_profile_update_interval)) },
@@ -978,6 +978,7 @@ private fun ColumnScope.UrlProfileFields(
     ) {
         Column {
             OutlinedTextField(
+                shape = AsteriskShapeTokens.InnerContainer,
                 state = userAgentState,
                 enabled = enabled,
                 label = { Text(stringResource(R.string.mihomo_profile_user_agent)) },
@@ -985,6 +986,7 @@ private fun ColumnScope.UrlProfileFields(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
             )
             OutlinedTextField(
+                shape = AsteriskShapeTokens.InnerContainer,
                 state = ageSecretKeyState,
                 enabled = enabled,
                 label = { Text(stringResource(R.string.mihomo_profile_age_secret_key)) },
@@ -992,6 +994,7 @@ private fun ColumnScope.UrlProfileFields(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
             )
             OutlinedTextField(
+                shape = AsteriskShapeTokens.InnerContainer,
                 state = hwidState,
                 enabled = enabled,
                 label = { Text(stringResource(R.string.subscription_hwid)) },
@@ -1049,6 +1052,7 @@ private fun FileProfilePropertiesSheet(
                 .padding(bottom = 24.dp),
         ) {
             OutlinedTextField(
+                shape = AsteriskShapeTokens.InnerContainer,
                 state = nameState,
                 label = { Text(stringResource(R.string.mihomo_profile_name)) },
                 lineLimits = TextFieldLineLimits.SingleLine,

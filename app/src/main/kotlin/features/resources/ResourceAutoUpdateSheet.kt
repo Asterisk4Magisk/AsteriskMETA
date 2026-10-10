@@ -31,6 +31,7 @@ import app.R
 import ui.components.AsteriskActionButton
 import ui.components.AsteriskModalBottomSheet
 import ui.icons.AsteriskIcons as Icons
+import ui.theme.AsteriskShapeTokens
 
 @Composable
 internal fun ResourceAutoUpdateSheet(
@@ -88,6 +89,7 @@ internal fun ResourceAutoUpdateSheet(
                 Switch(checked = enabledDraft, onCheckedChange = null)
             }
             OutlinedTextField(
+                shape = AsteriskShapeTokens.InnerContainer,
                 value = intervalDraft,
                 onValueChange = { intervalDraft = it },
                 modifier = Modifier.fillMaxWidth(),

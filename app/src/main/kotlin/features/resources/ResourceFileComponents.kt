@@ -62,6 +62,7 @@ import utils.ReadableByteUnit
 import utils.toReadableBytes
 import utils.toReadableDateTimeOrDash
 import ui.icons.AsteriskIcons as Icons
+import ui.theme.AsteriskShapeTokens
 
 @Composable
 internal fun settingsResourceFileSourceOptions() = listOf(
@@ -242,6 +243,7 @@ internal fun CustomResourceSourceEditorSheet(
 @Composable
 private fun ResourceUrlField(state: TextFieldState, label: String) {
     OutlinedTextField(
+        shape = AsteriskShapeTokens.InnerContainer,
         state = state,
         label = { Text(label) },
         lineLimits = TextFieldLineLimits.SingleLine,

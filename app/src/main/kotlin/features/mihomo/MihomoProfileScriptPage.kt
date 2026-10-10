@@ -97,6 +97,7 @@ import ui.text.formatTemplate
 import ui.theme.AsteriskMotion
 import ui.theme.ExpressiveShapeRole
 import ui.icons.AsteriskIcons as Icons
+import ui.theme.AsteriskShapeTokens
 
 @Composable
 fun MihomoOverrideScriptListPage(
@@ -555,6 +556,7 @@ fun MihomoOverrideScriptEditPage(
                     ) {
                         Column {
                             OutlinedTextField(
+                                shape = AsteriskShapeTokens.InnerContainer,
                                 state = nameState,
                                 label = { Text(stringResource(R.string.mihomo_override_script_name)) },
                                 lineLimits = TextFieldLineLimits.SingleLine,
