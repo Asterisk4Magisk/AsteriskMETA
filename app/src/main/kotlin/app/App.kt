@@ -15,6 +15,10 @@ import androidx.compose.ui.unit.dp
 import app.effects.MihomoRuntimeSynchronizer
 import app.effects.ProxyStatusSynchronizer
 import app.effects.ResourceFileSynchronizer
+import app.effects.EnhancementModuleUpgradeChecker
+import features.enhancement.AndroidEnhancementModuleBackend
+import features.enhancement.EnhancementModuleCoordinator
+import features.enhancement.EnhancementModulePrompt
 import app.effects.RootBootScriptSynchronizer
 import app.effects.TrafficStatsNotificationSynchronizer
 import engine.proxy.AndroidProxyEngine
@@ -97,6 +101,9 @@ fun App(
             requestVpnPermission = requestVpnPermission,
         )
     }
+    val enhancementModuleCoordinator = remember(appContext) {
+        EnhancementModuleCoordinator { AndroidEnhancementModuleBackend(appContext) }
+    }
     val rootBootScriptUseCase = remember(appContext, rootAccess) {
         RootBootScriptUseCase(
             context = appContext,
@@ -146,6 +153,7 @@ fun App(
         applyServiceControlUseCase,
         rootBootScriptUseCase,
         rootEbpfProbeUseCase,
+        enhancementModuleCoordinator,
         tipNotifier,
         logFileCreator,
     ) {
@@ -172,6 +180,7 @@ fun App(
             applyServiceControlUseCase = applyServiceControlUseCase,
             rootBootScriptUseCase = rootBootScriptUseCase,
             rootEbpfProbeUseCase = rootEbpfProbeUseCase,
+            enhancementModuleCoordinator = enhancementModuleCoordinator,
             tipNotifier = tipNotifier,
             logFileCreator = logFileCreator,
             coreLogRepository = AndroidCoreLogRepository,
@@ -206,6 +215,8 @@ fun App(
         stateStore = stateStore,
     )
 
+    EnhancementModuleUpgradeChecker(stateStore, enhancementModuleCoordinator)
+
     ProvideAppLanguage(
         languageMode = chromeState.languageMode,
         systemLocale = systemUiSnapshot.locale,
@@ -222,6 +233,7 @@ fun App(
                 LocalAppServices provides services,
             ) {
                 AppContent(padding = padding)
+                EnhancementModulePrompt()
                 features.resources.SharedCoreMigrationPrompt()
             }
         }

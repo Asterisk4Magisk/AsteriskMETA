@@ -71,7 +71,7 @@ internal object MihomoProfileFactory {
         val selectedProfile = appState.selectedMihomoProfileOrNull()
             ?: error(MihomoProfileMissingErrorMessage)
         val sourceBytes = context.mihomoProfileContentStore().readBytes(selectedProfile)
-        return resolveMihomoRuntimeProfileBytes(
+        val resolved = resolveMihomoRuntimeProfileBytes(
             sourceBytes = sourceBytes,
             disableOverrides = selectedProfile.disableOverrides,
         ) { rawContent ->
@@ -81,6 +81,7 @@ internal object MihomoProfileFactory {
                 useRootProviderPaths,
             )
         }
+        return resolved
     }
 
     fun buildProfile(
@@ -378,7 +379,7 @@ private fun MutableMap<String, Any?>.putUdpDnsHijackOverrides(
         return
     }
     put("proxies", normalizedProxiesWithDnsOut(this["proxies"]))
-    put("rules", normalizedRulesWithUdpDnsHijack(this["rules"]))
+    put("rules", managedMihomoDnsRules((this["rules"] as? List<*>)?.map(::normalizeYamlValue).orEmpty(), runMode))
 }
 
 private fun MutableMap<String, Any?>.putNtpWriteToSystemOverride() {
@@ -451,15 +452,6 @@ private fun normalizedProxiesWithDnsOut(value: Any?): List<Any?> {
 
 private fun isDnsOutProxy(value: Any?): Boolean {
     return ((value as? Map<*, *>)?.get("name") as? String) == MihomoTags.DNS_OUT
-}
-
-private fun normalizedRulesWithUdpDnsHijack(value: Any?): List<Any?> {
-    val rules = (value as? List<*>)?.map(::normalizeYamlValue).orEmpty()
-        .ifEmpty { listOf("MATCH,DIRECT") }
-    if (rules.any { it == UdpDnsHijackRule }) {
-        return rules
-    }
-    return listOf(UdpDnsHijackRule) + rules
 }
 
 private fun AppState.dnsEnhancedModeName(): String {
@@ -614,7 +606,6 @@ private val AsteriskManagedTopLevelKeys = setOf(
 
 private const val NameserverPolicySeparator = "=>"
 private const val SystemDnsServer = "system://"
-private const val UdpDnsHijackRule = "AND,((NETWORK,UDP),(DST-PORT,53)),dns-out"
 internal const val MihomoProfileMissingErrorMessage = "No Mihomo configuration selected"
 internal const val MihomoProfileEmptyErrorMessage = "Selected Mihomo configuration has no YAML content"
 

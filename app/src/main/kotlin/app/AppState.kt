@@ -12,6 +12,7 @@ import app.modes.MihomoTunStackMips
 import engine.mihomo.DefaultMihomoTunCongestionController
 import app.modes.ProxyAppListModeGlobal
 import app.modes.RunModeVpnService
+import app.modes.supportsAppListEnhancement
 import app.modes.isRootRunMode
 import engine.root.RootModeEngine
 import engine.vpn.VpnDefaults
@@ -126,6 +127,7 @@ data class AppState(
 
     val transparentProxyPort: String = RootModeEngine.DefaultTproxyPort.toString(),
     val enableRootBootScript: Boolean = false,
+    val enableAppListEnhancement: Boolean = false,
     val enableRootEbpfRules: Boolean = false,
     val enableRootEbpfDirectCidrBypass: Boolean = false,
     val enableRootIpv6Disabler: Boolean = false,
@@ -154,7 +156,8 @@ val AppState.effectiveFakeIpEnabled: Boolean
     get() = effectiveLocalDnsEnabled && dnsEnhancedMode == MihomoDnsModeFakeIp
 
 val AppState.requiresGlobalProxyAppMode: Boolean
-    get() = runMode.isRootRunMode() && effectiveFakeIpEnabled
+    get() = runMode.isRootRunMode() && effectiveFakeIpEnabled &&
+        !(enableAppListEnhancement && runMode.supportsAppListEnhancement())
 
 internal fun AppState.withCompatibleProxyAppListMode(): AppState =
     if (requiresGlobalProxyAppMode && proxyAppListMode != ProxyAppListModeGlobal) {

@@ -231,6 +231,7 @@ internal class AppSettingsPreferences(
                 KeyTransparentProxyPort,
                 defaults.transparentProxyPort,
             ) ?: defaults.transparentProxyPort,
+            enableAppListEnhancement = preferences.getBoolean(KeyEnableAppListEnhancement, defaults.enableAppListEnhancement),
             enableRootBootScript = preferences.getBoolean(
                 KeyEnableRootBootScript,
                 defaults.enableRootBootScript,
@@ -350,6 +351,7 @@ internal class AppSettingsPreferences(
             .putStringList(KeyDnsHosts, state.dnsHosts)
             .putString(KeyTransparentProxyPort, state.transparentProxyPort)
             .putBoolean(KeyEnableRootBootScript, state.enableRootBootScript)
+            .putBoolean(KeyEnableAppListEnhancement, state.enableAppListEnhancement)
             .putBoolean(KeyEnableRootEbpfRules, state.enableRootEbpfRules)
             .putBoolean(KeyEnableRootEbpfDirectCidrBypass, state.enableRootEbpfDirectCidrBypass)
             .putBoolean(KeyEnableRootIpv6Disabler, state.enableRootIpv6Disabler)
@@ -566,6 +568,7 @@ private const val KeyDnsFallbackFilterDomain = "dns_fallback_filter_domain"
 private const val KeyDnsHosts = "dns_hosts"
 private const val KeyTransparentProxyPort = "transparent_proxy_port"
 private const val KeyEnableRootBootScript = "enable_root_boot_script"
+private const val KeyEnableAppListEnhancement = "enable_app_list_enhancement"
 private const val KeyEnableRootEbpfRules = "enable_root_ebpf_rules"
 private const val KeyEnableRootEbpfDirectCidrBypass = "enable_root_ebpf_direct_cidr_bypass"
 private const val KeyEnableRootIpv6Disabler = "enable_root_ipv6_disabler"

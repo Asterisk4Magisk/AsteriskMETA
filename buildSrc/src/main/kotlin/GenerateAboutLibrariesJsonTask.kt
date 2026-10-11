@@ -85,6 +85,15 @@ abstract class GenerateAboutLibrariesJsonTask : DefaultTask() {
                 listOf("MIT"),
             ),
             library(
+                "github:Asterisk4Magisk/AsteriskEnhance",
+                ProjectConfig.ENHANCE_VERSION,
+                "Asterisk Enhance",
+                "System DNS enhancement for Asterisk apps, powered by Zygisk Next.",
+                "https://github.com/Asterisk4Magisk/AsteriskEnhance",
+                "https://github.com/Asterisk4Magisk/AsteriskEnhance",
+                listOf("GPL-3.0"),
+            ),
+            library(
                 "github:Asterisk4Magisk/asteriskd",
                 ProjectConfig.ASTERISKD_VERSION,
                 "asteriskd",

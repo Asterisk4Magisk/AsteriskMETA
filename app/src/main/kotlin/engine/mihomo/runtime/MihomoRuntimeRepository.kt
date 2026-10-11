@@ -3,6 +3,7 @@
 
 package engine.mihomo.runtime
 
+import engine.root.dns.withRootDnsMutation
 import android.content.Context
 import app.AppState
 import app.modes.RunModeVpnService
@@ -337,14 +338,16 @@ internal class MihomoRuntimeRepository(
             val backend = resolveInteractiveBackend(appState, control)
             withContext(Dispatchers.IO) {
                 ensureInteractiveRuntime(appState, backend)
-                if (appState.runMode.isRootRunMode() && backend == MihomoRuntimeBackend.Api && !appState.usesRawMihomoConfig()) {
-                    appContext.publishRootProviderUpdates()
+                appContext.withRootDnsMutation(appState) {
+                    if (appState.runMode.isRootRunMode() && backend == MihomoRuntimeBackend.Api && !appState.usesRawMihomoConfig()) {
+                        appContext.publishRootProviderUpdates()
+                    }
+                    client.reloadProfile(
+                        config = control,
+                        profilePath = java.io.File(appContext.mihomoResourceFilePaths().dataDir, "config.yaml").absolutePath,
+                        reloadLocally = backend.useBridge() || appState.runMode == RunModeVpnService,
+                    )
                 }
-                client.reloadProfile(
-                    config = control,
-                    profilePath = java.io.File(appContext.mihomoResourceFilePaths().dataDir, "config.yaml").absolutePath,
-                    reloadLocally = backend.useBridge() || appState.runMode == RunModeVpnService,
-                )
             }
         }
     }
@@ -418,7 +421,9 @@ internal class MihomoRuntimeRepository(
             val configKey = appState.mihomoRuntimeConfigKey(appState.mihomoRuntimeBackend())
             withContext(Dispatchers.IO) {
                 ensureInteractiveRuntime(appState, backend)
-                client.updateProxyProvider(control, providerName, backend.useBridge())
+                appContext.withRootDnsMutation(appState) {
+                    client.updateProxyProvider(control, providerName, backend.useBridge())
+                }
                 refreshProxySnapshot(control, backend.useBridge(), generation, configKey, coalesce = false)
             }
         }
@@ -436,7 +441,9 @@ internal class MihomoRuntimeRepository(
             val backend = resolveInteractiveBackend(appState, control)
             withContext(Dispatchers.IO) {
                 ensureInteractiveRuntime(appState, backend)
-                client.updateRuleProvider(control, providerName, backend.useBridge())
+                appContext.withRootDnsMutation(appState) {
+                    client.updateRuleProvider(control, providerName, backend.useBridge())
+                }
             }
         }
     }
@@ -457,7 +464,9 @@ internal class MihomoRuntimeRepository(
             val configKey = appState.mihomoRuntimeConfigKey(appState.mihomoRuntimeBackend())
             withContext(Dispatchers.IO) {
                 ensureInteractiveRuntime(appState, backend)
-                client.patchMode(control, mode, backend.useBridge())
+                appContext.withRootDnsMutation(appState) {
+                    client.patchMode(control, mode, backend.useBridge())
+                }
                 applyMode(mode, generation, configKey)
                 refreshProxySnapshot(control, backend.useBridge(), generation, configKey, coalesce = false)
             }
@@ -496,7 +505,9 @@ internal class MihomoRuntimeRepository(
             val configKey = appState.mihomoRuntimeConfigKey(appState.mihomoRuntimeBackend())
             withContext(Dispatchers.IO) {
                 ensureInteractiveRuntime(appState, backend)
-                client.selectProxy(control, groupName, proxyName, backend.useBridge())
+                appContext.withRootDnsMutation(appState) {
+                    client.selectProxy(control, groupName, proxyName, backend.useBridge())
+                }
                 applySelectedProxy(groupName, proxyName, generation, configKey)
                 refreshProxySnapshot(control, backend.useBridge(), generation, configKey, coalesce = false)
                 refreshConnectivity()
@@ -557,8 +568,7 @@ internal class MihomoRuntimeRepository(
         block: suspend () -> MihomoDelayResult,
     ): Deferred<Result<MihomoDelayResult>> {
         val result = CompletableDeferred<Result<MihomoDelayResult>>()
-        lateinit var job: Job
-        job = appScope.launch(Dispatchers.IO, start = CoroutineStart.LAZY) {
+        val job: Job = appScope.launch(Dispatchers.IO, start = CoroutineStart.LAZY) {
             mutableState.update { current -> current.copy(delayTestingTarget = target) }
             try {
                 result.complete(runCatching { block() })
@@ -750,13 +760,11 @@ internal class MihomoRuntimeRepository(
         val signatureMatches = synchronized(runtimeStateLock) {
             preparedRuntimeSignature == signature
         }
-        if (!signatureMatches) return false
-
-        return when (signature.backend) {
+        return signatureMatches && when (signature.backend) {
             MihomoRuntimeBackend.Bridge -> AndroidMihomoRuntime.isLoaded()
             MihomoRuntimeBackend.Api -> {
                 appState.proxyRunning && appState.runMode == RunModeVpnService ||
-                    !AndroidMihomoRuntime.isLoaded()
+                        !AndroidMihomoRuntime.isLoaded()
             }
         }
     }

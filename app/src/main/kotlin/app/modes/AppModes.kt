@@ -16,6 +16,10 @@ fun Int.isRootRunMode(): Boolean {
         this == RunModeBpf2Socks
 }
 
+fun Int.supportsAppListEnhancement(): Boolean =
+    this == RunModeTproxy || this == RunModeTun2Socks || this == RunModeBpf2Socks
+
+
 const val MihomoModeRule = 0
 const val MihomoModeGlobal = 1
 const val MihomoModeDirect = 2

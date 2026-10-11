@@ -57,6 +57,7 @@ private data class RootBootScriptRefresh(
 
 private data class RootBootScriptSignature(
     val enabled: Boolean,
+    val enableAppListEnhancement: Boolean,
     val runMode: Int,
     val mihomoMode: Int,
     val mihomoTunStack: Int,
@@ -127,6 +128,7 @@ private fun AppState.toRootBootScriptRefresh(): RootBootScriptRefresh {
         appState = this,
         signature = RootBootScriptSignature(
             enabled = enableRootBootScript,
+            enableAppListEnhancement = enableAppListEnhancement,
             runMode = runMode,
             mihomoMode = mihomoMode,
             mihomoTunStack = mihomoTunStack,

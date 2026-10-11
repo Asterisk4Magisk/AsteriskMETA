@@ -5,8 +5,8 @@ package features.logs
 
 import java.io.File
 
-internal fun clearServiceLogsAsApp(logDirectory: File, logTag: String) {
-    runCatching { clearServiceLogRepositories() }.onFailure { error ->
+internal fun clearVpnServiceLogsAsApp(logDirectory: File, logTag: String) {
+    runCatching { clearCoreLogRepositories() }.onFailure { error ->
         runCatching { AndroidAppLogger.warn(logTag, "Failed to clear in-memory service logs", error) }
     }
     clearServiceLogDirectoryBestEffort(logDirectory) { file, error ->
@@ -15,8 +15,12 @@ internal fun clearServiceLogsAsApp(logDirectory: File, logTag: String) {
 }
 
 internal fun clearServiceLogRepositories() {
-    AndroidCoreLogRepository.clearInMemory()
+    clearCoreLogRepositories()
     AndroidAsteriskdLogRepository.clearInMemory()
+}
+
+private fun clearCoreLogRepositories() {
+    AndroidCoreLogRepository.clearInMemory()
 }
 
 internal fun clearServiceLogDirectoryBestEffort(
@@ -32,7 +36,7 @@ internal fun clearServiceLogDirectoryBestEffort(
         return
     }
     entries
-        .filterNot { file -> file.name == LogcatFileName }
+        .filterNot { file -> file.name == LogcatFileName || file.name == RootLogFileName }
         .forEach { file ->
             runCatching {
                 require(
@@ -59,3 +63,4 @@ private fun reportCleanupFailure(
 }
 
 private const val LogcatFileName = "logcat.log"
+private const val RootLogFileName = "asteriskd.log"

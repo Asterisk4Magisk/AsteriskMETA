@@ -31,6 +31,7 @@ internal class RootStartConfig(
     val enableIpv6: Boolean,
     val enableRootIpv6Disabler: Boolean,
     val enableLocalDns: Boolean,
+    val enableAppListEnhancement: Boolean = false,
     val enableFakeIp: Boolean,
     val fakeIpIpv4Pool: String,
     val enableBoot: Boolean,
@@ -58,6 +59,7 @@ internal class RootStartConfig(
             enableIpv6 == other.enableIpv6 &&
             enableRootIpv6Disabler == other.enableRootIpv6Disabler &&
             enableLocalDns == other.enableLocalDns &&
+            enableAppListEnhancement == other.enableAppListEnhancement &&
             enableFakeIp == other.enableFakeIp &&
             fakeIpIpv4Pool == other.fakeIpIpv4Pool &&
             enableBoot == other.enableBoot &&
@@ -73,6 +75,7 @@ internal class RootStartConfig(
         result = 31 * result + enableIpv6.hashCode()
         result = 31 * result + enableRootIpv6Disabler.hashCode()
         result = 31 * result + enableLocalDns.hashCode()
+        result = 31 * result + enableAppListEnhancement.hashCode()
         result = 31 * result + enableFakeIp.hashCode()
         result = 31 * result + fakeIpIpv4Pool.hashCode()
         result = 31 * result + enableBoot.hashCode()
