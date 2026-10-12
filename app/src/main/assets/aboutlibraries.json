@@ -54,7 +54,7 @@
         },
         {
             "uniqueId": "github:Asterisk4Magisk/AsteriskEnhance",
-            "artifactVersion": "v1.0.1",
+            "artifactVersion": "v1.0.2",
             "name": "Asterisk Enhance",
             "description": "System DNS enhancement for Asterisk apps, powered by Zygisk Next.",
             "website": "https://github.com/Asterisk4Magisk/AsteriskEnhance",
@@ -67,7 +67,7 @@
         },
         {
             "uniqueId": "github:Asterisk4Magisk/asteriskd",
-            "artifactVersion": "v2.1.0",
+            "artifactVersion": "v2.1.1",
             "name": "asteriskd",
             "description": "A root Android daemon that synchronizes local-address bypass rules and pinned eBPF maps.",
             "website": "https://github.com/Asterisk4Magisk/asteriskd",
@@ -262,7 +262,7 @@
         },
         {
             "uniqueId": "org.jetbrains.kotlin:kotlin-stdlib",
-            "artifactVersion": "2.4.20",
+            "artifactVersion": "2.4.21",
             "name": "Kotlin Stdlib",
             "description": "Kotlin Standard Library",
             "website": "https://kotlinlang.org/",
