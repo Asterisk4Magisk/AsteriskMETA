@@ -3,14 +3,13 @@
 
 package engine.mihomo.runtime
 
-import engine.mihomo.binding.MihomoBridge as Clash
+import engine.mihomo.DefaultMihomoDelayTestUrl
+import engine.mihomo.DefaultMihomoDelayTimeoutMillis
+import engine.mihomo.MihomoControlConfig
 import engine.mihomo.binding.model.ConfigurationOverride
 import engine.mihomo.binding.model.LogMessage
 import engine.mihomo.binding.model.Provider
 import engine.mihomo.binding.model.TunnelState
-import engine.mihomo.DefaultMihomoDelayTestUrl
-import engine.mihomo.DefaultMihomoDelayTimeoutMillis
-import engine.mihomo.MihomoControlConfig
 import engine.vpn.AndroidMihomoRuntime
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -42,6 +41,7 @@ import java.net.SocketTimeoutException
 import java.net.URI
 import java.net.URLEncoder
 import kotlin.time.Duration.Companion.milliseconds
+import engine.mihomo.binding.MihomoBridge as Clash
 
 internal typealias MihomoBridgeProviderProxyDelay = (
     providerName: String,
@@ -198,6 +198,33 @@ internal class MihomoControlClient(
         }
         root.errorMessageOrNull()?.let { message -> error(message) }
         return root.toProxyProviderRuntimeDetail(providerName)
+    }
+
+    fun findProviderProxyIds(
+        config: MihomoControlConfig,
+        names: Set<String>,
+        useBridge: Boolean,
+    ): Map<String, MihomoProxyNodeId> {
+        if (names.isEmpty()) return emptyMap()
+        // Read provider metadata only. Never use a provider/group health check to resolve a node.
+        val providers = if (useBridge) {
+            Clash.queryProviders().filter { it.type == Provider.Type.Proxy }
+                .map { getProxyProvider(config, it.name, useBridge = true) }
+        } else {
+            val values =
+                requestJsonObject(config, "/providers/proxies")["providers"].jsonObjectOrNull()
+                    ?: error("Invalid Mihomo proxy provider response")
+            values.mapNotNull { (name, value) ->
+                value.jsonObjectOrNull()?.toProxyProviderRuntimeDetail(name)
+            }
+        }
+        return buildMap {
+            providers.forEach { provider ->
+                provider.nodes.filter { it.name in names }.forEach { node ->
+                    putIfAbsent(node.name, MihomoProxyNodeId(node.name, provider.name))
+                }
+            }
+        }
     }
 
     fun getRuleProviders(

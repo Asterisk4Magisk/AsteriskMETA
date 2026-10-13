@@ -4,23 +4,23 @@
 package features.settings
 
 import android.os.Build
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ExitTransition
+import androidx.compose.foundation.layout.Column
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import app.R
 import app.modes.RunModeBpf2Socks
 import app.modes.RunModeTun
 import app.modes.RunModeTun2Socks
 import app.modes.RunModeVpnService
-import features.enhancement.EnhancementModulePreference
-import app.modes.supportsAppListEnhancement
 import app.modes.isRootRunMode
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.ExitTransition
-import androidx.compose.foundation.layout.Column
-import ui.icons.AsteriskIcons as Icons
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.unit.dp
-import app.R
+import app.modes.supportsAppListEnhancement
+import features.enhancement.EnhancementModulePreference
 import ui.components.IconAccent
 import ui.theme.AsteriskMotion
-import androidx.compose.ui.res.stringResource
+import ui.icons.AsteriskIcons as Icons
 
 @Composable
 internal fun settingsTunStackOptions() = listOf(
@@ -77,6 +77,7 @@ internal fun SettingsAppSection(
 
 @Composable
 internal fun SettingsCoreSection(
+    onOpenAutoSwitch: () -> Unit,
     snifferSettingsSummary: String,
     enableGeodataMode: Boolean,
     geodataLoaderOptions: List<String>,
@@ -99,6 +100,13 @@ internal fun SettingsCoreSection(
     val notConfigured = stringResource(R.string.settings_value_not_configured)
     SmallTitle(text = stringResource(R.string.settings_core))
     SettingsSectionCard {
+        ArrowPreference(
+            title = stringResource(R.string.settings_auto_switch),
+            summary = stringResource(R.string.settings_auto_switch_summary),
+            icon = Icons.Rounded.Sync,
+            accent = IconAccent.MaskGreen,
+            onClick = onOpenAutoSwitch,
+        )
         ArrowPreference(
             title = stringResource(R.string.settings_resource_management),
             accent = IconAccent.MaskOrange,
