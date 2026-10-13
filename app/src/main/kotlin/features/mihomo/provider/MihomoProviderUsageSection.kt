@@ -201,15 +201,6 @@ private fun MihomoProviderUsageReady(
             R.string.mihomo_profile_provider_usage_collapsed
         },
     )
-    val meteredSummary = if (summary.totalBytes > 0L) {
-        stringResource(
-            R.string.mihomo_profile_provider_usage_total,
-            summary.usedBytes.toReadableBytes(maxUnit = ReadableByteUnit.GiB),
-            summary.totalBytes.toReadableBytes(maxUnit = ReadableByteUnit.GiB),
-        )
-    } else {
-        null
-    }
     val statusSummary = buildList {
         if (summary.unlimitedCount > 0) {
             add(
@@ -251,25 +242,11 @@ private fun MihomoProviderUsageReady(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = stringResource(R.string.mihomo_profile_provider_usage_title),
+                    text = stringResource(R.string.mihomo_profile_provider_usage_title) + " · " +
+                        pluralStringResource(R.plurals.mihomo_profile_provider_usage_count, summary.providerCount, summary.providerCount),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface,
-                )
-                Text(
-                    text = listOfNotNull(
-                        pluralStringResource(
-                            R.plurals.mihomo_profile_provider_usage_count,
-                            summary.providerCount,
-                            summary.providerCount,
-                        ),
-                        meteredSummary,
-                    ).joinToString(" · "),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = 2.dp),
                 )
                 if (statusSummary.isNotBlank()) {
                     Text(
@@ -281,17 +258,7 @@ private fun MihomoProviderUsageReady(
                         modifier = Modifier.padding(top = 2.dp),
                     )
                 }
-                if (summary.totalBytes > 0L) {
-                    LinearProgressIndicator(
-                        progress = { summary.progress },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 8.dp)
-                            .height(5.dp),
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.primaryContainer,
-                    )
-                }
+
             }
             Spacer(modifier = Modifier.width(8.dp))
             AsteriskExpansionIndicator(

@@ -27,8 +27,6 @@ import ui.icons.AsteriskIcons as Icons
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -38,6 +36,8 @@ import ui.components.AsteriskActionButton
 import ui.components.AsteriskScaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import ui.components.AsteriskTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -432,9 +432,8 @@ fun MihomoProfileListPage(
         ) {
             return
         }
-        val profiles = remoteSubscriptionProfiles
-        if (profiles.isEmpty()) return
-        val ownedProfileIds = profiles.mapTo(mutableSetOf()) { profile -> profile.id }
+        if (remoteSubscriptionProfiles.isEmpty()) return
+        val ownedProfileIds = remoteSubscriptionProfiles.mapTo(mutableSetOf()) { profile -> profile.id }
 
         var updatedCount = 0
         var failedCount = 0
@@ -445,7 +444,7 @@ fun MihomoProfileListPage(
         job = scope.launch(start = CoroutineStart.LAZY) {
             try {
                 val result = tryUpdateSubscriptionsSequentially(
-                    profiles = profiles,
+                    profiles = remoteSubscriptionProfiles,
                     profilePreparer = services.mihomoProfilePreparer,
                     contentStore = services.mihomoProfileContentStore,
                     fetchOptions = { item -> stateStore.state.value.toSubscriptionFetchOptions(item) },
@@ -504,7 +503,7 @@ fun MihomoProfileListPage(
                         syncCancelledMessage.formatTemplate(
                             "profileCount" to updatedCount,
                             "failedCount" to failedCount,
-                            "skippedCount" to profiles.size - processedCount,
+                            "skippedCount" to remoteSubscriptionProfiles.size - processedCount,
                         ),
                     )
                 }
@@ -514,7 +513,7 @@ fun MihomoProfileListPage(
                     syncInterruptedMessage.formatTemplate(
                         "profileCount" to updatedCount,
                         "failedCount" to failedCount,
-                        "skippedCount" to profiles.size - processedCount,
+                        "skippedCount" to remoteSubscriptionProfiles.size - processedCount,
                     ),
                 )
             } finally {
@@ -991,7 +990,7 @@ private data class MihomoProfileBatchSyncProgress(
 }
 
 @Composable
-private fun MihomoProfileCard(
+internal fun MihomoProfileCard(
     profile: MihomoProfileState,
     overrideScripts: List<MihomoOverrideScriptState>,
     selected: Boolean,
@@ -1034,12 +1033,14 @@ private fun MihomoProfileCard(
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        text = profile.summaryText(),
-                        style = MaterialTheme.typography.bodyMedium,
+                        text = listOf(profile.summaryText(), profile.lastUpdatedText()).joinToString(" · "),
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
                     )
+                }
+                if (selected) {
+                    Icon(Icons.Rounded.CheckCircle, stringResource(R.string.mihomo_profile_selected),
+                        tint = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 8.dp).size(20.dp))
                 }
                 if (syncing) {
                     CircularProgressIndicator(
@@ -1049,52 +1050,27 @@ private fun MihomoProfileCard(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                 }
+
                 Box {
                     IconButton(onClick = { menuExpanded = true }) {
-                        Icon(
-                            imageVector = Icons.Rounded.MoreVert,
-                            contentDescription = stringResource(R.string.mihomo_profile_actions),
-                        )
+                        Icon(Icons.Rounded.MoreVert, stringResource(R.string.mihomo_profile_actions))
                     }
-                    DropdownMenu(
-                        expanded = menuExpanded,
-                        onDismissRequest = { menuExpanded = false },
-                    ) {
-                        MihomoProfileMenuItem(
-                            text = stringResource(R.string.common_edit),
-                            action = MihomoProfileAction.Edit,
-                            onAction = onAction,
-                            onDismiss = { menuExpanded = false },
-                        )
-                        MihomoProfileMenuItem(
-                            text = stringResource(R.string.mihomo_profile_preview),
-                            action = MihomoProfileAction.Preview,
-                            onAction = onAction,
-                            onDismiss = { menuExpanded = false },
-                        )
+                    DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                        MihomoProfileMenuItem(stringResource(R.string.common_edit), MihomoProfileAction.Edit,
+                            onAction, { menuExpanded = false })
+                        MihomoProfileMenuItem(stringResource(R.string.mihomo_profile_preview), MihomoProfileAction.Preview,
+                            onAction, { menuExpanded = false })
                         if (displayState.showSync && !syncing) {
-                            MihomoProfileMenuItem(
-                                text = stringResource(R.string.mihomo_profile_sync),
-                                action = MihomoProfileAction.Sync,
-                                onAction = onAction,
-                                onDismiss = { menuExpanded = false },
-                            )
+                            MihomoProfileMenuItem(stringResource(R.string.mihomo_profile_sync), MihomoProfileAction.Sync,
+                                onAction, { menuExpanded = false })
                         }
                         if (hasProxyProviders && !syncing) {
-                            MihomoProfileMenuItem(
-                                text = stringResource(R.string.mihomo_profile_sync_providers),
-                                action = MihomoProfileAction.SyncProviders,
-                                onAction = onAction,
-                                onDismiss = { menuExpanded = false },
-                            )
+                            MihomoProfileMenuItem(stringResource(R.string.mihomo_profile_sync_providers), MihomoProfileAction.SyncProviders,
+                                onAction, { menuExpanded = false })
                         }
                         if (!profile.builtIn) {
-                            MihomoProfileMenuItem(
-                                text = stringResource(R.string.common_delete),
-                                action = MihomoProfileAction.Delete,
-                                onAction = onAction,
-                                onDismiss = { menuExpanded = false },
-                            )
+                            MihomoProfileMenuItem(stringResource(R.string.common_delete), MihomoProfileAction.Delete,
+                                onAction, { menuExpanded = false })
                         }
                     }
                 }
@@ -1108,60 +1084,37 @@ private fun MihomoProfileCard(
                 onRetry = onProviderUsageRetry,
                 onOpenDetails = onOpenProviderDetails,
             )
-            Text(
-                text = profile.lastUpdatedText(),
+            val modeSummary = buildList {
+                if (displayState.rawConfiguration) add(stringResource(R.string.mihomo_profile_raw_chip))
+                if (overrideScriptName != null) add(
+                    if (displayState.rawConfiguration) stringResource(R.string.mihomo_profile_override_script_stopped)
+                    else stringResource(R.string.mihomo_profile_override_script_applied)
+                        .formatTemplate("name" to overrideScriptName),
+                )
+            }.joinToString(" · ")
+            if (modeSummary.isNotBlank()) Text(
+                text = modeSummary,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(top = 10.dp, end = 8.dp),
+                modifier = Modifier.padding(top = 8.dp, end = 8.dp),
             )
-            FlowRow(
-                modifier = Modifier.padding(top = 12.dp, end = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                if (displayState.syncFailed) {
-                    AsteriskInfoChip(
+            if (displayState.syncFailed || restartRequired) {
+                FlowRow(
+                    modifier = Modifier.padding(top = 8.dp, end = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    if (displayState.syncFailed) AsteriskInfoChip(
                         text = stringResource(R.string.mihomo_profile_sync_failed_chip),
                         tone = AsteriskChipTone.Error,
                     )
-                }
-                AsteriskInfoChip(
-                    text = stringResource(
-                        when (displayState.kind) {
-                            MihomoProfileDisplayKind.RemoteSubscription -> {
-                                R.string.mihomo_profile_chip_remote_subscription
-                            }
-                            MihomoProfileDisplayKind.LocalFile -> R.string.mihomo_profile_chip_local_file
-                        },
-                    ),
-                    emphasized = selected,
-                )
-                if (displayState.rawConfiguration) {
-                    AsteriskInfoChip(
-                        text = stringResource(R.string.mihomo_profile_raw_chip),
-                        emphasized = selected,
-                    )
-                }
-                if (restartRequired) {
-                    AsteriskInfoChip(
+                    if (restartRequired) AsteriskInfoChip(
                         text = stringResource(R.string.mihomo_profile_restart_required),
                         emphasized = selected,
                     )
                 }
-                if (overrideScriptName != null) {
-                    AsteriskInfoChip(
-                        text = if (displayState.rawConfiguration) {
-                            stringResource(R.string.mihomo_profile_override_script_stopped)
-                        } else {
-                            stringResource(R.string.mihomo_profile_override_script_applied)
-                                .formatTemplate("name" to overrideScriptName)
-                        },
-                        emphasized = selected,
-                    )
-                }
             }
+
         }
     }
 }
@@ -1176,10 +1129,7 @@ private fun MihomoProfileMenuItem(
     DropdownMenuItem(
         text = { Text(text) },
         leadingIcon = { Icon(action.icon(), contentDescription = null) },
-        onClick = {
-            onDismiss()
-            onAction(action)
-        },
+        onClick = { onDismiss(); onAction(action) },
     )
 }
 
@@ -1193,7 +1143,7 @@ private fun MihomoProfileAction.icon(): ImageVector {
     }
 }
 
-private enum class MihomoProfileAction {
+internal enum class MihomoProfileAction {
     Edit,
     Preview,
     Sync,
@@ -1307,42 +1257,40 @@ private fun MihomoProfileSubscriptionInfo(
     profile: MihomoProfileState,
 ) {
     val info = profile.subscriptionInfo
-    if (!info.hasTraffic) return
-    val progress = (info.usedBytes.toDouble() / info.totalBytes.toDouble()).coerceIn(0.0, 1.0).toFloat()
+    if (!info.hasTraffic && info.expireAtSeconds <= 0L) return
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 12.dp),
+        modifier = Modifier.fillMaxWidth().padding(top = 12.dp, end = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        LinearProgressIndicator(
-            progress = { progress },
-            modifier = Modifier.fillMaxWidth().height(6.dp).padding(end = 8.dp),
-            color = MaterialTheme.colorScheme.primary,
-            trackColor = MaterialTheme.colorScheme.primaryContainer,
-        )
-        Text(
-            text = stringResource(R.string.mihomo_profile_traffic_summary)
-                .formatTemplate(
-                    "used" to info.usedBytes.toReadableBytes(maxUnit = ReadableByteUnit.GiB),
-                    "total" to info.totalBytes.toReadableBytes(maxUnit = ReadableByteUnit.GiB),
-                    "expire" to info.expireText(),
-                ),
+        if (info.hasTraffic) {
+            LinearProgressIndicator(
+                progress = { (info.usedBytes.toDouble() / info.totalBytes).coerceIn(0.0, 1.0).toFloat() },
+                modifier = Modifier.fillMaxWidth().height(6.dp),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.primaryContainer,
+            )
+            Text(
+                text = stringResource(R.string.mihomo_profile_traffic_usage,
+                    info.usedBytes.toReadableBytes(maxUnit = ReadableByteUnit.GiB),
+                    info.totalBytes.toReadableBytes(maxUnit = ReadableByteUnit.GiB)),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (info.expireAtSeconds > 0L) Text(
+            text = stringResource(R.string.mihomo_profile_provider_usage_expires, info.expireText()),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = 6.dp, end = 8.dp),
         )
     }
 }
 
 @Composable
 private fun MihomoProfileState.summaryText(): String {
-    if (disableOverrides) return stringResource(R.string.mihomo_profile_raw_summary)
-    return when (type) {
-        MihomoProfileType.Url -> url.ifBlank { stringResource(R.string.mihomo_profile_type_url) }
-        MihomoProfileType.File -> stringResource(R.string.mihomo_profile_type_file)
-    }
+    return stringResource(when (type) {
+        MihomoProfileType.Url -> R.string.mihomo_profile_chip_remote_subscription
+        MihomoProfileType.File -> R.string.mihomo_profile_chip_local_file
+    })
 }
 
 private fun MihomoProfileState.overrideScriptName(
