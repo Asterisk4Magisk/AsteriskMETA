@@ -68,7 +68,6 @@ internal class AndroidMihomoPlatformContext private constructor(
         override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) = publishDns()
     }
 
-    @Suppress("DEPRECATION")
     private fun initialize() {
         val packageFilter = IntentFilter().apply {
             addAction(Intent.ACTION_PACKAGE_ADDED)
@@ -84,18 +83,19 @@ internal class AndroidMihomoPlatformContext private constructor(
             .build()
         connectivity.registerNetworkCallback(request, networkCallback, handler)
         connectivity.registerDefaultNetworkCallback(defaultNetworkCallback, handler)
-        // Register first so changes during initial enumeration are delivered.
-        // Initial and later snapshots share the same handler; initialization
-        // waits so callers cannot load system:// before the first notification.
+        // Callbacks discover all matching physical networks. Seed the current
+        // default on the same handler without clearing any callbacks already
+        // received, and publish before callers can load system://.
         val initialized = CountDownLatch(1)
         val failure = AtomicReference<Throwable?>()
         handler.post {
             try {
                 refreshPackages()
-                networks.clear()
-                for (network in connectivity.allNetworks) {
-                    val capabilities = connectivity.getNetworkCapabilities(network) ?: continue
+                connectivity.activeNetwork?.let { network ->
+                    val capabilities = connectivity.getNetworkCapabilities(network) ?: return@let
                     val properties = connectivity.getLinkProperties(network)
+                    // onAvailable may have inserted an incomplete entry before
+                    // its capability/link callbacks. Fill it before the first publish.
                     networks[network] = emptyNetwork(network).withCapabilities(capabilities)
                         .copy(dnsServers = properties?.dnsServers.orEmpty().mapNotNull { it.hostAddress })
                 }
@@ -130,7 +130,13 @@ internal class AndroidMihomoPlatformContext private constructor(
     }
 
     private fun emptyNetwork(network: Network) =
-        MihomoDnsNetwork(network.toString(), false, false, false, false, emptyList())
+        MihomoDnsNetwork(network.toString(),
+            active = false,
+            notVpn = false,
+            internet = false,
+            validated = false,
+            dnsServers = emptyList()
+        )
 
     private fun MihomoDnsNetwork.withCapabilities(capabilities: NetworkCapabilities) = copy(
         notVpn = capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN),
