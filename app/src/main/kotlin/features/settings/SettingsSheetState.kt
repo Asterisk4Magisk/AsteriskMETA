@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import app.AppState
+import app.AutoSwitchSettings
 import features.settings.sheets.sanitizeExternalInterfaces
 import features.settings.sheets.sanitizeIgnoredInterfaceSelectors
 import features.settings.sheets.sanitizePrivateAddressCidrs
@@ -22,6 +23,17 @@ internal class SettingsSheetState(
     fun openConnectionTestSettings(appState: AppState) {
         connectionTestSettingsDraft = appState.toConnectionTestSettingsDraft()
         showConnectionTestSettings = true
+    }
+
+    var showAutoSwitch by mutableStateOf(false)
+    var autoSwitchDraft by mutableStateOf(AutoSwitchSettings())
+
+    fun openAutoSwitch(appState: AppState) {
+        autoSwitchDraft = appState.autoSwitch.let { settings ->
+            if (settings.profileId == appState.selectedMihomoProfileId) settings
+            else settings.copy(profileId = appState.selectedMihomoProfileId, groups = emptyList())
+        }
+        showAutoSwitch = true
     }
 
     var showLocalProxySettings by mutableStateOf(false)

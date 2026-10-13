@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import app.withNormalizedConnectionTestSettings
 import app.AppState
+import app.AutoSwitchSettings
 import engine.mihomo.normalizeMihomoTunCongestionController
 import app.ServiceControlSchedule
 import app.ServiceControlKeyguard
@@ -70,6 +71,15 @@ internal class AppSettingsPreferences(
             ),
             mihomoProxyLayout = preferences.getInt(KeyMihomoProxyLayout, defaults.mihomoProxyLayout),
             mihomoProxySort = preferences.getInt(KeyMihomoProxySort, defaults.mihomoProxySort),
+            autoSwitch = AutoSwitchSettings(
+                enabled = preferences.getBoolean(KeyAutoSwitchEnabled, false),
+                profileId = preferences.getInt(KeyAutoSwitchProfileId, 0),
+                groups = preferences.getStringList(KeyAutoSwitchGroups, emptyList()),
+                preferredRegions = preferences.getStringList(KeyAutoSwitchRegions, emptyList()),
+                preferredKeywords = preferences.getStringList(KeyAutoSwitchKeywords, emptyList()),
+                failureThreshold = preferences.getInt(KeyAutoSwitchFailures, 3),
+                intervalSeconds = preferences.getInt(KeyAutoSwitchInterval, 30),
+            ).normalized(),
             mihomoTunStack = preferences.getInt(KeyMihomoTunStack, defaults.mihomoTunStack),
             mihomoTunCongestionController = normalizeMihomoTunCongestionController(
                 preferences.getString(KeyMihomoTunCongestionController, defaults.mihomoTunCongestionController)
@@ -293,6 +303,13 @@ internal class AppSettingsPreferences(
             .putBoolean(KeyMihomoProxyExcludeNotSelectable, state.mihomoProxyExcludeNotSelectable)
             .putInt(KeyMihomoProxyLayout, state.mihomoProxyLayout)
             .putInt(KeyMihomoProxySort, state.mihomoProxySort)
+            .putBoolean(KeyAutoSwitchEnabled, state.autoSwitch.enabled)
+            .putInt(KeyAutoSwitchProfileId, state.autoSwitch.profileId)
+            .putStringList(KeyAutoSwitchGroups, state.autoSwitch.groups)
+            .putStringList(KeyAutoSwitchRegions, state.autoSwitch.preferredRegions)
+            .putStringList(KeyAutoSwitchKeywords, state.autoSwitch.preferredKeywords)
+            .putInt(KeyAutoSwitchFailures, state.autoSwitch.failureThreshold)
+            .putInt(KeyAutoSwitchInterval, state.autoSwitch.intervalSeconds)
             .putInt(KeyMihomoTunStack, state.mihomoTunStack)
             .putString(KeyMihomoTunCongestionController, state.mihomoTunCongestionController)
             .putString(KeyMihomoControlPort, state.mihomoControlPort)
@@ -516,6 +533,13 @@ private const val KeyMihomoMode = "mihomo_mode"
 private const val KeyMihomoProxyExcludeNotSelectable = "mihomo_proxy_exclude_not_selectable"
 private const val KeyMihomoProxyLayout = "mihomo_proxy_layout"
 private const val KeyMihomoProxySort = "mihomo_proxy_sort"
+private const val KeyAutoSwitchEnabled = "auto_switch_enabled"
+private const val KeyAutoSwitchProfileId = "auto_switch_profile_id"
+private const val KeyAutoSwitchGroups = "auto_switch_groups"
+private const val KeyAutoSwitchRegions = "auto_switch_regions"
+private const val KeyAutoSwitchKeywords = "auto_switch_keywords"
+private const val KeyAutoSwitchFailures = "auto_switch_failures"
+private const val KeyAutoSwitchInterval = "auto_switch_interval"
 private const val KeyMihomoTunStack = "mihomo_tun_stack"
 private const val KeyMihomoTunCongestionController = "mihomo_tun_congestion_controller"
 private const val KeyMihomoControlPort = "mihomo_control_port"

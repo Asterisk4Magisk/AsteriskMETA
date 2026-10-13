@@ -19,6 +19,7 @@ import app.modes.RunModeTun2Socks
 import app.modes.RunModeVpnService
 import engine.mihomo.raw.usesRawMihomoConfig
 import features.logs.AndroidAppLogger
+import features.settings.sheets.AutoSwitchSettingsBottomSheet
 import features.settings.sheets.ConnectionTestSettingsBottomSheet
 import features.settings.sheets.DnsSettingsBottomSheet
 import features.settings.sheets.ExternalInterfacesBottomSheet
@@ -57,6 +58,17 @@ internal fun SettingsBottomSheetsHost(
         onSave = { draft ->
             updateAppState { state -> state.withConnectionTestSettings(draft) }
             sheetState.showConnectionTestSettings = false
+        },
+    )
+    AutoSwitchSettingsBottomSheet(
+        show = sheetState.showAutoSwitch,
+        appState = appState,
+        draft = sheetState.autoSwitchDraft,
+        onDraftChange = { sheetState.autoSwitchDraft = it },
+        onDismissRequest = { sheetState.showAutoSwitch = false },
+        onSave = { settings ->
+            updateAppState { it.copy(autoSwitch = settings.normalized()) }
+            sheetState.showAutoSwitch = false
         },
     )
     LocalProxySettingsBottomSheet(

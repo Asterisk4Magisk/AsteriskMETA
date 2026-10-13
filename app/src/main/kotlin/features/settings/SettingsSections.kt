@@ -158,6 +158,7 @@ internal fun SettingsCoreSection(
     onOpenDnsSettings: () -> Unit,
     onOpenSnifferSettings: () -> Unit,
     onOpenConnectionTest: () -> Unit,
+    onOpenAutoSwitch: () -> Unit,
     onOpenApps: () -> Unit,
     onOpenResourceManagement: () -> Unit,
     onEnableGeodataModeChange: (Boolean) -> Unit,
@@ -259,6 +260,13 @@ internal fun SettingsCoreSection(
             summary = stringResource(R.string.connection_test_settings_summary),
             onClick = onOpenConnectionTest,
             accent = IconAccent.MaskBlue,
+        )
+        ArrowPreference(
+            title = stringResource(R.string.settings_auto_switch),
+            summary = stringResource(R.string.settings_auto_switch_summary),
+            icon = Icons.Rounded.Sync,
+            accent = IconAccent.MaskGreen,
+            onClick = onOpenAutoSwitch,
         )
         if (!rawEnabled) {
             OverlayDropdownPreference(
