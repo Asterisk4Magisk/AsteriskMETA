@@ -188,26 +188,41 @@ private fun parseDnsHijack(root: Map<*, *>): RawConfigField<MihomoRawDnsHijack> 
         .filter { it["type"]?.toString()?.equals("dns", true) == true }
         .mapNotNull { it["name"]?.toString() }
         .toSet()
-    val match = (root["rules"] as? List<*>)
+    val matches = (root["rules"] as? List<*>)
         .orEmpty()
         .mapNotNull { it?.toString() }
-        .firstOrNull { rule ->
+        .filter { rule ->
             val compact = rule.replace(" ", "").uppercase()
             val target = compact.substringAfterLast(',').trim(')', '(', ' ')
-            val matchesPort53 = "DST-PORT,53" in compact || "DST-PORT,53-53" in compact
-            val explicitlyTcpOnly = "NETWORK,TCP" in compact && "NETWORK,UDP" !in compact
-            matchesPort53 && !explicitlyTcpOnly && target in dnsOutbounds.map(String::uppercase)
+            val matchesPort53 = Regex("DST-PORT,53(?:-53)?(?=[,)])").containsMatchIn(compact)
+            matchesPort53 && target in dnsOutbounds.map(String::uppercase)
         }
+    val tcp = matches.firstOrNull { dnsRuleCoversProtocol(it, "TCP") }
+    val udp = matches.firstOrNull { dnsRuleCoversProtocol(it, "UDP") }
+    val match = listOfNotNull(tcp, udp).distinct().joinToString("; ").takeIf(String::isNotEmpty)
     val outbound = match?.substringAfterLast(',')?.trim(')', '(', ' ')
     return RawConfigField(
         value = MihomoRawDnsHijack(
             dnsEnabled = dnsEnabled,
-            proven = dnsEnabled && match != null,
+            proven = dnsEnabled && tcp != null && udp != null,
             matchedRule = match,
             outbound = outbound,
         ),
         path = "dns.enable + rules + proxies[type=dns]",
     )
+}
+
+// Only prove positive port rules and simple conjunctions. Negation or arbitrary
+// logical nesting can restrict a transport even when its name appears in the rule.
+private fun dnsRuleCoversProtocol(rule: String, protocol: String): Boolean {
+    val condition = rule.replace(" ", "").uppercase().substringBeforeLast(',')
+    if (condition == "DST-PORT,53" || condition == "DST-PORT,53-53") return true
+    if (!condition.startsWith("AND,((") || !condition.endsWith("))")) return false
+    val clauses = condition.removePrefix("AND,((").removeSuffix("))").split("),(")
+    return clauses.all { clause ->
+        clause == "DST-PORT,53" || clause == "DST-PORT,53-53" || clause == "NETWORK,$protocol" ||
+            Regex("IN-(?:NAME|TYPE),[^(),]+").matches(clause)
+    }
 }
 
 private fun Map<*, *>.stringField(path: String): RawConfigField<String> {

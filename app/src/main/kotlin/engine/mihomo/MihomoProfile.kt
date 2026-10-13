@@ -231,7 +231,7 @@ private fun MutableMap<String, Any?>.putAsteriskRuntimeOverrides(
     put("profile", normalizedProfileStoreSelected(this["profile"]))
     put("sniffer", appState.toMihomoSnifferYamlMap())
     putDnsOverrides(appState, forceDns)
-    putUdpDnsHijackOverrides(appState, runMode)
+    putDnsHijackOverrides(appState, runMode)
     putNtpWriteToSystemOverride()
 }
 
@@ -369,13 +369,13 @@ private fun AppState.toMihomoDnsYamlMap(
     }
 }
 
-private fun MutableMap<String, Any?>.putUdpDnsHijackOverrides(
+private fun MutableMap<String, Any?>.putDnsHijackOverrides(
     appState: AppState,
     runMode: Int,
 ) {
-    val requiresUdpDnsHijackRule = runMode.isRootRunMode() ||
+    val requiresDnsHijackRule = runMode.isRootRunMode() ||
         (runMode == RunModeVpnService && appState.enableVpnHevTun)
-    if (!requiresUdpDnsHijackRule || !appState.effectiveLocalDnsEnabled) {
+    if (!requiresDnsHijackRule || !appState.effectiveLocalDnsEnabled) {
         return
     }
     put("proxies", normalizedProxiesWithDnsOut(this["proxies"]))

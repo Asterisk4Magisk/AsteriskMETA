@@ -74,7 +74,7 @@ internal fun MihomoRawConfigSnapshot.check(
         issue(
             RawConfigReadiness.Degraded,
             "rules",
-            "DNS hijack is not installed because YAML does not prove an enabled DNS outbound rule for port 53",
+            "DNS hijack is not installed because YAML does not prove enabled DNS outbound rules for both TCP and UDP port 53",
         )
     }
     val readiness = when {
