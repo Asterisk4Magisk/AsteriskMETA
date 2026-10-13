@@ -9,6 +9,7 @@ import android.net.LinkProperties
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.os.SystemClock
+import system.AndroidNetworks
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
@@ -30,10 +31,10 @@ import kotlin.time.Duration.Companion.milliseconds
 
 internal class AndroidNetworkMonitor(context: Context) {
     private val connectivityManager = context.applicationContext.getSystemService(ConnectivityManager::class.java)
+    private val networks = AndroidNetworks.get(context)
 
-    @Suppress("DEPRECATION")
     fun snapshot(): LocalNetworkSnapshot {
-        return connectivityManager.readLocalNetworkSnapshot(connectivityManager.allNetworks.toList())
+        return connectivityManager.readLocalNetworkSnapshot(networks.snapshot())
     }
 }
 
