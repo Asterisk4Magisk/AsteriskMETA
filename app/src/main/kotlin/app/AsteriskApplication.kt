@@ -3,38 +3,40 @@
 
 package app
 
-import features.resources.runtime.ResourceAutoUpdateScheduler
-import features.resources.resourceAutoUpdateIntervalMillis
-import features.resources.ResourceFileUseCase
-import features.resources.ResourceFileUpdateCoordinator
-import features.resources.ResourceFileUpdateRequest
-import features.resources.runtime.AndroidResourceFileDownloadCancellation
 import android.app.Application
-import features.home.HomeServiceOperationState
-import engine.mihomo.binding.MihomoBridge
-import features.logs.AndroidCoreLogRepository
-import features.logs.AndroidAsteriskdLogRepository
-import features.logs.AndroidLogcatRepository
+import app.effects.AppActivityForegroundTracker
+import app.effects.MihomoRuntimeLifecycleCoordinator
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import system.AndroidAppIconFetcher
-import app.effects.AppActivityForegroundTracker
-import app.effects.MihomoRuntimeLifecycleCoordinator
-import engine.mihomo.MihomoProfileContentStore
-import engine.mihomo.runtime.MihomoRuntimeRepository
 import data.AndroidAppStateStore
+import engine.mihomo.MihomoProfileContentStore
+import engine.mihomo.binding.MihomoBridge
+import engine.mihomo.runtime.MihomoAutoSwitchService
+import engine.mihomo.runtime.MihomoRuntimeRepository
+import engine.mihomo.runtime.shouldMonitorAutoSwitch
+import features.home.HomeServiceOperationState
+import features.logs.AndroidAsteriskdLogRepository
+import features.logs.AndroidCoreLogRepository
+import features.logs.AndroidLogcatRepository
 import features.mihomo.provider.MihomoProviderUsageStateHolder
 import features.mihomo.provider.loadSelectedMihomoProviderUsageState
+import features.resources.ResourceFileUpdateCoordinator
+import features.resources.ResourceFileUpdateRequest
+import features.resources.ResourceFileUseCase
+import features.resources.resourceAutoUpdateIntervalMillis
+import features.resources.runtime.AndroidResourceFileDownloadCancellation
+import features.resources.runtime.ResourceAutoUpdateScheduler
 import features.subscription.runtime.AndroidMihomoProfilePreparer
 import features.subscription.runtime.AndroidSubscriptionScheduleGateway
 import features.subscription.runtime.SubscriptionScheduler
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import system.AndroidAppIconFetcher
 
 class AsteriskApplication : Application(), SingletonImageLoader.Factory {
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -105,6 +107,17 @@ class AsteriskApplication : Application(), SingletonImageLoader.Factory {
                 .collect(scheduler::reconcile)
         }
         MihomoBridge.initialize(this)
+        appScope.launch {
+            stateStore.state
+                .map { it.shouldMonitorAutoSwitch() }
+                .distinctUntilChanged()
+                .collect { enabled ->
+                    MihomoAutoSwitchService.reconcile(
+                        this@AsteriskApplication,
+                        enabled
+                    )
+                }
+        }
         AndroidLogcatRepository.initialize(applicationContext)
         AndroidCoreLogRepository.initialize(applicationContext)
         AndroidAsteriskdLogRepository.initialize(applicationContext)

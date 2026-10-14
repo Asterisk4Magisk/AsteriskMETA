@@ -3,33 +3,38 @@
 
 package engine.mihomo.runtime
 
-import engine.root.dns.withRootDnsMutation
 import android.content.Context
 import app.AppState
+import app.effects.MihomoRuntimeLifecycleTarget
 import app.modes.RunModeVpnService
 import app.modes.isRootRunMode
-import engine.mihomo.hasUsableMihomoProfile
-import engine.mihomo.mihomoLogLevelName
-import engine.mihomo.mihomoControlConfig
-import engine.mihomo.selectedMihomoProfileOrNull
 import engine.mihomo.MihomoControlConfig
+import engine.mihomo.hasUsableMihomoProfile
+import engine.mihomo.mihomoControlConfig
+import engine.mihomo.mihomoLogLevelName
 import engine.mihomo.raw.loadSelectedRawConfig
 import engine.mihomo.raw.usesRawMihomoConfig
+import engine.mihomo.selectedMihomoProfileOrNull
 import engine.proxy.ProxyEngineStartRequest
+import engine.root.dns.withRootDnsMutation
 import engine.root.publication.publishRootProviderUpdates
 import engine.vpn.AndroidMihomoRuntime
 import engine.vpn.VpnMihomoConfigFactory
-import features.resources.runtime.mihomoResourceFilePaths
 import features.logs.AndroidAppLogger
+import features.logs.AutoSwitchLogEntry
+import features.logs.AutoSwitchLogRepository
+import features.resources.runtime.mihomoResourceFilePaths
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -39,18 +44,64 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.net.ConnectException
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.time.Duration.Companion.milliseconds
-import app.effects.MihomoRuntimeLifecycleTarget
 
 internal class MihomoDelayJobSlot {
     private var current: Job? = null
+    private var background: Job? = null
+    private var committing = false
+    private var selections = 0
 
     @Synchronized
     fun tryAcquire(job: Job): Boolean {
         if (current != null) return false
         current = job
+        if (!committing) background?.cancel()
         return true
+    }
+
+    @Synchronized
+    fun tryAcquireBackground(job: Job): Boolean {
+        if (current != null || background != null || selections > 0) return false
+        background = job
+        return true
+    }
+
+    @Synchronized
+    fun releaseBackground(job: Job) {
+        if (background === job) background = null
+    }
+
+    suspend fun awaitBackgroundCompletion() {
+        val job = synchronized(this) { background }
+        job?.join()
+    }
+
+    @Synchronized
+    fun beginSelection() {
+        selections++
+        if (!committing) background?.cancel()
+    }
+
+    @Synchronized
+    fun endSelection() {
+        selections--
+    }
+
+    @Synchronized
+    fun beginBackgroundCommit(): Boolean {
+        if (current != null || selections > 0) return false
+        committing = true
+        return true
+    }
+
+    @Synchronized
+    fun endBackgroundCommit() {
+        committing = false
+        if (current != null || selections > 0) background?.cancel()
     }
 
     @Synchronized
@@ -76,6 +127,8 @@ internal class MihomoRuntimeRepository(
     private val runtimeStateLock = Any()
     private val runtimePreparationMutex = Mutex()
     private val proxyRefreshMutex = Mutex()
+    private val selectorMutationMutex = Mutex()
+    private val manualSelectorGeneration = AtomicLong()
     private var monitorJob: Job? = null
     private val delayJobSlot = MihomoDelayJobSlot()
     private var activeSignature: MihomoRuntimeSignature? = null
@@ -86,6 +139,10 @@ internal class MihomoRuntimeRepository(
     private var lastLoggedRuntimeError = ""
 
     val state: StateFlow<MihomoRuntimeState> = mutableState.asStateFlow()
+    val autoSwitchLog = AutoSwitchLogRepository(
+        file = { File(appContext.filesDir, "logs/auto_switch.jsonl") },
+        onFailure = { message, _ -> AndroidAppLogger.warn("AutoSwitch", message) },
+    )
 
     internal fun trafficHistorySnapshot(limit: Int): List<MihomoTrafficSample> = synchronized(trafficHistoryLock) {
         trafficHistory.snapshot(limit)
@@ -498,26 +555,138 @@ internal class MihomoRuntimeRepository(
         groupName: String,
         proxyName: String,
     ): Result<Unit> {
-        return runCatching {
-            val control = resolveMihomoControlConfig(appState)
-            val backend = resolveInteractiveBackend(appState, control)
-            val generation = currentRuntimeGeneration()
-            val configKey = appState.mihomoRuntimeConfigKey(appState.mihomoRuntimeBackend())
-            withContext(Dispatchers.IO) {
-                ensureInteractiveRuntime(appState, backend)
-                appContext.withRootDnsMutation(appState) {
-                    client.selectProxy(control, groupName, proxyName, backend.useBridge())
+        manualSelectorGeneration.incrementAndGet()
+        delayJobSlot.beginSelection()
+        try {
+            return runCatching {
+                val control = resolveMihomoControlConfig(appState)
+                val backend = resolveInteractiveBackend(appState, control)
+                val generation = currentRuntimeGeneration()
+                val configKey = appState.mihomoRuntimeConfigKey(appState.mihomoRuntimeBackend())
+                withContext(Dispatchers.IO) {
+                    ensureInteractiveRuntime(appState, backend)
+                    selectorMutationMutex.withLock {
+                        appContext.withRootDnsMutation(appState) {
+                            client.selectProxy(control, groupName, proxyName, backend.useBridge())
+                        }
+                    }
+                    applySelectedProxy(groupName, proxyName, generation, configKey)
+                    refreshProxySnapshot(
+                        control,
+                        backend.useBridge(),
+                        generation,
+                        configKey,
+                        coalesce = false
+                    )
+                    refreshConnectivity()
                 }
-                applySelectedProxy(groupName, proxyName, generation, configKey)
-                refreshProxySnapshot(control, backend.useBridge(), generation, configKey, coalesce = false)
-                refreshConnectivity()
             }
+        } finally {
+            delayJobSlot.endSelection()
         }
     }
 
     fun refreshConnectivity() {
         appScope.launch(Dispatchers.IO) {
             refreshConnectivityState()
+        }
+    }
+
+    // These operations control an already running core. Never prepare/restart a standby or ROOT runtime.
+    internal fun manualSelectionGeneration(): Long = manualSelectorGeneration.get()
+
+    internal suspend fun runAutoSwitchCheck(block: suspend () -> Unit): Boolean = coroutineScope {
+        val job = launch(start = CoroutineStart.LAZY) { block() }
+        if (!delayJobSlot.tryAcquireBackground(job)) {
+            job.cancel()
+            return@coroutineScope false
+        }
+        job.invokeOnCompletion { delayJobSlot.releaseBackground(job) }
+        job.start()
+        job.join()
+        !job.isCancelled
+    }
+
+    internal fun autoSwitchSnapshot(appState: AppState): MihomoProxiesState {
+        val control = resolveMihomoControlConfig(appState)
+        val useBridge = appState.mihomoRuntimeBackend().useBridge()
+        val proxies =
+            client.getProxies(control, useBridge, client.getConfigs(control, useBridge).mode)
+        val unresolvedNames = proxies.groups.flatMap { it.all }
+            .filter { it.providerName.isNullOrBlank() && it !in proxies.topLevelProxyIds }
+            .mapTo(hashSetOf()) { it.name }
+        val providerIds = client.findProviderProxyIds(control, unresolvedNames, useBridge)
+        val nodes = proxies.nodes.map { node ->
+            providerIds[node.name]?.let { node.copy(id = it) } ?: node
+        }
+        return proxies.copy(
+            groups = proxies.groups.map { group ->
+                group.copy(all = group.all.map { id -> providerIds[id.name] ?: id })
+            },
+            nodes = nodes,
+            nodeById = nodes.associateBy { it.id },
+        )
+    }
+
+    internal suspend fun autoSwitchDelay(
+        appState: AppState,
+        id: MihomoProxyNodeId,
+        url: String,
+    ): Int? {
+        val result = client.testProxyDelay(
+            config = resolveMihomoControlConfig(appState),
+            proxyId = id,
+            url = url,
+            timeoutMillis = 5_000,
+            useBridge = appState.mihomoRuntimeBackend().useBridge(),
+        )
+        return result.measurement(id)?.takeIf { it.status == MihomoDelayStatus.Success }?.delay
+    }
+
+    internal suspend fun autoSwitchSelect(
+        appState: AppState,
+        group: engine.proxy.AutoSwitchGroup,
+        node: String,
+        stillCurrent: () -> Boolean,
+    ): Boolean = selectorMutationMutex.withLock {
+        currentCoroutineContext().ensureActive()
+        if (!stillCurrent()) return@withLock false
+        val latest = autoSwitchSnapshot(appState).groups.firstOrNull { it.name == group.name }
+            ?: return@withLock false
+        if (latest.now != group.selected || !latest.type.equals("Selector", ignoreCase = true) ||
+            latest.all.none { it.name == node }
+        ) return@withLock false
+        if (!stillCurrent() || !delayJobSlot.beginBackgroundCommit()) return@withLock false
+        try {
+            currentCoroutineContext().ensureActive()
+            appContext.withRootDnsMutation(appState) {
+                // A manual request waits for this transaction; do not interrupt a withdrawn ROOT DNS boundary.
+                client.selectProxy(
+                    resolveMihomoControlConfig(appState), group.name, node,
+                    appState.mihomoRuntimeBackend().useBridge(),
+                )
+                // Record as soon as the selector write succeeds, even if subsequent ROOT DNS reactivation fails.
+                autoSwitchLog.append(
+                    AutoSwitchLogEntry(
+                        timestampMillis = System.currentTimeMillis(),
+                        profileName = appState.selectedMihomoProfileOrNull()?.name.orEmpty(),
+                        groupName = group.name,
+                        fromNode = latest.now,
+                        toNode = node,
+                    ),
+                )
+            }
+            val generation = currentRuntimeGeneration()
+            val configKey = appState.mihomoRuntimeConfigKey(appState.mihomoRuntimeBackend())
+            applySelectedProxy(group.name, node, generation, configKey)
+            refreshProxySnapshot(
+                resolveMihomoControlConfig(appState), appState.mihomoRuntimeBackend().useBridge(),
+                generation, configKey, coalesce = false,
+            )
+            AndroidAppLogger.info("AutoSwitch", "Unavailable node replaced with a healthy node")
+            true
+        } finally {
+            delayJobSlot.endBackgroundCommit()
         }
     }
 
@@ -571,6 +740,7 @@ internal class MihomoRuntimeRepository(
         val job: Job = appScope.launch(Dispatchers.IO, start = CoroutineStart.LAZY) {
             mutableState.update { current -> current.copy(delayTestingTarget = target) }
             try {
+                delayJobSlot.awaitBackgroundCompletion()
                 result.complete(runCatching { block() })
             } finally {
                 mutableState.update { current -> current.clearDelayTestingTarget(target) }

@@ -122,6 +122,15 @@
         </service>
 
         <service
+            android:name="engine.mihomo.runtime.MihomoAutoSwitchService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Checks the selected proxy nodes and switches unavailable nodes while the user-enabled proxy and automatic switching are running." />
+        </service>
+
+        <service
             android:name="engine.vpn.AsteriskVpnService"
             android:exported="false"
             android:permission="android.permission.BIND_VPN_SERVICE"

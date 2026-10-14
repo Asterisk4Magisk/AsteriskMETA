@@ -4,18 +4,29 @@
 package features.settings
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import app.AppState
 import features.settings.sheets.sanitizeExternalInterfaces
 import features.settings.sheets.sanitizeIgnoredInterfaceSelectors
 import features.settings.sheets.sanitizePrivateAddressCidrs
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 
 internal class SettingsSheetState(
     private val updateAppState: ((AppState) -> AppState) -> Unit,
 ) {
+    var showAutoSwitch by mutableStateOf(false)
+    var autoSwitchDraft by mutableStateOf(app.AutoSwitchSettings())
+
+    fun openAutoSwitch(appState: AppState) {
+        autoSwitchDraft = appState.autoSwitch.let { settings ->
+            if (settings.profileId == appState.selectedMihomoProfileId) settings
+            else settings.copy(profileId = appState.selectedMihomoProfileId, groups = emptyList())
+        }
+        showAutoSwitch = true
+    }
+
     var showLocalProxySettings by mutableStateOf(false)
     var localProxySettingsDraft by mutableStateOf(LocalProxySettingsDraft())
 

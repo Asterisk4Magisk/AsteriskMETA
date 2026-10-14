@@ -125,6 +125,18 @@ internal fun settingsTopLevelSearchItems(
         ),
         SettingsSearchItem(SettingsSectionId.Advanced, "IPv6", stringResource(R.string.settings_ipv6_summary)),
         SettingsSearchItem(
+            SettingsSectionId.Core,
+            stringResource(R.string.settings_auto_switch),
+            stringResource(R.string.settings_auto_switch_summary),
+            optionText = listOf(
+                stringResource(R.string.auto_switch_groups),
+                stringResource(R.string.auto_switch_regions),
+                stringResource(R.string.auto_switch_keywords),
+                stringResource(R.string.auto_switch_failures),
+                stringResource(R.string.auto_switch_interval),
+            ),
+        ),
+        SettingsSearchItem(
             SettingsSectionId.Advanced,
             stringResource(R.string.settings_ipv6_prefer),
             stringResource(R.string.settings_ipv6_prefer_summary),
