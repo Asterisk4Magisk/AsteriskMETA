@@ -286,9 +286,9 @@
     <string name="mihomo_profile_last_sync">同步时间 {time}</string>
     <string name="mihomo_profile_missing">配置不存在</string>
     <string name="mihomo_profile_name">名称</string>
-    <string name="mihomo_profile_name_required">请输入配置名称</string>
     <string name="mihomo_profile_name_duplicate">%1$s(%2$d)</string>
     <string name="mihomo_profile_name_placeholder">留空则首次同步后自动命名</string>
+    <string name="mihomo_profile_name_required">请输入配置名称</string>
     <string name="mihomo_profile_override_script">覆写脚本</string>
     <string name="mihomo_profile_override_script_applied">脚本：{name}</string>
     <string name="mihomo_profile_override_script_none">不应用</string>
@@ -844,6 +844,33 @@
     <string name="settings_resource_files_updated_at">更新时间 {time}</string>
     <string name="settings_resource_management">资源管理</string>
     <string name="settings_resource_management_summary">管理核心文件与GEO资源文件</string>
+
+    <!-- Backup and restore -->
+    <string name="error_backup_file_creator_missing">备份文件创建请求器未注册</string>
+    <string name="error_backup_file_open_failed">无法打开备份文件</string>
+    <string name="error_backup_file_too_large">备份文件过大（最大 32 MB）</string>
+    <string name="settings_backup_export_failed">备份用户数据失败</string>
+    <string name="settings_backup_exported">用户数据已备份</string>
+    <string name="settings_backup_exporting">正在准备备份…</string>
+    <string name="settings_backup_reading">正在读取备份…</string>
+    <string name="settings_backup_restore">备份还原</string>
+    <string name="settings_backup_restoring">正在还原用户数据…</string>
+    <string name="settings_backup_user_data">备份用户数据</string>
+    <string name="settings_backup_user_data_summary">导出当前用户数据到备份文件</string>
+    <string name="settings_restore_backup_counts">{profiles} 个配置 · {overrideScripts} 个覆写脚本</string>
+    <string name="settings_restore_backup_created_at">创建时间：{time}</string>
+    <string name="settings_restore_backup_version">备份版本 {version}，应用版本 {appVersion}</string>
+    <string name="settings_restore_completed">用户数据已还原</string>
+    <string name="settings_restore_confirm_summary">当前设置、配置、覆写脚本和应用代理数据将被覆盖。当前代理将停止，ROOT 开机脚本将卸载，运行模式将切换为 VPN Service。</string>
+    <string name="settings_restore_confirm_title">还原用户数据？</string>
+    <string name="settings_restore_failed">还原用户数据失败</string>
+    <string name="settings_restore_read_failed">读取备份文件失败</string>
+    <string name="settings_restore_root_cleanup_failed">还原前卸载 ROOT 开机脚本失败</string>
+    <string name="settings_restore_stop_failed">还原前停止当前代理失败</string>
+    <string name="settings_restore_user_data">还原用户数据</string>
+    <string name="settings_restore_user_data_summary">从备份文件还原用户数据</string>
+    <string name="settings_restore_warning_empty_profile_contents">警告：{count} 个文件配置没有内容，将以空内容还原。</string>
+    <string name="settings_restore_warning_missing_override_script_references">警告：{count} 个配置引用了不可用的覆写脚本，将按原样保留引用。</string>
 
     <!-- Core migration -->
     <string name="shared_core_migration_keep">保留</string>

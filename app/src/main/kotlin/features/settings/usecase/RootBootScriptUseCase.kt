@@ -60,6 +60,20 @@ internal class RootBootScriptUseCase(
             uninstallUnlocked()
         }
 
+    suspend fun uninstallAndThen(
+        rootAccessVerified: Boolean = false,
+        afterUninstall: suspend () -> Unit,
+    ): RootBootScriptResult = operationGate.exclusive {
+        if (!rootAccessVerified && !rootAccess.hasRootAccess()) {
+            return@exclusive RootBootScriptResult.RootUnavailable
+        }
+        val result = uninstallUnlocked()
+        if (result == RootBootScriptResult.Success) {
+            afterUninstall()
+        }
+        result
+    }
+
     private suspend fun uninstallUnlocked(): RootBootScriptResult =
         runCatching {
             controller.removeBoot()

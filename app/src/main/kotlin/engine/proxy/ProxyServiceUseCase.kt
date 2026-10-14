@@ -81,6 +81,21 @@ internal class ProxyServiceUseCase(
         )
     }
 
+    suspend fun shutdown(runMode: Int): ProxyServiceResult {
+        val live = try {
+            proxyEngine.status(runMode)
+        } catch (error: Throwable) {
+            return error.toProxyServiceFailure(RootRequestedAction.StopOwn)
+        }
+        classifyForeignRootConflict(LocalRootOwner, live)?.let { conflict ->
+            return conflict.toProxyServiceFailure(RootRequestedAction.StopOwn)
+        }
+        return runCatching { proxyEngine.shutdownCurrentRunMode(runMode) }.fold(
+            onSuccess = { status -> ProxyServiceResult.Success(status.running, status.appState) },
+            onFailure = { error -> error.toProxyServiceFailure(RootRequestedAction.StopOwn) },
+        )
+    }
+
     private fun RootOperationResult.toProxyServiceFailure(action: RootRequestedAction): ProxyServiceResult.Failed {
         logRootResult(toSanitizedLogRecord(action))
         return ProxyServiceResult.Failed(RootOperationBlockedException(this))

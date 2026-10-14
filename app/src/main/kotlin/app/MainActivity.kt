@@ -76,6 +76,11 @@ class MainActivity : ComponentActivity() {
             appString(R.string.error_log_export_launcher_missing)
         },
     )
+    private val backupFileCreator = AndroidLogFileCreator(
+        missingLauncherMessage = {
+            appString(R.string.error_backup_file_creator_missing)
+        },
+    )
     private val tipNotifier by lazy { AndroidToastTipNotifier(this) }
 
     private val subscriptionInstallConfigUseCase by lazy {
@@ -125,6 +130,12 @@ class MainActivity : ComponentActivity() {
         logFileCreator.complete(uri)
     }
 
+    private val backupFileCreatorLauncher = registerForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json"),
+    ) { uri ->
+        backupFileCreator.complete(uri)
+    }
+
     private fun appString(@StringRes id: Int, vararg args: Any): String {
         val languageMode = (application as AsteriskApplication).stateStore.state.value.languageMode
         return applicationContext.localizedAppContext(languageMode).getString(id, *args)
@@ -157,6 +168,9 @@ class MainActivity : ComponentActivity() {
         }
         logFileCreator.registerLauncher { fileName ->
             logFileCreatorLauncher.launch(fileName)
+        }
+        backupFileCreator.registerLauncher { fileName ->
+            backupFileCreatorLauncher.launch(fileName)
         }
         showAppContent()
         requestStartupPermissions()
@@ -196,6 +210,8 @@ class MainActivity : ComponentActivity() {
         mihomoProfileFilePicker.registerLauncher(null)
         logFileCreator.complete(null)
         logFileCreator.registerLauncher(null)
+        backupFileCreator.complete(null)
+        backupFileCreator.registerLauncher(null)
         super.onDestroy()
     }
 
@@ -214,8 +230,10 @@ class MainActivity : ComponentActivity() {
             App(
                 padding = WindowInsets.systemBars.union(WindowInsets.displayCutout).asPaddingValues(),
                 qrCodeScanner = qrCodeScanRequester::scan,
-                resourceFilePicker = resourceFilePicker::pick,
-                mihomoProfileFilePicker = mihomoProfileFilePicker::pick,
+                resourceFilePicker = { resourceFilePicker.pick() },
+                mihomoProfileFilePicker = { mihomoProfileFilePicker.pick() },
+                backupFilePicker = { resourceFilePicker.pick(BackupFileMimeTypes) },
+                backupFileCreator = backupFileCreator::create,
                 logFileCreator = logFileCreator::create,
                 requestVpnPermission = vpnPermissionRequester::request,
             )
@@ -249,3 +267,9 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+
+private val BackupFileMimeTypes = arrayOf(
+    "application/json",
+    "text/json",
+    "text/plain",
+)

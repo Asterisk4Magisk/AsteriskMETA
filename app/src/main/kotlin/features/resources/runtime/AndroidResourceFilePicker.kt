@@ -26,14 +26,16 @@ internal class AndroidResourceFilePicker(
         pendingResult = null
     }
 
-    suspend fun pick(): Uri? {
+    suspend fun pick(
+        mimeTypes: Array<String> = arrayOf("*/*"),
+    ): Uri? {
         return mutex.withLock {
             val currentLauncher = launcher ?: error(missingLauncherMessage())
             val result = CompletableDeferred<Uri?>()
             pendingResult = result
             try {
                 withContext(Dispatchers.Main.immediate) {
-                    currentLauncher(arrayOf("*/*"))
+                    currentLauncher(mimeTypes)
                 }
                 result.await()
             } finally {

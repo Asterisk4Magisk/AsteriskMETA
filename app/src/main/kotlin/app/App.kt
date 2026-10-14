@@ -16,6 +16,8 @@ import app.effects.MihomoRuntimeSynchronizer
 import app.effects.ProxyStatusSynchronizer
 import app.effects.ResourceFileSynchronizer
 import app.effects.EnhancementModuleUpgradeChecker
+import data.backup.AndroidAppBackupDocumentGateway
+import data.backup.AppBackupUseCase
 import features.enhancement.AndroidEnhancementModuleBackend
 import features.enhancement.EnhancementModuleCoordinator
 import features.enhancement.EnhancementModulePrompt
@@ -48,6 +50,8 @@ fun App(
     qrCodeScanner: suspend () -> String?,
     resourceFilePicker: suspend () -> Uri?,
     mihomoProfileFilePicker: suspend () -> Uri?,
+    backupFilePicker: suspend () -> Uri?,
+    backupFileCreator: suspend (String) -> Uri?,
     logFileCreator: suspend (String) -> Uri?,
     requestVpnPermission: suspend (Intent) -> Boolean,
 ) {
@@ -84,6 +88,16 @@ fun App(
     val resourceFileUpdateCoordinator = application.resourceFileUpdateCoordinator
     val mihomoProfilePreparer = application.mihomoProfilePreparer
     val mihomoProfileContentStore = application.mihomoProfileContentStore
+    val appBackupUseCase = remember(appContext, backupFilePicker, backupFileCreator, mihomoProfileContentStore) {
+        AppBackupUseCase(
+            gateway = AndroidAppBackupDocumentGateway(
+                context = appContext,
+                filePicker = backupFilePicker,
+                fileCreator = backupFileCreator,
+            ),
+            profileContentStore = mihomoProfileContentStore,
+        )
+    }
     val mihomoProviderFetcher = remember(appContext) {
         AndroidMihomoProviderFetcher(
             context = appContext,
@@ -140,6 +154,7 @@ fun App(
         networkInterfaces,
         resourceFileUseCase,
         resourceFileUpdateCoordinator,
+        appBackupUseCase,
         mihomoProfileContentStore,
         mihomoProfilePreparer,
         mihomoProviderFetcher,
@@ -167,6 +182,7 @@ fun App(
             networkInterfaces = networkInterfaces,
             resourceFileUseCase = resourceFileUseCase,
             resourceFileUpdateCoordinator = resourceFileUpdateCoordinator,
+            appBackupUseCase = appBackupUseCase,
             mihomoProfileContentStore = mihomoProfileContentStore,
             mihomoProfilePreparer = mihomoProfilePreparer,
             mihomoProviderFetcher = mihomoProviderFetcher,

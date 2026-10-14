@@ -288,9 +288,9 @@
     <string name="mihomo_profile_last_sync">Synced {time}</string>
     <string name="mihomo_profile_missing">Profile does not exist</string>
     <string name="mihomo_profile_name">Name</string>
-    <string name="mihomo_profile_name_required">Enter a profile name</string>
     <string name="mihomo_profile_name_duplicate">%1$s(%2$d)</string>
     <string name="mihomo_profile_name_placeholder">Leave blank to auto-assign on first sync</string>
+    <string name="mihomo_profile_name_required">Enter a profile name</string>
     <string name="mihomo_profile_override_script">Override script</string>
     <string name="mihomo_profile_override_script_applied">Script: {name}</string>
     <string name="mihomo_profile_override_script_none">Do not apply</string>
@@ -856,6 +856,33 @@
     <string name="settings_resource_files_updated_at">Updated {time}</string>
     <string name="settings_resource_management">Resource management</string>
     <string name="settings_resource_management_summary">Manage core files and GEO resource files</string>
+
+    <!-- Backup and restore -->
+    <string name="error_backup_file_creator_missing">Backup file creator is not registered</string>
+    <string name="error_backup_file_open_failed">Failed to open backup file</string>
+    <string name="error_backup_file_too_large">Backup file is too large (maximum 32 MB)</string>
+    <string name="settings_backup_export_failed">Failed to back up user data</string>
+    <string name="settings_backup_exported">User data backed up</string>
+    <string name="settings_backup_exporting">Preparing backup…</string>
+    <string name="settings_backup_reading">Reading backup…</string>
+    <string name="settings_backup_restore">Backup and restore</string>
+    <string name="settings_backup_restoring">Restoring user data…</string>
+    <string name="settings_backup_user_data">Back up user data</string>
+    <string name="settings_backup_user_data_summary">Export current user data to a backup file</string>
+    <string name="settings_restore_backup_counts">{profiles} profiles · {overrideScripts} override scripts</string>
+    <string name="settings_restore_backup_created_at">Created: {time}</string>
+    <string name="settings_restore_backup_version">Backup version {version}, app {appVersion}</string>
+    <string name="settings_restore_completed">User data restored</string>
+    <string name="settings_restore_confirm_summary">Current settings, profiles, override scripts, and app proxy data will be replaced. The current proxy will stop, the ROOT boot script will be removed, and run mode will switch to VPN Service.</string>
+    <string name="settings_restore_confirm_title">Restore user data?</string>
+    <string name="settings_restore_failed">Failed to restore user data</string>
+    <string name="settings_restore_read_failed">Failed to read backup file</string>
+    <string name="settings_restore_root_cleanup_failed">Failed to remove the ROOT boot script before restore</string>
+    <string name="settings_restore_stop_failed">Failed to stop the current proxy before restore</string>
+    <string name="settings_restore_user_data">Restore user data</string>
+    <string name="settings_restore_user_data_summary">Restore user data from a backup file</string>
+    <string name="settings_restore_warning_empty_profile_contents">Warning: {count} file profiles have no content and will be restored empty.</string>
+    <string name="settings_restore_warning_missing_override_script_references">Warning: {count} profiles reference unavailable override scripts and will keep the reference as-is.</string>
 
     <!-- Core migration -->
     <string name="shared_core_migration_keep">Keep</string>

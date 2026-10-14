@@ -5,6 +5,7 @@ package app
 
 import androidx.compose.runtime.staticCompositionLocalOf
 import android.net.Uri
+import data.backup.AppBackupUseCase
 import engine.mihomo.MihomoProfileContentStore
 import engine.proxy.AndroidProxyEngine
 import engine.proxy.ProxyServiceUseCase
@@ -39,6 +40,7 @@ internal data class AppServices(
     val networkInterfaces: AndroidNetworkInterfaceProvider,
     val resourceFileUseCase: ResourceFileUseCase,
     val resourceFileUpdateCoordinator: ResourceFileUpdateCoordinator,
+    val appBackupUseCase: AppBackupUseCase,
     val mihomoProfileContentStore: MihomoProfileContentStore,
     val mihomoProfilePreparer: AndroidMihomoProfilePreparer,
     val mihomoProviderFetcher: AndroidMihomoProviderFetcher,

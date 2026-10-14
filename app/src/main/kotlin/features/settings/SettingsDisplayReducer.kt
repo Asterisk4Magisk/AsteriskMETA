@@ -15,6 +15,7 @@ internal enum class SettingsSectionId {
     Tun2Socks,
     Bpf2Socks,
     Logs,
+    BackupRestore,
     About,
 }
 
@@ -60,8 +61,7 @@ internal data class SettingsRawConfigState(
 
 internal fun SettingsSearchItem.matchesSettingsQuery(query: String): Boolean {
     val normalized = query.trim()
-    if (normalized.isEmpty()) return true
-    return sequenceOf(title, summary, value).plus(optionText.asSequence()).any { candidate ->
+    return normalized.isEmpty() || sequenceOf(title, summary, value).plus(optionText.asSequence()).any { candidate ->
         candidate.contains(normalized, ignoreCase = true)
     }
 }

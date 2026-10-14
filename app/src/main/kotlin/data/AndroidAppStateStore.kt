@@ -63,6 +63,11 @@ class AndroidAppStateStore private constructor(
         persist(pendingSave.nextState, pendingSave.revision)
     }
 
+    suspend fun replaceAllAndAwaitPersistence(nextState: AppState) {
+        update { nextState }
+        awaitPersistence()
+    }
+
     private fun loadInitialState(): LoadedAppState {
         return runBlocking(Dispatchers.IO) {
             val persistedState = runCatching {

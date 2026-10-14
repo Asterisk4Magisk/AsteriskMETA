@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 
 @Composable
 internal fun WarningConfirmDialog(
@@ -36,12 +37,17 @@ internal fun WarningConfirmDialog(
     confirmText: String,
     onDismissRequest: () -> Unit,
     onConfirm: () -> Unit,
+    busy: Boolean = false,
     detailsMaxHeight: Dp = 240.dp,
     details: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
     if (!show) return
     AlertDialog(
-        onDismissRequest = onDismissRequest,
+        onDismissRequest = { if (!busy) onDismissRequest() },
+        properties = DialogProperties(
+            dismissOnBackPress = !busy,
+            dismissOnClickOutside = !busy,
+        ),
         icon = {
             Box(
                 modifier = Modifier
@@ -87,6 +93,7 @@ internal fun WarningConfirmDialog(
                 text = dismissText,
                 icon = Icons.Rounded.Close,
                 onClick = onDismissRequest,
+                enabled = !busy,
             )
         },
         confirmButton = {
@@ -94,6 +101,8 @@ internal fun WarningConfirmDialog(
                 text = confirmText,
                 icon = Icons.Rounded.Check,
                 onClick = onConfirm,
+                enabled = !busy,
+                loading = busy,
                 colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
             )
         },

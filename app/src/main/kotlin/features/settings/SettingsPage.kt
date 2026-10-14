@@ -18,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -41,8 +42,10 @@ import app.modes.RunModeVpnService
 import app.modes.isRootRunMode
 import app.navigation.Route
 import app.withMihomoRestartApplied
+import data.backup.AppBackupRestorePreview
 import engine.mihomo.MihomoGeodataLoaderValues
 import engine.mihomo.raw.MihomoRawConfigParser
+import engine.proxy.ProxyServiceResult
 import engine.proxy.withResolvedDynamicLocalProxyPort
 import features.settings.sheets.externalInterfacesSummary
 import features.settings.sheets.ignoredInterfacesSummary
@@ -53,6 +56,7 @@ import features.settings.sheets.tunSharedNetworkInterfacesSummary
 import features.settings.usecase.RootBootScriptResult
 import features.settings.usecase.RootEbpfProbeResult
 import features.settings.usecase.SwitchRunModeResult
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -65,6 +69,12 @@ import ui.layout.pageHorizontalPadding
 import ui.layout.pageListPadding
 import ui.layout.pageScrollModifiers
 import ui.text.formatTemplate
+
+private enum class SettingsBackupRestoreOperation {
+    Exporting,
+    Reading,
+    Restoring,
+}
 
 @Composable
 fun SettingsPage(
@@ -112,7 +122,8 @@ private fun SettingsContent(
     topAppBarScrollBehavior: TopAppBarScrollBehavior,
     searchQuery: String,
 ) {
-    val appState by LocalAppStateStore.current.collectAppState()
+    val stateStore = LocalAppStateStore.current
+    val appState by stateStore.collectAppState()
     val isWideScreen = LocalIsWideScreen.current
     val updateAppState = LocalUpdateAppState.current
     val navigator = LocalNavigator.current
@@ -120,12 +131,20 @@ private fun SettingsContent(
     val switchRunModeUseCase = services.switchRunModeUseCase
     val rootBootScriptUseCase = services.rootBootScriptUseCase
     val rootEbpfProbeUseCase = services.rootEbpfProbeUseCase
+    val appBackupUseCase = services.appBackupUseCase
+    val proxyServiceUseCase = services.proxyServiceUseCase
     val tipNotifier = services.tipNotifier
     val scope = rememberCoroutineScope()
     val lazyListState = rememberLazyListState()
     var runModeSwitchInProgress by rememberSaveable { mutableStateOf(false) }
     var rootBootScriptSwitchInProgress by rememberSaveable { mutableStateOf(false) }
     var rootEbpfSwitchInProgress by rememberSaveable { mutableStateOf(false) }
+    var backupRestoreOperation by remember {
+        mutableStateOf<SettingsBackupRestoreOperation?>(null)
+    }
+    var pendingRestorePreview by remember {
+        mutableStateOf<AppBackupRestorePreview?>(null)
+    }
     val contentPadding = pageContentPaddingWithCutout(
         innerPadding = innerPadding,
         outerPadding = outerPadding,
@@ -172,6 +191,64 @@ private fun SettingsContent(
     val rootBootScriptFailedMessage = stringResource(R.string.settings_root_boot_script_failed)
     val serviceStoppedMessage = stringResource(R.string.proxy_service_stopped)
     val logLevelFailedMessage = stringResource(R.string.settings_log_level)
+    val backupExportedMessage = stringResource(R.string.settings_backup_exported)
+    val backupExportFailedMessage = stringResource(R.string.settings_backup_export_failed)
+    val restoreReadFailedMessage = stringResource(R.string.settings_restore_read_failed)
+    val restoreCompletedMessage = stringResource(R.string.settings_restore_completed)
+    val restoreFailedMessage = stringResource(R.string.settings_restore_failed)
+    val restoreStopFailedMessage = stringResource(R.string.settings_restore_stop_failed)
+    val restoreRootCleanupFailedMessage =
+        stringResource(R.string.settings_restore_root_cleanup_failed)
+    val backupRestoreProgressText = when (backupRestoreOperation) {
+        SettingsBackupRestoreOperation.Exporting -> stringResource(R.string.settings_backup_exporting)
+        SettingsBackupRestoreOperation.Reading -> stringResource(R.string.settings_backup_reading)
+        SettingsBackupRestoreOperation.Restoring -> stringResource(R.string.settings_backup_restoring)
+        null -> null
+    }
+    val backupRestoreExecutor = remember(
+        proxyServiceUseCase,
+        rootBootScriptUseCase,
+        appBackupUseCase,
+        updateAppState,
+    ) {
+        SettingsBackupRestoreExecutor(
+            stopProxy = { runMode ->
+                when (val result = proxyServiceUseCase.shutdown(runMode)) {
+                    is ProxyServiceResult.Success -> {
+                        updateAppState { state -> state.copy(proxyRunning = false) }
+                        SettingsBackupCleanupResult.Success
+                    }
+                    is ProxyServiceResult.Failed -> SettingsBackupCleanupResult.Failed(result.error)
+                }
+            },
+            uninstallRootBootScript = { finalizeRestore ->
+                when (
+                    val result = rootBootScriptUseCase.uninstallAndThen(
+                        afterUninstall = finalizeRestore,
+                    )
+                ) {
+                    RootBootScriptResult.Success -> SettingsBackupCleanupResult.Success
+                    RootBootScriptResult.RootUnavailable -> SettingsBackupCleanupResult.Unavailable
+                    is RootBootScriptResult.Failed -> SettingsBackupCleanupResult.Failed(result.error)
+                }
+            },
+            replaceState = { preview ->
+                try {
+                    appBackupUseCase.applyRestore(preview) { restoredState ->
+                        stateStore.replaceAllAndAwaitPersistence(restoredState)
+                    }
+                } catch (error: Throwable) {
+                    updateAppState { state ->
+                        state.copy(
+                            proxyRunning = false,
+                            enableRootBootScript = false,
+                        )
+                    }
+                    throw error
+                }
+            },
+        )
+    }
     val localProxySettingsSummary = localProxySettingsSummary(
         runMode = appState.runMode,
         port = appState.localProxyPort,
@@ -528,6 +605,48 @@ private fun SettingsContent(
                     onLanguageModeChange = { index -> updateAppState { state -> state.copy(languageMode = index) } },
                 )
             }
+            item(key = "settings_backup_restore") {
+                SettingsBackupRestoreSection(
+                    progressText = backupRestoreProgressText,
+                    onBackupUserData = {
+                        if (backupRestoreOperation == null) {
+                            val stateSnapshot = appState
+                            backupRestoreOperation = SettingsBackupRestoreOperation.Exporting
+                            scope.launch {
+                                try {
+                                    if (appBackupUseCase.export(stateSnapshot)) {
+                                        tipNotifier.show(backupExportedMessage)
+                                    }
+                                } catch (error: CancellationException) {
+                                    throw error
+                                } catch (error: Throwable) {
+                                    tipNotifier.showError(error, backupExportFailedMessage)
+                                } finally {
+                                    backupRestoreOperation = null
+                                }
+                            }
+                        }
+                    },
+                    onRestoreUserData = {
+                        if (backupRestoreOperation == null) {
+                            backupRestoreOperation = SettingsBackupRestoreOperation.Reading
+                            scope.launch {
+                                try {
+                                    appBackupUseCase.readRestorePreview()?.let { preview ->
+                                        pendingRestorePreview = preview
+                                    }
+                                } catch (error: CancellationException) {
+                                    throw error
+                                } catch (error: Throwable) {
+                                    tipNotifier.showError(error, restoreReadFailedMessage)
+                                } finally {
+                                    backupRestoreOperation = null
+                                }
+                            }
+                        }
+                    },
+                )
+            }
             item(key = "settings_logs") {
                 SettingsLogsSection(
                     onOpenCoreLogs = { navigator.push(Route.CoreLogs) },
@@ -546,6 +665,48 @@ private fun SettingsContent(
             sheetState = sheetState,
             tunStackOptions = tunStackOptions,
             updateAppState = updateAppState,
+        )
+        SettingsRestoreConfirmDialog(
+            preview = pendingRestorePreview,
+            busy = backupRestoreOperation == SettingsBackupRestoreOperation.Restoring,
+            onDismissRequest = {
+                if (backupRestoreOperation == null) pendingRestorePreview = null
+            },
+            onRestore = {
+                val preview = pendingRestorePreview ?: return@SettingsRestoreConfirmDialog
+                if (backupRestoreOperation != null) return@SettingsRestoreConfirmDialog
+                val currentState = appState
+                backupRestoreOperation = SettingsBackupRestoreOperation.Restoring
+                scope.launch {
+                    try {
+                        when (
+                            val result = backupRestoreExecutor.execute(
+                                currentState = currentState,
+                                preview = preview,
+                            )
+                        ) {
+                            SettingsBackupRestoreResult.Success -> {
+                                pendingRestorePreview = null
+                                tipNotifier.show(restoreCompletedMessage)
+                            }
+                            is SettingsBackupRestoreResult.ProxyStopFailed -> {
+                                tipNotifier.showError(result.error, restoreStopFailedMessage)
+                            }
+                            SettingsBackupRestoreResult.RootUnavailable -> {
+                                tipNotifier.show(rootRequiredMessage)
+                            }
+                            is SettingsBackupRestoreResult.RootUninstallFailed -> {
+                                tipNotifier.showError(result.error, restoreRootCleanupFailedMessage)
+                            }
+                            is SettingsBackupRestoreResult.StateReplaceFailed -> {
+                                tipNotifier.showError(result.error, restoreFailedMessage)
+                            }
+                        }
+                    } finally {
+                        backupRestoreOperation = null
+                    }
+                }
+            },
         )
     }
     }

@@ -186,6 +186,16 @@ internal fun settingsTopLevelSearchItems(
         SettingsSearchItem(SettingsSectionId.Tproxy, stringResource(R.string.settings_private_addresses), privateAddressesSummary),
         SettingsSearchItem(SettingsSectionId.Logs, stringResource(R.string.settings_core_logs)),
         SettingsSearchItem(SettingsSectionId.Logs, stringResource(R.string.settings_logcat)),
+        SettingsSearchItem(
+            SettingsSectionId.BackupRestore,
+            stringResource(R.string.settings_backup_user_data),
+            stringResource(R.string.settings_backup_user_data_summary),
+        ),
+        SettingsSearchItem(
+            SettingsSectionId.BackupRestore,
+            stringResource(R.string.settings_restore_user_data),
+            stringResource(R.string.settings_restore_user_data_summary),
+        ),
         SettingsSearchItem(SettingsSectionId.About, stringResource(R.string.settings_about_project)),
         SettingsSearchItem(SettingsSectionId.About, stringResource(R.string.settings_open_source_licenses)),
         SettingsSearchItem(

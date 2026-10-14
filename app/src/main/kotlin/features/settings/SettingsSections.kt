@@ -13,7 +13,14 @@ import app.modes.supportsAppListEnhancement
 import app.modes.isRootRunMode
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExitTransition
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.ui.Modifier
 import ui.icons.AsteriskIcons as Icons
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
@@ -574,6 +581,53 @@ internal fun SettingsLogsSection(
             icon = Icons.Rounded.Terminal,
             onClick = onOpenLogcatLogs,
         )
+    }
+}
+
+@Composable
+internal fun SettingsBackupRestoreSection(
+    progressText: String?,
+    onBackupUserData: () -> Unit,
+    onRestoreUserData: () -> Unit,
+) {
+    val busy = progressText != null
+    SmallTitle(text = stringResource(R.string.settings_backup_restore))
+    SettingsSectionCard {
+        ArrowPreference(
+            title = stringResource(R.string.settings_backup_user_data),
+            summary = stringResource(R.string.settings_backup_user_data_summary),
+            icon = Icons.Rounded.FileUpload,
+            enabled = !busy,
+            onClick = onBackupUserData,
+            accent = IconAccent.MaskYellow,
+        )
+        ArrowPreference(
+            title = stringResource(R.string.settings_restore_user_data),
+            summary = stringResource(R.string.settings_restore_user_data_summary),
+            icon = Icons.Rounded.FileDownload,
+            enabled = !busy,
+            onClick = onRestoreUserData,
+            accent = IconAccent.MaskYellow,
+        )
+        AnimatedVisibility(
+            visible = progressText != null,
+            enter = AsteriskMotion.contentEnter(),
+            exit = AsteriskMotion.contentExit(),
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                Text(
+                    text = progressText.orEmpty(),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+        }
     }
 }
 

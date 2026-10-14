@@ -3,6 +3,7 @@
 
 package features.settings
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,6 +31,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -48,6 +50,7 @@ import ui.components.MaskedPreferenceIcon
 import ui.components.AsteriskDropdownAnchor
 import ui.components.AsteriskDropdownMenuItem
 import ui.text.formatTemplate
+import ui.theme.AsteriskMotion
 import ui.icons.AsteriskIcons as Icons
 
 internal val SettingsLogLevelOptions = listOf("debug", "info", "warning", "error", "silent")
@@ -64,8 +67,16 @@ internal fun ArrowPreference(
     onClick: () -> Unit,
     summary: String = "",
     icon: ImageVector = Icons.Rounded.Tune,
+    enabled: Boolean = true,
     accent: IconAccent = IconAccent.Surface,
-) = SettingsActionRow(title = title, summary = summary, icon = icon, onClick = onClick, accent = accent)
+) = SettingsActionRow(
+    title = title,
+    summary = summary,
+    icon = icon,
+    onClick = onClick,
+    enabled = enabled,
+    accent = accent,
+)
 
 @Composable
 internal fun SwitchPreference(
@@ -152,16 +163,24 @@ internal fun SettingsActionRow(
     modifier: Modifier = Modifier,
     summary: String = "",
     value: String = "",
+    enabled: Boolean = true,
     accent: IconAccent = IconAccent.Surface,
 ) {
     if (!settingsRowMatchesQuery(title, summary, value)) return
+    val rowAlpha by animateFloatAsState(
+        targetValue = if (enabled) 1f else 0.38f,
+        animationSpec = AsteriskMotion.fastEffects(),
+        label = "settings-action-enabled",
+    )
     SettingsRow(
         accent = accent,
         title = title,
         icon = icon,
         summary = summary,
         value = value,
-        modifier = modifier.clickable(role = Role.Button, onClick = onClick),
+        modifier = modifier
+            .graphicsLayer { alpha = rowAlpha }
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick),
         trailing = {
             Icon(
                 imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
