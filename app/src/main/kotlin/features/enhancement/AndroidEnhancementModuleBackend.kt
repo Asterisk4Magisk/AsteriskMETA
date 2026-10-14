@@ -12,6 +12,7 @@ import kotlinx.coroutines.withTimeout
 import system.AndroidRootShellGateway
 import system.RootShellGateway
 import system.ShellExecOptions
+import kotlin.time.Duration.Companion.milliseconds
 
 internal class AndroidEnhancementModuleBackend(
     context: Context,
@@ -31,6 +32,7 @@ internal class AndroidEnhancementModuleBackend(
 
     override suspend fun expectedImage(): EnhancementModuleImage = delegate.expectedImage()
     override suspend fun inspect(): EnhancementModuleRuntime? = delegate.inspect()
+    override suspend fun reboot() = delegate.reboot()
     override suspend fun install(onOutput: (String) -> Unit) = delegate.install(onOutput)
 }
 
@@ -45,10 +47,10 @@ private class AndroidEnhancementModuleRootAccess(private val root: RootShellGate
         val result = try {
             // The shell-level timeout also kills the actual CLI; coroutine cancellation closes
             // the dedicated streaming shell through the existing process-lifetime adapter.
-            withTimeout(135_000) {
+            withTimeout(135_000.milliseconds) {
                 root.execStreaming(command, ShellExecOptions(logFailure = false), onOutput)
             }
-        } catch (error: TimeoutCancellationException) {
+        } catch (_: TimeoutCancellationException) {
             throw EnhancementModuleException(EnhancementModuleFailure.Timeout)
         }
         if (result.errno != 0) {

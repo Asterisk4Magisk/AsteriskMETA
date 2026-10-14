@@ -321,7 +321,6 @@
     <string name="mihomo_profile_provider_usage_requires_proxy">Start the proxy to view provider usage</string>
     <string name="mihomo_profile_provider_usage_retry">Tap to retry</string>
     <string name="mihomo_profile_provider_usage_title">Provider usage</string>
-    <string name="mihomo_profile_provider_usage_total">Total %1$s / %2$s</string>
     <string name="mihomo_profile_provider_usage_unavailable">Temporarily unavailable</string>
     <plurals name="mihomo_profile_provider_usage_unavailable_count">
         <item quantity="one">%1$d unavailable</item>
@@ -345,7 +344,6 @@
     <string name="mihomo_profile_raw_mode_summary">Load YAML unchanged; app settings and override scripts do not take effect</string>
     <string name="mihomo_profile_raw_mode_unchecked">Profile will be checked when content is available</string>
     <string name="mihomo_profile_raw_run_mode">Current run mode</string>
-    <string name="mihomo_profile_raw_summary">Load YAML unchanged</string>
     <string name="mihomo_profile_raw_unavailable">Unavailable</string>
     <string name="mihomo_profile_restart_failed">Unable to restart with the saved profile. The existing service remains active.</string>
     <string name="mihomo_profile_restart_later">Later</string>
@@ -367,6 +365,7 @@
     <string name="mihomo_profile_save_sync_stage_verifying">profile verification</string>
     <string name="mihomo_profile_save_sync_success">Profile synced and saved</string>
     <string name="mihomo_profile_save_sync_verifying">Verifying profile…</string>
+    <string name="mihomo_profile_selected">Selected</string>
     <string name="mihomo_profile_sync">Sync</string>
     <string name="mihomo_profile_sync_all">Update all subscriptions</string>
     <string name="mihomo_profile_sync_all_busy">Another subscription update is already in progress</string>
@@ -377,8 +376,7 @@
     <string name="mihomo_profile_sync_failed_chip">Sync failed</string>
     <string name="mihomo_profile_sync_providers">Sync providers</string>
     <string name="mihomo_profile_traffic_summary">{used} / {total} · expires {expire}</string>
-    <string name="mihomo_profile_type_file">Local file</string>
-    <string name="mihomo_profile_type_url">Remote URL</string>
+    <string name="mihomo_profile_traffic_usage">Used %1$s / Total %2$s</string>
     <string name="mihomo_profile_update_interval">Update interval (hours)</string>
     <string name="mihomo_profile_update_via_proxy">Update via proxy</string>
     <string name="mihomo_profile_url">URL</string>
@@ -578,7 +576,7 @@
 
     <!-- Enhancement module -->
     <string name="enhancement_module_acknowledge">OK</string>
-    <string name="enhancement_module_apk_install_failed">The ROOT tool could not install this APK directly. If APK files are unsupported, export this app APK, change .apk to .zip, install it with your ROOT manager, and reboot</string>
+    <string name="enhancement_module_apk_install_failed">Installation failed. Check the error output. You can try exporting this app, changing the .apk extension to .zip, and installing it with your ROOT manager</string>
     <string name="enhancement_module_failed">Module operation failed. Check your ROOT manager and ensure Zygisk Next is installed and enabled, then retry</string>
     <string name="enhancement_module_incompatible">The running enhancement module does not support this runtime</string>
     <string name="enhancement_module_install_close">Close</string>
@@ -590,6 +588,8 @@
     <string name="enhancement_module_manager_unsupported">No supported Magisk, KernelSU, or APatch installation CLI was found</string>
     <string name="enhancement_module_missing">No usable enhancement module was detected. Install or reinstall it, then reboot</string>
     <string name="enhancement_module_reboot">Enhancement module installed or updated; restart the device</string>
+    <string name="enhancement_module_reboot_action">Reboot</string>
+    <string name="enhancement_module_reboot_failed">Unable to reboot the device. Please reboot manually.</string>
     <string name="enhancement_module_root_denied">ROOT permission was denied. Grant access and retry</string>
     <string name="enhancement_module_timeout">Module operation timed out. Check your ROOT manager and retry</string>
     <string name="enhancement_module_title">Enhancement module</string>

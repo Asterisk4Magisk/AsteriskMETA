@@ -11,12 +11,12 @@ import org.gradle.api.tasks.TaskAction
 object ProjectConfig {
     const val JVM_VERSION = 26
     const val PROJECT_NAME = "AsteriskMETA"
-    const val VERSION_NAME = "1.2.15"
+    const val VERSION_NAME = "1.2.17"
     const val PACKAGE_NAME = "org.asterisk.zcc.ameta"
-    const val ASTERISKD_VERSION = "v2.1.3"
-    const val BPF2SOCKS_VERSION = "v1.1.0"
-    const val BPF_MATCHER_VERSION = "v1.0.1"
-    const val ENHANCE_VERSION = "v1.0.5"
+    const val ASTERISKD_VERSION = "v2.1.6"
+    const val BPF2SOCKS_VERSION = "v1.1.2"
+    const val BPF_MATCHER_VERSION = "v1.0.2"
+    const val ENHANCE_VERSION = "v1.0.6"
     const val ANDROID_LIB_CLASH_LITE_VERSION = "v1.19.32-android.1"
     const val HEV_SOCKS5_TUNNEL_VERSION = "2.18.0"
     const val TARGET_SDK = 37
