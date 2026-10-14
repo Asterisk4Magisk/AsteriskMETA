@@ -289,6 +289,8 @@
     <string name="mihomo_profile_missing">Profile does not exist</string>
     <string name="mihomo_profile_name">Name</string>
     <string name="mihomo_profile_name_required">Enter a profile name</string>
+    <string name="mihomo_profile_name_duplicate">%1$s(%2$d)</string>
+    <string name="mihomo_profile_name_placeholder">Leave blank to auto-assign on first sync</string>
     <string name="mihomo_profile_override_script">Override script</string>
     <string name="mihomo_profile_override_script_applied">Script: {name}</string>
     <string name="mihomo_profile_override_script_none">Do not apply</string>

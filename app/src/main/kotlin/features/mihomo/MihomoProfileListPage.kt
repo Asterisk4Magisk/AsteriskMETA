@@ -143,13 +143,16 @@ fun MihomoProfileListPage(
     val services = LocalAppServices.current
     val scope = rememberCoroutineScope()
     val activeSubscriptionUpdateRequests by subscriptionUpdateRequestCount.collectAsState()
+    val duplicateNameFormat = stringResource(R.string.mihomo_profile_name_duplicate)
     val profileSaveUseCase = remember(
         services.mihomoProfilePreparer,
         services.mihomoProfileContentStore,
+        duplicateNameFormat,
     ) {
         MihomoProfileSaveUseCase.create(
             profilePreparer = services.mihomoProfilePreparer,
             contentStore = services.mihomoProfileContentStore,
+            formatDuplicateName = { name, ordinal -> duplicateNameFormat.format(name, ordinal) },
         )
     }
     var showImportDialog by remember { mutableStateOf(false) }

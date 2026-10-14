@@ -287,6 +287,8 @@
     <string name="mihomo_profile_missing">配置不存在</string>
     <string name="mihomo_profile_name">名称</string>
     <string name="mihomo_profile_name_required">请输入配置名称</string>
+    <string name="mihomo_profile_name_duplicate">%1$s(%2$d)</string>
+    <string name="mihomo_profile_name_placeholder">留空则首次同步后自动命名</string>
     <string name="mihomo_profile_override_script">覆写脚本</string>
     <string name="mihomo_profile_override_script_applied">脚本：{name}</string>
     <string name="mihomo_profile_override_script_none">不应用</string>

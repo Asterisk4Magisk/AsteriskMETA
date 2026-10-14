@@ -138,13 +138,16 @@ fun MihomoProfileEditPage(
     val syncFailedSavedMessage = stringResource(R.string.mihomo_profile_save_sync_failed_saved)
     val saveFailedMessage = stringResource(R.string.mihomo_profile_save_failed)
     val restartFailedMessage = stringResource(R.string.mihomo_profile_restart_failed)
+    val duplicateNameFormat = stringResource(R.string.mihomo_profile_name_duplicate)
     val profileSaveUseCase = remember(
         services.mihomoProfilePreparer,
         services.mihomoProfileContentStore,
+        duplicateNameFormat,
     ) {
         MihomoProfileSaveUseCase.create(
             profilePreparer = services.mihomoProfilePreparer,
             contentStore = services.mihomoProfileContentStore,
+            formatDuplicateName = { name, ordinal -> duplicateNameFormat.format(name, ordinal) },
         )
     }
 
@@ -389,12 +392,9 @@ fun MihomoProfileEditPage(
     }
 
     fun saveUrlProfile(allowPlainHttp: Boolean = false) {
+        // A blank name is auto-assigned after the subscription is fetched.
         val cleanName = nameState.text.toString().trim()
         if (saving || (!isNew && targetProfile == null)) return
-        if (cleanName.isBlank()) {
-            scope.launch { services.tipNotifier.show(nameRequiredMessage) }
-            return
-        }
 
         val trimmedUrl = urlState.text.toString().trim()
         val cleanUserAgent = userAgentState.text.toString().trim().ifBlank { app.DefaultMihomoProfileUserAgent }
@@ -458,6 +458,9 @@ fun MihomoProfileEditPage(
                 desiredProfile = desiredProfile,
                 originalProfile = targetProfile,
                 remoteOptionsChanged = remoteOptionsChanged,
+                otherProfileNames = stateStore.state.value.mihomoProfiles
+                    .filter { profile -> profile.id != targetProfile?.id }
+                    .map { profile -> profile.name },
             ),
         )
     }
@@ -569,6 +572,7 @@ fun MihomoProfileEditPage(
                             state = nameState,
                             enabled = !saving,
                             label = { Text(stringResource(R.string.mihomo_profile_name)) },
+                            placeholder = { Text(stringResource(R.string.mihomo_profile_name_placeholder)) },
                             lineLimits = TextFieldLineLimits.SingleLine,
                             modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
                         )

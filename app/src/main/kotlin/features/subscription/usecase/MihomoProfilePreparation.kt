@@ -22,6 +22,7 @@ internal sealed interface MihomoProfilePreparation {
         val content: String,
         val subscriptionInfo: MihomoSubscriptionInfo,
         val updateIntervalMillis: Long? = null,
+        val remoteName: String? = null,
     ) : MihomoProfilePreparation
 
     data class Failure(
@@ -30,6 +31,7 @@ internal sealed interface MihomoProfilePreparation {
         val content: String? = null,
         val subscriptionInfo: MihomoSubscriptionInfo? = null,
         val updateIntervalMillis: Long? = null,
+        val remoteName: String? = null,
     ) : MihomoProfilePreparation
 }
 
@@ -57,6 +59,7 @@ internal suspend fun prepareMihomoProfile(
             content = result.content,
             subscriptionInfo = result.subscriptionInfo,
             updateIntervalMillis = result.updateIntervalMillis,
+            remoteName = result.remoteName,
         )
 
         is AndroidMihomoProfilePreparation.Failure -> MihomoProfilePreparation.Failure(
@@ -65,6 +68,7 @@ internal suspend fun prepareMihomoProfile(
             content = result.content,
             subscriptionInfo = result.subscriptionInfo,
             updateIntervalMillis = result.updateIntervalMillis,
+            remoteName = result.remoteName,
         )
     }
 }

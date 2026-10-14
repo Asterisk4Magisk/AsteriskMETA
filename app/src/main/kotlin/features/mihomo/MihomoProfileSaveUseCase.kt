@@ -16,6 +16,7 @@ import features.subscription.usecase.prepareMihomoProfile
 import kotlin.time.Clock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import utils.resolveSubscriptionName
 
 internal data class MihomoProfileSaveDraft(
     val desiredProfile: MihomoProfileState,
@@ -23,6 +24,8 @@ internal data class MihomoProfileSaveDraft(
     val localContent: String? = null,
     val contentChanged: Boolean = false,
     val remoteOptionsChanged: Boolean = false,
+    // Names of the other profiles, used to disambiguate an auto-assigned name.
+    val otherProfileNames: Collection<String> = emptyList(),
 )
 
 internal sealed interface MihomoProfileSavePreparation {
@@ -31,6 +34,7 @@ internal sealed interface MihomoProfileSavePreparation {
         val subscriptionInfo: MihomoSubscriptionInfo? = null,
         val updateIntervalMillis: Long? = null,
         val synchronized: Boolean,
+        val remoteName: String? = null,
     ) : MihomoProfileSavePreparation
 
     data class Failure(
@@ -39,6 +43,7 @@ internal sealed interface MihomoProfileSavePreparation {
         val content: String? = null,
         val subscriptionInfo: MihomoSubscriptionInfo? = null,
         val updateIntervalMillis: Long? = null,
+        val remoteName: String? = null,
     ) : MihomoProfileSavePreparation
 }
 
@@ -52,6 +57,7 @@ internal class MihomoProfileSaveUseCase(
     private val writeContent: suspend (MihomoProfileState?, String) -> MihomoProfileContentRef,
     private val deleteContent: suspend (MihomoProfileState) -> Unit,
     private val nowMillis: () -> Long,
+    private val formatDuplicateName: (name: String, ordinal: Int) -> String,
 ) {
     suspend fun prepare(
         draft: MihomoProfileSaveDraft,
@@ -106,7 +112,12 @@ internal class MihomoProfileSaveUseCase(
             desired.type == MihomoProfileType.File && draft.contentChanged -> nowMillis()
             else -> original?.lastUpdatedAtMillis ?: desired.lastUpdatedAtMillis
         }
+        val name = resolveAutoAssignedName(
+            draft = draft,
+            remoteName = preparation.remoteNameOrNull(),
+        ) ?: desired.name
         return desired.copy(
+            name = name,
             contentPath = contentRef?.path.orEmpty(),
             contentSha256 = contentRef?.sha256.orEmpty(),
             contentSizeBytes = contentRef?.sizeBytes ?: 0L,
@@ -122,8 +133,10 @@ internal class MihomoProfileSaveUseCase(
         onStage: (MihomoProfileSyncStage) -> Unit,
     ): MihomoProfileSavePreparation {
         val original = draft.originalProfile
+        // A blank name is auto-assigned from the response, so it needs a fetch.
         val requiresSync = original == null ||
             draft.remoteOptionsChanged ||
+            draft.desiredProfile.name.isBlank() ||
             !original.hasContent ||
             original.syncFailed
         if (!requiresSync) {
@@ -138,6 +151,7 @@ internal class MihomoProfileSaveUseCase(
                 subscriptionInfo = result.subscriptionInfo,
                 updateIntervalMillis = result.updateIntervalMillis,
                 synchronized = true,
+                remoteName = result.remoteName,
             )
 
             is MihomoProfilePreparation.Failure -> MihomoProfileSavePreparation.Failure(
@@ -146,8 +160,31 @@ internal class MihomoProfileSaveUseCase(
                 content = result.content,
                 subscriptionInfo = result.subscriptionInfo,
                 updateIntervalMillis = result.updateIntervalMillis,
+                remoteName = result.remoteName,
             )
         }
+    }
+
+    /**
+     * Resolve a profile name when the user left it blank on a URL profile.
+     *
+     * Returns `null` when the user supplied a name, so later saves never rename
+     * the profile. Otherwise prefers the server's `Content-Disposition` filename
+     * and falls back to the URL host; see utils.SubscriptionNaming, shared with
+     * AsteriskBOX's outbound group naming.
+     */
+    private fun resolveAutoAssignedName(
+        draft: MihomoProfileSaveDraft,
+        remoteName: String?,
+    ): String? {
+        val desired = draft.desiredProfile
+        if (desired.type != MihomoProfileType.Url || desired.name.isNotBlank()) return null
+        return resolveSubscriptionName(
+            preferredName = remoteName,
+            subscriptionUrl = desired.url,
+            takenNames = draft.otherProfileNames,
+            formatDuplicate = formatDuplicateName,
+        ) ?: desired.url
     }
 
     private suspend fun prepareFile(
@@ -183,6 +220,7 @@ internal class MihomoProfileSaveUseCase(
         fun create(
             profilePreparer: AndroidMihomoProfilePreparer,
             contentStore: MihomoProfileContentStore,
+            formatDuplicateName: (name: String, ordinal: Int) -> String,
         ): MihomoProfileSaveUseCase {
             return MihomoProfileSaveUseCase(
                 prepareProfile = { profile, localContent, fetchOptions, onStage ->
@@ -209,6 +247,7 @@ internal class MihomoProfileSaveUseCase(
                     }
                 },
                 nowMillis = { Clock.System.now().toEpochMilliseconds() },
+                formatDuplicateName = formatDuplicateName,
             )
         }
     }
@@ -225,6 +264,13 @@ private fun MihomoProfileSavePreparation.subscriptionInfoOrNull(): MihomoSubscri
     return when (this) {
         is MihomoProfileSavePreparation.Success -> subscriptionInfo
         is MihomoProfileSavePreparation.Failure -> subscriptionInfo
+    }
+}
+
+private fun MihomoProfileSavePreparation.remoteNameOrNull(): String? {
+    return when (this) {
+        is MihomoProfileSavePreparation.Success -> remoteName
+        is MihomoProfileSavePreparation.Failure -> remoteName
     }
 }
 

@@ -18,12 +18,14 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import utils.decodeContentDispositionFilename
 
 internal sealed interface AndroidMihomoProfilePreparation {
     data class Success(
         val content: String,
         val subscriptionInfo: MihomoSubscriptionInfo,
         val updateIntervalMillis: Long? = null,
+        val remoteName: String? = null,
     ) : AndroidMihomoProfilePreparation
 
     data class Failure(
@@ -32,6 +34,7 @@ internal sealed interface AndroidMihomoProfilePreparation {
         val content: String? = null,
         val subscriptionInfo: MihomoSubscriptionInfo? = null,
         val updateIntervalMillis: Long? = null,
+        val remoteName: String? = null,
     ) : AndroidMihomoProfilePreparation
 }
 
@@ -60,6 +63,7 @@ internal class AndroidMihomoProfilePreparer(
         }
         var subscriptionInfo: MihomoSubscriptionInfo? = null
         var updateIntervalMillis: Long? = null
+        var remoteName: String? = null
         try {
             withContext(Dispatchers.IO) {
                 prepareProcessingProfileDir(
@@ -78,6 +82,7 @@ internal class AndroidMihomoProfilePreparer(
                             if (status.action == FetchStatus.Action.SubscriptionInfo) {
                                 subscriptionInfo = status.toSubscriptionInfo()
                                 updateIntervalMillis = status.subUpdateInterval
+                                remoteName = decodeContentDispositionFilename(status.subContentDisposition)
                             }
                             onStatus(status)
                         }
@@ -118,6 +123,7 @@ internal class AndroidMihomoProfilePreparer(
                     content = content,
                     subscriptionInfo = subscriptionInfo ?: MihomoSubscriptionInfo(),
                     updateIntervalMillis = updateIntervalMillis,
+                    remoteName = remoteName,
                 )
             } catch (error: CancellationException) {
                 throw error
@@ -132,6 +138,7 @@ internal class AndroidMihomoProfilePreparer(
                     }.getOrNull(),
                     subscriptionInfo = subscriptionInfo,
                     updateIntervalMillis = updateIntervalMillis,
+                    remoteName = remoteName,
                 )
             }
         } finally {
