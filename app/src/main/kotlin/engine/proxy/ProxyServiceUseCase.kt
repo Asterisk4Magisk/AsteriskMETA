@@ -22,6 +22,7 @@ import kotlin.coroutines.cancellation.CancellationException
 
 internal class ProxyServiceUseCase(
     private val proxyEngine: AndroidProxyEngine,
+    private val requestVpnPermission: VpnPermissionRequester = DenyVpnPermission,
 ) {
     suspend fun toggle(state: AppState): ProxyServiceResult {
         val live = try {
@@ -48,7 +49,7 @@ internal class ProxyServiceUseCase(
         )?.let { conflict -> return conflict.toProxyServiceFailure(RootRequestedAction.RestartSameOwner) }
         return runCatching {
             state.requireUsableMihomoProfile()
-            proxyEngine.restart(ProxyEngineStartRequest(state))
+            proxyEngine.restart(ProxyEngineStartRequest(state), requestVpnPermission)
         }.fold(
             onSuccess = { status -> ProxyServiceResult.Success(proxyRunning = status.running, appState = status.appState) },
             onFailure = { error -> error.toProxyServiceFailure(RootRequestedAction.RestartSameOwner) },
@@ -58,7 +59,7 @@ internal class ProxyServiceUseCase(
     private suspend fun start(state: AppState): ProxyServiceResult {
         return runCatching {
             state.requireUsableMihomoProfile()
-            proxyEngine.start(ProxyEngineStartRequest(state))
+            proxyEngine.start(ProxyEngineStartRequest(state), requestVpnPermission)
         }.fold(
             onSuccess = { status -> ProxyServiceResult.Success(proxyRunning = status.running, appState = status.appState) },
             onFailure = { error -> error.toProxyServiceFailure(RootRequestedAction.OrdinaryStart) },

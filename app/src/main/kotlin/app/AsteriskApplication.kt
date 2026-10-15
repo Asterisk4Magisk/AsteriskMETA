@@ -27,6 +27,8 @@ import app.effects.MihomoRuntimeLifecycleCoordinator
 import engine.mihomo.MihomoProfileContentStore
 import engine.mihomo.runtime.MihomoRuntimeRepository
 import data.AndroidAppStateStore
+import engine.proxy.AndroidProxyEngine
+import system.AndroidRootShellGateway
 import features.mihomo.provider.MihomoProviderUsageStateHolder
 import features.mihomo.provider.loadSelectedMihomoProviderUsageState
 import features.subscription.runtime.AndroidMihomoProfilePreparer
@@ -41,6 +43,14 @@ class AsteriskApplication : Application(), SingletonImageLoader.Factory {
     internal val homeServiceOperationState = HomeServiceOperationState()
     internal val stateStore: AndroidAppStateStore by lazy {
         AndroidAppStateStore.get(applicationContext)
+    }
+
+    /** Shared by every entry point so proxy and traffic stats operations are serialized. */
+    internal val proxyEngine: AndroidProxyEngine by lazy {
+        AndroidProxyEngine(
+            context = applicationContext,
+            rootAccess = AndroidRootShellGateway(),
+        )
     }
     internal val mihomoProfilePreparer: AndroidMihomoProfilePreparer by lazy {
         AndroidMihomoProfilePreparer(applicationContext)

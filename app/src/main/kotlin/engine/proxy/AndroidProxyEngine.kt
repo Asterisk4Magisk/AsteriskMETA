@@ -4,7 +4,6 @@
 package engine.proxy
 
 import android.content.Context
-import android.content.Intent
 import app.modes.RunModeVpnService
 import engine.proxy.mode.AndroidModeProxyEngine
 import engine.root.RootModeEngine
@@ -16,7 +15,6 @@ import engine.mihomo.withResolvedMihomoControlPort
 import engine.mihomo.MihomoProfileFactory
 import engine.mihomo.raw.requireStartableRawConfig
 import engine.mihomo.raw.usesRawMihomoConfig
-import engine.mihomo.raw.loadSelectedRawConfig
 import engine.vpn.AndroidMihomoRuntime
 import engine.vpn.VpnMihomoEngine
 import kotlinx.coroutines.Dispatchers
@@ -32,13 +30,21 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import system.AndroidRootShellGateway
 
+/**
+ * Process-wide proxy engine shared by the UI, quick settings tile and broadcast control so
+ * that every lifecycle operation is serialized by one mutex. VPN permission handling is
+ * caller specific and is therefore supplied per start or restart request.
+ */
 internal class AndroidProxyEngine(
     context: Context,
     rootAccess: AndroidRootShellGateway,
-    requestVpnPermission: suspend (Intent) -> Boolean,
 ) {
     private val appContext = context.applicationContext
-    private val vpnMihomoEngine = VpnMihomoEngine(appContext, requestVpnPermission)
+    private var requestVpnPermission: VpnPermissionRequester = DenyVpnPermission
+    private val vpnMihomoEngine = VpnMihomoEngine(
+        context = appContext,
+        requestVpnPermission = { intent -> requestVpnPermission(intent) },
+    )
     private val rootEngines = RootModeEngine.createAll(appContext, rootAccess)
     private val rootEnginesByRunMode = rootEngines.associateBy(RootModeEngine::runMode)
     private val operationMutex = Mutex()
@@ -47,8 +53,13 @@ internal class AndroidProxyEngine(
     internal val rootStatusWatchGeneration: StateFlow<Long> =
         mutableRootStatusWatchGeneration.asStateFlow()
 
-    suspend fun start(request: ProxyEngineStartRequest): ProxyEngineStatus = operationMutex.withLock {
-        startUnlocked(request)
+    suspend fun start(
+        request: ProxyEngineStartRequest,
+        requestVpnPermission: VpnPermissionRequester = DenyVpnPermission,
+    ): ProxyEngineStatus = operationMutex.withLock {
+        withVpnPermissionRequester(requestVpnPermission) {
+            startUnlocked(request)
+        }
     }
 
     suspend fun stop(preferredRunMode: Int? = null): ProxyEngineStatus = operationMutex.withLock {
@@ -76,12 +87,29 @@ internal class AndroidProxyEngine(
         action()
     }
 
-    suspend fun restart(request: ProxyEngineStartRequest): ProxyEngineStatus {
+    suspend fun restart(
+        request: ProxyEngineStartRequest,
+        requestVpnPermission: VpnPermissionRequester = DenyVpnPermission,
+    ): ProxyEngineStatus {
         val status = operationMutex.withLock {
-            startUnlocked(request, explicitRestart = true)
+            withVpnPermissionRequester(requestVpnPermission) {
+                startUnlocked(request, explicitRestart = true)
+            }
         }
         mutableRootStatusWatchGeneration.update { generation -> generation + 1L }
         return status
+    }
+
+    private suspend fun <T> withVpnPermissionRequester(
+        requester: VpnPermissionRequester,
+        block: suspend () -> T,
+    ): T {
+        requestVpnPermission = requester
+        return try {
+            block()
+        } finally {
+            requestVpnPermission = DenyVpnPermission
+        }
     }
 
     suspend fun reconfigureServiceControl(nextState: app.AppState): app.AppState {
@@ -123,8 +151,24 @@ internal class AndroidProxyEngine(
             rawConfigCheck = raw?.second,
         )
         val requestedEngine = validatedRequest.appState.runMode.engine()
+        val hasOtherActiveEngine = activeEngine.let { active -> active != null && active !== requestedEngine }
         var rootResumeChecked = false
-        if (shouldResumeRootBeforeResolvingPorts(explicitRestart, activeEngine != null, requestedEngine is RootModeEngine)) {
+        // A start that reaches an already running engine does not relaunch the core, so the
+        // ports it is running with must be kept instead of being resolved again.
+        if (!explicitRestart && requestedEngine is VpnMihomoEngine && activeEngine === requestedEngine) {
+            val status = requestedEngine.status()
+            if (status.running) {
+                MihomoTrafficStatsNotificationService.reconcile(
+                    appContext,
+                    validatedRequest.appState.toMihomoTrafficStatsRuntime(
+                        runMode = status.runMode ?: validatedRequest.appState.runMode,
+                        rawConfig = validatedRequest.rawConfig,
+                    ),
+                )
+                return@withContext status.copy(appState = request.appState)
+            }
+        }
+        if (shouldResumeRootBeforeResolvingPorts(explicitRestart, hasOtherActiveEngine, requestedEngine is RootModeEngine)) {
             requestedEngine as RootModeEngine
             requestedEngine.resumeIfRunning(validatedRequest)?.let { status ->
                 activeEngine = requestedEngine
@@ -318,22 +362,15 @@ internal class AndroidProxyEngine(
         return this is RootModeEngine && ownsRuntime()
     }
 
+    /**
+     * Status reads only stop the traffic stats service. They must not start it: entry points
+     * such as the quick settings tile read the status right before a stop request, and the
+     * visible UI restores the notification through TrafficStatsNotificationSynchronizer.
+     */
     private fun ProxyEngineStatus.withTrafficStatsReconciled(appState: app.AppState?): ProxyEngineStatus {
-        if (!running) {
+        if (!running || appState?.enableTrafficStatsNotification == false) {
             MihomoTrafficStatsNotificationService.reconcile(appContext, null)
-            return this
         }
-        if (appState == null) {
-            return this
-        }
-        val activeRunMode = runMode ?: appState.runMode
-        val rawConfig = if (appState.usesRawMihomoConfig()) {
-            appContext.loadSelectedRawConfig(appState)?.snapshot
-        } else {
-            null
-        }
-        val runtime = appState.toMihomoTrafficStatsRuntime(activeRunMode, rawConfig)
-        MihomoTrafficStatsNotificationService.reconcile(appContext, runtime)
         return this
     }
 }
@@ -358,9 +395,9 @@ internal suspend fun <T> withRootRuntimeProbe(
 
 internal fun shouldResumeRootBeforeResolvingPorts(
     explicitRestart: Boolean,
-    hasActiveEngine: Boolean,
+    hasOtherActiveEngine: Boolean,
     requestedIsRoot: Boolean,
-): Boolean = !explicitRestart && !hasActiveEngine && requestedIsRoot
+): Boolean = !explicitRestart && !hasOtherActiveEngine && requestedIsRoot
 
 internal fun shouldUsePreResolvedRootStart(
     explicitRestart: Boolean,

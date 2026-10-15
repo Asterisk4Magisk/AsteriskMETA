@@ -14,13 +14,13 @@ import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import android.widget.Toast
 import app.AppState
+import app.AsteriskApplication
 import app.MainActivity
 import app.R
 import app.withMihomoRestartApplied
 import app.modes.RunModeVpnService
 import data.AndroidAppStateStore
 import data.AppSettingsPreferences
-import engine.proxy.AndroidProxyEngine
 import engine.proxy.ProxyServiceResult
 import engine.proxy.ProxyServiceUseCase
 import features.logs.AndroidAppLogger
@@ -31,7 +31,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import system.AndroidRootShellGateway
 import ui.feedback.rootOperationTipMessageOrNull
 import java.lang.ref.WeakReference
 import java.util.concurrent.atomic.AtomicBoolean
@@ -41,18 +40,16 @@ import kotlin.time.Duration.Companion.milliseconds
 class ProxyQuickSettingsTileService : TileService() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val stateStore by lazy { AndroidAppStateStore.get(applicationContext) }
-    private val rootAccess by lazy { AndroidRootShellGateway() }
-    private val proxyEngine by lazy {
-        AndroidProxyEngine(
-            context = applicationContext,
-            rootAccess = rootAccess,
+    private val proxyEngine by lazy { (application as AsteriskApplication).proxyEngine }
+    private val proxyServiceUseCase by lazy {
+        ProxyServiceUseCase(
+            proxyEngine = proxyEngine,
             requestVpnPermission = { intent ->
                 launchActivityAndCollapse(intent)
                 false
             },
         )
     }
-    private val proxyServiceUseCase by lazy { ProxyServiceUseCase(proxyEngine) }
 
     override fun attachBaseContext(newBase: Context) {
         val languageMode = AppSettingsPreferences(newBase).load().languageMode

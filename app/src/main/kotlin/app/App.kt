@@ -3,7 +3,6 @@
 
 package app
 
-import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
@@ -23,7 +22,7 @@ import features.enhancement.EnhancementModuleCoordinator
 import features.enhancement.EnhancementModulePrompt
 import app.effects.RootBootScriptSynchronizer
 import app.effects.TrafficStatsNotificationSynchronizer
-import engine.proxy.AndroidProxyEngine
+import engine.proxy.VpnPermissionRequester
 import engine.proxy.ProxyServiceUseCase
 import features.logs.AndroidAsteriskdLogRepository
 import features.logs.AndroidCoreLogRepository
@@ -53,7 +52,7 @@ fun App(
     backupFilePicker: suspend () -> Uri?,
     backupFileCreator: suspend (String) -> Uri?,
     logFileCreator: suspend (String) -> Uri?,
-    requestVpnPermission: suspend (Intent) -> Boolean,
+    requestVpnPermission: VpnPermissionRequester,
 ) {
     val appContext = LocalContext.current.applicationContext
     val systemUiSnapshot = appContext.currentSystemUiSnapshot()
@@ -108,13 +107,7 @@ fun App(
     val monitoring = remember(appScope, appContext, rootAccess, stateStore, mihomoRuntime) {
         MonitoringRepository(appScope, appContext, rootAccess, stateStore, mihomoRuntime)
     }
-    val proxyEngine = remember(appContext, rootAccess) {
-        AndroidProxyEngine(
-            context = appContext,
-            rootAccess = rootAccess,
-            requestVpnPermission = requestVpnPermission,
-        )
-    }
+    val proxyEngine = remember(application) { application.proxyEngine }
     val enhancementModuleCoordinator = remember(appContext) {
         EnhancementModuleCoordinator { AndroidEnhancementModuleBackend(appContext) }
     }
@@ -138,8 +131,8 @@ fun App(
             rootBootScriptUseCase = rootBootScriptUseCase,
         )
     }
-    val proxyServiceUseCase = remember(proxyEngine) {
-        ProxyServiceUseCase(proxyEngine)
+    val proxyServiceUseCase = remember(proxyEngine, requestVpnPermission) {
+        ProxyServiceUseCase(proxyEngine, requestVpnPermission)
     }
     val applyServiceControlUseCase = remember(proxyEngine) {
         ApplyServiceControlUseCase(proxyEngine)

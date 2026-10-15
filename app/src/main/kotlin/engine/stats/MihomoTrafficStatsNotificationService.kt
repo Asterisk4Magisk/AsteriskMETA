@@ -61,6 +61,8 @@ class MihomoTrafficStatsNotificationService : Service() {
     private val client = MihomoControlClient()
     private val monitor = TrafficStatsMonitor(serviceScope)
     private var activeRuntime: MihomoTrafficStatsRuntime? = null
+    private var foregroundStarted = false
+    private var latestStartId = 0
     private val notificationManager by lazy { getSystemService(NotificationManager::class.java) }
     private val contentIntent by lazy {
         packageManager
@@ -83,6 +85,7 @@ class MihomoTrafficStatsNotificationService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        latestStartId = startId
         if (intent?.action == ActionStop) {
             stopStats()
             stopSelf(startId)
@@ -93,8 +96,20 @@ class MihomoTrafficStatsNotificationService : Service() {
         // from application settings would violate raw-config isolation after a sticky
         // service restart because the YAML controller and secret are intentionally not
         // persisted outside the profile content.
-        val runtime = intent?.readRuntime()
+        val runtime = if (intent?.action == ActionStart) {
+            // Every startForegroundService() request must reach startForeground() before the
+            // service may stop, including requests superseded by a later stop request.
+            val nodeName = intent.readRuntime()?.nodeName.orEmpty()
+            if (!foregroundStarted && !startForegroundNotification(nodeName, startId)) {
+                requests.consumeStart()
+                return START_NOT_STICKY
+            }
+            requests.consumeStart()
+        } else {
+            intent?.readRuntime()
+        }
         if (runtime == null) {
+            stopStats()
             stopSelf(startId)
             return START_NOT_STICKY
         }
@@ -103,17 +118,23 @@ class MihomoTrafficStatsNotificationService : Service() {
         }
 
         activeRuntime = runtime
-        val foregroundStarted = tryStartTrafficStatsService(
-            start = { startForegroundCompat(buildNotification(runtime.nodeName, TrafficStatsSnapshot())) },
+        if (!startForegroundNotification(runtime.nodeName, startId)) return START_NOT_STICKY
+        startMonitor(runtime)
+        return START_NOT_STICKY
+    }
+
+    private fun startForegroundNotification(nodeName: String, startId: Int): Boolean {
+        return tryStartTrafficStatsService(
+            start = {
+                startForegroundCompat(buildNotification(nodeName, TrafficStatsSnapshot()))
+                foregroundStarted = true
+            },
             onFailure = { error ->
                 AndroidAppLogger.warn(LogTag, "Failed to start traffic stats foreground service", error)
                 stopStats()
                 stopSelf(startId)
             },
         )
-        if (!foregroundStarted) return START_NOT_STICKY
-        startMonitor(runtime)
-        return START_NOT_STICKY
     }
 
     override fun onDestroy() {
@@ -159,7 +180,9 @@ class MihomoTrafficStatsNotificationService : Service() {
                     AndroidAppLogger.warn(LogTag, "Stopping traffic stats notification after repeated stream failures")
                     publish {
                         stopStats()
-                        stopSelf()
+                        // A newer start request keeps the service alive and is still
+                        // required to reach startForeground().
+                        stopSelf(latestStartId)
                     }
                     return@start
                 }
@@ -251,6 +274,7 @@ class MihomoTrafficStatsNotificationService : Service() {
         monitor.cancel()
         activeRuntime = null
         stopForegroundCompat()
+        foregroundStarted = false
         notificationManager.cancel(NotificationId)
     }
 
@@ -281,6 +305,8 @@ class MihomoTrafficStatsNotificationService : Service() {
     }
 
     companion object {
+        private val requests = TrafficStatsServiceRequests<MihomoTrafficStatsRuntime>()
+
         internal fun reconcile(context: Context, runtime: MihomoTrafficStatsRuntime?) {
             if (runtime == null) {
                 stop(context)
@@ -295,19 +321,23 @@ class MihomoTrafficStatsNotificationService : Service() {
                 action = ActionStart
                 putRuntime(runtime)
             }
-            tryStartTrafficStatsService(
-                start = { ContextCompat.startForegroundService(appContext, intent) },
-                onFailure = { error ->
-                    AndroidAppLogger.warn(LogTag, "Failed to request traffic stats foreground service start", error)
-                },
-            )
+            requests.start(runtime) {
+                tryStartTrafficStatsService(
+                    start = { ContextCompat.startForegroundService(appContext, intent) },
+                    onFailure = { error ->
+                        AndroidAppLogger.warn(LogTag, "Failed to request traffic stats foreground service start", error)
+                    },
+                )
+            }
         }
 
         internal fun stop(context: Context) {
             val appContext = context.applicationContext
-            appContext.stopService(Intent(appContext, MihomoTrafficStatsNotificationService::class.java).apply {
-                action = ActionStop
-            })
+            requests.stop {
+                appContext.stopService(Intent(appContext, MihomoTrafficStatsNotificationService::class.java).apply {
+                    action = ActionStop
+                })
+            }
             appContext.getSystemService(NotificationManager::class.java).cancel(NotificationId)
         }
     }
