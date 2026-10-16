@@ -46,6 +46,8 @@ internal class AppSettingsPreferences(
             languageMode = preferences.getInt(KeyLanguageMode, defaults.languageMode),
             seedIndex = preferences.getInt(KeySeedIndex, defaults.seedIndex),
             hideRecentTasks = preferences.getBoolean(KeyHideRecentTasks, defaults.hideRecentTasks),
+            allowScreenshots = preferences.getBoolean(KeyAllowScreenshots, defaults.allowScreenshots),
+            hideLauncherIcon = preferences.getBoolean(KeyHideLauncherIcon, defaults.hideLauncherIcon),
             nextMihomoProfileId = preferences.getInt(KeyNextMihomoProfileId, defaults.nextMihomoProfileId),
             nextMihomoOverrideScriptId = preferences.getInt(
                 KeyNextMihomoOverrideScriptId,
@@ -275,6 +277,8 @@ internal class AppSettingsPreferences(
             .putInt(KeyLanguageMode, state.languageMode)
             .putInt(KeySeedIndex, state.seedIndex)
             .putBoolean(KeyHideRecentTasks, state.hideRecentTasks)
+            .putBoolean(KeyAllowScreenshots, state.allowScreenshots)
+            .putBoolean(KeyHideLauncherIcon, state.hideLauncherIcon)
             .putInt(KeyNextMihomoProfileId, state.nextMihomoProfileId)
             .putInt(KeyNextMihomoOverrideScriptId, state.nextMihomoOverrideScriptId)
             .putInt(KeySelectedMihomoProfileId, state.selectedMihomoProfileId)
@@ -492,6 +496,8 @@ private const val KeyColorMode = "color_mode"
 private const val KeyLanguageMode = "language_mode"
 private const val KeySeedIndex = "seed_index"
 private const val KeyHideRecentTasks = "hide_recent_tasks"
+private const val KeyAllowScreenshots = "allow_screenshots"
+private const val KeyHideLauncherIcon = "hide_launcher_icon"
 private const val KeyNextMihomoProfileId = "next_mihomo_profile_id"
 private const val KeyNextMihomoOverrideScriptId = "next_mihomo_override_script_id"
 private const val KeySelectedMihomoProfileId = "selected_mihomo_profile_id"

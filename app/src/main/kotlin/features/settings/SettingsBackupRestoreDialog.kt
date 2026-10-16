@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import data.backup.AppBackupRestorePreview
 import data.backup.AppBackupWarning
 import app.R
+import system.AndroidLauncherIcon
 import ui.components.WarningConfirmDialog
 import ui.text.formatTemplate
 import java.text.DateFormat
@@ -70,6 +71,16 @@ internal fun SettingsRestoreConfirmDialog(
             preview.warnings.forEach { warning ->
                 Text(
                     text = warning.localizedMessage(),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            if (preview.restoredState.hideLauncherIcon && AndroidLauncherIcon.isSupported) {
+                Text(
+                    text = stringResource(
+                        R.string.settings_hide_launcher_icon_confirm,
+                        AndroidLauncherIcon.DIAL_CODE,
+                    ),
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall,
                 )

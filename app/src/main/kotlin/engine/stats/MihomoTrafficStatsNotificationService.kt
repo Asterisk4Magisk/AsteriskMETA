@@ -38,6 +38,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
+import system.AndroidLauncherIcon
 import utils.toReadableBytes
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -65,16 +66,12 @@ class MihomoTrafficStatsNotificationService : Service() {
     private var latestStartId = 0
     private val notificationManager by lazy { getSystemService(NotificationManager::class.java) }
     private val contentIntent by lazy {
-        packageManager
-            .getLaunchIntentForPackage(packageName)
-            ?.let { intent ->
-                PendingIntent.getActivity(
-                    this,
-                    0,
-                    intent,
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-                )
-            }
+        PendingIntent.getActivity(
+            this,
+            0,
+            AndroidLauncherIcon.launchIntent(this),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
     }
 
     override fun onCreate() {

@@ -7,6 +7,7 @@ import engine.mihomo.raw.MihomoRawConfigSnapshot
 
 internal enum class SettingsSectionId {
     Apps,
+    Privacy,
     Core,
     Advanced,
     Vpn,
