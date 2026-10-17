@@ -222,7 +222,7 @@ private fun MutableMap<String, Any?>.putAsteriskRuntimeOverrides(
         put("bind-address", LocalProxyLoopbackAddress)
     }
     put("mode", appState.mihomoModeName())
-    put("unified-delay", true)
+    put("unified-delay", appState.connectionTestUnifiedDelay)
     put("log-level", appState.mihomoLogLevelName())
     put("geodata-mode", appState.enableGeodataMode)
     put("geodata-loader", appState.mihomoGeodataLoaderName())

@@ -75,6 +75,10 @@ data class AppState(
 
     val proxyRunning: Boolean = false,
 
+    val connectionTestUrl: String = DefaultConnectionTestUrl,
+    val connectionTestConcurrent: Int = DefaultConnectionTestConcurrent,
+    val connectionTestTimeoutMillis: Int = DefaultConnectionTestTimeoutMillis,
+    val connectionTestUnifiedDelay: Boolean = DefaultConnectionTestUnifiedDelay,
     val coreLogLevel: Int = 3,
     val enableGeodataMode: Boolean = false,
     val enableTrafficStatsNotification: Boolean = false,

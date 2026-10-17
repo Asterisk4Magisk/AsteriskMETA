@@ -9,29 +9,30 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import app.AppState
 import app.LocalAppServices
 import app.R
+import app.modes.RunModeBpf2Socks
+import app.modes.RunModeTproxy
+import app.modes.RunModeTun2Socks
+import app.modes.RunModeVpnService
+import engine.mihomo.raw.usesRawMihomoConfig
+import features.logs.AndroidAppLogger
+import features.settings.sheets.ConnectionTestSettingsBottomSheet
 import features.settings.sheets.DnsSettingsBottomSheet
 import features.settings.sheets.ExternalInterfacesBottomSheet
 import features.settings.sheets.IgnoredInterfacesBottomSheet
 import features.settings.sheets.LocalProxySettingsBottomSheet
 import features.settings.sheets.PrivateAddressBottomSheet
-import features.settings.sheets.SnifferSettingsBottomSheet
 import features.settings.sheets.ServiceControlBottomSheet
+import features.settings.sheets.SnifferSettingsBottomSheet
 import features.settings.sheets.TunBypassRuleSetBottomSheet
-import features.settings.sheets.TunSharedNetworkBottomSheet
 import features.settings.sheets.TunSettingsBottomSheet
+import features.settings.sheets.TunSharedNetworkBottomSheet
 import features.settings.sheets.sanitizeExternalInterfaces
 import features.settings.sheets.sanitizeIgnoredInterfaceSelectors
 import features.settings.sheets.sanitizePrivateAddressCidrs
-import app.modes.RunModeBpf2Socks
-import app.modes.RunModeTun2Socks
-import app.modes.RunModeTproxy
-import app.modes.RunModeVpnService
-import features.logs.AndroidAppLogger
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
@@ -42,12 +43,22 @@ internal fun SettingsBottomSheetsHost(
     tunStackOptions: List<String>,
     updateAppState: ((AppState) -> AppState) -> Unit,
 ) {
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val applyServiceControl = LocalAppServices.current.applyServiceControlUseCase
     val serviceControlFailedMessage = stringResource(R.string.settings_service_control_save_failed)
     var serviceControlSaving by remember { mutableStateOf(false) }
     var serviceControlError by remember { mutableStateOf<String?>(null) }
+    ConnectionTestSettingsBottomSheet(
+        show = sheetState.showConnectionTestSettings,
+        overridesEnabled = !appState.usesRawMihomoConfig(),
+        draft = sheetState.connectionTestSettingsDraft,
+        onDraftChange = { sheetState.connectionTestSettingsDraft = it },
+        onDismissRequest = { sheetState.showConnectionTestSettings = false },
+        onSave = { draft ->
+            updateAppState { state -> state.withConnectionTestSettings(draft) }
+            sheetState.showConnectionTestSettings = false
+        },
+    )
     LocalProxySettingsBottomSheet(
         show = sheetState.showLocalProxySettings,
         showInboundProxyPort = appState.runMode == RunModeTproxy ||
@@ -59,12 +70,16 @@ internal fun SettingsBottomSheetsHost(
             appState.runMode == RunModeTun2Socks ||
             appState.runMode == RunModeBpf2Socks) &&
             appState.proxyRunning,
-        inboundProxyPort = if (appState.runMode == RunModeTun2Socks) {
-            sheetState.localProxySettingsDraft.socks5ProxyPort
-        } else if (appState.runMode == RunModeBpf2Socks) {
-            sheetState.localProxySettingsDraft.socks5ProxyPort
-        } else {
-            sheetState.localProxySettingsDraft.transparentProxyPort
+        inboundProxyPort = when (appState.runMode) {
+            RunModeTun2Socks -> {
+                sheetState.localProxySettingsDraft.socks5ProxyPort
+            }
+            RunModeBpf2Socks -> {
+                sheetState.localProxySettingsDraft.socks5ProxyPort
+            }
+            else -> {
+                sheetState.localProxySettingsDraft.transparentProxyPort
+            }
         },
         bpf2SocksBridgePort = sheetState.localProxySettingsDraft.bpf2SocksBridgePort,
         port = sheetState.localProxySettingsDraft.port,
@@ -73,12 +88,16 @@ internal fun SettingsBottomSheetsHost(
         username = sheetState.localProxySettingsDraft.username,
         password = sheetState.localProxySettingsDraft.password,
         onInboundProxyPortChange = {
-            sheetState.localProxySettingsDraft = if (appState.runMode == RunModeTun2Socks) {
-                sheetState.localProxySettingsDraft.copy(socks5ProxyPort = it)
-            } else if (appState.runMode == RunModeBpf2Socks) {
-                sheetState.localProxySettingsDraft.copy(socks5ProxyPort = it)
-            } else {
-                sheetState.localProxySettingsDraft.copy(transparentProxyPort = it)
+            sheetState.localProxySettingsDraft = when (appState.runMode) {
+                RunModeTun2Socks -> {
+                    sheetState.localProxySettingsDraft.copy(socks5ProxyPort = it)
+                }
+                RunModeBpf2Socks -> {
+                    sheetState.localProxySettingsDraft.copy(socks5ProxyPort = it)
+                }
+                else -> {
+                    sheetState.localProxySettingsDraft.copy(transparentProxyPort = it)
+                }
             }
         },
         onBpf2SocksBridgePortChange = {
@@ -279,12 +298,11 @@ internal fun SettingsBottomSheetsHost(
         },
         onSave = { draft ->
             if (!serviceControlSaving) {
-                val baseState = appState
                 serviceControlSaving = true
                 serviceControlError = null
                 scope.launch {
                     try {
-                        val applied = applyServiceControl.apply(baseState, draft)
+                        val applied = applyServiceControl.apply(appState, draft)
                         updateAppState { current ->
                             current.copy(
                                 serviceControl = applied.serviceControl,

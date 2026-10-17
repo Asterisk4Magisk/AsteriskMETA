@@ -67,7 +67,6 @@ import engine.mihomo.runtime.MihomoDelayStatus
 import engine.mihomo.runtime.MihomoDelayTarget
 import engine.mihomo.runtime.MihomoProxyNodeId
 import engine.mihomo.runtime.withDelayResult
-import engine.mihomo.DefaultMihomoDelayTestUrl
 import features.mihomo.MihomoDelayToolbar
 import features.mihomo.displayMihomoProtocolName
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -176,7 +175,7 @@ fun MihomoProxyProviderDetailPage(
             services.mihomoRuntime.testProxyDelay(
                 appState = appState,
                 proxyId = MihomoProxyNodeId(node.name, detail.name),
-                testUrl = detail.testUrl.ifBlank { DefaultMihomoDelayTestUrl },
+                testUrl = detail.testUrl,
                 expectedStatus = detail.expectedStatus,
             ).onSuccess { result ->
                 val mergedResult = mergeMihomoProviderDelayResults(latestDelayResult, result)
@@ -197,7 +196,7 @@ fun MihomoProxyProviderDetailPage(
             services.mihomoRuntime.testProviderDelay(
                 appState = appState,
                 providerName = detail.name,
-                testUrl = detail.testUrl.ifBlank { DefaultMihomoDelayTestUrl },
+                testUrl = detail.testUrl,
                 expectedStatus = detail.expectedStatus,
             ).onSuccess { result ->
                 val mergedResult = mergeMihomoProviderDelayResults(latestDelayResult, result)

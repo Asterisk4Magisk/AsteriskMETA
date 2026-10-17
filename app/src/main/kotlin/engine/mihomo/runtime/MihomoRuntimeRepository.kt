@@ -534,7 +534,7 @@ internal class MihomoRuntimeRepository(
     suspend fun testProxyDelay(
         appState: AppState,
         proxyId: MihomoProxyNodeId,
-        testUrl: String = engine.mihomo.DefaultMihomoDelayTestUrl,
+        testUrl: String = "",
         expectedStatus: String = "",
     ): Result<MihomoDelayResult> {
         return startDelayTest(MihomoDelayTarget.Node(proxyId)) {
@@ -610,7 +610,8 @@ internal class MihomoRuntimeRepository(
             client.testProxyDelay(
                 config = control,
                 proxyId = proxyId,
-                url = testUrl.ifBlank { engine.mihomo.DefaultMihomoDelayTestUrl },
+                url = testUrl.ifBlank { appState.connectionTestUrl },
+                timeoutMillis = appState.connectionTestTimeoutMillis,
                 expectedStatus = expectedStatus,
                 groupFallbackName = groupFallbackName,
                 useBridge = backend.useBridge(),
@@ -639,7 +640,8 @@ internal class MihomoRuntimeRepository(
             client.testGroupDelay(
                 config = control,
                 groupName = groupName,
-                url = testUrl.ifBlank { engine.mihomo.DefaultMihomoDelayTestUrl },
+                url = testUrl.ifBlank { appState.connectionTestUrl },
+                timeoutMillis = appState.connectionTestTimeoutMillis,
                 expectedProxyIds = expectedProxyIds,
                 useBridge = backend.useBridge(),
             ).also { result ->
@@ -743,7 +745,9 @@ internal class MihomoRuntimeRepository(
             client.testProviderDelay(
                 config = control,
                 providerName = providerName,
-                url = testUrl.ifBlank { engine.mihomo.DefaultMihomoDelayTestUrl },
+                concurrency = appState.connectionTestConcurrent,
+                url = testUrl.ifBlank { appState.connectionTestUrl },
+                timeoutMillis = appState.connectionTestTimeoutMillis,
                 expectedStatus = expectedStatus,
                 useBridge = backend.useBridge(),
             ).also { result ->
@@ -1110,6 +1114,7 @@ private fun AppState.mihomoRuntimeConfigKey(backend: MihomoRuntimeBackend): Int 
             mihomoProfiles,
             runMode,
             mihomoMode,
+            connectionTestUnifiedDelay,
             enableGeodataMode,
             mihomoGeodataLoader,
             resourceFileSource,

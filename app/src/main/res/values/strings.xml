@@ -250,6 +250,18 @@
     <string name="mihomo_proxies_select_failed">Failed to switch proxy</string>
     <string name="mihomo_proxies_title">Proxies</string>
 
+    <!-- Connection test -->
+    <string name="connection_test_concurrent">Test concurrency</string>
+    <string name="connection_test_scope_summary">Use this URL when the proxy group has no test URL specified</string>
+    <string name="connection_test_settings_summary">Tune how the Mihomo URL test measures delay</string>
+    <string name="connection_test_settings_title">Connection test</string>
+    <string name="connection_test_timeout">Test timeout (ms)</string>
+    <string name="connection_test_unified_delay">Unified delay</string>
+    <string name="connection_test_unified_delay_raw_summary">Overrides disabled; unified delay follows the profile YAML</string>
+    <string name="connection_test_unified_delay_summary">Measure the second request on a kept session, hiding the one-off handshake cost</string>
+    <string name="connection_test_url">Test URL</string>
+    <string name="connection_test_url_invalid">Enter a valid HTTP or HTTPS URL</string>
+
     <!-- Subscription groups -->
     <string name="subscription_hwid">HWID</string>
     <string name="subscription_hwid_invalid">Invalid HWID</string>

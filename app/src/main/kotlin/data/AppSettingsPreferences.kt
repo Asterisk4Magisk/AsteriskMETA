@@ -5,6 +5,7 @@ package data
 
 import android.content.Context
 import android.content.SharedPreferences
+import app.withNormalizedConnectionTestSettings
 import app.AppState
 import engine.mihomo.normalizeMihomoTunCongestionController
 import app.ServiceControlSchedule
@@ -109,6 +110,10 @@ internal class AppSettingsPreferences(
             tunVpnDns = preferences.getString(KeyTunVpnDns, defaults.tunVpnDns) ?: defaults.tunVpnDns,
             tunIpv4Cidr = preferences.getString(KeyTunIpv4Cidr, defaults.tunIpv4Cidr) ?: defaults.tunIpv4Cidr,
             tunIpv6Cidr = preferences.getString(KeyTunIpv6Cidr, defaults.tunIpv6Cidr) ?: defaults.tunIpv6Cidr,
+            connectionTestUrl = preferences.getString(KeyConnectionTestUrl, defaults.connectionTestUrl) ?: defaults.connectionTestUrl,
+            connectionTestConcurrent = preferences.getInt(KeyConnectionTestConcurrent, defaults.connectionTestConcurrent),
+            connectionTestTimeoutMillis = preferences.getInt(KeyConnectionTestTimeoutMillis, defaults.connectionTestTimeoutMillis),
+            connectionTestUnifiedDelay = preferences.getBoolean(KeyConnectionTestUnifiedDelay, defaults.connectionTestUnifiedDelay),
             coreLogLevel = preferences.getInt(KeyCoreLogLevel, defaults.coreLogLevel),
             enableGeodataMode = preferences.getBoolean(KeyEnableGeodataMode, defaults.enableGeodataMode),
             enableTrafficStatsNotification = preferences.getBoolean(
@@ -265,7 +270,7 @@ internal class AppSettingsPreferences(
             ignoredInterfaces = preferences.getStringList(KeyIgnoredInterfaces, defaults.ignoredInterfaces),
             privateAddressCidrs = preferences.getStringList(KeyPrivateAddressCidrs, defaults.privateAddressCidrs),
             proxyAppListMode = preferences.getInt(KeyProxyAppListMode, defaults.proxyAppListMode),
-        )
+        ).withNormalizedConnectionTestSettings()
     }
 
     fun save(state: AppState) {
@@ -304,6 +309,10 @@ internal class AppSettingsPreferences(
             .putString(KeyTunVpnDns, state.tunVpnDns)
             .putString(KeyTunIpv4Cidr, state.tunIpv4Cidr)
             .putString(KeyTunIpv6Cidr, state.tunIpv6Cidr)
+            .putString(KeyConnectionTestUrl, state.connectionTestUrl)
+            .putInt(KeyConnectionTestConcurrent, state.connectionTestConcurrent)
+            .putInt(KeyConnectionTestTimeoutMillis, state.connectionTestTimeoutMillis)
+            .putBoolean(KeyConnectionTestUnifiedDelay, state.connectionTestUnifiedDelay)
             .putInt(KeyCoreLogLevel, state.coreLogLevel)
             .putBoolean(KeyEnableGeodataMode, state.enableGeodataMode)
             .putBoolean(KeyEnableTrafficStatsNotification, state.enableTrafficStatsNotification)
@@ -616,3 +625,8 @@ internal const val KeyServiceControlKeyguardUnlockStop = "service_control_keygua
 
 private const val KeySubscriptionHwid = "subscription_hwid"
 private val SubscriptionHwidLock = Any()
+
+private const val KeyConnectionTestUrl = "connection_test_url"
+private const val KeyConnectionTestConcurrent = "connection_test_concurrent"
+private const val KeyConnectionTestTimeoutMillis = "connection_test_timeout_millis"
+private const val KeyConnectionTestUnifiedDelay = "connection_test_unified_delay"

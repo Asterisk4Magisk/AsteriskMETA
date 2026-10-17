@@ -3,6 +3,7 @@
 
 package data.backup
 
+import app.withNormalizedConnectionTestSettings
 import app.AppState
 import app.DefaultMihomoOverrideScriptId
 import app.DefaultMihomoProfileId
@@ -90,6 +91,10 @@ private fun AppState.toBackupSettings(): AppBackupSettings =
         tunVpnDns = tunVpnDns,
         tunIpv4Cidr = tunIpv4Cidr,
         tunIpv6Cidr = tunIpv6Cidr,
+        connectionTestUrl = connectionTestUrl,
+        connectionTestConcurrent = connectionTestConcurrent,
+        connectionTestTimeoutMillis = connectionTestTimeoutMillis,
+        connectionTestUnifiedDelay = connectionTestUnifiedDelay,
         coreLogLevel = coreLogLevel,
         enableGeodataMode = enableGeodataMode,
         enableTrafficStatsNotification = enableTrafficStatsNotification,
@@ -283,6 +288,10 @@ private fun AppBackupData.toAppState(): AppState {
         tunIpv4Cidr = settings.tunIpv4Cidr,
         tunIpv6Cidr = settings.tunIpv6Cidr,
         proxyRunning = false,
+        connectionTestUrl = settings.connectionTestUrl,
+        connectionTestConcurrent = settings.connectionTestConcurrent,
+        connectionTestTimeoutMillis = settings.connectionTestTimeoutMillis,
+        connectionTestUnifiedDelay = settings.connectionTestUnifiedDelay,
         coreLogLevel = settings.coreLogLevel,
         enableGeodataMode = settings.enableGeodataMode,
         enableTrafficStatsNotification = settings.enableTrafficStatsNotification,
@@ -348,7 +357,7 @@ private fun AppBackupData.toAppState(): AppState {
         privateAddressCidrs = settings.privateAddressCidrs,
         proxyAppListMode = settings.proxyAppListMode,
         proxyAppListSelectedApps = proxyAppListSelectedApps,
-    ).withCompatibleProxyAppListMode()
+    ).withCompatibleProxyAppListMode().withNormalizedConnectionTestSettings()
 }
 
 private fun AppBackupMihomoProfile.toState(): MihomoProfileState =

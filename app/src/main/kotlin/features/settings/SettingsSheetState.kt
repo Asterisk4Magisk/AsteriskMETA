@@ -16,6 +16,14 @@ import androidx.compose.runtime.setValue
 internal class SettingsSheetState(
     private val updateAppState: ((AppState) -> AppState) -> Unit,
 ) {
+    var showConnectionTestSettings by mutableStateOf(false)
+    var connectionTestSettingsDraft by mutableStateOf(ConnectionTestSettingsDraft())
+
+    fun openConnectionTestSettings(appState: AppState) {
+        connectionTestSettingsDraft = appState.toConnectionTestSettingsDraft()
+        showConnectionTestSettings = true
+    }
+
     var showLocalProxySettings by mutableStateOf(false)
     var localProxySettingsDraft by mutableStateOf(LocalProxySettingsDraft())
 

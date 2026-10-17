@@ -115,6 +115,7 @@ internal fun settingsTopLevelSearchItems(
             stringResource(R.string.settings_dns_summary),
         ),
         SettingsSearchItem(SettingsSectionId.Core, stringResource(R.string.settings_sniffer), snifferSummary),
+        SettingsSearchItem(SettingsSectionId.Core, stringResource(R.string.connection_test_settings_title), stringResource(R.string.connection_test_settings_summary)),
         SettingsSearchItem(
             SettingsSectionId.Core,
             stringResource(R.string.settings_geodata_mode),
@@ -248,6 +249,7 @@ internal fun settingsNestedSearchEntries(
     onOpenTunBypassRuleSets: () -> Unit,
     onOpenDns: () -> Unit,
     onOpenSniffer: () -> Unit,
+    onOpenConnectionTest: () -> Unit,
     onOpenLocalProxy: () -> Unit,
     onOpenTun: () -> Unit,
     onOpenExternalInterfaces: () -> Unit,
@@ -257,6 +259,13 @@ internal fun settingsNestedSearchEntries(
 ): List<SettingsSearchEntry> {
     val dns = stringResource(R.string.settings_dns)
     val sniffer = stringResource(R.string.settings_sniffer)
+    val connectionTest = stringResource(R.string.connection_test_settings_title)
+    val connectionTestItems = listOf(
+        stringResource(R.string.connection_test_url),
+        stringResource(R.string.connection_test_concurrent),
+        stringResource(R.string.connection_test_timeout),
+        stringResource(R.string.connection_test_unified_delay),
+    )
     val localProxy = stringResource(R.string.settings_local_proxy)
     val tun = stringResource(R.string.settings_tun)
     val externalInterfaces = stringResource(R.string.settings_external_interfaces)
@@ -324,6 +333,7 @@ internal fun settingsNestedSearchEntries(
     )
 
     return buildList {
+        connectionTestItems.forEach { add(SettingsSearchEntry(it, connectionTest, Icons.Rounded.Speed, onOpenConnectionTest)) }
         dnsItems.forEach { add(SettingsSearchEntry(it, dns, Icons.Rounded.Dns, onOpenDns)) }
         snifferItems.forEach { add(SettingsSearchEntry(it, sniffer, Icons.Rounded.TravelExplore, onOpenSniffer)) }
         localProxyItems.forEach { add(SettingsSearchEntry(it, localProxy, Icons.Rounded.Router, onOpenLocalProxy)) }

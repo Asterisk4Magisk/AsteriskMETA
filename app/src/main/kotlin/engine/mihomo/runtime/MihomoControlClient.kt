@@ -13,10 +13,6 @@ import engine.mihomo.DefaultMihomoDelayTimeoutMillis
 import engine.mihomo.MihomoControlConfig
 import engine.vpn.AndroidMihomoRuntime
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -377,7 +373,10 @@ internal class MihomoControlClient(
             "&timeout=$timeoutMillis" +
             "&expected=${expectedStatus.urlEncode()}"
         return runCatching {
-            parseMihomoOfficialNodeDelay(request(config, path), proxyId)
+            parseMihomoOfficialNodeDelay(
+                request(config, path, readTimeoutMillis = timeoutMillis + DelayResponseGraceMillis),
+                proxyId,
+            )
         }.getOrElse { error ->
             if (error is CancellationException) throw error
             mihomoDelayFailureResult(
@@ -420,7 +419,7 @@ internal class MihomoControlClient(
             "&expected=${expectedStatus.urlEncode()}"
         return runCatching {
             parseMihomoOfficialGroupDelay(
-                json = request(config, path),
+                json = request(config, path, readTimeoutMillis = timeoutMillis + DelayResponseGraceMillis),
                 expectedIds = expectedProxyIds,
             )
         }.getOrElse { error ->
@@ -439,43 +438,13 @@ internal class MihomoControlClient(
         url: String = DefaultMihomoDelayTestUrl,
         timeoutMillis: Int = DefaultMihomoDelayTimeoutMillis,
         expectedStatus: String = "",
+        concurrency: Int = app.DefaultConnectionTestConcurrent,
         useBridge: Boolean,
     ): MihomoDelayResult {
-        if (useBridge) {
-            val proxyIds = getProxyProvider(
-                config = config,
-                providerName = providerName,
-                useBridge = true,
-            ).nodes
-                .asSequence()
-                .map(MihomoProxyProviderNode::name)
-                .filter(String::isNotBlank)
-                .map { name -> MihomoProxyNodeId(name, providerName) }
-                .distinct()
-                .toList()
-            val results = coroutineScope {
-                proxyIds.map { proxyId ->
-                    async(Dispatchers.IO) {
-                        testProxyDelay(
-                            config = config,
-                            proxyId = proxyId,
-                            url = url,
-                            timeoutMillis = timeoutMillis,
-                            expectedStatus = expectedStatus,
-                            useBridge = true,
-                        )
-                    }
-                }.awaitAll()
-            }
-            return MihomoDelayResult(
-                results.flatMap { result -> result.measurements.entries }
-                    .associate { entry -> entry.key to entry.value },
-            ).withMissingMeasurements(proxyIds)
-        }
         val proxyIds = getProxyProvider(
             config = config,
             providerName = providerName,
-            useBridge = false,
+            useBridge = useBridge,
         ).nodes
             .asSequence()
             .map(MihomoProxyProviderNode::name)
@@ -483,19 +452,17 @@ internal class MihomoControlClient(
             .map { name -> MihomoProxyNodeId(name, providerName) }
             .distinct()
             .toList()
-        val results = coroutineScope {
-            proxyIds.map { proxyId ->
-                async(Dispatchers.IO) {
-                    testProxyDelay(
-                        config = config,
-                        proxyId = proxyId,
-                        url = url,
-                        timeoutMillis = timeoutMillis,
-                        expectedStatus = expectedStatus,
-                        useBridge = false,
-                    )
-                }
-            }.awaitAll()
+        // Provider batches are scheduled by the app in both backends.
+        // Group tests retain Mihomo's native scheduling and selection semantics.
+        val results = runMihomoDelayBatch(proxyIds, concurrency) { proxyId ->
+            testProxyDelay(
+                config = config,
+                proxyId = proxyId,
+                url = url,
+                timeoutMillis = timeoutMillis,
+                expectedStatus = expectedStatus,
+                useBridge = useBridge,
+            )
         }
         return MihomoDelayResult(
             results.flatMap { result -> result.measurements.entries }
@@ -678,6 +645,7 @@ internal class MihomoControlClient(
         }
         const val DefaultConnectTimeoutMillis = 2_500
         const val DefaultReadTimeoutMillis = 8_000
+        const val DelayResponseGraceMillis = 1_000
         const val ApiAvailabilityConnectTimeoutMillis = 500
         const val ApiAvailabilityReadTimeoutMillis = 1_000
         const val TrafficReadTimeoutMillis = 3_000
@@ -711,10 +679,7 @@ internal fun Iterable<Provider>.queryMihomoRuleProviderSummaries(
 }
 
 private suspend fun IOException.isExpectedMihomoStreamEnd(): Boolean {
-    if (!currentCoroutineContext().isActive) {
-        return false
-    }
-    return when (this) {
+    return currentCoroutineContext().isActive && when (this) {
         is EOFException,
         is SocketTimeoutException -> true
         is SocketException -> message.isExpectedStreamCloseMessage()

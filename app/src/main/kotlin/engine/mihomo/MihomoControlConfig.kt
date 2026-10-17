@@ -12,7 +12,7 @@ import engine.vpn.VpnDefaults
 
 internal const val MihomoControlHost = "127.0.0.1"
 internal const val DefaultMihomoControlPort = 9090
-internal const val DefaultMihomoDelayTestUrl = "https://www.gstatic.com/generate_204"
+internal const val DefaultMihomoDelayTestUrl = app.DefaultConnectionTestUrl
 internal const val DefaultMihomoDelayTimeoutMillis = 5000
 
 internal data class MihomoControlConfig(

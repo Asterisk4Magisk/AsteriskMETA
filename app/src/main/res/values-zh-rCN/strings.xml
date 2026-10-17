@@ -248,6 +248,18 @@
     <string name="mihomo_proxies_select_failed">切换代理失败</string>
     <string name="mihomo_proxies_title">代理</string>
 
+    <!-- Connection test -->
+    <string name="connection_test_concurrent">测试并发</string>
+    <string name="connection_test_scope_summary">策略组未指定测试链接时使用此链接</string>
+    <string name="connection_test_settings_summary">调整 Mihomo URL 测试的测量行为</string>
+    <string name="connection_test_settings_title">连接测试</string>
+    <string name="connection_test_timeout">测试超时(毫秒)</string>
+    <string name="connection_test_unified_delay">统一延迟</string>
+    <string name="connection_test_unified_delay_raw_summary">当前配置已禁用覆写，统一延迟以其 YAML 配置为准</string>
+    <string name="connection_test_unified_delay_summary">在已建立会话上测第二次请求,剔除一次性握手成本</string>
+    <string name="connection_test_url">测试链接</string>
+    <string name="connection_test_url_invalid">请输入合法的 HTTP 或 HTTPS 链接</string>
+
     <!-- Subscription groups -->
     <string name="subscription_hwid">HWID</string>
     <string name="subscription_hwid_invalid">HWID 无效</string>
