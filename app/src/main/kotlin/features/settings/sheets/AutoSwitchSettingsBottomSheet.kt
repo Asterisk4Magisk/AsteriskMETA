@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -42,6 +43,7 @@ import features.logs.AutoSwitchLogDialog
 import features.settings.ArrowPreference
 import features.settings.AutoSwitchRegionLabels
 import features.settings.SettingsSearchProvider
+import kotlinx.coroutines.ensureActive
 import ui.components.AsteriskActionButton
 import ui.components.StringListEditor
 import ui.icons.AsteriskIcons as Icons
@@ -57,7 +59,7 @@ internal fun AutoSwitchSettingsBottomSheet(
     onDismissRequest: () -> Unit,
     onSave: (AutoSwitchSettings) -> Unit,
 ) {
-    if (!show) return
+    // Keep the sheet composed while its host animates show=false to Hidden.
     key(appState.selectedMihomoProfileId) {
         val runtime = LocalAppServices.current.mihomoRuntime
         var showLog by rememberSaveable { mutableStateOf(false) }
@@ -68,8 +70,20 @@ internal fun AutoSwitchSettingsBottomSheet(
         var failures by remember { mutableStateOf(draft.failureThreshold.toString()) }
         var interval by remember { mutableStateOf(draft.intervalSeconds.toString()) }
         var pendingKeywords by remember { mutableStateOf(false) }
-        LaunchedEffect(runtime, appState.selectedMihomoProfileId) {
+        var editorSession by remember { mutableIntStateOf(0) }
+        LaunchedEffect(show, runtime, appState.selectedMihomoProfileId) {
+            if (!show) return@LaunchedEffect
+            // Reset only on opening so the exit animation keeps the current content.
+            failures = draft.failureThreshold.toString()
+            interval = draft.intervalSeconds.toString()
+            pendingKeywords = false
+            showLog = false
+            info = null
+            editorSession++
+            loading = true
+            loadFailed = false
             val result = runtime.refreshProxies(appState)
+            coroutineContext.ensureActive()
             loadFailed = result.isFailure
             groups = runtime.state.value.proxies.groups.filter { it.type.equals("Selector", ignoreCase = true) }
             loading = false
@@ -80,7 +94,7 @@ internal fun AutoSwitchSettingsBottomSheet(
             draft.groups.all { name -> groups.any { it.name == name } })
         val canSave = failureCount != null && seconds != null && groupsValid && !pendingKeywords
         SettingsModalBottomSheet(
-            show = true,
+            show = show,
             title = stringResource(R.string.settings_auto_switch),
             startAction = {
                 TextButton(stringResource(R.string.common_cancel), Icons.Rounded.Close, onDismissRequest)
@@ -99,112 +113,114 @@ internal fun AutoSwitchSettingsBottomSheet(
             },
             onDismissRequest = onDismissRequest,
         ) {
-            // Keep the page search query from highlighting rows inside the sheet.
-            SettingsSearchProvider("") {
-                SettingsSheetContent {
-                    AutoSwitchSectionTitle(stringResource(R.string.common_basic)) { info = AutoSwitchInfo.Policy }
-                    SwitchPreference(
-                        title = stringResource(R.string.auto_switch_enabled),
-                        icon = Icons.Rounded.Sync,
-                        checked = draft.enabled,
-                        onCheckedChange = { onDraftChange(draft.copy(enabled = it)) },
-                    )
-                    ArrowPreference(
-                        title = stringResource(R.string.auto_switch_log_title),
-                        summary = stringResource(R.string.auto_switch_log_summary),
-                        icon = Icons.Rounded.History,
-                        onClick = { showLog = true },
-                    )
-                    // Only the raw-profile state warning stays inline; explanations open on demand.
-                    if (!overridesEnabled) {
-                        Text(
-                            text = stringResource(R.string.auto_switch_policy_raw),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            key(editorSession) {
+                // Keep the page search query from highlighting rows inside the sheet.
+                SettingsSearchProvider("") {
+                    SettingsSheetContent {
+                        AutoSwitchSectionTitle(stringResource(R.string.common_basic)) { info = AutoSwitchInfo.Policy }
+                        SwitchPreference(
+                            title = stringResource(R.string.auto_switch_enabled),
+                            icon = Icons.Rounded.Sync,
+                            checked = draft.enabled,
+                            onCheckedChange = { onDraftChange(draft.copy(enabled = it)) },
                         )
-                    }
-                    AutoSwitchSectionTitle(stringResource(R.string.auto_switch_groups)) { info = AutoSwitchInfo.Groups }
-                    when {
-                        loading -> Text(
-                            stringResource(R.string.mihomo_proxies_loading),
-                            Modifier.padding(16.dp),
+                        ArrowPreference(
+                            title = stringResource(R.string.auto_switch_log_title),
+                            summary = stringResource(R.string.auto_switch_log_summary),
+                            icon = Icons.Rounded.History,
+                            onClick = { showLog = true },
                         )
+                        // Only the raw-profile state warning stays inline; explanations open on demand.
+                        if (!overridesEnabled) {
+                            Text(
+                                text = stringResource(R.string.auto_switch_policy_raw),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                            )
+                        }
+                        AutoSwitchSectionTitle(stringResource(R.string.auto_switch_groups)) { info = AutoSwitchInfo.Groups }
+                        when {
+                            loading -> Text(
+                                stringResource(R.string.mihomo_proxies_loading),
+                                Modifier.padding(16.dp),
+                            )
 
-                        loadFailed -> Text(
-                            stringResource(R.string.auto_switch_groups_failed),
-                            Modifier.padding(16.dp),
-                        )
+                            loadFailed -> Text(
+                                stringResource(R.string.auto_switch_groups_failed),
+                                Modifier.padding(16.dp),
+                            )
 
-                        groups.isEmpty() -> Text(
-                            stringResource(R.string.auto_switch_groups_empty),
-                            Modifier.padding(16.dp),
-                        )
+                            groups.isEmpty() -> Text(
+                                stringResource(R.string.auto_switch_groups_empty),
+                                Modifier.padding(16.dp),
+                            )
 
-                        else -> Column {
-                            // Saved names missing from this profile stay visible so they can be cleared.
-                            (groups.map { it.name } + draft.groups).distinct().forEach { name ->
-                                SwitchPreference(
-                                    title = name,
-                                    icon = Icons.Rounded.Tune,
-                                    checked = name in draft.groups,
-                                    onCheckedChange = { checked ->
-                                        onDraftChange(draft.copy(groups = draft.groups.toggle(name, checked)))
-                                    },
-                                )
+                            else -> Column {
+                                // Saved names missing from this profile stay visible so they can be cleared.
+                                (groups.map { it.name } + draft.groups).distinct().forEach { name ->
+                                    SwitchPreference(
+                                        title = name,
+                                        icon = Icons.Rounded.Tune,
+                                        checked = name in draft.groups,
+                                        onCheckedChange = { checked ->
+                                            onDraftChange(draft.copy(groups = draft.groups.toggle(name, checked)))
+                                        },
+                                    )
+                                }
                             }
                         }
-                    }
-                    AutoSwitchSectionTitle(stringResource(R.string.auto_switch_regions))
-                    AutoSwitchRegionLabels.forEach { (code, label) ->
-                        SwitchPreference(
-                            title = stringResource(label),
-                            icon = Icons.Rounded.Public,
-                            checked = code in draft.preferredRegions,
-                            onCheckedChange = { checked ->
-                                onDraftChange(
-                                    draft.copy(preferredRegions = draft.preferredRegions.toggle(code, checked)),
-                                )
+                        AutoSwitchSectionTitle(stringResource(R.string.auto_switch_regions))
+                        AutoSwitchRegionLabels.forEach { (code, label) ->
+                            SwitchPreference(
+                                title = stringResource(label),
+                                icon = Icons.Rounded.Public,
+                                checked = code in draft.preferredRegions,
+                                onCheckedChange = { checked ->
+                                    onDraftChange(
+                                        draft.copy(preferredRegions = draft.preferredRegions.toggle(code, checked)),
+                                    )
+                                },
+                            )
+                        }
+                        StringListEditor(
+                            editorKey = appState.selectedMihomoProfileId,
+                            title = stringResource(R.string.auto_switch_keywords),
+                            values = draft.preferredKeywords,
+                            onValuesChange = { onDraftChange(draft.copy(preferredKeywords = it)) },
+                            emptyText = stringResource(R.string.auto_switch_keywords_empty),
+                            onPendingChange = { pendingKeywords = it },
+                            modifier = Modifier.padding(top = 8.dp, bottom = 12.dp),
+                        )
+                        AutoSwitchSectionTitle(stringResource(R.string.auto_switch_detection))
+                        SettingsTextField(
+                            value = failures,
+                            onValueChange = { failures = it },
+                            label = stringResource(R.string.auto_switch_failures),
+                            errorText = if (failureCount == null) {
+                                stringResource(R.string.auto_switch_failures_invalid)
+                            } else {
+                                null
                             },
+                            keyboardOptions = fiveDigitKeyboardOptions(),
+                            sanitizeInput = ::sanitizeFiveDigitInput,
+                        )
+                        SettingsTextField(
+                            value = interval,
+                            onValueChange = { interval = it },
+                            label = stringResource(R.string.auto_switch_interval),
+                            errorText = if (seconds == null) stringResource(R.string.auto_switch_interval_invalid) else null,
+                            keyboardOptions = fiveDigitKeyboardOptions(),
+                            sanitizeInput = ::sanitizeFiveDigitInput,
                         )
                     }
-                    StringListEditor(
-                        editorKey = appState.selectedMihomoProfileId,
-                        title = stringResource(R.string.auto_switch_keywords),
-                        values = draft.preferredKeywords,
-                        onValuesChange = { onDraftChange(draft.copy(preferredKeywords = it)) },
-                        emptyText = stringResource(R.string.auto_switch_keywords_empty),
-                        onPendingChange = { pendingKeywords = it },
-                        modifier = Modifier.padding(top = 8.dp, bottom = 12.dp),
-                    )
-                    AutoSwitchSectionTitle(stringResource(R.string.auto_switch_detection))
-                    SettingsTextField(
-                        value = failures,
-                        onValueChange = { failures = it },
-                        label = stringResource(R.string.auto_switch_failures),
-                        errorText = if (failureCount == null) {
-                            stringResource(R.string.auto_switch_failures_invalid)
-                        } else {
-                            null
-                        },
-                        keyboardOptions = fiveDigitKeyboardOptions(),
-                        sanitizeInput = ::sanitizeFiveDigitInput,
-                    )
-                    SettingsTextField(
-                        value = interval,
-                        onValueChange = { interval = it },
-                        label = stringResource(R.string.auto_switch_interval),
-                        errorText = if (seconds == null) stringResource(R.string.auto_switch_interval_invalid) else null,
-                        keyboardOptions = fiveDigitKeyboardOptions(),
-                        sanitizeInput = ::sanitizeFiveDigitInput,
-                    )
                 }
             }
         }
-        if (showLog) {
+        if (show && showLog) {
             AutoSwitchLogDialog(appState = appState, onDismissRequest = { showLog = false })
         }
-        info?.let { shown ->
+        info?.takeIf { show }?.let { shown ->
             AutoSwitchInfoDialog(
                 title = stringResource(shown.title),
                 text = stringResource(shown.text),
