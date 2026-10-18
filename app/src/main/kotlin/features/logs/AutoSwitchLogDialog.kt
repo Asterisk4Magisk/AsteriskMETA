@@ -13,7 +13,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -73,7 +72,6 @@ internal fun AutoSwitchLogDialog(
     val timeFormat = remember(locale) { DateFormat.getTimeInstance(DateFormat.MEDIUM, locale) }
     AlertDialog(
         onDismissRequest = onDismissRequest,
-        icon = { Icon(Icons.Rounded.History, contentDescription = null) },
         title = { Text(stringResource(R.string.auto_switch_log_title)) },
         text = {
             val current = state

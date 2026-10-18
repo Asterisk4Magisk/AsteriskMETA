@@ -114,7 +114,7 @@ internal fun DnsSettingsBottomSheet(
     ) {
         key(show) {
             SettingsSheetContent {
-                DnsSheetSection(title = stringResource(R.string.settings_dns_section_basic)) {
+                DnsSheetSection(title = stringResource(R.string.common_basic)) {
                     SwitchPreference(
                         title = stringResource(R.string.settings_vpn_local_dns),
                         icon = Icons.Rounded.Dns,

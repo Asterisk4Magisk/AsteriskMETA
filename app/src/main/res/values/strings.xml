@@ -11,6 +11,7 @@
     <string name="common_add">Add</string>
     <string name="common_all">All</string>
     <string name="common_back">Back</string>
+    <string name="common_basic">Basic</string>
     <string name="common_cancel">Cancel</string>
     <string name="common_clear">Clear</string>
     <string name="common_clipboard_empty">Clipboard is empty</string>
@@ -516,7 +517,6 @@
     <string name="settings_dns_prefer_h3">Prefer HTTP/3</string>
     <string name="settings_dns_proxy_server_nameserver">Proxy server nameserver</string>
     <string name="settings_dns_respect_rules">Respect rules</string>
-    <string name="settings_dns_section_basic">Basic</string>
     <string name="settings_dns_section_fake_ip">Fake IP</string>
     <string name="settings_dns_section_fallback_filter">Fallback filter</string>
     <string name="settings_dns_section_hosts">Hosts</string>
@@ -721,7 +721,6 @@
     <string name="settings_sniffer_quic_override_destination">QUIC override destination</string>
     <string name="settings_sniffer_quic_ports">QUIC ports</string>
     <string name="settings_sniffer_section_address_skips">Address skips</string>
-    <string name="settings_sniffer_section_basic">Basic</string>
     <string name="settings_sniffer_section_domain_rules">Domain rules</string>
     <string name="settings_sniffer_section_protocols">Protocols</string>
     <string name="settings_sniffer_skip_domain">Skip sniff domains</string>
@@ -737,7 +736,6 @@
 
     <!-- Service control -->
     <string name="settings_service_control">Service control</string>
-    <string name="settings_service_control_basic">Basic</string>
     <string name="settings_service_control_bssid_invalid">Use a BSSID such as 00:11:22:33:44:55</string>
     <string name="settings_service_control_bssids">BSSID list</string>
     <string name="settings_service_control_bssids_empty">Empty matches any BSSID</string>
@@ -995,7 +993,7 @@
     <string name="settings_about">About</string>
     <string name="settings_about_project">About project</string>
     <string name="settings_open_source_licenses">Open source licenses</string>
-    <string name="settings_auto_switch">Automatically switch to an available node</string>
+    <string name="settings_auto_switch">Automatic switching</string>
     <string name="settings_auto_switch_summary">Preferred regions, consecutive failures and health check interval</string>
     <string name="auto_switch_enabled">Enable automatic switching</string>
     <string name="auto_switch_log_title">Switching history</string>
@@ -1025,13 +1023,15 @@
     <string name="auto_switch_event_switched_preferred">Switched from %1$s to preferred node %2$s · %3$d ms (available: %4$d/%5$d)</string>
     <string name="auto_switch_event_no_replacement">No healthy replacement for %1$s (candidates tested: %2$d). The selection is kept.</string>
     <string name="auto_switch_event_selection_changed">The selection changed during the check. %1$s was not replaced.</string>
-    <string name="auto_switch_policy">Checks run inside the core while the proxy service is running, so the app does not need to stay in the background. They use the test URL, timeout and concurrency from Connection test. After the consecutive failure count is reached, the lowest-latency healthy node in the preferred regions is chosen, otherwise the lowest-latency healthy node in the group. Healthy and manually changed selections are kept. When no node is healthy, the selection is kept and later scans back off. Requires the built-in core; an uploaded custom Mihomo core does not support it.</string>
+    <string name="auto_switch_info">Details</string>
+    <string name="auto_switch_policy_title">How automatic switching works</string>
+    <string name="auto_switch_policy">Checks run inside the core while the proxy service is running, so the app does not need to stay in the background.\n\nThey use the test URL, timeout and concurrency from Connection test.\n\nAfter the consecutive failure count is reached, the lowest-latency healthy node in the preferred regions is chosen, otherwise the lowest-latency healthy node in the group.\n\nHealthy and manually changed selections are kept. When no node is healthy, the selection is kept and later scans back off.\n\nRequires the built-in core; an uploaded custom Mihomo core does not support it.</string>
     <string name="auto_switch_policy_raw">This profile uses its raw configuration. The core follows the asterisk-auto-switch key in that configuration; these settings are saved but not applied.</string>
     <string name="auto_switch_groups">Monitored policy groups</string>
-    <string name="auto_switch_groups_summary">Choose at least one manual selection group in the current profile. Only nodes selected directly are monitored. DIRECT, REJECT, nested groups and core-managed automatic groups are left unchanged. After changing profiles, select groups again.</string>
+    <string name="auto_switch_groups_summary">Choose at least one manual selection group in the current profile.\n\nOnly nodes selected directly are monitored. DIRECT, REJECT, nested groups and core-managed automatic groups are left unchanged.\n\nAfter changing profiles, select groups again.</string>
     <string name="auto_switch_groups_failed">Could not load policy groups. Check the configuration or start the proxy, then reopen this setting.</string>
     <string name="auto_switch_groups_empty">No manual selection groups available. Load a configuration or start the proxy, then reopen this setting.</string>
-    <string name="auto_switch_regions">Preferred regions (multiple selections)</string>
+    <string name="auto_switch_regions">Preferred regions</string>
     <string name="auto_switch_keywords">Custom preferred node name keywords</string>
     <string name="auto_switch_keywords_empty">Optional. Region matching uses flags, region names and country codes in node names.</string>
     <string name="auto_switch_detection">Health checks</string>

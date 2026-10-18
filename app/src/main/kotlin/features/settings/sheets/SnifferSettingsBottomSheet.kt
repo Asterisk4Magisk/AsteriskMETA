@@ -102,7 +102,7 @@ internal fun SnifferSettingsBottomSheet(
     ) {
         key(show) {
             SettingsSheetContent {
-                SnifferSheetSection(title = stringResource(R.string.settings_sniffer_section_basic)) {
+                SnifferSheetSection(title = stringResource(R.string.common_basic)) {
                     SwitchPreference(
                         title = stringResource(R.string.settings_sniffer_enable),
                         icon = Icons.Rounded.TravelExplore,

@@ -11,6 +11,7 @@
     <string name="common_add">添加</string>
     <string name="common_all">全部</string>
     <string name="common_back">返回</string>
+    <string name="common_basic">基础</string>
     <string name="common_cancel">取消</string>
     <string name="common_clear">清除</string>
     <string name="common_clipboard_empty">剪贴板为空</string>
@@ -505,7 +506,6 @@
     <string name="settings_dns_prefer_h3">优先 HTTP/3</string>
     <string name="settings_dns_proxy_server_nameserver">节点域名服务器</string>
     <string name="settings_dns_respect_rules">遵循规则</string>
-    <string name="settings_dns_section_basic">基础</string>
     <string name="settings_dns_section_fake_ip">Fake IP</string>
     <string name="settings_dns_section_fallback_filter">Fallback Filter</string>
     <string name="settings_dns_section_hosts">Hosts</string>
@@ -710,7 +710,6 @@
     <string name="settings_sniffer_quic_override_destination">QUIC 覆写目标地址</string>
     <string name="settings_sniffer_quic_ports">QUIC 端口</string>
     <string name="settings_sniffer_section_address_skips">地址跳过</string>
-    <string name="settings_sniffer_section_basic">基础</string>
     <string name="settings_sniffer_section_domain_rules">域名规则</string>
     <string name="settings_sniffer_section_protocols">协议</string>
     <string name="settings_sniffer_skip_domain">跳过嗅探域名</string>
@@ -726,7 +725,6 @@
 
     <!-- Service control -->
     <string name="settings_service_control">服务控制</string>
-    <string name="settings_service_control_basic">基础</string>
     <string name="settings_service_control_bssid_invalid">请输入形如 00:11:22:33:44:55 的 BSSID</string>
     <string name="settings_service_control_bssids">BSSID 列表</string>
     <string name="settings_service_control_bssids_empty">留空表示任意 BSSID</string>
@@ -981,7 +979,7 @@
     <string name="settings_about">关于</string>
     <string name="settings_about_project">关于项目</string>
     <string name="settings_open_source_licenses">开源许可</string>
-    <string name="settings_auto_switch">自动切换可用节点</string>
+    <string name="settings_auto_switch">自动切换</string>
     <string name="settings_auto_switch_summary">偏好地区、连续失败次数与检测间隔</string>
     <string name="auto_switch_enabled">开启自动切换</string>
     <string name="auto_switch_log_title">切换日志</string>
@@ -1010,13 +1008,15 @@
     <string name="auto_switch_event_switched_preferred">已从 %1$s 切换到偏好节点 %2$s · %3$d ms（可用 %4$d/%5$d 个）</string>
     <string name="auto_switch_event_no_replacement">%2$d 个候选节点中没有可替代 %1$s 的可用节点，保留当前选择</string>
     <string name="auto_switch_event_selection_changed">检测期间节点选择已改变，未替换 %1$s</string>
-    <string name="auto_switch_policy">代理服务运行期间由核心执行检测，App 无需常驻后台。检测使用「连接测试」中的测试地址、超时与并发数。达到连续失败次数后，优先选择偏好地区中延迟最低的可用节点，否则选择组内延迟最低的可用节点。当前节点正常或已被手动更改时不切换；全部不可用时保留原选择，并逐步拉长后续扫描间隔。需要使用内置核心，上传的自定义 Mihomo 核心不支持此功能。</string>
+    <string name="auto_switch_info">说明</string>
+    <string name="auto_switch_policy_title">自动切换的工作方式</string>
+    <string name="auto_switch_policy">代理服务运行期间由核心执行检测，App 无需常驻后台。\n\n检测使用「连接测试」中的测试地址、超时与并发数。\n\n达到连续失败次数后，优先选择偏好地区中延迟最低的可用节点，否则选择组内延迟最低的可用节点。\n\n当前节点正常或已被手动更改时不切换；全部不可用时保留原选择，并逐步拉长后续扫描间隔。\n\n需要使用内置核心，上传的自定义 Mihomo 核心不支持此功能。</string>
     <string name="auto_switch_policy_raw">当前配置使用原始配置文件，核心遵循其中的 asterisk-auto-switch 字段；这里的设置会保存但不会生效。</string>
     <string name="auto_switch_groups">监测的策略组</string>
-    <string name="auto_switch_groups_summary">至少选择当前配置中的一个手动选择组。仅监测直接选中的节点；直连、拒绝、嵌套策略组及核心管理的自动策略组保持原行为。切换配置后需重新选择策略组。</string>
+    <string name="auto_switch_groups_summary">至少选择当前配置中的一个手动选择组。\n\n仅监测直接选中的节点；直连、拒绝、嵌套策略组及核心管理的自动策略组保持原行为。\n\n切换配置后需重新选择策略组。</string>
     <string name="auto_switch_groups_failed">无法加载策略组。请检查配置或启动代理后重新进入此设置。</string>
     <string name="auto_switch_groups_empty">没有可用的手动选择组。请加载配置或启动代理后重新进入此设置。</string>
-    <string name="auto_switch_regions">偏好地区（可多选）</string>
+    <string name="auto_switch_regions">偏好地区</string>
     <string name="auto_switch_keywords">自定义偏好节点名称关键词</string>
     <string name="auto_switch_keywords_empty">可选。地区根据节点名称中的国旗、地区名称和地区缩写识别。</string>
     <string name="auto_switch_detection">健康检测</string>

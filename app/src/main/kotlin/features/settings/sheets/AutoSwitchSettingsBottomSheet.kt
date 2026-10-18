@@ -3,7 +3,17 @@
 
 package features.settings.sheets
 
+import androidx.annotation.StringRes
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -14,9 +24,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import app.AppState
 import app.AutoSwitchFailureThresholdRange
 import app.AutoSwitchIntervalSecondsRange
@@ -28,8 +42,7 @@ import features.logs.AutoSwitchLogDialog
 import features.settings.ArrowPreference
 import features.settings.AutoSwitchRegionLabels
 import features.settings.SettingsSearchProvider
-import features.settings.SettingsSectionCard
-import features.settings.SmallTitle
+import ui.components.AsteriskActionButton
 import ui.components.StringListEditor
 import ui.icons.AsteriskIcons as Icons
 
@@ -48,6 +61,7 @@ internal fun AutoSwitchSettingsBottomSheet(
     key(appState.selectedMihomoProfileId) {
         val runtime = LocalAppServices.current.mihomoRuntime
         var showLog by rememberSaveable { mutableStateOf(false) }
+        var info by rememberSaveable { mutableStateOf<AutoSwitchInfo?>(null) }
         var groups by remember { mutableStateOf(emptyList<MihomoProxyGroup>()) }
         var loading by remember { mutableStateOf(true) }
         var loadFailed by remember { mutableStateOf(false) }
@@ -88,6 +102,7 @@ internal fun AutoSwitchSettingsBottomSheet(
             // Keep the page search query from highlighting rows inside the sheet.
             SettingsSearchProvider("") {
                 SettingsSheetContent {
+                    AutoSwitchSectionTitle(stringResource(R.string.common_basic)) { info = AutoSwitchInfo.Policy }
                     SwitchPreference(
                         title = stringResource(R.string.auto_switch_enabled),
                         icon = Icons.Rounded.Sync,
@@ -100,21 +115,16 @@ internal fun AutoSwitchSettingsBottomSheet(
                         icon = Icons.Rounded.History,
                         onClick = { showLog = true },
                     )
-                    Text(
-                        text = stringResource(
-                            if (overridesEnabled) R.string.auto_switch_policy else R.string.auto_switch_policy_raw,
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                    )
-                    SmallTitle(stringResource(R.string.auto_switch_groups))
-                    Text(
-                        text = stringResource(R.string.auto_switch_groups_summary),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                    )
+                    // Only the raw-profile state warning stays inline; explanations open on demand.
+                    if (!overridesEnabled) {
+                        Text(
+                            text = stringResource(R.string.auto_switch_policy_raw),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        )
+                    }
+                    AutoSwitchSectionTitle(stringResource(R.string.auto_switch_groups)) { info = AutoSwitchInfo.Groups }
                     when {
                         loading -> Text(
                             stringResource(R.string.mihomo_proxies_loading),
@@ -131,7 +141,7 @@ internal fun AutoSwitchSettingsBottomSheet(
                             Modifier.padding(16.dp),
                         )
 
-                        else -> SettingsSectionCard {
+                        else -> Column {
                             // Saved names missing from this profile stay visible so they can be cleared.
                             (groups.map { it.name } + draft.groups).distinct().forEach { name ->
                                 SwitchPreference(
@@ -145,20 +155,18 @@ internal fun AutoSwitchSettingsBottomSheet(
                             }
                         }
                     }
-                    SmallTitle(stringResource(R.string.auto_switch_regions))
-                    SettingsSectionCard {
-                        AutoSwitchRegionLabels.forEach { (code, label) ->
-                            SwitchPreference(
-                                title = stringResource(label),
-                                icon = Icons.Rounded.Public,
-                                checked = code in draft.preferredRegions,
-                                onCheckedChange = { checked ->
-                                    onDraftChange(
-                                        draft.copy(preferredRegions = draft.preferredRegions.toggle(code, checked)),
-                                    )
-                                },
-                            )
-                        }
+                    AutoSwitchSectionTitle(stringResource(R.string.auto_switch_regions))
+                    AutoSwitchRegionLabels.forEach { (code, label) ->
+                        SwitchPreference(
+                            title = stringResource(label),
+                            icon = Icons.Rounded.Public,
+                            checked = code in draft.preferredRegions,
+                            onCheckedChange = { checked ->
+                                onDraftChange(
+                                    draft.copy(preferredRegions = draft.preferredRegions.toggle(code, checked)),
+                                )
+                            },
+                        )
                     }
                     StringListEditor(
                         editorKey = appState.selectedMihomoProfileId,
@@ -167,8 +175,9 @@ internal fun AutoSwitchSettingsBottomSheet(
                         onValuesChange = { onDraftChange(draft.copy(preferredKeywords = it)) },
                         emptyText = stringResource(R.string.auto_switch_keywords_empty),
                         onPendingChange = { pendingKeywords = it },
+                        modifier = Modifier.padding(top = 8.dp, bottom = 12.dp),
                     )
-                    SmallTitle(stringResource(R.string.auto_switch_detection))
+                    AutoSwitchSectionTitle(stringResource(R.string.auto_switch_detection))
                     SettingsTextField(
                         value = failures,
                         onValueChange = { failures = it },
@@ -195,7 +204,74 @@ internal fun AutoSwitchSettingsBottomSheet(
         if (showLog) {
             AutoSwitchLogDialog(appState = appState, onDismissRequest = { showLog = false })
         }
+        info?.let { shown ->
+            AutoSwitchInfoDialog(
+                title = stringResource(shown.title),
+                text = stringResource(shown.text),
+                onDismissRequest = { info = null },
+            )
+        }
     }
+}
+
+private enum class AutoSwitchInfo(@StringRes val title: Int, @StringRes val text: Int) {
+    Groups(R.string.auto_switch_groups, R.string.auto_switch_groups_summary),
+    Policy(R.string.auto_switch_policy_title, R.string.auto_switch_policy),
+}
+
+// Match the DNS/sniffer sheet headings while keeping explanations available on demand.
+@Composable
+private fun AutoSwitchSectionTitle(title: String, onInfoClick: (() -> Unit)? = null) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = title,
+            color = MaterialTheme.colorScheme.primary,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.weight(1f, fill = false).padding(vertical = 8.dp),
+        )
+        if (onInfoClick != null) {
+            // Match the compact info action on BOX outbound group cards.
+            val infoIconSize = with(LocalDensity.current) {
+                MaterialTheme.typography.bodySmall.fontSize.toDp()
+            }
+            IconButton(
+                onClick = onInfoClick,
+                modifier = Modifier.size(width = 24.dp, height = 20.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Info,
+                    contentDescription = stringResource(R.string.auto_switch_info),
+                    modifier = Modifier.size(infoIconSize),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AutoSwitchInfoDialog(title: String, text: String, onDismissRequest: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        title = { Text(title) },
+        text = {
+            Text(
+                text = text,
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+            )
+        },
+        confirmButton = {
+            AsteriskActionButton(
+                text = stringResource(R.string.common_close),
+                icon = Icons.Rounded.Close,
+                onClick = onDismissRequest,
+            )
+        },
+    )
 }
 
 private fun List<String>.toggle(value: String, checked: Boolean): List<String> =

@@ -6,6 +6,8 @@ package features.proxy.app
 import android.content.pm.PackageManager
 import android.os.SystemClock
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -467,11 +469,14 @@ fun ProxyAppListPage(
             onDismissRequest = { showHelpDialog = false },
             title = { Text(stringResource(R.string.proxy_app_list_help_title)) },
             text = {
-                Column {
-                    Text(stringResource(R.string.proxy_app_list_help_blacklist))
-                    Text(stringResource(R.string.proxy_app_list_help_global))
-                    Text(stringResource(R.string.proxy_app_list_help_whitelist))
-                }
+                Text(
+                    listOf(
+                        stringResource(R.string.proxy_app_list_help_blacklist),
+                        stringResource(R.string.proxy_app_list_help_global),
+                        stringResource(R.string.proxy_app_list_help_whitelist),
+                    ).joinToString("\n\n"),
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                )
             },
             confirmButton = {
                 TextButton(onClick = { showHelpDialog = false }) {

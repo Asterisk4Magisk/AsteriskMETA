@@ -84,7 +84,7 @@ internal fun ServiceControlBottomSheet(
     ) {
         key(show) {
             SettingsSheetContent {
-                ServiceControlSection(stringResource(R.string.settings_service_control_basic)) {
+                ServiceControlSection(stringResource(R.string.common_basic)) {
                     SwitchPreference(
                         title = stringResource(R.string.settings_service_control_enable),
                         summary = stringResource(R.string.settings_service_control_enable_summary),

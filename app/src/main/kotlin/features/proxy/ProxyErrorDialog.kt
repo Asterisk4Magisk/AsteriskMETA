@@ -6,6 +6,7 @@ package features.proxy
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
@@ -146,11 +147,13 @@ private fun ProxyErrorDialog(
 
                 if (suggestions.isNotEmpty()) {
                     SectionLabel(diagnosticsLabel)
-                    suggestions.forEach { suggestion ->
-                        Text(
-                            text = "• $suggestion",
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        suggestions.forEach { suggestion ->
+                            Text(
+                                text = "• $suggestion",
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        }
                     }
                 }
             }
