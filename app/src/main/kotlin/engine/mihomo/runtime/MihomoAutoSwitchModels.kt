@@ -52,6 +52,10 @@ internal data class MihomoAutoSwitchEvent(
     val preferred: Boolean = false,
 )
 
+/** The running core is not AndroidLibClashLite, typically a custom core uploaded for ROOT. */
+internal class MihomoAutoSwitchUnsupportedException :
+    UnsupportedOperationException("The running core does not support automatic switching")
+
 internal const val MihomoAutoSwitchPhaseStopped = "stopped"
 internal const val MihomoAutoSwitchPhaseChecking = "checking"
 internal const val MihomoAutoSwitchPhaseWaiting = "waiting"

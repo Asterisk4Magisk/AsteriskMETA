@@ -230,8 +230,11 @@ private fun MutableMap<String, Any?>.putAsteriskRuntimeOverrides(
     put("geox-url", appState.toMihomoGeoXUrlYamlMap())
     put("profile", normalizedProfileStoreSelected(this["profile"]))
     put("sniffer", appState.toMihomoSnifferYamlMap())
-    // Standby cores only serve the UI and must never change a selection.
-    put(MihomoAutoSwitchConfigKey, appState.toMihomoAutoSwitchOptions(active = exposePorts).toYamlMap())
+    // Standby cores only serve the UI and must never change a selection. The key is omitted while
+    // disabled, so an uploaded official core receives exactly the configuration it would without it.
+    appState.toMihomoAutoSwitchOptions(active = exposePorts).takeIf { it.enable }?.let { options ->
+        put(MihomoAutoSwitchConfigKey, options.toYamlMap())
+    }
     putDnsOverrides(appState, forceDns)
     putDnsHijackOverrides(appState, runMode)
     putNtpWriteToSystemOverride()

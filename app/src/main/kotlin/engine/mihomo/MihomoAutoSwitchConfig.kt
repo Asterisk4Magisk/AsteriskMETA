@@ -54,9 +54,13 @@ internal data class MihomoAutoSwitchOptions(
         "concurrency" to concurrency,
     )
 
-    /** Compares with the core's normalized copy, which reports omitted groups as null. */
+    /**
+     * Compares with the core's normalized copy, which reports omitted groups as null. Two disabled
+     * values are equivalent whatever their other fields.
+     */
     fun sameAs(other: MihomoAutoSwitchOptions): Boolean =
-        copy(groups = groups.orEmpty()) == other.copy(groups = other.groups.orEmpty())
+        (!enable && !other.enable) ||
+            copy(groups = groups.orEmpty()) == other.copy(groups = other.groups.orEmpty())
 }
 
 /**

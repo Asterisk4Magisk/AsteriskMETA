@@ -38,6 +38,7 @@ import engine.mihomo.runtime.MihomoAutoSwitchPhaseChecking
 import engine.mihomo.runtime.MihomoAutoSwitchPhaseWaiting
 import engine.mihomo.runtime.MihomoAutoSwitchProgress
 import engine.mihomo.runtime.MihomoAutoSwitchState
+import engine.mihomo.runtime.MihomoAutoSwitchUnsupportedException
 import kotlinx.coroutines.delay
 import ui.components.AsteriskActionButton
 import java.text.DateFormat
@@ -54,6 +55,7 @@ internal fun AutoSwitchLogDialog(
     val latestAppState by rememberUpdatedState(appState)
     var state by remember { mutableStateOf<MihomoAutoSwitchState?>(null) }
     var loadFailed by remember { mutableStateOf(false) }
+    var unsupported by remember { mutableStateOf(false) }
     var nowMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(runtime, appState.proxyRunning) {
         state = null
@@ -62,6 +64,7 @@ internal fun AutoSwitchLogDialog(
             val result = runtime.autoSwitchState(latestAppState)
             state = result.getOrNull() ?: state
             loadFailed = result.isFailure
+            unsupported = result.exceptionOrNull() is MihomoAutoSwitchUnsupportedException
             nowMillis = System.currentTimeMillis()
             delay(AutoSwitchLogRefreshMillis)
         }
@@ -78,6 +81,7 @@ internal fun AutoSwitchLogDialog(
                 Text(
                     text = when {
                         !appState.proxyRunning -> stringResource(R.string.auto_switch_log_not_running)
+                        unsupported -> stringResource(R.string.auto_switch_log_unsupported_core)
                         current == null && loadFailed -> stringResource(R.string.auto_switch_log_unavailable)
                         current == null -> stringResource(R.string.mihomo_proxies_loading)
                         else -> autoSwitchPhaseText(current, nowMillis)

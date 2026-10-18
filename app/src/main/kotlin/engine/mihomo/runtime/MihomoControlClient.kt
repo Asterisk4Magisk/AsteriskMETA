@@ -308,7 +308,7 @@ internal class MihomoControlClient(
     }
 
     fun getAutoSwitchState(config: MihomoControlConfig, useBridge: Boolean): MihomoAutoSwitchState {
-        val response = if (useBridge) Clash.queryAutoSwitch() else request(config, AutoSwitchPath)
+        val response = if (useBridge) Clash.queryAutoSwitch() else autoSwitchRequest(config)
         return RuntimeJson.decodeFromString(MihomoAutoSwitchState.serializer(), response)
     }
 
@@ -322,8 +322,17 @@ internal class MihomoControlClient(
             Clash.patchAutoSwitch(body)
             return
         }
-        request(config, AutoSwitchPath, method = "PATCH", body = body)
+        autoSwitchRequest(config, method = "PATCH", body = body)
     }
+
+    // A custom upstream core uploaded for ROOT has no AndroidLibClashLite route.
+    private fun autoSwitchRequest(config: MihomoControlConfig, method: String = "GET", body: String? = null): String =
+        try {
+            request(config, AutoSwitchPath, method = method, body = body)
+        } catch (error: MihomoApiException) {
+            if (error.status == HttpURLConnection.HTTP_NOT_FOUND) throw MihomoAutoSwitchUnsupportedException()
+            throw error
+        }
 
     suspend fun testProxyDelay(
         config: MihomoControlConfig,

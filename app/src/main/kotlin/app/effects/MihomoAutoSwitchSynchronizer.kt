@@ -8,6 +8,7 @@ import androidx.compose.runtime.LaunchedEffect
 import app.AppState
 import data.AndroidAppStateStore
 import engine.mihomo.raw.usesRawMihomoConfig
+import engine.mihomo.runtime.MihomoAutoSwitchUnsupportedException
 import engine.mihomo.runtime.MihomoRuntimeRepository
 import engine.mihomo.toMihomoAutoSwitchOptions
 import features.logs.AndroidAppLogger
@@ -33,6 +34,13 @@ internal fun MihomoAutoSwitchSynchronizer(
                 // The control endpoint may still be starting right after the service reports running.
                 repeat(AutoSwitchSyncAttempts) { attempt ->
                     val failure = runtime.syncAutoSwitch(appState).exceptionOrNull() ?: return@collectLatest
+                    if (failure is MihomoAutoSwitchUnsupportedException) {
+                        // An uploaded official core is fine while the feature is off.
+                        if (appState.toMihomoAutoSwitchOptions().enable) {
+                            AndroidAppLogger.warn("AutoSwitch", "The running core does not support automatic switching")
+                        }
+                        return@collectLatest
+                    }
                     if (attempt == AutoSwitchSyncAttempts - 1) {
                         AndroidAppLogger.warn(
                             "AutoSwitch",
