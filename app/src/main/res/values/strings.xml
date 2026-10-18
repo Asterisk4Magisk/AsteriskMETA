@@ -1015,6 +1015,7 @@
         <item quantity="other">Next check in %1$d seconds</item>
     </plurals>
     <string name="auto_switch_group_healthy">%1$s: %2$s · %3$d ms</string>
+    <string name="auto_switch_group_in_use">%1$s: %2$s · in use, no probe needed</string>
     <string name="auto_switch_group_failed">%1$s: %2$s · consecutive failures: %3$d</string>
     <string name="auto_switch_group_skipped">%1$s: %2$s is not a monitored node</string>
     <string name="auto_switch_group_unavailable">%1$s: not a manual selection group in the current profile or mode</string>

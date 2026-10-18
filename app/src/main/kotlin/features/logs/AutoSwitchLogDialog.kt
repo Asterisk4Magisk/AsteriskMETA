@@ -171,7 +171,11 @@ private fun autoSwitchProgressText(progress: MihomoAutoSwitchProgress): String =
 
 @Composable
 private fun autoSwitchGroupText(group: MihomoAutoSwitchGroupStatus): String = when (group.kind) {
-    "healthy" -> stringResource(R.string.auto_switch_group_healthy, group.name, group.node, group.delay ?: 0)
+    "healthy" -> if (group.inUse) {
+        stringResource(R.string.auto_switch_group_in_use, group.name, group.node)
+    } else {
+        stringResource(R.string.auto_switch_group_healthy, group.name, group.node, group.delay ?: 0)
+    }
     "failed" -> stringResource(R.string.auto_switch_group_failed, group.name, group.node, group.failures ?: 0)
     "skipped" -> stringResource(R.string.auto_switch_group_skipped, group.name, group.node)
     else -> stringResource(R.string.auto_switch_group_unavailable, group.name)

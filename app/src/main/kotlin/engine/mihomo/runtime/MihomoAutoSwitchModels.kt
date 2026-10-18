@@ -33,6 +33,7 @@ internal data class MihomoAutoSwitchGroupStatus(
     val node: String = "",
     val delay: Int? = null,
     val failures: Int? = null,
+    val inUse: Boolean = false,
     val checkedAt: Long = 0L,
 )
 
