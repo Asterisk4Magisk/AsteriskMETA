@@ -308,12 +308,13 @@ private fun SettingsContent(
             SettingsRawConfigState(enabled = selectedProfile?.disableOverrides == true)
         }
     }
-    val standardNestedSearchEntries = settingsNestedSearchEntries(
+    val nestedSearchEntries = settingsNestedSearchEntries(
         showTunStack = appState.showMihomoTunStackSettings,
         runMode = appState.runMode,
         onOpenTunBypassRuleSets = { sheetState.openTunBypassRuleSets(appState) },
         onOpenDns = { sheetState.openDnsSettings(appState) },
         onOpenConnectionTest = { sheetState.openConnectionTestSettings(appState) },
+        onOpenAutoSwitch = { sheetState.openAutoSwitch(appState) },
         onOpenSniffer = { sheetState.openSnifferSettings(appState) },
         onOpenLocalProxy = { sheetState.openLocalProxySettings(appState) },
         onOpenTun = { sheetState.openTunSettings(appState) },
@@ -325,20 +326,6 @@ private fun SettingsContent(
         onOpenIgnoredInterfaces = { sheetState.openIgnoredInterfaces(appState) },
         onOpenPrivateAddresses = { sheetState.openPrivateAddresses(appState) },
     )
-    val autoSwitchSearchEntries = listOf(
-        R.string.auto_switch_enabled, R.string.auto_switch_groups, R.string.auto_switch_regions,
-        R.string.auto_switch_keywords, R.string.auto_switch_failures, R.string.auto_switch_interval,
-        R.string.auto_switch_log_title,
-    ).map { label ->
-        SettingsSearchEntry(
-            title = stringResource(label),
-            parent = stringResource(R.string.settings_auto_switch),
-            icon = ui.icons.AsteriskIcons.Rounded.Sync,
-            onClick = { sheetState.openAutoSwitch(appState) },
-        )
-    }
-    val nestedSearchEntries = autoSwitchSearchEntries +
-            if (rawConfigState.enabled) emptyList() else standardNestedSearchEntries
     val topLevelSearchItems = settingsTopLevelSearchItems(
         runMode = appState.runMode,
         colorModeOptions = colorModeOptions,
@@ -364,7 +351,7 @@ private fun SettingsContent(
         0
     } else {
         filterSettingsItems(topLevelSearchItems, searchQuery).size +
-                filterSettingsSearchEntries(nestedSearchEntries, searchQuery).size
+            if (rawConfigState.enabled) 0 else filterSettingsSearchEntries(nestedSearchEntries, searchQuery).size
     }
     val searchFocusState = reduceSettingsSearchFocusState(searchQuery, searchMatchCount)
 
@@ -389,7 +376,7 @@ private fun SettingsContent(
                     )
                 }
             }
-            if (searchQuery.isNotBlank()) {
+            if (searchQuery.isNotBlank() && !rawConfigState.enabled) {
                 item(key = "settings_nested_search_results") {
                     SettingsNestedSearchResults(
                         query = searchQuery,

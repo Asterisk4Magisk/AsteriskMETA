@@ -116,6 +116,7 @@ internal fun settingsTopLevelSearchItems(
         ),
         SettingsSearchItem(SettingsSectionId.Core, stringResource(R.string.settings_sniffer), snifferSummary),
         SettingsSearchItem(SettingsSectionId.Core, stringResource(R.string.connection_test_settings_title), stringResource(R.string.connection_test_settings_summary)),
+        SettingsSearchItem(SettingsSectionId.Core, stringResource(R.string.settings_auto_switch), stringResource(R.string.settings_auto_switch_summary)),
         SettingsSearchItem(
             SettingsSectionId.Core,
             stringResource(R.string.settings_geodata_mode),
@@ -140,18 +141,6 @@ internal fun settingsTopLevelSearchItems(
             stringResource(R.string.settings_broadcast_control_summary),
         ),
         SettingsSearchItem(SettingsSectionId.Advanced, "IPv6", stringResource(R.string.settings_ipv6_summary)),
-        SettingsSearchItem(
-            SettingsSectionId.Core,
-            stringResource(R.string.settings_auto_switch),
-            stringResource(R.string.settings_auto_switch_summary),
-            optionText = listOf(
-                stringResource(R.string.auto_switch_groups),
-                stringResource(R.string.auto_switch_regions),
-                stringResource(R.string.auto_switch_keywords),
-                stringResource(R.string.auto_switch_failures),
-                stringResource(R.string.auto_switch_interval),
-            ),
-        ),
         SettingsSearchItem(
             SettingsSectionId.Advanced,
             stringResource(R.string.settings_ipv6_prefer),
@@ -262,6 +251,7 @@ internal fun settingsNestedSearchEntries(
     onOpenDns: () -> Unit,
     onOpenSniffer: () -> Unit,
     onOpenConnectionTest: () -> Unit,
+    onOpenAutoSwitch: () -> Unit,
     onOpenLocalProxy: () -> Unit,
     onOpenTun: () -> Unit,
     onOpenExternalInterfaces: () -> Unit,
@@ -277,6 +267,16 @@ internal fun settingsNestedSearchEntries(
         stringResource(R.string.connection_test_concurrent),
         stringResource(R.string.connection_test_timeout),
         stringResource(R.string.connection_test_unified_delay),
+    )
+    val autoSwitch = stringResource(R.string.settings_auto_switch)
+    val autoSwitchItems = listOf(
+        stringResource(R.string.auto_switch_enabled),
+        stringResource(R.string.auto_switch_log_title),
+        stringResource(R.string.auto_switch_groups),
+        stringResource(R.string.auto_switch_regions),
+        stringResource(R.string.auto_switch_keywords),
+        stringResource(R.string.auto_switch_failures),
+        stringResource(R.string.auto_switch_interval),
     )
     val localProxy = stringResource(R.string.settings_local_proxy)
     val tun = stringResource(R.string.settings_tun)
@@ -346,6 +346,7 @@ internal fun settingsNestedSearchEntries(
 
     return buildList {
         connectionTestItems.forEach { add(SettingsSearchEntry(it, connectionTest, Icons.Rounded.Speed, onOpenConnectionTest)) }
+        autoSwitchItems.forEach { add(SettingsSearchEntry(it, autoSwitch, Icons.Rounded.Sync, onOpenAutoSwitch)) }
         dnsItems.forEach { add(SettingsSearchEntry(it, dns, Icons.Rounded.Dns, onOpenDns)) }
         snifferItems.forEach { add(SettingsSearchEntry(it, sniffer, Icons.Rounded.TravelExplore, onOpenSniffer)) }
         localProxyItems.forEach { add(SettingsSearchEntry(it, localProxy, Icons.Rounded.Router, onOpenLocalProxy)) }

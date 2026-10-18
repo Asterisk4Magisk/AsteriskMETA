@@ -63,6 +63,7 @@ internal fun SettingsBottomSheetsHost(
     AutoSwitchSettingsBottomSheet(
         show = sheetState.showAutoSwitch,
         appState = appState,
+        overridesEnabled = !appState.usesRawMihomoConfig(),
         draft = sheetState.autoSwitchDraft,
         onDraftChange = { sheetState.autoSwitchDraft = it },
         onDismissRequest = { sheetState.showAutoSwitch = false },

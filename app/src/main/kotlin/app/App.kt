@@ -11,6 +11,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import app.effects.MihomoAutoSwitchSynchronizer
 import app.effects.MihomoRuntimeSynchronizer
 import app.effects.ProxyStatusSynchronizer
 import app.effects.ResourceFileSynchronizer
@@ -206,6 +207,10 @@ fun App(
         stateStore = stateStore,
         mihomoRuntimeLifecycle = application.mihomoRuntimeLifecycle,
         mihomoProviderUsage = mihomoProviderUsage,
+    )
+    MihomoAutoSwitchSynchronizer(
+        stateStore = stateStore,
+        runtime = mihomoRuntime,
     )
     ProxyStatusSynchronizer(
         stateStore = stateStore,

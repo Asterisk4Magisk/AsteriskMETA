@@ -25,9 +25,7 @@ import system.AndroidAppIconFetcher
 import app.effects.AppActivityForegroundTracker
 import app.effects.MihomoRuntimeLifecycleCoordinator
 import engine.mihomo.MihomoProfileContentStore
-import engine.mihomo.runtime.MihomoAutoSwitchService
 import engine.mihomo.runtime.MihomoRuntimeRepository
-import engine.mihomo.runtime.shouldMonitorAutoSwitch
 import data.AndroidAppStateStore
 import engine.proxy.AndroidProxyEngine
 import system.AndroidRootShellGateway
@@ -117,17 +115,6 @@ class AsteriskApplication : Application(), SingletonImageLoader.Factory {
                 .collect(scheduler::reconcile)
         }
         MihomoBridge.initialize(this)
-        appScope.launch {
-            stateStore.state
-                .map { it.shouldMonitorAutoSwitch() }
-                .distinctUntilChanged()
-                .collect { enabled ->
-                    MihomoAutoSwitchService.reconcile(
-                        this@AsteriskApplication,
-                        enabled
-                    )
-                }
-        }
         AndroidLogcatRepository.initialize(applicationContext)
         AndroidCoreLogRepository.initialize(applicationContext)
         AndroidAsteriskdLogRepository.initialize(applicationContext)

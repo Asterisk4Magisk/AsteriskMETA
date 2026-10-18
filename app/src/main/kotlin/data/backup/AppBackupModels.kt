@@ -123,12 +123,25 @@ internal data class AppBackupSettings(
     val socks5ProxyPort: String = BackupDefaults.socks5ProxyPort,
     val bpf2SocksBridgePort: String = BackupDefaults.bpf2SocksBridgePort,
     val serviceControl: AppBackupServiceControl = AppBackupServiceControl(),
+    val autoSwitch: AppBackupAutoSwitch = AppBackupAutoSwitch(),
     val tunSharedNetworkInterfaces: List<String> = BackupDefaults.tunSharedNetworkInterfaces,
     val tunBypassRuleSetTags: List<String> = BackupDefaults.tunBypassRuleSetTags,
     val externalInterfaces: List<String> = BackupDefaults.externalInterfaces,
     val ignoredInterfaces: List<String> = BackupDefaults.ignoredInterfaces,
     val privateAddressCidrs: List<String> = BackupDefaults.privateAddressCidrs,
     val proxyAppListMode: Int = BackupDefaults.proxyAppListMode,
+)
+
+/** Profile IDs are restored unchanged, so [profileId] still names the same profile. */
+@Serializable
+internal data class AppBackupAutoSwitch(
+    val enabled: Boolean = BackupDefaults.autoSwitch.enabled,
+    val profileId: Int = BackupDefaults.autoSwitch.profileId,
+    val groups: List<String> = BackupDefaults.autoSwitch.groups,
+    val preferredRegions: List<String> = BackupDefaults.autoSwitch.preferredRegions,
+    val preferredKeywords: List<String> = BackupDefaults.autoSwitch.preferredKeywords,
+    val failureThreshold: Int = BackupDefaults.autoSwitch.failureThreshold,
+    val intervalSeconds: Int = BackupDefaults.autoSwitch.intervalSeconds,
 )
 
 @Serializable

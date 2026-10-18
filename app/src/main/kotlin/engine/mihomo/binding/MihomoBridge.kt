@@ -238,6 +238,16 @@ internal object MihomoBridge {
         return Libclash.patchSelector(selector, name)
     }
 
+    fun queryAutoSwitch(): String {
+        ensureInitialized()
+        return Libclash.queryAutoSwitch()
+    }
+
+    fun patchAutoSwitch(settingsJson: String) {
+        ensureInitialized()
+        Libclash.patchAutoSwitch(settingsJson)
+    }
+
     suspend fun fetchAndValid(
         path: File,
         url: String,

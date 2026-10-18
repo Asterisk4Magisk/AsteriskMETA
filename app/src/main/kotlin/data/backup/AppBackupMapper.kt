@@ -5,6 +5,7 @@ package data.backup
 
 import app.withNormalizedConnectionTestSettings
 import app.AppState
+import app.AutoSwitchSettings
 import app.DefaultMihomoOverrideScriptId
 import app.DefaultMihomoProfileId
 import app.MihomoOverrideScriptState
@@ -150,6 +151,7 @@ private fun AppState.toBackupSettings(): AppBackupSettings =
         socks5ProxyPort = socks5ProxyPort,
         bpf2SocksBridgePort = bpf2SocksBridgePort,
         serviceControl = serviceControl.toBackup(),
+        autoSwitch = autoSwitch.toBackup(),
         tunSharedNetworkInterfaces = tunSharedNetworkInterfaces,
         tunBypassRuleSetTags = tunBypassRuleSetTags,
         externalInterfaces = externalInterfaces,
@@ -157,6 +159,28 @@ private fun AppState.toBackupSettings(): AppBackupSettings =
         privateAddressCidrs = privateAddressCidrs,
         proxyAppListMode = proxyAppListMode,
     )
+
+private fun AutoSwitchSettings.toBackup(): AppBackupAutoSwitch =
+    AppBackupAutoSwitch(
+        enabled = enabled,
+        profileId = profileId,
+        groups = groups,
+        preferredRegions = preferredRegions,
+        preferredKeywords = preferredKeywords,
+        failureThreshold = failureThreshold,
+        intervalSeconds = intervalSeconds,
+    )
+
+private fun AppBackupAutoSwitch.toState(): AutoSwitchSettings =
+    AutoSwitchSettings(
+        enabled = enabled,
+        profileId = profileId,
+        groups = groups,
+        preferredRegions = preferredRegions,
+        preferredKeywords = preferredKeywords,
+        failureThreshold = failureThreshold,
+        intervalSeconds = intervalSeconds,
+    ).normalized()
 
 private fun ServiceControlSettings.toBackup(): AppBackupServiceControl =
     AppBackupServiceControl(
@@ -350,6 +374,7 @@ private fun AppBackupData.toAppState(): AppState {
         socks5ProxyPort = settings.socks5ProxyPort,
         bpf2SocksBridgePort = settings.bpf2SocksBridgePort,
         serviceControl = normalizeServiceControlSettings(settings.serviceControl.toState()),
+        autoSwitch = settings.autoSwitch.toState(),
         tunSharedNetworkInterfaces = settings.tunSharedNetworkInterfaces,
         tunBypassRuleSetTags = settings.tunBypassRuleSetTags,
         externalInterfaces = settings.externalInterfaces,

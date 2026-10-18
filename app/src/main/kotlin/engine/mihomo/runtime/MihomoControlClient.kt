@@ -3,13 +3,15 @@
 
 package engine.mihomo.runtime
 
-import engine.mihomo.DefaultMihomoDelayTestUrl
-import engine.mihomo.DefaultMihomoDelayTimeoutMillis
-import engine.mihomo.MihomoControlConfig
+import engine.mihomo.binding.MihomoBridge as Clash
 import engine.mihomo.binding.model.ConfigurationOverride
 import engine.mihomo.binding.model.LogMessage
 import engine.mihomo.binding.model.Provider
 import engine.mihomo.binding.model.TunnelState
+import engine.mihomo.DefaultMihomoDelayTestUrl
+import engine.mihomo.DefaultMihomoDelayTimeoutMillis
+import engine.mihomo.MihomoAutoSwitchOptions
+import engine.mihomo.MihomoControlConfig
 import engine.vpn.AndroidMihomoRuntime
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
@@ -37,7 +39,6 @@ import java.net.SocketTimeoutException
 import java.net.URI
 import java.net.URLEncoder
 import kotlin.time.Duration.Companion.milliseconds
-import engine.mihomo.binding.MihomoBridge as Clash
 
 internal typealias MihomoBridgeProviderProxyDelay = (
     providerName: String,
@@ -196,33 +197,6 @@ internal class MihomoControlClient(
         return root.toProxyProviderRuntimeDetail(providerName)
     }
 
-    fun findProviderProxyIds(
-        config: MihomoControlConfig,
-        names: Set<String>,
-        useBridge: Boolean,
-    ): Map<String, MihomoProxyNodeId> {
-        if (names.isEmpty()) return emptyMap()
-        // Read provider metadata only. Never use a provider/group health check to resolve a node.
-        val providers = if (useBridge) {
-            Clash.queryProviders().filter { it.type == Provider.Type.Proxy }
-                .map { getProxyProvider(config, it.name, useBridge = true) }
-        } else {
-            val values =
-                requestJsonObject(config, "/providers/proxies")["providers"].jsonObjectOrNull()
-                    ?: error("Invalid Mihomo proxy provider response")
-            values.mapNotNull { (name, value) ->
-                value.jsonObjectOrNull()?.toProxyProviderRuntimeDetail(name)
-            }
-        }
-        return buildMap {
-            providers.forEach { provider ->
-                provider.nodes.filter { it.name in names }.forEach { node ->
-                    putIfAbsent(node.name, MihomoProxyNodeId(node.name, provider.name))
-                }
-            }
-        }
-    }
-
     fun getRuleProviders(
         config: MihomoControlConfig,
         useBridge: Boolean,
@@ -331,6 +305,24 @@ internal class MihomoControlClient(
             put("name", proxyName)
         }
         request(config, "/proxies/${groupName.urlEncode()}", method = "PUT", body = body.toString())
+    }
+
+    fun getAutoSwitchState(config: MihomoControlConfig, useBridge: Boolean): MihomoAutoSwitchState {
+        val response = if (useBridge) Clash.queryAutoSwitch() else request(config, AutoSwitchPath)
+        return RuntimeJson.decodeFromString(MihomoAutoSwitchState.serializer(), response)
+    }
+
+    fun patchAutoSwitch(
+        config: MihomoControlConfig,
+        options: MihomoAutoSwitchOptions,
+        useBridge: Boolean,
+    ) {
+        val body = RuntimeJson.encodeToString(MihomoAutoSwitchOptions.serializer(), options)
+        if (useBridge) {
+            Clash.patchAutoSwitch(body)
+            return
+        }
+        request(config, AutoSwitchPath, method = "PATCH", body = body)
     }
 
     suspend fun testProxyDelay(
@@ -670,6 +662,7 @@ internal class MihomoControlClient(
             put("inuse", 0L)
             put("oslimit", 0L)
         }
+        const val AutoSwitchPath = "/asterisk/auto-switch"
         const val DefaultConnectTimeoutMillis = 2_500
         const val DefaultReadTimeoutMillis = 8_000
         const val DelayResponseGraceMillis = 1_000

@@ -230,6 +230,8 @@ private fun MutableMap<String, Any?>.putAsteriskRuntimeOverrides(
     put("geox-url", appState.toMihomoGeoXUrlYamlMap())
     put("profile", normalizedProfileStoreSelected(this["profile"]))
     put("sniffer", appState.toMihomoSnifferYamlMap())
+    // Standby cores only serve the UI and must never change a selection.
+    put(MihomoAutoSwitchConfigKey, appState.toMihomoAutoSwitchOptions(active = exposePorts).toYamlMap())
     putDnsOverrides(appState, forceDns)
     putDnsHijackOverrides(appState, runMode)
     putNtpWriteToSystemOverride()
@@ -602,6 +604,7 @@ private val AsteriskManagedTopLevelKeys = setOf(
     Bpf2SocksRuntimeMarkerKey,
     "geox-url",
     "sniffer",
+    MihomoAutoSwitchConfigKey,
 )
 
 private const val NameserverPolicySeparator = "=>"
