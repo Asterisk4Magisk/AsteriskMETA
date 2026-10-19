@@ -95,6 +95,11 @@ internal fun settingsTopLevelSearchItems(
         ),
         SettingsSearchItem(
             SettingsSectionId.Apps,
+            stringResource(R.string.settings_auto_hide_navigation_bar),
+            stringResource(R.string.settings_auto_hide_navigation_bar_summary),
+        ),
+        SettingsSearchItem(
+            SettingsSectionId.Apps,
             stringResource(R.string.settings_language),
             value = optionValue(languageOptions, languageMode),
             optionText = languageOptions,

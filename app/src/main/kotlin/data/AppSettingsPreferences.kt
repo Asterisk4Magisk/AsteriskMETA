@@ -50,6 +50,10 @@ internal class AppSettingsPreferences(
             hideRecentTasks = preferences.getBoolean(KeyHideRecentTasks, defaults.hideRecentTasks),
             allowScreenshots = preferences.getBoolean(KeyAllowScreenshots, defaults.allowScreenshots),
             hideLauncherIcon = preferences.getBoolean(KeyHideLauncherIcon, defaults.hideLauncherIcon),
+            autoHideNavigationBar = preferences.getBoolean(
+                KeyAutoHideNavigationBar,
+                defaults.autoHideNavigationBar,
+            ),
             nextMihomoProfileId = preferences.getInt(KeyNextMihomoProfileId, defaults.nextMihomoProfileId),
             nextMihomoOverrideScriptId = preferences.getInt(
                 KeyNextMihomoOverrideScriptId,
@@ -294,6 +298,7 @@ internal class AppSettingsPreferences(
             .putBoolean(KeyHideRecentTasks, state.hideRecentTasks)
             .putBoolean(KeyAllowScreenshots, state.allowScreenshots)
             .putBoolean(KeyHideLauncherIcon, state.hideLauncherIcon)
+            .putBoolean(KeyAutoHideNavigationBar, state.autoHideNavigationBar)
             .putInt(KeyNextMihomoProfileId, state.nextMihomoProfileId)
             .putInt(KeyNextMihomoOverrideScriptId, state.nextMihomoOverrideScriptId)
             .putInt(KeySelectedMihomoProfileId, state.selectedMihomoProfileId)
@@ -524,6 +529,7 @@ private const val KeySeedIndex = "seed_index"
 private const val KeyHideRecentTasks = "hide_recent_tasks"
 private const val KeyAllowScreenshots = "allow_screenshots"
 private const val KeyHideLauncherIcon = "hide_launcher_icon"
+private const val KeyAutoHideNavigationBar = "auto_hide_navigation_bar"
 private const val KeyNextMihomoProfileId = "next_mihomo_profile_id"
 private const val KeyNextMihomoOverrideScriptId = "next_mihomo_override_script_id"
 private const val KeySelectedMihomoProfileId = "selected_mihomo_profile_id"

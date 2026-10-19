@@ -615,6 +615,10 @@ private fun SettingsContent(
                     onColorModeChange = { index -> updateAppState { state -> state.copy(colorMode = index) } },
                     onSeedIndexChange = { index -> updateAppState { state -> state.copy(seedIndex = index) } },
                     onLanguageModeChange = { index -> updateAppState { state -> state.copy(languageMode = index) } },
+                    autoHideNavigationBar = appState.autoHideNavigationBar,
+                    onAutoHideNavigationBarChange = { enabled ->
+                        updateAppState { state -> state.copy(autoHideNavigationBar = enabled) }
+                    },
                 )
             }
             item(key = "settings_backup_restore") {

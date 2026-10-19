@@ -54,6 +54,8 @@ internal fun SettingsAppSection(
     onColorModeChange: (Int) -> Unit,
     onSeedIndexChange: (Int) -> Unit,
     onLanguageModeChange: (Int) -> Unit,
+    autoHideNavigationBar: Boolean,
+    onAutoHideNavigationBarChange: (Boolean) -> Unit,
 ) {
     SmallTitle(text = stringResource(R.string.settings_app))
     SettingsSectionCard {
@@ -74,6 +76,20 @@ internal fun SettingsAppSection(
         onColorModeChange = onColorModeChange,
         onSeedIndexChange = onSeedIndexChange,
     )
+    val autoHideNavigationBarTitle = stringResource(R.string.settings_auto_hide_navigation_bar)
+    val autoHideNavigationBarSummary = stringResource(R.string.settings_auto_hide_navigation_bar_summary)
+    if (settingsRowMatchesQuery(autoHideNavigationBarTitle, autoHideNavigationBarSummary, autoHideNavigationBar.toString())) {
+        SettingsSectionCard {
+            SwitchPreference(
+                title = autoHideNavigationBarTitle,
+                icon = Icons.Rounded.ExpandMore,
+                summary = autoHideNavigationBarSummary,
+                checked = autoHideNavigationBar,
+                onCheckedChange = onAutoHideNavigationBarChange,
+                accent = IconAccent.MaskBlueVariant,
+            )
+        }
+    }
 }
 
 @Composable

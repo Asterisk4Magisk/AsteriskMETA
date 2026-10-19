@@ -42,6 +42,7 @@ data class AppState(
     val hideRecentTasks: Boolean = false,
     val allowScreenshots: Boolean = false,
     val hideLauncherIcon: Boolean = false,
+    val autoHideNavigationBar: Boolean = false,
 
     val mihomoProfiles: List<MihomoProfileState> = DefaultMihomoProfiles,
     val nextMihomoProfileId: Int = 1,

@@ -328,15 +328,18 @@ private fun CompactScreenLayout(
     padding: PaddingValues,
     mainDestinationState: MainDestinationState,
 ) {
+    val appState by LocalAppStateStore.current.collectAppState()
+    val autoHideNavigationBar by remember { derivedStateOf { appState.autoHideNavigationBar } }
     var isBottomBarVisible by remember { mutableStateOf(true) }
 
-    LaunchedEffect(mainDestinationState.current) {
+    LaunchedEffect(mainDestinationState.current, autoHideNavigationBar) {
         isBottomBarVisible = true
     }
 
     val nestedScrollConnection = remember {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (!autoHideNavigationBar) return Offset.Zero
                 val delta = available.y
                 if (delta < -10f && isBottomBarVisible) {
                     isBottomBarVisible = false
