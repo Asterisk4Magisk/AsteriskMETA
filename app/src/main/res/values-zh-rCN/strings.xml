@@ -999,7 +999,7 @@
         <item quantity="other">距离下次检测还有 %1$d 秒</item>
     </plurals>
     <string name="auto_switch_group_healthy">%1$s：%2$s · %3$d ms</string>
-    <string name="auto_switch_group_in_use">%1$s：%2$s · 正在使用，无需探测</string>
+    <string name="auto_switch_group_in_use">%1$s：%2$s · 有活跃连接，无需探测</string>
     <string name="auto_switch_group_failed">%1$s：%2$s · 连续失败 %3$d 次</string>
     <string name="auto_switch_group_skipped">%1$s：%2$s 不是可监测的节点</string>
     <string name="auto_switch_group_unavailable">%1$s：当前配置或模式下不是手动选择组</string>
