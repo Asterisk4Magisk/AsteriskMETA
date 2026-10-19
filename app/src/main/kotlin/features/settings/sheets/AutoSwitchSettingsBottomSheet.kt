@@ -93,12 +93,11 @@ internal fun AutoSwitchSettingsBottomSheet(
         }
         val failureCount = failures.toIntOrNull()?.takeIf { it in AutoSwitchFailureThresholdRange }
         val seconds = interval.toIntOrNull()?.takeIf { it in AutoSwitchIntervalSecondsRange }
-        val delayMillis =
-            expectedDelay.toIntOrNull()?.takeIf { it in AutoSwitchExpectedDelayMillisRange }
+        val delayMillis = expectedDelay.toIntOrNull()?.takeIf { it in AutoSwitchExpectedDelayMillisRange }
         val groupsValid = !draft.enabled || (!loading && !loadFailed && draft.groups.isNotEmpty() &&
             draft.groups.all { name -> groups.any { it.name == name } })
-        val canSave =
-            failureCount != null && seconds != null && delayMillis != null && groupsValid && !pendingKeywords
+        val canSave = failureCount != null && seconds != null && delayMillis != null && groupsValid &&
+            !pendingKeywords
         SettingsModalBottomSheet(
             show = show,
             title = stringResource(R.string.settings_auto_switch),
@@ -206,18 +205,6 @@ internal fun AutoSwitchSettingsBottomSheet(
                         )
                         AutoSwitchSectionTitle(stringResource(R.string.auto_switch_detection))
                         SettingsTextField(
-                            value = expectedDelay,
-                            onValueChange = { expectedDelay = it },
-                            label = stringResource(R.string.auto_switch_expected_delay),
-                            errorText = if (delayMillis == null) {
-                                stringResource(R.string.auto_switch_expected_delay_invalid)
-                            } else {
-                                null
-                            },
-                            keyboardOptions = fiveDigitKeyboardOptions(),
-                            sanitizeInput = ::sanitizeFiveDigitInput,
-                        )
-                        SettingsTextField(
                             value = failures,
                             onValueChange = { failures = it },
                             label = stringResource(R.string.auto_switch_failures),
@@ -234,6 +221,18 @@ internal fun AutoSwitchSettingsBottomSheet(
                             onValueChange = { interval = it },
                             label = stringResource(R.string.auto_switch_interval),
                             errorText = if (seconds == null) stringResource(R.string.auto_switch_interval_invalid) else null,
+                            keyboardOptions = fiveDigitKeyboardOptions(),
+                            sanitizeInput = ::sanitizeFiveDigitInput,
+                        )
+                        SettingsTextField(
+                            value = expectedDelay,
+                            onValueChange = { expectedDelay = it },
+                            label = stringResource(R.string.auto_switch_expected_delay),
+                            errorText = if (delayMillis == null) {
+                                stringResource(R.string.auto_switch_expected_delay_invalid)
+                            } else {
+                                null
+                            },
                             keyboardOptions = fiveDigitKeyboardOptions(),
                             sanitizeInput = ::sanitizeFiveDigitInput,
                         )
@@ -263,9 +262,7 @@ private enum class AutoSwitchInfo(@StringRes val title: Int, @StringRes val text
 @Composable
 private fun AutoSwitchSectionTitle(title: String, onInfoClick: (() -> Unit)? = null) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -273,9 +270,7 @@ private fun AutoSwitchSectionTitle(title: String, onInfoClick: (() -> Unit)? = n
             color = MaterialTheme.colorScheme.primary,
             fontSize = 15.sp,
             fontWeight = FontWeight.SemiBold,
-            modifier = Modifier
-                .weight(1f, fill = false)
-                .padding(vertical = 8.dp),
+            modifier = Modifier.weight(1f, fill = false).padding(vertical = 8.dp),
         )
         if (onInfoClick != null) {
             // Match the compact info action on BOX outbound group cards.

@@ -58,16 +58,13 @@ internal data class MihomoAutoSwitchOptions(
     )
 
     /**
-     * Compares with the core's normalized copy, which reports omitted groups as null. Two disabled
-     * values are equivalent whatever their other fields.
+     * Compares with the core's normalized copy, which reports omitted groups as null and omits
+     * expected-delay on older cores. Two disabled values are equivalent whatever their other fields.
      */
     fun sameAs(other: MihomoAutoSwitchOptions): Boolean =
-        (!enable && !other.enable) ||
-                copy(groups = groups.orEmpty(), expectedDelayMillis = expectedDelayMillis ?: 0) ==
-                other.copy(
-                    groups = other.groups.orEmpty(),
-                    expectedDelayMillis = other.expectedDelayMillis ?: 0
-                )
+        (!enable && !other.enable) || comparable() == other.comparable()
+
+    private fun comparable() = copy(groups = groups.orEmpty(), expectedDelayMillis = expectedDelayMillis ?: 0)
 }
 
 /**

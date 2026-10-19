@@ -3,6 +3,7 @@
 
 package data.backup
 
+import app.withNormalizedConnectionTestSettings
 import app.AppState
 import app.AutoSwitchSettings
 import app.DefaultMihomoOverrideScriptId
@@ -18,7 +19,6 @@ import app.ServiceControlWifi
 import app.ServiceControlWifiRule
 import app.modes.RunModeVpnService
 import app.withCompatibleProxyAppListMode
-import app.withNormalizedConnectionTestSettings
 import features.settings.servicecontrol.normalizeServiceControlSettings
 
 /**

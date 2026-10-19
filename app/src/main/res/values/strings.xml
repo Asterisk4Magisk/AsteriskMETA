@@ -1025,7 +1025,7 @@
     <string name="auto_switch_event_selection_changed">The selection changed during the check. %1$s was not replaced.</string>
     <string name="auto_switch_info">Details</string>
     <string name="auto_switch_policy_title">How automatic switching works</string>
-    <string name="auto_switch_policy">Checks run inside the core while the proxy service is running, so the app does not need to stay in the background.\n\nThey use the test URL, timeout and concurrency from Connection test.\n\nAfter the consecutive failure count is reached, preferred nodes are tested first. With a nonzero expected latency, the first healthy node strictly below it is selected and remaining tests in that tier are cancelled. If it is zero or no node meets it, all candidates in the tier are tested and the lowest-latency healthy node is selected. Other nodes are tested only when no preferred node is healthy.\n\nHealthy and manually changed selections are kept. When no node is healthy, the selection is kept and later scans back off.\n\nRequires the built-in core; an uploaded custom Mihomo core does not support it.</string>
+    <string name="auto_switch_policy">Checks run inside the core while the proxy service is running, so the app does not need to stay in the background.\n\nThey use the test URL, timeout and concurrency from Connection test.\n\nAfter the consecutive failure count is reached, preferred nodes are tested first, starting with those that were fastest in earlier tests. With a nonzero expected latency, the first healthy node below it is selected and the remaining nodes are not tested. With zero, or when no node meets it, the lowest-latency healthy node is selected. Other nodes are tested only when no preferred node is healthy.\n\nHealthy and manually changed selections are kept. When no node is healthy, the selection is kept and later scans back off.\n\nRequires the built-in core; an uploaded custom Mihomo core does not support it.</string>
     <string name="auto_switch_policy_raw">This profile uses its raw configuration. The core follows the asterisk-auto-switch key in that configuration; these settings are saved but not applied.</string>
     <string name="auto_switch_groups">Monitored policy groups</string>
     <string name="auto_switch_groups_summary">Choose at least one manual selection group in the current profile.\n\nOnly nodes selected directly are monitored. DIRECT, REJECT, nested groups and core-managed automatic groups are left unchanged.\n\nAfter changing profiles, select groups again.</string>
@@ -1035,12 +1035,12 @@
     <string name="auto_switch_keywords">Custom preferred node name keywords</string>
     <string name="auto_switch_keywords_empty">Optional. Region matching uses flags, region names and country codes in node names.</string>
     <string name="auto_switch_detection">Health checks</string>
-    <string name="auto_switch_expected_delay">Expected latency (ms). Switch immediately when a tested node is below this latency instead of testing the remaining nodes. 0 tests all candidates.</string>
-    <string name="auto_switch_expected_delay_invalid">Enter a number from 0 to 99999</string>
     <string name="auto_switch_failures">Consecutive failures before switching (default: 1)</string>
     <string name="auto_switch_failures_invalid">Enter a number from 1 to 10</string>
     <string name="auto_switch_interval">Health check interval in seconds (default: 30)</string>
     <string name="auto_switch_interval_invalid">Enter a number from 10 to 3600</string>
+    <string name="auto_switch_expected_delay">Expected latency in ms (default: 300, 0 tests all nodes)</string>
+    <string name="auto_switch_expected_delay_invalid">Enter a number from 0 to 99999</string>
     <string name="auto_switch_region_hk">Hong Kong</string>
     <string name="auto_switch_region_tw">Taiwan</string>
     <string name="auto_switch_region_jp">Japan</string>
