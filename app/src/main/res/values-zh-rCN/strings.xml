@@ -1012,7 +1012,7 @@
     <string name="auto_switch_event_selection_changed">检测期间节点选择已改变，未替换 %1$s</string>
     <string name="auto_switch_info">说明</string>
     <string name="auto_switch_policy_title">自动切换的工作方式</string>
-    <string name="auto_switch_policy">代理服务运行期间由核心执行检测，App 无需常驻后台。\n\n检测使用「连接测试」中的测试地址、超时与并发数。\n\n达到连续失败次数后，优先选择偏好地区中延迟最低的可用节点，否则选择组内延迟最低的可用节点。\n\n当前节点正常或已被手动更改时不切换；全部不可用时保留原选择，并逐步拉长后续扫描间隔。\n\n需要使用内置核心，上传的自定义 Mihomo 核心不支持此功能。</string>
+    <string name="auto_switch_policy">代理服务运行期间由核心执行检测，App 无需常驻后台。\n\n检测使用「连接测试」中的测试地址、超时与并发数。\n\n达到连续失败次数后，优先检测偏好节点。期望延迟不为 0 时，找到第一个低于该延迟的可用节点就切换，并取消本批剩余测速；为 0 或没有节点达标时，完成本批测速后选择延迟最低的可用节点。偏好节点全部不可用时才检测其他节点。\n\n当前节点正常或已被手动更改时不切换；全部不可用时保留原选择，并逐步拉长后续扫描间隔。\n\n需要使用内置核心，上传的自定义 Mihomo 核心不支持此功能。</string>
     <string name="auto_switch_policy_raw">当前配置使用原始配置文件，核心遵循其中的 asterisk-auto-switch 字段；这里的设置会保存但不会生效。</string>
     <string name="auto_switch_groups">监测的策略组</string>
     <string name="auto_switch_groups_summary">至少选择当前配置中的一个手动选择组。\n\n仅监测直接选中的节点；直连、拒绝、嵌套策略组及核心管理的自动策略组保持原行为。\n\n切换配置后需重新选择策略组。</string>
@@ -1022,7 +1022,9 @@
     <string name="auto_switch_keywords">自定义偏好节点名称关键词</string>
     <string name="auto_switch_keywords_empty">可选。地区根据节点名称中的国旗、地区名称和地区缩写识别。</string>
     <string name="auto_switch_detection">健康检测</string>
-    <string name="auto_switch_failures">连续失败触发次数（默认 3 次）</string>
+    <string name="auto_switch_expected_delay">期望延迟(ms)，测速过程中如果有节点低于此延迟就立刻切换而不是继续测速剩余节点，0表示全量测速</string>
+    <string name="auto_switch_expected_delay_invalid">请输入 0～99999 之间的整数</string>
+    <string name="auto_switch_failures">连续失败触发次数（默认 1 次）</string>
     <string name="auto_switch_failures_invalid">请输入 1～10 之间的整数</string>
     <string name="auto_switch_interval">检测间隔，单位秒（默认 30 秒）</string>
     <string name="auto_switch_interval_invalid">请输入 10～3600 之间的整数</string>

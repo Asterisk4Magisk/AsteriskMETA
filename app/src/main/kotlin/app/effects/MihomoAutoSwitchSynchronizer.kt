@@ -37,7 +37,7 @@ internal fun MihomoAutoSwitchSynchronizer(
                     if (failure is MihomoAutoSwitchUnsupportedException) {
                         // An uploaded official core is fine while the feature is off.
                         if (appState.toMihomoAutoSwitchOptions().enable) {
-                            AndroidAppLogger.warn("AutoSwitch", "The running core does not support automatic switching")
+                            AndroidAppLogger.warn("AutoSwitch", failure.message.orEmpty())
                         }
                         return@collectLatest
                     }
