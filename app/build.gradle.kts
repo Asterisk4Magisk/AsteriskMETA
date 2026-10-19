@@ -128,13 +128,8 @@ dependencies {
     implementation(libs.dexlib2)
     implementation(libs.haze)
     implementation(libs.haze.blur)
-    //如果有本地的说明在测核心喵
-    val localLibClashAar = rootProject.file("AndroidLibClashLite/build/verification/libclash.aar")
-    if (localLibClashAar.isFile) {
-        implementation(files(localLibClashAar))
-    } else {
-        implementation("com.github.Asterisk4Magisk:libclash:${ProjectConfig.ANDROID_LIB_CLASH_LITE_VERSION}@aar")
-    }
+    //noinspection UseTomlInstead
+    implementation("com.github.Asterisk4Magisk:libclash:${ProjectConfig.ANDROID_LIB_CLASH_LITE_VERSION}@aar")
     implementation(dependencies.project(":asteriskd"))
     implementation(dependencies.project(":enhance"))
     implementation(dependencies.project(":bpfmatcher"))

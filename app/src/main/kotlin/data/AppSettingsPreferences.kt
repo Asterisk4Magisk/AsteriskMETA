@@ -5,17 +5,17 @@ package data
 
 import android.content.Context
 import android.content.SharedPreferences
-import androidx.core.content.edit
+import app.withNormalizedConnectionTestSettings
 import app.AppState
 import app.AutoSwitchSettings
-import app.ServiceControlKeyguard
+import engine.mihomo.normalizeMihomoTunCongestionController
 import app.ServiceControlSchedule
+import app.ServiceControlKeyguard
 import app.ServiceControlSettings
 import app.ServiceControlWifi
 import app.ServiceControlWifiRule
 import app.modes.normalizeColorMode
-import app.withNormalizedConnectionTestSettings
-import engine.mihomo.normalizeMihomoTunCongestionController
+import androidx.core.content.edit
 import features.settings.servicecontrol.normalizeServiceControlSettings
 import java.util.UUID
 
@@ -83,10 +83,7 @@ internal class AppSettingsPreferences(
                 preferredKeywords = preferences.getStringList(KeyAutoSwitchKeywords, defaults.autoSwitch.preferredKeywords),
                 failureThreshold = preferences.getInt(KeyAutoSwitchFailures, defaults.autoSwitch.failureThreshold),
                 intervalSeconds = preferences.getInt(KeyAutoSwitchInterval, defaults.autoSwitch.intervalSeconds),
-                expectedDelayMillis = preferences.getInt(
-                    KeyAutoSwitchExpectedDelay,
-                    defaults.autoSwitch.expectedDelayMillis
-                ),
+                expectedDelayMillis = preferences.getInt(KeyAutoSwitchExpectedDelay, defaults.autoSwitch.expectedDelayMillis),
             ).normalized(),
             mihomoTunStack = preferences.getInt(KeyMihomoTunStack, defaults.mihomoTunStack),
             mihomoTunCongestionController = normalizeMihomoTunCongestionController(

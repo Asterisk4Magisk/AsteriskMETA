@@ -3,30 +3,29 @@
 
 package engine.mihomo.runtime
 
+import engine.root.dns.withRootDnsMutation
 import android.content.Context
 import app.AppState
-import app.effects.MihomoRuntimeLifecycleTarget
 import app.modes.RunModeVpnService
 import app.modes.isRootRunMode
-import engine.mihomo.MihomoControlConfig
 import engine.mihomo.hasUsableMihomoProfile
-import engine.mihomo.mihomoControlConfig
 import engine.mihomo.mihomoLogLevelName
-import engine.mihomo.raw.loadSelectedRawConfig
-import engine.mihomo.raw.usesRawMihomoConfig
+import engine.mihomo.mihomoControlConfig
 import engine.mihomo.selectedMihomoProfileOrNull
 import engine.mihomo.toMihomoAutoSwitchOptions
+import engine.mihomo.MihomoControlConfig
+import engine.mihomo.raw.loadSelectedRawConfig
+import engine.mihomo.raw.usesRawMihomoConfig
 import engine.proxy.ProxyEngineStartRequest
-import engine.root.dns.withRootDnsMutation
 import engine.root.publication.publishRootProviderUpdates
 import engine.vpn.AndroidMihomoRuntime
 import engine.vpn.VpnMihomoConfigFactory
-import features.logs.AndroidAppLogger
 import features.resources.runtime.mihomoResourceFilePaths
+import features.logs.AndroidAppLogger
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -43,6 +42,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.net.ConnectException
 import kotlin.time.Duration.Companion.milliseconds
+import app.effects.MihomoRuntimeLifecycleTarget
 
 internal class MihomoDelayJobSlot {
     private var current: Job? = null
@@ -539,15 +539,14 @@ internal class MihomoRuntimeRepository(
         val useBridge = resolveInteractiveBackend(appState, control).useBridge()
         val desired = appState.toMihomoAutoSwitchOptions()
         withContext(Dispatchers.IO) {
-            // Re-patching identical settings would restart the core's failure counting.
             val current = client.getAutoSwitchState(control, useBridge).settings
-            if (desired.enable && (desired.expectedDelayMillis
-                    ?: 0) > 0 && current.expectedDelayMillis == null
-            ) {
+            // Cores before expected-delay omit it from their settings and would ignore the value.
+            if (desired.enable && (desired.expectedDelayMillis ?: 0) > 0 && current.expectedDelayMillis == null) {
                 throw MihomoAutoSwitchUnsupportedException(
                     "The running core does not support expected-delay; install an updated AndroidLibClashLite core",
                 )
             }
+            // Re-patching identical settings would restart the core's failure counting.
             if (!current.sameAs(desired)) {
                 client.patchAutoSwitch(control, desired, useBridge)
             }
