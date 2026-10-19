@@ -3,7 +3,6 @@
 
 package data.backup
 
-import app.withNormalizedConnectionTestSettings
 import app.AppState
 import app.AutoSwitchSettings
 import app.DefaultMihomoOverrideScriptId
@@ -19,6 +18,7 @@ import app.ServiceControlWifi
 import app.ServiceControlWifiRule
 import app.modes.RunModeVpnService
 import app.withCompatibleProxyAppListMode
+import app.withNormalizedConnectionTestSettings
 import features.settings.servicecontrol.normalizeServiceControlSettings
 
 /**
@@ -169,6 +169,7 @@ private fun AutoSwitchSettings.toBackup(): AppBackupAutoSwitch =
         preferredKeywords = preferredKeywords,
         failureThreshold = failureThreshold,
         intervalSeconds = intervalSeconds,
+        expectedDelayMillis = expectedDelayMillis,
     )
 
 private fun AppBackupAutoSwitch.toState(): AutoSwitchSettings =
@@ -180,6 +181,7 @@ private fun AppBackupAutoSwitch.toState(): AutoSwitchSettings =
         preferredKeywords = preferredKeywords,
         failureThreshold = failureThreshold,
         intervalSeconds = intervalSeconds,
+        expectedDelayMillis = expectedDelayMillis,
     ).normalized()
 
 private fun ServiceControlSettings.toBackup(): AppBackupServiceControl =

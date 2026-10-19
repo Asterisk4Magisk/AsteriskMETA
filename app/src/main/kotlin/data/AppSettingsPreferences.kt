@@ -5,17 +5,17 @@ package data
 
 import android.content.Context
 import android.content.SharedPreferences
-import app.withNormalizedConnectionTestSettings
+import androidx.core.content.edit
 import app.AppState
 import app.AutoSwitchSettings
-import engine.mihomo.normalizeMihomoTunCongestionController
-import app.ServiceControlSchedule
 import app.ServiceControlKeyguard
+import app.ServiceControlSchedule
 import app.ServiceControlSettings
 import app.ServiceControlWifi
 import app.ServiceControlWifiRule
 import app.modes.normalizeColorMode
-import androidx.core.content.edit
+import app.withNormalizedConnectionTestSettings
+import engine.mihomo.normalizeMihomoTunCongestionController
 import features.settings.servicecontrol.normalizeServiceControlSettings
 import java.util.UUID
 
@@ -79,6 +79,10 @@ internal class AppSettingsPreferences(
                 preferredKeywords = preferences.getStringList(KeyAutoSwitchKeywords, defaults.autoSwitch.preferredKeywords),
                 failureThreshold = preferences.getInt(KeyAutoSwitchFailures, defaults.autoSwitch.failureThreshold),
                 intervalSeconds = preferences.getInt(KeyAutoSwitchInterval, defaults.autoSwitch.intervalSeconds),
+                expectedDelayMillis = preferences.getInt(
+                    KeyAutoSwitchExpectedDelay,
+                    defaults.autoSwitch.expectedDelayMillis
+                ),
             ).normalized(),
             mihomoTunStack = preferences.getInt(KeyMihomoTunStack, defaults.mihomoTunStack),
             mihomoTunCongestionController = normalizeMihomoTunCongestionController(
@@ -310,6 +314,7 @@ internal class AppSettingsPreferences(
             .putStringList(KeyAutoSwitchKeywords, state.autoSwitch.preferredKeywords)
             .putInt(KeyAutoSwitchFailures, state.autoSwitch.failureThreshold)
             .putInt(KeyAutoSwitchInterval, state.autoSwitch.intervalSeconds)
+            .putInt(KeyAutoSwitchExpectedDelay, state.autoSwitch.expectedDelayMillis)
             .putInt(KeyMihomoTunStack, state.mihomoTunStack)
             .putString(KeyMihomoTunCongestionController, state.mihomoTunCongestionController)
             .putString(KeyMihomoControlPort, state.mihomoControlPort)
@@ -540,6 +545,7 @@ private const val KeyAutoSwitchRegions = "auto_switch_regions"
 private const val KeyAutoSwitchKeywords = "auto_switch_keywords"
 private const val KeyAutoSwitchFailures = "auto_switch_failures"
 private const val KeyAutoSwitchInterval = "auto_switch_interval"
+private const val KeyAutoSwitchExpectedDelay = "auto_switch_expected_delay"
 private const val KeyMihomoTunStack = "mihomo_tun_stack"
 private const val KeyMihomoTunCongestionController = "mihomo_tun_congestion_controller"
 private const val KeyMihomoControlPort = "mihomo_control_port"

@@ -142,6 +142,7 @@ internal data class AppBackupAutoSwitch(
     val preferredKeywords: List<String> = BackupDefaults.autoSwitch.preferredKeywords,
     val failureThreshold: Int = BackupDefaults.autoSwitch.failureThreshold,
     val intervalSeconds: Int = BackupDefaults.autoSwitch.intervalSeconds,
+    val expectedDelayMillis: Int = BackupDefaults.autoSwitch.expectedDelayMillis,
 )
 
 @Serializable
