@@ -197,7 +197,7 @@
         },
         {
             "uniqueId": "io.github.rosemoe:editor",
-            "artifactVersion": "0.24.6",
+            "artifactVersion": "0.24.7",
             "name": "editor",
             "description": "An awesome code editor library on Android",
             "website": "https://github.com/Rosemoe/sora-editor",
@@ -275,7 +275,7 @@
         },
         {
             "uniqueId": "org.jetbrains.kotlinx:kotlinx-serialization-json",
-            "artifactVersion": "1.11.0",
+            "artifactVersion": "1.12.0",
             "name": "kotlinx-serialization-json",
             "description": "Kotlin multiplatform serialization runtime library",
             "website": "https://github.com/Kotlin/kotlinx.serialization",
