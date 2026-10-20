@@ -97,7 +97,7 @@ internal fun AppState.bpf2SocksBridgePortValue(): Int {
 private fun AppState.rootFakeIpIpv4Pool(): String {
     return dnsFakeIpRange.normalizedIpv4CidrOrNull()
         ?: DefaultMihomoDnsFakeIpRange.normalizedIpv4CidrOrNull()
-        ?: "198.18.0.0/16"
+        ?: DefaultMihomoDnsFakeIpRange
 }
 
 private fun String.normalizedIpv4CidrOrNull(): String? {

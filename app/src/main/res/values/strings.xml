@@ -526,6 +526,7 @@
     <string name="settings_dns_summary">Override DNS, nameservers, policies, fallback filter</string>
     <string name="settings_dns_use_hosts">Use hosts</string>
     <string name="settings_dns_use_system_hosts">Use system hosts</string>
+    <string name="settings_fake_ip_pool_invalid">Enter an IPv4 CIDR with a prefix from /1 to /30</string>
 
     <!-- Run mode and proxy service -->
     <string name="error_mihomo_data_dir_missing">Mihomo data directory is missing</string>

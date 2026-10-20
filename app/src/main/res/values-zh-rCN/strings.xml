@@ -515,6 +515,7 @@
     <string name="settings_dns_summary">覆写 DNS、域名服务器、策略、Fallback Filter</string>
     <string name="settings_dns_use_hosts">使用 hosts</string>
     <string name="settings_dns_use_system_hosts">使用系统 hosts</string>
+    <string name="settings_fake_ip_pool_invalid">请输入前缀长度为 /1 至 /30 的 IPv4 CIDR</string>
 
     <!-- Run mode and proxy service -->
     <string name="error_mihomo_data_dir_missing">Mihomo 数据目录缺失</string>

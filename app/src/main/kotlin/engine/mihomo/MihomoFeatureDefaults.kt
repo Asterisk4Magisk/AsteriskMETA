@@ -17,7 +17,7 @@ const val MihomoSnifferProtocolOverrideFollowGlobal = 0
 const val MihomoSnifferProtocolOverrideEnabled = 1
 const val MihomoSnifferProtocolOverrideDisabled = 2
 
-const val DefaultMihomoDnsFakeIpRange = "198.18.0.1/16"
+const val DefaultMihomoDnsFakeIpRange = engine.network.DefaultFakeIpIpv4Pool
 val DefaultMihomoDnsDefaultNameserver = listOf("223.5.5.5")
 val DefaultMihomoDnsNameserver = listOf("https://dns.alidns.com/dns-query")
 val DefaultMihomoDnsNameserverPolicy = listOf(

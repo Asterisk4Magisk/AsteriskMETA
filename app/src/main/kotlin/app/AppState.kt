@@ -3,6 +3,8 @@
 
 package app
 
+import engine.network.withoutIpv6FakeIpPool
+
 import app.modes.ColorModeSystem
 import app.modes.LanguageModeSystem
 import app.modes.MihomoModeRule
@@ -167,12 +169,15 @@ val AppState.requiresGlobalProxyAppMode: Boolean
     get() = runMode.isRootRunMode() && effectiveFakeIpEnabled &&
         !(enableAppListEnhancement && runMode.supportsAppListEnhancement())
 
-internal fun AppState.withCompatibleProxyAppListMode(): AppState =
-    if (requiresGlobalProxyAppMode && proxyAppListMode != ProxyAppListModeGlobal) {
-        copy(proxyAppListMode = ProxyAppListModeGlobal)
+internal fun AppState.withCompatibleProxyAppListMode(): AppState {
+    val pool = dnsFakeIpRange.withoutIpv6FakeIpPool()
+    val mode = if (requiresGlobalProxyAppMode) ProxyAppListModeGlobal else proxyAppListMode
+    return if (pool != dnsFakeIpRange || mode != proxyAppListMode) {
+        copy(dnsFakeIpRange = pool, proxyAppListMode = mode)
     } else {
         this
     }
+}
 
 fun AppState.withMihomoRestartRequired(
     profileId: Int,

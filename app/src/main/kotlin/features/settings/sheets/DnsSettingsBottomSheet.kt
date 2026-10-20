@@ -22,7 +22,7 @@ import engine.mihomo.DefaultMihomoDnsFakeIpRange
 import engine.mihomo.MihomoDnsModeFakeIp
 import engine.mihomo.MihomoDnsModeValues
 import engine.network.isCidrAddress
-import engine.network.isIpv4CidrAddress
+import engine.network.isValidFakeIpIpv4Pool
 import engine.network.isIpAddress
 import features.settings.DnsSettingsDraft
 import androidx.compose.material3.MaterialTheme
@@ -73,11 +73,11 @@ internal fun DnsSettingsBottomSheet(
     val sanitizedDraft = draft.sanitized()
     val fakeIpRangeError = if (
         sanitizedDraft.dnsEnhancedMode != MihomoDnsModeFakeIp ||
-        isIpv4CidrAddress(draft.dnsFakeIpRange)
+        isValidFakeIpIpv4Pool(draft.dnsFakeIpRange)
     ) {
         null
     } else {
-        dnsCidrInvalidMessage
+        stringResource(R.string.settings_fake_ip_pool_invalid)
     }
     val geoipCodeError = if (
         !draft.dnsFallbackFilterGeoip ||
@@ -103,6 +103,7 @@ internal fun DnsSettingsBottomSheet(
             TextButton(
                 text = stringResource(R.string.common_save),
                 icon = Icons.Rounded.Save,
+                enabled = canSave,
                 onClick = {
                     if (canSave) {
                         onSave(sanitizedDraft)
