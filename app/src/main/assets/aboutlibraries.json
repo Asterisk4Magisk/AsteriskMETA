@@ -15,7 +15,7 @@
         },
         {
             "uniqueId": "github:Asterisk4Magisk/AndroidLibClashLite",
-            "artifactVersion": "v1.19.32-android.5",
+            "artifactVersion": "v1.19.32-android.6",
             "name": "AndroidLibClashLite",
             "description": "Gomobile Android bindings and standalone CLI sharing one Mihomo core.",
             "website": "https://github.com/Asterisk4Magisk/AndroidLibClashLite",
@@ -67,7 +67,7 @@
         },
         {
             "uniqueId": "github:Asterisk4Magisk/asteriskd",
-            "artifactVersion": "v2.1.11",
+            "artifactVersion": "v2.1.12",
             "name": "asteriskd",
             "description": "A root Android daemon that synchronizes local-address bypass rules and pinned eBPF maps.",
             "website": "https://github.com/Asterisk4Magisk/asteriskd",
@@ -80,7 +80,7 @@
         },
         {
             "uniqueId": "github:Asterisk4Magisk/bpf2socks",
-            "artifactVersion": "v1.1.6",
+            "artifactVersion": "v1.1.7",
             "name": "bpf2socks",
             "description": "A root Android/Linux traffic bridge that forwards TCP and UDP through a SOCKS5 upstream using eBPF.",
             "website": "https://github.com/Asterisk4Magisk/bpf2socks",
