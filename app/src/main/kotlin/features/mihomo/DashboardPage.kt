@@ -431,8 +431,8 @@ private fun HomeControllerCard(
                     .forEach { row ->
                         HomePrimaryRow(
                             icon = Icons.Rounded.Route,
-                            label = stringResource(R.string.home_current_proxy_server),
-                            value = row.value ?: stringResource(R.string.home_no_proxy_server),
+                            label = stringResource(R.string.home_current_proxy),
+                            value = row.value ?: stringResource(R.string.home_no_proxy),
                             onClick = onOpenNode,
                         )
                     }

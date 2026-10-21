@@ -55,7 +55,7 @@
         <item quantity="other">%1$d 个活动连接</item>
     </plurals>
     <string name="home_current_profile">当前配置</string>
-    <string name="home_current_proxy_server">当前节点</string>
+    <string name="home_current_proxy">当前节点</string>
     <string name="home_mode_change_failed">切换代理模式失败</string>
     <string name="home_monitor_connections">连接</string>
     <string name="home_monitor_network">网络</string>
@@ -64,7 +64,7 @@
     <string name="home_more_actions">更多操作</string>
     <string name="home_network_activity">网络活动</string>
     <string name="home_no_network_activity">暂无活动</string>
-    <string name="home_no_proxy_server">尚未选择节点</string>
+    <string name="home_no_proxy">尚未选择节点</string>
     <string name="home_no_subscription">当前配置暂无订阅用量信息</string>
     <string name="home_resource_summary">CPU %1$s · %2$s</string>
     <string name="home_service_disabled">服务未启用</string>
@@ -414,9 +414,9 @@
     <string name="mihomo_provider_management_refresh_current">刷新当前 Tab</string>
     <string name="mihomo_provider_management_title">Providers</string>
     <string name="mihomo_provider_missing">当前配置中不存在该 Provider</string>
-    <string name="mihomo_provider_proxy_servers_count">{count} 个节点</string>
-    <string name="mihomo_provider_proxy_servers_empty">没有节点</string>
-    <string name="mihomo_provider_proxy_servers_search">搜索节点</string>
+    <string name="mihomo_provider_proxies_count">{count} 个节点</string>
+    <string name="mihomo_provider_proxies_empty">没有节点</string>
+    <string name="mihomo_provider_proxies_search">搜索节点</string>
     <string name="mihomo_provider_raw_declaration">声明片段</string>
     <string name="mihomo_provider_raw_metadata">%1$s · %2$s</string>
     <string name="mihomo_provider_raw_read_only">只读</string>

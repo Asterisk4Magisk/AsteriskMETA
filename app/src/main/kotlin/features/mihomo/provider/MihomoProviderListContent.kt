@@ -201,7 +201,7 @@ private fun ProxyProviderStatusCard(
         status = updated,
         controls = {
             Text(
-                text = stringResource(R.string.mihomo_provider_proxy_servers_count)
+                text = stringResource(R.string.mihomo_provider_proxies_count)
                     .formatTemplate("count" to state.nodeCount),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
@@ -672,7 +672,7 @@ private fun MihomoProviderDeclaration.proxyRuntimeSummaryText(
     runtimeDetail: MihomoProxyProviderRuntimeDetail?,
 ): String {
     val nodeText = runtimeDetail?.nodes?.size?.let { count ->
-        stringResource(R.string.mihomo_provider_proxy_servers_count).formatTemplate("count" to count)
+        stringResource(R.string.mihomo_provider_proxies_count).formatTemplate("count" to count)
     }
     val updatedText = runtimeDetail?.updatedAtMillis
         ?.takeIf { timestamp -> timestamp > 0L }
