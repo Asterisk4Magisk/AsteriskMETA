@@ -34,6 +34,7 @@ import utils.toTrimmedNonEmptyDistinctList
 private const val DnsHostSeparator = ':'
 private const val NameserverPolicySeparator = "=>"
 private const val SystemDnsServer = "system://"
+private const val SystemDnsKeyword = "system"
 
 private val MihomoDnsUrlSchemes = setOf(
     "https",
@@ -382,7 +383,8 @@ internal fun dnsServerInputError(input: String, invalidMessage: String): String?
 }
 
 private fun isMihomoDnsServer(value: String): Boolean {
-    if (value.equals("localhost", ignoreCase = true)) {
+    // Mihomo accepts the bare `system` keyword as the system resolver.
+    if (value.equals("localhost", ignoreCase = true) || value.equals(SystemDnsKeyword, ignoreCase = true)) {
         return true
     }
 

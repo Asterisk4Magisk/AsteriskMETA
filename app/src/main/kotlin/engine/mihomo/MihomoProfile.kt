@@ -474,7 +474,7 @@ private fun AppState.toMihomoFallbackFilterYamlMap(): Map<String, Any?> {
 }
 
 private fun List<String>.appendSystemDnsIfNeeded(enabled: Boolean): List<String> {
-    if (!enabled || any { it.equals(SystemDnsServer, ignoreCase = true) }) {
+    if (!enabled || any { it.equals(SystemDnsServer, ignoreCase = true) || it.equals("system", ignoreCase = true) }) {
         return this
     }
     return this + SystemDnsServer

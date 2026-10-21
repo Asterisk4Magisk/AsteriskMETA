@@ -18,12 +18,12 @@ const val MihomoSnifferProtocolOverrideEnabled = 1
 const val MihomoSnifferProtocolOverrideDisabled = 2
 
 const val DefaultMihomoDnsFakeIpRange = engine.network.DefaultFakeIpIpv4Pool
-val DefaultMihomoDnsDefaultNameserver = listOf("223.5.5.5")
+val DefaultMihomoDnsDefaultNameserver = listOf("system")
 val DefaultMihomoDnsNameserver = listOf("https://dns.alidns.com/dns-query")
 val DefaultMihomoDnsNameserverPolicy = listOf(
     "www.baidu.com=>114.114.114.114",
     "+.internal.crop.com=>10.0.0.1",
-    "geosite:cn=>https://dns.alidns.com/dns-query",
+    "geosite:cn=>system",
 )
 val DefaultMihomoDnsProxyServerNameserver = listOf("https://doh.pub/dns-query")
 val DefaultMihomoDnsFallback = listOf("tls://8.8.8.8#RULES")
