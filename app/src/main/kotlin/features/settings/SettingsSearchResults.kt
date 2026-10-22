@@ -276,6 +276,7 @@ internal fun settingsNestedSearchEntries(
     val autoSwitch = stringResource(R.string.settings_auto_switch)
     val autoSwitchItems = listOf(
         stringResource(R.string.auto_switch_enabled),
+        stringResource(R.string.auto_switch_restore),
         stringResource(R.string.auto_switch_log_title),
         stringResource(R.string.auto_switch_groups),
         stringResource(R.string.auto_switch_regions),

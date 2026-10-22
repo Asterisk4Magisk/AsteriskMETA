@@ -985,6 +985,8 @@
     <string name="settings_auto_switch">自动切换</string>
     <string name="settings_auto_switch_summary">偏好地区、连续失败次数与检测间隔</string>
     <string name="auto_switch_enabled">开启自动切换</string>
+    <string name="auto_switch_restore">恢复切回</string>
+    <string name="auto_switch_restore_summary">原节点连续 3 次检测成功后切回</string>
     <string name="auto_switch_log_title">切换日志</string>
     <string name="auto_switch_log_summary">查看下次检测、策略组状态与核心最近事件</string>
     <string name="auto_switch_log_empty">暂无失败或自动切换记录</string>
@@ -998,6 +1000,7 @@
     <string name="auto_switch_progress_current">%1$s：正在检测当前节点</string>
     <string name="auto_switch_progress_preferred">%1$s：正在检测偏好节点，已完成 %2$d/%3$d 个</string>
     <string name="auto_switch_progress_all">%1$s：正在检测候选节点，已完成 %2$d/%3$d 个</string>
+    <string name="auto_switch_progress_restore">%1$s：正在检测此前选择的节点</string>
     <plurals name="auto_switch_log_countdown">
         <item quantity="other">距离下次检测还有 %1$d 秒</item>
     </plurals>
@@ -1006,14 +1009,16 @@
     <string name="auto_switch_group_failed">%1$s：%2$s · 连续失败 %3$d 次</string>
     <string name="auto_switch_group_skipped">%1$s：%2$s 不是可监测的节点</string>
     <string name="auto_switch_group_unavailable">%1$s：当前配置或模式下不是手动选择组</string>
+    <string name="auto_switch_group_restore_pending">\u0020· 连续成功 %2$d/%3$d 次后切回 %1$s</string>
     <string name="auto_switch_event_failed">%1$s 健康检测失败（%2$d/%3$d）</string>
     <string name="auto_switch_event_switched">已从 %1$s 切换到 %2$s · %3$d ms（可用 %4$d/%5$d 个）</string>
     <string name="auto_switch_event_switched_preferred">已从 %1$s 切换到偏好节点 %2$s · %3$d ms（可用 %4$d/%5$d 个）</string>
     <string name="auto_switch_event_no_replacement">%2$d 个候选节点中没有可替代 %1$s 的可用节点，保留当前选择</string>
     <string name="auto_switch_event_selection_changed">检测期间节点选择已改变，未替换 %1$s</string>
+    <string name="auto_switch_event_restored">已从 %1$s 切回此前选择的节点 %2$s · %3$d ms</string>
     <string name="auto_switch_info">说明</string>
     <string name="auto_switch_policy_title">自动切换的工作方式</string>
-    <string name="auto_switch_policy">代理服务运行期间由核心执行检测，App 无需常驻后台。\n\n检测使用「连接测试」中的测试地址、超时与并发数。\n\n达到连续失败次数后，优先检测偏好节点，并按以往测速结果从快到慢检测。期望延迟不为 0 时，找到第一个低于该延迟的可用节点即切换，不再检测其余节点；为 0 或没有节点达标时，选择延迟最低的可用节点。偏好节点全部不可用时才检测其他节点。\n\n当前节点正常或已被手动更改时不切换；全部不可用时保留原选择，并逐步拉长后续扫描间隔。\n\n需要使用内置核心，上传的自定义 Mihomo 核心不支持此功能。</string>
+    <string name="auto_switch_policy">代理服务运行期间由核心执行检测，App 无需常驻后台。\n\n检测使用「连接测试」中的测试地址、超时与并发数。\n\n达到连续失败次数后，优先检测偏好节点，并按以往测速结果从快到慢检测。期望延迟不为 0 时，找到第一个低于该延迟的可用节点即切换，不再检测其余节点；为 0 或没有节点达标时，选择延迟最低的可用节点。偏好节点全部不可用时才检测其他节点。\n\n当前节点正常或已被手动更改时不切换；全部不可用时保留原选择，并逐步拉长后续扫描间隔。\n\n开启「恢复切回」后，每个检测间隔都会检测首次自动切换前选择的节点，连续成功 3 次后切回该节点；期间手动更改选择则取消切回。\n\n需要使用内置核心，上传的自定义 Mihomo 核心不支持此功能。</string>
     <string name="auto_switch_policy_raw">当前配置使用原始配置文件，核心遵循其中的 asterisk-auto-switch 字段；这里的设置会保存但不会生效。</string>
     <string name="auto_switch_groups">监测的策略组</string>
     <string name="auto_switch_groups_summary">至少选择当前配置中的一个手动选择组。\n\n仅监测直接选中的节点；直连、拒绝、嵌套策略组及核心管理的自动策略组保持原行为。\n\n切换配置后需重新选择策略组。</string>

@@ -137,6 +137,7 @@ internal data class AppBackupSettings(
 @Serializable
 internal data class AppBackupAutoSwitch(
     val enabled: Boolean = BackupDefaults.autoSwitch.enabled,
+    val restore: Boolean = BackupDefaults.autoSwitch.restore,
     val profileId: Int = BackupDefaults.autoSwitch.profileId,
     val groups: List<String> = BackupDefaults.autoSwitch.groups,
     val preferredRegions: List<String> = BackupDefaults.autoSwitch.preferredRegions,

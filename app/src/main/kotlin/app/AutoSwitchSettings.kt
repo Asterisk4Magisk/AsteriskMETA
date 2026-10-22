@@ -13,6 +13,8 @@ val AutoSwitchExpectedDelayMillisRange = 0..99999
 /** Per-profile settings; groups only apply while [profileId] is the selected profile. */
 data class AutoSwitchSettings(
     val enabled: Boolean = false,
+    /** Switch back to the user's selection once it passes consecutive health checks. */
+    val restore: Boolean = false,
     val profileId: Int = 0,
     val groups: List<String> = emptyList(),
     val preferredRegions: List<String> = emptyList(),

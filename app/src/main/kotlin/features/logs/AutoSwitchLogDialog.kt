@@ -168,11 +168,21 @@ private fun autoSwitchProgressText(progress: MihomoAutoSwitchProgress): String =
     )
 
     "all" -> stringResource(R.string.auto_switch_progress_all, progress.group, progress.completed, progress.total)
+    "restore" -> stringResource(R.string.auto_switch_progress_restore, progress.group)
     else -> stringResource(R.string.auto_switch_progress_current, progress.group)
 }
 
 @Composable
-private fun autoSwitchGroupText(group: MihomoAutoSwitchGroupStatus): String = when (group.kind) {
+private fun autoSwitchGroupText(group: MihomoAutoSwitchGroupStatus): String {
+    val status = autoSwitchGroupStatusText(group)
+    if (group.origin.isEmpty()) return status
+    return status + stringResource(
+        R.string.auto_switch_group_restore_pending, group.origin, group.originSuccesses, AutoSwitchRestoreSuccesses,
+    )
+}
+
+@Composable
+private fun autoSwitchGroupStatusText(group: MihomoAutoSwitchGroupStatus): String = when (group.kind) {
     "healthy" -> if (group.inUse) {
         stringResource(R.string.auto_switch_group_in_use, group.name, group.node)
     } else {
@@ -195,7 +205,11 @@ private fun autoSwitchEventText(event: MihomoAutoSwitchEvent): String = when (ev
     )
 
     "no-replacement" -> stringResource(R.string.auto_switch_event_no_replacement, event.node, event.tested ?: 0)
+    "restored" -> stringResource(R.string.auto_switch_event_restored, event.node, event.target, event.delay ?: 0)
     else -> stringResource(R.string.auto_switch_event_selection_changed, event.node)
 }
 
 private const val AutoSwitchLogRefreshMillis = 1_000L
+
+// Matches option.RestoreSuccesses in AndroidLibClashLite.
+private const val AutoSwitchRestoreSuccesses = 3

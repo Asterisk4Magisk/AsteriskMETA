@@ -135,6 +135,14 @@ internal fun AutoSwitchSettingsBottomSheet(
                             checked = draft.enabled,
                             onCheckedChange = { onDraftChange(draft.copy(enabled = it)) },
                         )
+                        SwitchPreference(
+                            title = stringResource(R.string.auto_switch_restore),
+                            summary = stringResource(R.string.auto_switch_restore_summary),
+                            icon = Icons.Rounded.Refresh,
+                            checked = draft.restore,
+                            enabled = draft.enabled,
+                            onCheckedChange = { onDraftChange(draft.copy(restore = it)) },
+                        )
                         ArrowPreference(
                             title = stringResource(R.string.auto_switch_log_title),
                             summary = stringResource(R.string.auto_switch_log_summary),

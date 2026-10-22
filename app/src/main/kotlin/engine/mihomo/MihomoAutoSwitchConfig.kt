@@ -38,6 +38,8 @@ internal data class MihomoAutoSwitchOptions(
     @SerialName("failure-threshold") val failureThreshold: Int = 0,
     // Null identifies older cores that omit this capability from their settings.
     @SerialName("expected-delay") val expectedDelayMillis: Int? = null,
+    // Null identifies cores without restoring the original selection.
+    val restore: Boolean? = null,
     val interval: Int = 0,
     val url: String = "",
     val timeout: Int = 0,
@@ -50,6 +52,7 @@ internal data class MihomoAutoSwitchOptions(
         "preferred-filter" to preferredFilter,
         "failure-threshold" to failureThreshold,
         "expected-delay" to (expectedDelayMillis ?: 0),
+        "restore" to (restore ?: false),
         "interval" to interval,
         "url" to url,
         "timeout" to timeout,
@@ -59,12 +62,17 @@ internal data class MihomoAutoSwitchOptions(
 
     /**
      * Compares with the core's normalized copy, which reports omitted groups as null and omits
-     * expected-delay on older cores. Two disabled values are equivalent whatever their other fields.
+     * expected-delay and restore on older cores. Two disabled values are equivalent whatever their
+     * other fields.
      */
     fun sameAs(other: MihomoAutoSwitchOptions): Boolean =
         (!enable && !other.enable) || comparable() == other.comparable()
 
-    private fun comparable() = copy(groups = groups.orEmpty(), expectedDelayMillis = expectedDelayMillis ?: 0)
+    private fun comparable() = copy(
+        groups = groups.orEmpty(),
+        expectedDelayMillis = expectedDelayMillis ?: 0,
+        restore = restore ?: false,
+    )
 }
 
 /**
@@ -81,6 +89,7 @@ internal fun AppState.toMihomoAutoSwitchOptions(active: Boolean = true): MihomoA
         preferredFilter = settings.toPreferredFilter(),
         failureThreshold = settings.failureThreshold,
         expectedDelayMillis = settings.expectedDelayMillis,
+        restore = settings.restore,
         interval = settings.intervalSeconds,
         url = connectionTestUrl.trim(),
         timeout = connectionTestTimeoutMillis,

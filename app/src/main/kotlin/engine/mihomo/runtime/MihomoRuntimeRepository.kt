@@ -546,6 +546,11 @@ internal class MihomoRuntimeRepository(
                     "The running core does not support expected-delay; install an updated AndroidLibClashLite core",
                 )
             }
+            if (desired.enable && desired.restore == true && current.restore == null) {
+                throw MihomoAutoSwitchUnsupportedException(
+                    "The running core does not support restore; install an updated AndroidLibClashLite core",
+                )
+            }
             // Re-patching identical settings would restart the core's failure counting.
             if (!current.sameAs(desired)) {
                 client.patchAutoSwitch(control, desired, useBridge)

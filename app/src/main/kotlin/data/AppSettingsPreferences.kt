@@ -77,6 +77,7 @@ internal class AppSettingsPreferences(
             mihomoProxySort = preferences.getInt(KeyMihomoProxySort, defaults.mihomoProxySort),
             autoSwitch = AutoSwitchSettings(
                 enabled = preferences.getBoolean(KeyAutoSwitchEnabled, defaults.autoSwitch.enabled),
+                restore = preferences.getBoolean(KeyAutoSwitchRestore, defaults.autoSwitch.restore),
                 profileId = preferences.getInt(KeyAutoSwitchProfileId, defaults.autoSwitch.profileId),
                 groups = preferences.getStringList(KeyAutoSwitchGroups, defaults.autoSwitch.groups),
                 preferredRegions = preferences.getStringList(KeyAutoSwitchRegions, defaults.autoSwitch.preferredRegions),
@@ -310,6 +311,7 @@ internal class AppSettingsPreferences(
             .putInt(KeyMihomoProxyLayout, state.mihomoProxyLayout)
             .putInt(KeyMihomoProxySort, state.mihomoProxySort)
             .putBoolean(KeyAutoSwitchEnabled, state.autoSwitch.enabled)
+            .putBoolean(KeyAutoSwitchRestore, state.autoSwitch.restore)
             .putInt(KeyAutoSwitchProfileId, state.autoSwitch.profileId)
             .putStringList(KeyAutoSwitchGroups, state.autoSwitch.groups)
             .putStringList(KeyAutoSwitchRegions, state.autoSwitch.preferredRegions)
@@ -542,6 +544,7 @@ private const val KeyMihomoProxyExcludeNotSelectable = "mihomo_proxy_exclude_not
 private const val KeyMihomoProxyLayout = "mihomo_proxy_layout"
 private const val KeyMihomoProxySort = "mihomo_proxy_sort"
 private const val KeyAutoSwitchEnabled = "auto_switch_enabled"
+private const val KeyAutoSwitchRestore = "auto_switch_restore"
 private const val KeyAutoSwitchProfileId = "auto_switch_profile_id"
 private const val KeyAutoSwitchGroups = "auto_switch_groups"
 private const val KeyAutoSwitchRegions = "auto_switch_regions"

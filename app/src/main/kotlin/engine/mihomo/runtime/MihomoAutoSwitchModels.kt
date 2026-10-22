@@ -34,6 +34,9 @@ internal data class MihomoAutoSwitchGroupStatus(
     val delay: Int? = null,
     val failures: Int? = null,
     val inUse: Boolean = false,
+    /** The original selection awaiting restore, and its consecutive healthy checks so far. */
+    val origin: String = "",
+    val originSuccesses: Int = 0,
     val checkedAt: Long = 0L,
 )
 

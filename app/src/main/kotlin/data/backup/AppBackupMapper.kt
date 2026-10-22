@@ -164,6 +164,7 @@ private fun AppState.toBackupSettings(): AppBackupSettings =
 private fun AutoSwitchSettings.toBackup(): AppBackupAutoSwitch =
     AppBackupAutoSwitch(
         enabled = enabled,
+        restore = restore,
         profileId = profileId,
         groups = groups,
         preferredRegions = preferredRegions,
@@ -176,6 +177,7 @@ private fun AutoSwitchSettings.toBackup(): AppBackupAutoSwitch =
 private fun AppBackupAutoSwitch.toState(): AutoSwitchSettings =
     AutoSwitchSettings(
         enabled = enabled,
+        restore = restore,
         profileId = profileId,
         groups = groups,
         preferredRegions = preferredRegions,
