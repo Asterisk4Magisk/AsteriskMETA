@@ -78,6 +78,13 @@ internal data class MihomoProfileSubscriptionUpdateResult(
 
     val failedProfileCount: Int
         get() = failures.size
+
+    /**
+     * Drops fetched updates the commit rejected (the profile changed or went away meanwhile),
+     * so result messages count only content that was actually applied.
+     */
+    fun withAcceptedUpdatesOnly(acceptedProfileIds: Set<Int>): MihomoProfileSubscriptionUpdateResult =
+        copy(updates = updates.filter { update -> update.profileId in acceptedProfileIds })
 }
 
 internal suspend fun updateSubscriptions(
@@ -316,6 +323,7 @@ internal fun CoroutineScope.launchMihomoProfileSubscriptionUpdate(
     onFailure: suspend (Throwable) -> Unit = {},
 ): Job = launch {
     runCatching {
+        val acceptedProfileIds = mutableSetOf<Int>()
         val result = updateSubscriptions(
             profiles = profiles,
             profilePreparer = profilePreparer,
@@ -323,16 +331,19 @@ internal fun CoroutineScope.launchMihomoProfileSubscriptionUpdate(
             fetchOptions = { profile -> appStateSnapshot.toSubscriptionFetchOptions(profile) },
             onProfileCompleted = { _, profileResult, completedAtMillis ->
                 profileResult.getOrNull()?.let { update ->
-                    commitMihomoProfileSubscriptionUpdates(
+                    acceptedProfileIds += commitMihomoProfileSubscriptionUpdates(
                         updates = listOf(update),
                         updatedAtMillis = completedAtMillis,
                         contentStore = contentStore,
                         updateAppState = updateAppState,
+                        // The user asked for this sync, so a profile without an update
+                        // schedule (the default for new subscriptions) still takes the content.
+                        requireScheduled = false,
                     )
                 }
             },
         )
-        result
+        result.withAcceptedUpdatesOnly(acceptedProfileIds)
     }.onSuccess { result ->
         onResult(result)
     }.onFailure { error ->
@@ -387,7 +398,9 @@ internal fun commitMihomoProfileSubscriptionUpdates(
     updatedAtMillis: Long,
     contentStore: MihomoProfileContentStore,
     updateAppState: ((AppState) -> AppState) -> Unit,
-    requireScheduled: Boolean = true,
+    // True only for background scheduled work, which must not land on a profile whose schedule
+    // was turned off meanwhile; every user-initiated sync passes false.
+    requireScheduled: Boolean,
 ): Set<Int> {
     var acceptedUpdates = emptyList<MihomoProfileSubscriptionUpdate>()
     var referencedPaths = emptySet<String>()

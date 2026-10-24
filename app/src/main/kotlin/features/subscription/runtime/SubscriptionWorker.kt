@@ -54,6 +54,7 @@ internal class SubscriptionWorker(
                         updatedAtMillis = completedAtMillis,
                         contentStore = mihomoProfileContentStore,
                         updateAppState = { transform -> stateStore.update(transform) },
+                        requireScheduled = true,
                     )
                 }
             },

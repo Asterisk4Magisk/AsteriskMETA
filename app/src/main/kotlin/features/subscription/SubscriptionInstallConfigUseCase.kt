@@ -39,6 +39,7 @@ internal class SubscriptionInstallConfigUseCase(
 ) {
     suspend fun install(config: SubscriptionInstallConfig): SubscriptionInstallResult {
         val profile = stateStore.addMihomoProfile(config)
+        val acceptedProfileIds = mutableSetOf<Int>()
         val result = updateSubscriptions(
             profiles = listOf(profile),
             profilePreparer = profilePreparer,
@@ -46,16 +47,22 @@ internal class SubscriptionInstallConfigUseCase(
             fetchOptions = { stateStore.state.value.toSubscriptionFetchOptions(it) },
             onProfileCompleted = { _, profileResult, completedAtMillis ->
                 profileResult.getOrNull()?.let { update ->
-                    commitMihomoProfileSubscriptionUpdates(
+                    acceptedProfileIds += commitMihomoProfileSubscriptionUpdates(
                         updates = listOf(update),
                         updatedAtMillis = completedAtMillis,
                         contentStore = contentStore,
                         updateAppState = { transform -> stateStore.update(transform) },
+                        // A new install has no update schedule by default; its first content
+                        // must still land.
+                        requireScheduled = false,
                     )
                 }
             },
         )
-        return SubscriptionInstallResult(profile = profile, updateResult = result)
+        return SubscriptionInstallResult(
+            profile = profile,
+            updateResult = result.withAcceptedUpdatesOnly(acceptedProfileIds),
+        )
     }
 }
 
