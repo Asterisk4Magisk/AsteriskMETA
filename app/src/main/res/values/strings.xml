@@ -155,7 +155,7 @@
     <string name="monitor_resource_cpu">Process CPU</string>
     <string name="monitor_resource_cpu_peak">CPU peak</string>
     <string name="monitor_resource_details">Sampling details</string>
-    <string name="monitor_resource_embedded_explanation">CPU includes Mihomo and other AsteriskMETA work in the same process, so it is not directly comparable with Root mode.</string>
+    <string name="monitor_resource_embedded_explanation">CPU includes Mihomo and other AsteriskMETA work in the same process, so it is not directly comparable with ROOT mode.</string>
     <string name="monitor_resource_focus_memory">Memory %1$s</string>
     <string name="monitor_resource_interval">Sampling interval</string>
     <string name="monitor_resource_memory">Mihomo memory</string>
@@ -164,7 +164,7 @@
     <string name="monitor_resource_root_explanation">CPU is sampled from the independent Mihomo process.</string>
     <string name="monitor_resource_source_embedded">AsteriskMETA process · Embedded</string>
     <string name="monitor_resource_source_info">CPU measurement</string>
-    <string name="monitor_resource_source_root">Mihomo process · Root</string>
+    <string name="monitor_resource_source_root">Mihomo process · ROOT</string>
     <string name="monitor_resource_title">Resource monitor</string>
     <string name="monitor_resource_trend">Shared trend</string>
 

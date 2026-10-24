@@ -153,7 +153,7 @@
     <string name="monitor_resource_cpu">进程 CPU</string>
     <string name="monitor_resource_cpu_peak">CPU 峰值</string>
     <string name="monitor_resource_details">采样详情</string>
-    <string name="monitor_resource_embedded_explanation">CPU 包含同一进程内的 Mihomo 与 AsteriskMETA 开销，不能与 Root 模式直接横向比较。</string>
+    <string name="monitor_resource_embedded_explanation">CPU 包含同一进程内的 Mihomo 与 AsteriskMETA 开销，不能与 ROOT 模式直接横向比较。</string>
     <string name="monitor_resource_focus_memory">内存 %1$s</string>
     <string name="monitor_resource_interval">采样间隔</string>
     <string name="monitor_resource_memory">Mihomo 内存</string>
@@ -162,7 +162,7 @@
     <string name="monitor_resource_root_explanation">CPU 数据来自独立运行的 Mihomo 进程。</string>
     <string name="monitor_resource_source_embedded">AsteriskMETA 进程 · 内嵌</string>
     <string name="monitor_resource_source_info">CPU 统计说明</string>
-    <string name="monitor_resource_source_root">Mihomo 进程 · Root</string>
+    <string name="monitor_resource_source_root">Mihomo 进程 · ROOT</string>
     <string name="monitor_resource_title">资源监控</string>
     <string name="monitor_resource_trend">共享趋势</string>
 
@@ -255,7 +255,7 @@
     <string name="connection_test_scope_summary">策略组未指定测试链接时使用此链接</string>
     <string name="connection_test_settings_summary">调整 Mihomo URL 测试的测量行为</string>
     <string name="connection_test_settings_title">连接测试</string>
-    <string name="connection_test_timeout">测试超时(毫秒)</string>
+    <string name="connection_test_timeout">测试超时(ms)</string>
     <string name="connection_test_unified_delay">统一延迟</string>
     <string name="connection_test_unified_delay_raw_summary">当前配置已禁用覆写，统一延迟以其 YAML 配置为准</string>
     <string name="connection_test_unified_delay_summary">在已建立会话上测第二次请求,剔除一次性握手成本</string>
@@ -1034,7 +1034,7 @@
     <string name="auto_switch_failures_invalid">请输入 1～10 之间的整数</string>
     <string name="auto_switch_interval">检测间隔，单位秒（默认 30 秒）</string>
     <string name="auto_switch_interval_invalid">请输入 10～3600 之间的整数</string>
-    <string name="auto_switch_expected_delay">期望延迟，单位毫秒（默认 300，0 表示检测全部节点）</string>
+    <string name="auto_switch_expected_delay">期望延迟，单位 ms（默认 300，0 表示检测全部节点）</string>
     <string name="auto_switch_expected_delay_invalid">请输入 0～99999 之间的整数</string>
     <string name="auto_switch_region_hk">香港</string>
     <string name="auto_switch_region_tw">台湾</string>

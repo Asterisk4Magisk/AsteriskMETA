@@ -34,7 +34,7 @@ internal fun RootConfigBuildContext.buildTunStartConfig(): RootModeStartConfig {
     val ipv6DataPath = rootStartConfig.enableIpv6
     val tunConfig = rawConfig?.let { config ->
         val inbound = requireNotNull(config.tunInbound.value) {
-            "Raw Mihomo configuration requires one compatible TUN inbound for Root TUN mode"
+            "Raw Mihomo configuration requires one compatible TUN inbound for ROOT TUN mode"
         }
         if (ipv6DataPath) {
             requireNotNull(inbound.ipv6Address) {

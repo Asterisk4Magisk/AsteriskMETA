@@ -54,7 +54,7 @@ internal fun MihomoRawConfigSnapshot.check(
             issue(RawConfigReadiness.Blocked, tproxyPort.path, tproxyPort.problem ?: "TPROXY requires tproxy-port")
         }
         RunModeTun -> if (tunInbound.value == null) {
-            issue(RawConfigReadiness.Blocked, tunInbound.path, tunInbound.problem ?: "Root TUN requires one compatible TUN inbound")
+            issue(RawConfigReadiness.Blocked, tunInbound.path, tunInbound.problem ?: "ROOT TUN requires one compatible TUN inbound")
         }
         RunModeTun2Socks, RunModeBpf2Socks -> if (socksInbound.value == null) {
             issue(RawConfigReadiness.Blocked, socksInbound.path, socksInbound.problem ?: "This run mode requires a SOCKS or Mixed inbound")
