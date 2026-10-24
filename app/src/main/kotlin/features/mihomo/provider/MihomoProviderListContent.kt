@@ -366,13 +366,15 @@ private fun MihomoProxyProviderCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Text(
-                    text = provider.sourceSummary.ifBlank { vehicleText },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                if (provider.sourceSummary.isNotBlank()) {
+                    Text(
+                        text = provider.sourceSummary,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
                 runtimeDetail?.subscriptionInfo
                     ?.takeIf { info -> info.hasProviderTrafficInfo() }
                     ?.let { info -> MihomoProxyProviderTrafficInfo(info = info) }
@@ -504,13 +506,15 @@ private fun MihomoRuleProviderCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Text(
-                    text = provider.sourceSummary.ifBlank { vehicleText },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                if (provider.sourceSummary.isNotBlank()) {
+                    Text(
+                        text = provider.sourceSummary,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
                 Text(
                     text = runtimeText,
                     style = MaterialTheme.typography.bodySmall,

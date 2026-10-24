@@ -350,14 +350,6 @@ private fun ResourceFileCardSurface(
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
-                } else {
-                    Text(
-                        text = stringResource(R.string.settings_resource_files_missing),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
                 }
             }
             ResourceFileStatusChip(
