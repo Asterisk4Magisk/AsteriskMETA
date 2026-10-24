@@ -40,6 +40,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import ui.components.AsteriskTopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -77,13 +78,13 @@ import ui.clipboard.setPlainText
 import app.navigation.Route
 import app.nextAvailableMihomoProfileId
 import app.hasRuntimeRelevantChanges
-import app.withMihomoRestartApplied
 import app.withMihomoRestartRequired
+import features.home.HomeServiceOperation
+import java.util.concurrent.atomic.AtomicBoolean
 import engine.mihomo.MihomoProviderMetadataCache
 import engine.mihomo.MihomoProfileFactory
 import engine.mihomo.parseMihomoProxyProviderNames
 import engine.mihomo.raw.usesRawMihomoConfig
-import engine.proxy.ProxyServiceResult
 import features.mihomo.provider.MihomoProviderNamesMetadata
 import features.mihomo.provider.MihomoProviderUsageLoadState
 import features.mihomo.provider.MihomoProviderUsageSection
@@ -104,7 +105,6 @@ import features.subscription.usecase.tryUpdateSubscriptionsSequentially
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
@@ -167,7 +167,10 @@ fun MihomoProfileListPage(
     var providerUsageWaitingForProfileStop by remember { mutableStateOf(false) }
     var providerUsageProfileStopFailed by remember { mutableStateOf(false) }
     var showRestartRequired by remember { mutableStateOf(false) }
-    var restartInProgress by remember { mutableStateOf(false) }
+    val applyingProfile = services.homeServiceOperationState.operation == HomeServiceOperation.Applying
+    // Lets an apply that finishes after this page was left skip its page-only follow-up.
+    val pageActive = remember { AtomicBoolean(true) }
+    DisposableEffect(Unit) { onDispose { pageActive.set(false) } }
     var importSyncStage by remember { mutableStateOf<MihomoProfileSyncStage?>(null) }
     var importSaveJob by remember { mutableStateOf<Job?>(null) }
     var batchSyncJob by remember { mutableStateOf<Job?>(null) }
@@ -196,6 +199,7 @@ fun MihomoProfileListPage(
     val serviceStoppedMessage = stringResource(R.string.proxy_service_stopped)
     val stopFailedMessage = stringResource(R.string.mihomo_dashboard_stop_failed)
     val restartFailedMessage = stringResource(R.string.mihomo_profile_restart_failed)
+    val profileAppliedMessage = stringResource(R.string.mihomo_profile_applied)
 
     val profileContentSignatures = appState.mihomoProfiles.map { profile ->
         MihomoProfileContentSignature(
@@ -534,34 +538,14 @@ fun MihomoProfileListPage(
     }
 
     fun restartWithUpdatedSubscription() {
-        if (restartInProgress) return
-        restartInProgress = true
-        val completed = CompletableDeferred<ProxyServiceResult>()
-        services.appScope.launch {
-            completed.complete(services.proxyServiceUseCase.restart(stateStore.state.value))
-        }
-        scope.launch {
-            try {
-                when (val result = completed.await()) {
-                    is ProxyServiceResult.Success -> {
-                        updateAppState { state ->
-                            state.copy(
-                                proxyRunning = result.proxyRunning,
-                                localProxyPort = result.appState?.localProxyPort ?: state.localProxyPort,
-                                mihomoControlPort = result.appState?.mihomoControlPort ?: state.mihomoControlPort,
-                            ).withMihomoRestartApplied()
-                        }
-                        showRestartRequired = false
-                    }
-
-                    is ProxyServiceResult.Failed -> {
-                        services.tipNotifier.showError(result.error, restartFailedMessage)
-                    }
-                }
-            } finally {
-                restartInProgress = false
-            }
-        }
+        services.launchPendingProfileApply(
+            currentState = { stateStore.state.value },
+            updateAppState = updateAppState,
+            appliedMessage = profileAppliedMessage,
+            failedMessage = restartFailedMessage,
+            isPageActive = pageActive::get,
+            onApplied = { showRestartRequired = false },
+        )
     }
 
     fun syncProfileProviders(profile: MihomoProfileState) {
@@ -939,7 +923,8 @@ fun MihomoProfileListPage(
         )
         RestartRequiredDialog(
             show = showRestartRequired,
-            restarting = restartInProgress,
+            restarting = applyingProfile,
+            enabled = services.profileApplyAvailable,
             onRestartNow = ::restartWithUpdatedSubscription,
             onLater = { showRestartRequired = false },
         )

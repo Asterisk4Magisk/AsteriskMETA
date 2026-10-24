@@ -74,6 +74,7 @@
     <string name="home_service_starting">Starting…</string>
     <string name="home_service_stop">Stop service</string>
     <string name="home_service_stopping">Stopping…</string>
+    <string name="home_service_applying">Applying…</string>
     <string name="home_service_uptime">Run time: %1$s</string>
     <string name="home_subscription_expiry">Expires %1$s</string>
     <string name="home_subscription_remaining">Remaining</string>
@@ -361,11 +362,12 @@
     <string name="mihomo_profile_raw_mode_unchecked">Profile will be checked when content is available</string>
     <string name="mihomo_profile_raw_run_mode">Current run mode</string>
     <string name="mihomo_profile_raw_unavailable">Unavailable</string>
-    <string name="mihomo_profile_restart_failed">Unable to restart with the saved profile. The existing service remains active.</string>
+    <string name="mihomo_profile_restart_failed">Unable to apply the saved profile.</string>
+    <string name="mihomo_profile_applied">Profile applied</string>
     <string name="mihomo_profile_restart_later">Later</string>
-    <string name="mihomo_profile_restart_now">Restart now</string>
-    <string name="mihomo_profile_restart_required">Changes require a service restart</string>
-    <string name="mihomo_profile_restart_required_message">The running service is still using the previous profile. Restart now only after the saved profile passes validation.</string>
+    <string name="mihomo_profile_restart_now">Apply now</string>
+    <string name="mihomo_profile_restart_required">Changes not applied yet</string>
+    <string name="mihomo_profile_restart_required_message">The running service is still using the previous profile. Apply the saved profile to it now?</string>
     <string name="mihomo_profile_save_anyway">Save anyway</string>
     <string name="mihomo_profile_save_failed">Failed to save profile</string>
     <string name="mihomo_profile_save_sync_decrypting">Decrypting…</string>

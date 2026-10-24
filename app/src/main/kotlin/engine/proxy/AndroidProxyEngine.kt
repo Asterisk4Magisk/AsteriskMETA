@@ -13,10 +13,13 @@ import engine.stats.MihomoTrafficStatsNotificationService
 import engine.stats.toMihomoTrafficStatsRuntime
 import engine.mihomo.withResolvedMihomoControlPort
 import engine.mihomo.MihomoProfileFactory
+import engine.mihomo.selectedMihomoProfileOrNull
 import engine.mihomo.raw.requireStartableRawConfig
 import engine.mihomo.raw.usesRawMihomoConfig
 import engine.vpn.AndroidMihomoRuntime
 import engine.vpn.VpnMihomoEngine
+import features.logs.AndroidAppLogger
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -98,6 +101,45 @@ internal class AndroidProxyEngine(
         }
         mutableRootStatusWatchGeneration.update { generation -> generation + 1L }
         return status
+    }
+
+    /**
+     * Applies a changed profile to a running VPN core in place: the profile is rebuilt with
+     * the ports the core is already running on and reloaded through the embedded Clash bridge,
+     * keeping the TUN and the VpnService. A raw profile can change what the VpnService itself
+     * was configured with (TUN stack, DNS hijack, IPv6, local proxy port), so it takes the
+     * explicit restart, as does any reload failure. Both steps run under [operationMutex], so a
+     * stop from the tile or a broadcast cannot slip in between and then be undone.
+     *
+     * Only the VPN engine is consulted, so this path performs no ROOT operation.
+     */
+    suspend fun reloadVpnOrRestart(
+        request: ProxyEngineStartRequest,
+        requestVpnPermission: VpnPermissionRequester = DenyVpnPermission,
+    ): ProxyEngineStatus = operationMutex.withLock {
+        val status = vpnMihomoEngine.status()
+        // Stopped since the caller looked: there is nothing to apply, and starting it here
+        // would override the stop.
+        if (!status.running) return@withLock status
+        if (!request.appState.usesRawMihomoConfig()) {
+            try {
+                withContext(Dispatchers.IO) {
+                    val profileBytes = MihomoProfileFactory.buildProfileBytes(appContext, request.appState)
+                    AndroidMihomoRuntime.reloadProfileContent(
+                        content = profileBytes,
+                        ageSecretKey = request.appState.selectedMihomoProfileOrNull()?.ageSecretKey.orEmpty(),
+                    )
+                }
+                return@withLock status.copy(appState = request.appState)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                AndroidAppLogger.warn(LogTag, "VPN profile reload failed; restarting the service", error)
+            }
+        }
+        withVpnPermissionRequester(requestVpnPermission) {
+            startUnlocked(request, explicitRestart = true)
+        }
     }
 
     private suspend fun <T> withVpnPermissionRequester(
@@ -404,3 +446,5 @@ internal fun shouldUsePreResolvedRootStart(
     resumeChecked: Boolean,
     nextEngineIsRoot: Boolean,
 ): Boolean = !explicitRestart && resumeChecked && nextEngineIsRoot
+
+private const val LogTag = "AndroidProxyEngine"

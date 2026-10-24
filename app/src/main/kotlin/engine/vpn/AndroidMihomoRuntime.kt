@@ -9,10 +9,12 @@ import android.os.ParcelFileDescriptor
 import app.R
 import engine.mihomo.binding.MihomoBridge as Clash
 import engine.mihomo.MihomoCoreLogSubscriber
+import engine.mihomo.sha256Hex
 import features.logs.AndroidAppLogger
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import java.io.File
+import utils.writeAtomically
 import java.net.InetSocketAddress
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -180,6 +182,31 @@ internal object AndroidMihomoRuntime {
         withTimeout(DefaultLoadTimeoutMillis.milliseconds) {
             loadProfile(profile.directory, profile.content)
         }
+    }
+
+    /**
+     * Replaces the profile of the running VPN runtime in place: writes [content] over the
+     * loaded profile file and reloads it through the embedded Clash bridge, so the native TUN,
+     * the VpnService and its notification stay up. Only a runtime that was loaded from its
+     * profile file qualifies; an in-memory standby profile does not.
+     */
+    suspend fun reloadProfileContent(content: ByteArray, ageSecretKey: String) {
+        val profile = activeProfile ?: error("mihomo profile is not loaded")
+        check(running && profile.content == null) { "mihomo VPN runtime is not running from a profile file" }
+        writeAtomically(File(profile.signature.profilePath)) { output -> output.write(content) }
+        setRuntimeAgeSecretKey(ageSecretKey)
+        withTimeout(DefaultLoadTimeoutMillis.milliseconds) {
+            loadProfile(profile.directory, null)
+        }
+        // Keep the signature truthful so a later ensureLoaded compares against what runs now.
+        activeProfile = LoadedMihomoProfile(
+            directory = profile.directory,
+            content = null,
+            signature = profile.signature.copy(
+                profileSignature = content.sha256Hex(),
+                ageSecretKey = ageSecretKey,
+            ),
+        )
     }
 
     private fun ensureLoadedLocked(

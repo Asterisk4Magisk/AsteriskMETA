@@ -42,6 +42,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import ui.components.AsteriskTopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -75,8 +76,9 @@ import app.modes.RunModeTproxy
 import app.modes.RunModeTun
 import app.modes.RunModeTun2Socks
 import app.nextAvailableMihomoProfileId
-import app.withMihomoRestartApplied
 import app.withMihomoRestartRequired
+import features.home.HomeServiceOperation
+import java.util.concurrent.atomic.AtomicBoolean
 import engine.mihomo.binding.MihomoBridge as Clash
 import engine.mihomo.raw.MihomoRawConfigParseResult
 import engine.mihomo.raw.MihomoRawConfigParser
@@ -84,7 +86,6 @@ import engine.mihomo.raw.MihomoRawConfigSnapshot
 import engine.mihomo.raw.RawConfigReadiness
 import engine.mihomo.raw.check
 import engine.mihomo.sha256Hex
-import engine.proxy.ProxyServiceResult
 import features.settings.SettingsDropdownRow
 import features.subscription.isValidSubscriptionHwid
 import features.subscription.isPlainHttpSubscriptionUrl
@@ -93,7 +94,6 @@ import features.subscription.isValidManualSubscriptionUrl
 import features.subscription.sanitizeSubscriptionIntervalInput
 import features.subscription.usecase.MihomoProfileSyncStage
 import features.subscription.usecase.toSubscriptionFetchOptions
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -138,6 +138,7 @@ fun MihomoProfileEditPage(
     val syncFailedSavedMessage = stringResource(R.string.mihomo_profile_save_sync_failed_saved)
     val saveFailedMessage = stringResource(R.string.mihomo_profile_save_failed)
     val restartFailedMessage = stringResource(R.string.mihomo_profile_restart_failed)
+    val profileAppliedMessage = stringResource(R.string.mihomo_profile_applied)
     val duplicateNameFormat = stringResource(R.string.mihomo_profile_name_duplicate)
     val profileSaveUseCase = remember(
         services.mihomoProfilePreparer,
@@ -156,7 +157,11 @@ fun MihomoProfileEditPage(
     var saveJob by remember { mutableStateOf<Job?>(null) }
     var failedSave by remember { mutableStateOf<FailedMihomoProfileSave?>(null) }
     var showRestartRequired by remember { mutableStateOf(false) }
-    var restartInProgress by remember { mutableStateOf(false) }
+    val applyingProfile = services.homeServiceOperationState.operation == HomeServiceOperation.Applying
+    // Lets an apply that finishes after this page was left skip navigator.pop(), which would
+    // otherwise pop whatever screen is on top by then.
+    val pageActive = remember { AtomicBoolean(true) }
+    DisposableEffect(Unit) { onDispose { pageActive.set(false) } }
     val nameState = rememberTextFieldState(initialText = targetProfile?.name.orEmpty())
     val urlState = rememberTextFieldState(initialText = targetProfile?.url ?: "")
     val userAgentState = rememberTextFieldState(
@@ -291,35 +296,17 @@ fun MihomoProfileEditPage(
     }
 
     fun restartWithSavedConfiguration() {
-        if (restartInProgress) return
-        restartInProgress = true
-        val completed = CompletableDeferred<ProxyServiceResult>()
-        services.appScope.launch {
-            completed.complete(services.proxyServiceUseCase.restart(stateStore.state.value))
-        }
-        scope.launch {
-            try {
-                when (val result = completed.await()) {
-                    is ProxyServiceResult.Success -> {
-                        updateAppState { state ->
-                            state.copy(
-                                proxyRunning = result.proxyRunning,
-                                localProxyPort = result.appState?.localProxyPort ?: state.localProxyPort,
-                                mihomoControlPort = result.appState?.mihomoControlPort ?: state.mihomoControlPort,
-                            ).withMihomoRestartApplied()
-                        }
-                        showRestartRequired = false
-                        navigator.pop()
-                    }
-
-                    is ProxyServiceResult.Failed -> {
-                        services.tipNotifier.showError(result.error, restartFailedMessage)
-                    }
-                }
-            } finally {
-                restartInProgress = false
-            }
-        }
+        services.launchPendingProfileApply(
+            currentState = { stateStore.state.value },
+            updateAppState = updateAppState,
+            appliedMessage = profileAppliedMessage,
+            failedMessage = restartFailedMessage,
+            isPageActive = pageActive::get,
+            onApplied = {
+                showRestartRequired = false
+                navigator.pop()
+            },
+        )
     }
 
     fun launchSave(draft: MihomoProfileSaveDraft) {
@@ -712,7 +699,8 @@ fun MihomoProfileEditPage(
         )
         RestartRequiredDialog(
             show = showRestartRequired,
-            restarting = restartInProgress,
+            restarting = applyingProfile,
+            enabled = services.profileApplyAvailable,
             onRestartNow = ::restartWithSavedConfiguration,
             onLater = {
                 showRestartRequired = false
@@ -845,6 +833,8 @@ internal fun MihomoProfileSyncFailureDialog(
 internal fun RestartRequiredDialog(
     show: Boolean,
     restarting: Boolean,
+    // False while another service operation (home power button, mode switch) is running.
+    enabled: Boolean = true,
     onRestartNow: () -> Unit,
     onLater: () -> Unit,
 ) {
@@ -867,7 +857,8 @@ internal fun RestartRequiredDialog(
                 text = stringResource(R.string.mihomo_profile_restart_now),
                 icon = Icons.Rounded.Refresh,
                 onClick = onRestartNow,
-                enabled = !restarting,
+                enabled = enabled && !restarting,
+                loading = restarting,
             )
         },
     )

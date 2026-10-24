@@ -4,6 +4,7 @@
 package engine.proxy
 
 import app.AppState
+import app.modes.RunModeVpnService
 import engine.mihomo.requireUsableMihomoProfile
 import engine.root.runtime.RootFailureKind
 import engine.root.runtime.RootOperationBlockedException
@@ -54,6 +55,38 @@ internal class ProxyServiceUseCase(
             onSuccess = { status -> ProxyServiceResult.Success(proxyRunning = status.running, appState = status.appState) },
             onFailure = { error -> error.toProxyServiceFailure(RootRequestedAction.RestartSameOwner) },
         )
+    }
+
+    /**
+     * Applies a changed profile to the running core. VPN reloads it in place through the
+     * embedded Clash bridge (see [AndroidProxyEngine.reloadVpnOrRestart]). ROOT keeps the
+     * supervised [restart] for now: the profile reaches the ROOT runtime only through the
+     * supervised start's publication (there is no republish-then-`PUT /configs` path yet), and a
+     * raw profile also feeds the asteriskd configuration, so reloading the old published file
+     * through the Clash API would not apply the change.
+     */
+    suspend fun applyConfiguration(state: AppState): ProxyServiceResult {
+        if (state.runMode != RunModeVpnService) return restart(state)
+        return runCatching {
+            state.requireUsableMihomoProfile()
+            proxyEngine.reloadVpnOrRestart(ProxyEngineStartRequest(state), requestVpnPermission)
+        }.fold(
+            onSuccess = { status -> ProxyServiceResult.Success(proxyRunning = status.running, appState = status.appState) },
+            onFailure = { error ->
+                if (error is CancellationException) throw error
+                ProxyServiceResult.Failed(error)
+            },
+        )
+    }
+
+    /** The live running state for [state]'s run mode, or `null` when it cannot be read. */
+    suspend fun isRunning(state: AppState): Boolean? = try {
+        proxyEngine.status(state.runMode, state).running
+    } catch (error: CancellationException) {
+        throw error
+    } catch (error: Throwable) {
+        AndroidAppLogger.warn(LogTag, "Failed to read proxy status", error)
+        null
     }
 
     private suspend fun start(state: AppState): ProxyServiceResult {

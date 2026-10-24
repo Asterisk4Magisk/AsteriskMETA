@@ -240,7 +240,8 @@ private fun MihomoSubscriptionInfo.toHomeSubscriptionSummaryOrNull(): HomeSubscr
 private const val HomeNetworkSampleLimit = 60
 internal const val HomeUnavailableValue = "—"
 
-internal enum class HomeServiceOperation { Idle, Starting, Stopping }
+// Applying: a pending profile change is being reloaded or restarted into the running core.
+internal enum class HomeServiceOperation { Idle, Starting, Stopping, Applying }
 
 // Retain only operation state; UI callbacks must not retain an Activity.
 internal class HomeServiceOperationState {

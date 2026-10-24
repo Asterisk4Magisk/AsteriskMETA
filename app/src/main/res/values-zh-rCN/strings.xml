@@ -73,6 +73,7 @@
     <string name="home_service_starting">启动中…</string>
     <string name="home_service_stop">停止服务</string>
     <string name="home_service_stopping">停止中…</string>
+    <string name="home_service_applying">应用中…</string>
     <string name="home_service_uptime">本次运行时长：%1$s</string>
     <string name="home_subscription_expiry">有效期至 %1$s</string>
     <string name="home_subscription_remaining">剩余</string>
@@ -355,11 +356,12 @@
     <string name="mihomo_profile_raw_mode_unchecked">内容可用后将执行配置检查</string>
     <string name="mihomo_profile_raw_run_mode">当前运行方式</string>
     <string name="mihomo_profile_raw_unavailable">不可用</string>
-    <string name="mihomo_profile_restart_failed">无法使用已保存的配置重启，现有服务仍保持运行。</string>
+    <string name="mihomo_profile_restart_failed">无法应用已保存的配置。</string>
+    <string name="mihomo_profile_applied">配置已应用</string>
     <string name="mihomo_profile_restart_later">稍后</string>
-    <string name="mihomo_profile_restart_now">立即重启</string>
-    <string name="mihomo_profile_restart_required">更改需要重启服务</string>
-    <string name="mihomo_profile_restart_required_message">当前服务仍在使用先前配置。立即重启会先校验已保存的配置，校验失败时保留现有服务。</string>
+    <string name="mihomo_profile_restart_now">立即应用</string>
+    <string name="mihomo_profile_restart_required">更改尚未生效</string>
+    <string name="mihomo_profile_restart_required_message">当前服务仍在使用先前配置。是否立即将已保存的配置应用到运行中的服务？</string>
     <string name="mihomo_profile_save_anyway">仍然保存</string>
     <string name="mihomo_profile_save_failed">保存配置失败</string>
     <string name="mihomo_profile_save_sync_decrypting">正在解密配置…</string>

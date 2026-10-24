@@ -546,6 +546,7 @@ private fun HomeServicePowerButton(modifier: Modifier = Modifier) {
         when (control.operation) {
             HomeServiceOperation.Starting -> R.string.home_service_starting
             HomeServiceOperation.Stopping -> R.string.home_service_stopping
+            HomeServiceOperation.Applying -> R.string.home_service_applying
             HomeServiceOperation.Idle -> if (appState.proxyRunning) R.string.home_service_stop else R.string.home_service_start
         },
     )
