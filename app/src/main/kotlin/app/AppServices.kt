@@ -9,6 +9,7 @@ import data.backup.AppBackupUseCase
 import engine.mihomo.MihomoProfileContentStore
 import engine.proxy.AndroidProxyEngine
 import engine.proxy.ProxyServiceUseCase
+import engine.proxy.VpnPermissionRequester
 import engine.mihomo.runtime.MihomoRuntimeRepository
 import features.mihomo.provider.MihomoProviderUsageStateHolder
 import features.logs.CoreLogRepository
@@ -50,6 +51,7 @@ internal data class AppServices(
     val mihomoProviderUsage: MihomoProviderUsageStateHolder,
     val monitoring: MonitoringRepository,
     val proxyServiceUseCase: ProxyServiceUseCase,
+    val requestVpnPermission: VpnPermissionRequester,
     val switchRunModeUseCase: SwitchRunModeUseCase,
     val applyServiceControlUseCase: ApplyServiceControlUseCase,
     val enhancementModuleCoordinator: EnhancementModuleCoordinator,

@@ -397,6 +397,7 @@ internal fun SettingsProxyModeSections(
     enableTrafficStatsNotification: Boolean,
     enableVpnAppendHttpProxy: Boolean,
     enableVpnHevTun: Boolean,
+    enableAutoConnect: Boolean,
     tunSettingsSummary: String,
     enableRootBootScript: Boolean,
     enableRootEbpfRules: Boolean,
@@ -412,6 +413,7 @@ internal fun SettingsProxyModeSections(
     onEnableTrafficStatsNotificationChange: (Boolean) -> Unit,
     onEnableVpnAppendHttpProxyChange: (Boolean) -> Unit,
     onEnableVpnHevTunChange: (Boolean) -> Unit,
+    onEnableAutoConnectChange: (Boolean) -> Unit,
     onOpenTunSettings: () -> Unit,
     onEnableRootBootScriptChange: (Boolean) -> Unit,
     onEnableRootEbpfRulesChange: (Boolean) -> Unit,
@@ -432,6 +434,14 @@ internal fun SettingsProxyModeSections(
         Column {
             SmallTitle(text = stringResource(R.string.settings_proxy_vpn_service))
             SettingsSectionCard {
+                SwitchPreference(
+                    title = stringResource(R.string.settings_start_on_boot),
+                    icon = Icons.Rounded.PowerSettingsNew,
+                    summary = stringResource(R.string.settings_auto_connect_summary),
+                    checked = enableAutoConnect,
+                    onCheckedChange = onEnableAutoConnectChange,
+                    accent = IconAccent.MaskPink,
+                )
                 if (!rawState.showsReadOnlyYamlValues) {
                     ArrowPreference(
                         title = stringResource(R.string.settings_local_proxy),
@@ -510,7 +520,7 @@ internal fun SettingsProxyModeSections(
                     exit = AsteriskMotion.contentExit(),
                 ) {
                     SwitchPreference(
-                        title = stringResource(R.string.settings_root_boot_script),
+                        title = stringResource(R.string.settings_start_on_boot),
                         accent = IconAccent.MaskPink,
                         icon = Icons.Rounded.PowerSettingsNew,
                         summary = stringResource(R.string.settings_root_boot_script_summary),

@@ -3,6 +3,7 @@
 
 package data
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.SharedPreferences
 import app.withNormalizedConnectionTestSettings
@@ -33,6 +34,22 @@ internal class AppSettingsPreferences(
                     "Failed to persist subscription HWID"
                 }
             }
+    }
+
+    /**
+     * Whether the VPN Service tunnel was up when the process last ran. It is cleared on every
+     * orderly stop and survives only a process kill, which lets an app update restore the
+     * tunnel without starting one the user had stopped.
+     */
+    fun isVpnSessionActive(): Boolean = preferences.getBoolean(KeyVpnSessionActive, false)
+
+    @SuppressLint("UseKtx", "ApplySharedPref")
+    fun setVpnSessionActive(active: Boolean) {
+        if (isVpnSessionActive() == active) return
+        val editor = preferences.edit().putBoolean(KeyVpnSessionActive, active)
+        // A start is committed synchronously: an app update kills the process without a
+        // callback. A stop may also run on the main thread, so it is applied asynchronously.
+        if (active) editor.commit() else editor.apply()
     }
 
     fun load(): AppState {
@@ -121,6 +138,10 @@ internal class AppSettingsPreferences(
             enableVpnHevTun = preferences.getBoolean(
                 KeyEnableVpnHevTun,
                 defaults.enableVpnHevTun,
+            ),
+            enableAutoConnect = preferences.getBoolean(
+                KeyEnableAutoConnect,
+                defaults.enableAutoConnect,
             ),
             tunMtu = preferences.getString(KeyTunMtu, defaults.tunMtu) ?: defaults.tunMtu,
             tunVpnDns = preferences.getString(KeyTunVpnDns, defaults.tunVpnDns) ?: defaults.tunVpnDns,
@@ -331,6 +352,7 @@ internal class AppSettingsPreferences(
             .putString(KeyLocalProxyPassword, state.localProxyPassword)
             .putBoolean(KeyEnableVpnAppendHttpProxy, state.enableVpnAppendHttpProxy)
             .putBoolean(KeyEnableVpnHevTun, state.enableVpnHevTun)
+            .putBoolean(KeyEnableAutoConnect, state.enableAutoConnect)
             .putString(KeyTunMtu, state.tunMtu)
             .putString(KeyTunVpnDns, state.tunVpnDns)
             .putString(KeyTunIpv4Cidr, state.tunIpv4Cidr)
@@ -564,6 +586,8 @@ private const val KeyLocalProxyUsername = "local_proxy_username"
 private const val KeyLocalProxyPassword = "local_proxy_password"
 private const val KeyEnableVpnAppendHttpProxy = "enable_vpn_append_http_proxy"
 private const val KeyEnableVpnHevTun = "enable_vpn_hev_tun"
+private const val KeyEnableAutoConnect = "enable_auto_connect"
+private const val KeyVpnSessionActive = "vpn_session_active"
 private const val KeyTunMtu = "tun_mtu"
 private const val KeyTunVpnDns = "tun_vpn_dns"
 private const val KeyTunIpv4Cidr = "tun_ipv4_cidr"

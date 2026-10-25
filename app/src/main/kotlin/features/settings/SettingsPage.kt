@@ -3,6 +3,7 @@
 
 package features.settings
 
+import android.net.VpnService
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -24,6 +25,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.LocalAppServices
@@ -128,6 +130,7 @@ private fun SettingsContent(
     val updateAppState = LocalUpdateAppState.current
     val navigator = LocalNavigator.current
     val services = LocalAppServices.current
+    val context = LocalContext.current
     val switchRunModeUseCase = services.switchRunModeUseCase
     val rootBootScriptUseCase = services.rootBootScriptUseCase
     val rootEbpfProbeUseCase = services.rootEbpfProbeUseCase
@@ -188,6 +191,7 @@ private fun SettingsContent(
         stringResource(R.string.theme_color_coffee),
     ).take(KeyColors.size + 1)
     val rootRequiredMessage = stringResource(R.string.settings_root_required)
+    val vpnPermissionDeniedMessage = stringResource(R.string.error_vpn_permission_denied)
     val rootBootScriptFailedMessage = stringResource(R.string.settings_root_boot_script_failed)
     val serviceStoppedMessage = stringResource(R.string.proxy_service_stopped)
     val logLevelFailedMessage = stringResource(R.string.settings_log_level)
@@ -484,6 +488,7 @@ private fun SettingsContent(
                     enableTrafficStatsNotification = appState.enableTrafficStatsNotification,
                     enableVpnAppendHttpProxy = appState.enableVpnAppendHttpProxy,
                     enableVpnHevTun = appState.enableVpnHevTun,
+                    enableAutoConnect = appState.enableAutoConnect,
                     tunSettingsSummary = tunSettingsSummary,
                     enableRootBootScript = appState.enableRootBootScript,
                     enableRootEbpfRules = appState.enableRootEbpfRules,
@@ -511,6 +516,29 @@ private fun SettingsContent(
                     },
                     onEnableVpnHevTunChange = { enabled ->
                         updateAppState { state -> state.copy(enableVpnHevTun = enabled) }
+                    },
+                    onEnableAutoConnectChange = { enabled ->
+                        if (!enabled) {
+                            updateAppState { state -> state.copy(enableAutoConnect = false) }
+                        } else {
+                            // A boot start cannot ask for the consent, so it is collected here.
+                            scope.launch {
+                                val consent = VpnService.prepare(context)
+                                val granted = try {
+                                    consent == null || services.requestVpnPermission(consent)
+                                } catch (error: CancellationException) {
+                                    throw error
+                                } catch (error: Throwable) {
+                                    tipNotifier.showError(error, vpnPermissionDeniedMessage)
+                                    return@launch
+                                }
+                                if (granted) {
+                                    updateAppState { state -> state.copy(enableAutoConnect = true) }
+                                } else {
+                                    tipNotifier.show(vpnPermissionDeniedMessage)
+                                }
+                            }
+                        }
                     },
                     onOpenTunSettings = { sheetState.openTunSettings(appState) },
                     onEnableRootBootScriptChange = { enabled ->

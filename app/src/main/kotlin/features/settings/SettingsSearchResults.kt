@@ -165,6 +165,11 @@ internal fun settingsTopLevelSearchItems(
         SettingsSearchItem(SettingsSectionId.Vpn, stringResource(R.string.settings_local_proxy), localProxySummary),
         SettingsSearchItem(
             SettingsSectionId.Vpn,
+            stringResource(R.string.settings_start_on_boot),
+            stringResource(R.string.settings_auto_connect_summary),
+        ),
+        SettingsSearchItem(
+            SettingsSectionId.Vpn,
             stringResource(R.string.settings_traffic_stats_notification),
             stringResource(R.string.settings_traffic_stats_notification_summary),
         ),
@@ -185,7 +190,7 @@ internal fun settingsTopLevelSearchItems(
         SettingsSearchItem(SettingsSectionId.Vpn, stringResource(R.string.settings_tun), tunSummary),
         SettingsSearchItem(
             SettingsSectionId.Tproxy,
-            stringResource(R.string.settings_root_boot_script),
+            stringResource(R.string.settings_start_on_boot),
             stringResource(R.string.settings_root_boot_script_summary),
         ),
         SettingsSearchItem(
