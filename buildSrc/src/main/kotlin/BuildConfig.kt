@@ -13,7 +13,7 @@ object ProjectConfig {
     const val PROJECT_NAME = "AsteriskMETA"
     const val VERSION_NAME = "1.2.22-dev"
     const val PACKAGE_NAME = "org.asterisk.zcc.ameta"
-    const val ASTERISKD_VERSION = "v2.2.1"
+    const val ASTERISKD_VERSION = "v2.2.2"
     const val BPF2SOCKS_VERSION = "v1.2.1"
     const val BPF_MATCHER_VERSION = "v1.0.2"
     const val ENHANCE_VERSION = "v1.0.8"
