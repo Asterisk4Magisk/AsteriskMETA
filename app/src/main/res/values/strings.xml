@@ -46,7 +46,6 @@
     <string name="nav_dashboard">Home</string>
     <string name="nav_profiles">Profiles</string>
     <string name="nav_proxies">Proxies</string>
-    <string name="nav_settings">Settings</string>
 
     <!-- Home -->
     <string name="home_accumulated_download">Downloaded</string>
@@ -94,18 +93,15 @@
     <string name="mihomo_mode_rule">Rule</string>
 
     <!-- Monitoring - Overview -->
-    <string name="monitor_copied">Copied</string>
     <string name="monitor_copy_value">Copy value</string>
     <string name="monitor_data_stale">Data may be out of date</string>
     <string name="monitor_data_unavailable">Data unavailable</string>
-    <string name="monitor_filter_all">All</string>
     <string name="monitor_filter_direct">Direct</string>
     <string name="monitor_filter_proxy">Proxy</string>
     <string name="monitor_loading">Loading live data…</string>
     <string name="monitor_milliseconds">%1$d ms</string>
     <string name="monitor_no_samples">No samples yet. Paused intervals remain as gaps.</string>
     <string name="monitor_refresh">Refresh</string>
-    <string name="monitor_retry">Retry</string>
     <string name="monitor_service_not_enabled">Service not enabled</string>
     <string name="monitor_sort_rate">Real-time rate</string>
     <string name="monitor_sort_started">Start time</string>
@@ -532,7 +528,6 @@
 
     <!-- Run mode and proxy service -->
     <string name="error_mihomo_data_dir_missing">Mihomo data directory is missing</string>
-    <string name="proxy_error_dialog_close">Close</string>
     <string name="proxy_error_dialog_copied">Copied to clipboard</string>
     <string name="proxy_error_dialog_copy">Copy log</string>
     <string name="proxy_error_dialog_details">Error details</string>
@@ -597,7 +592,6 @@
     <string name="enhancement_module_apk_install_failed">Installation failed. Check the error output. You can try exporting this app, changing the .apk extension to .zip, and installing it with your ROOT manager</string>
     <string name="enhancement_module_failed">Module operation failed. Check your ROOT manager and ensure Zygisk Next is installed and enabled, then retry</string>
     <string name="enhancement_module_incompatible">The running enhancement module does not support this runtime</string>
-    <string name="enhancement_module_install_close">Close</string>
     <string name="enhancement_module_install_output_waiting">Waiting for installer output…</string>
     <string name="enhancement_module_install_title">Install enhancement module</string>
     <string name="enhancement_module_installing">Installing enhancement module…</string>
@@ -611,7 +605,6 @@
     <string name="enhancement_module_root_denied">ROOT permission was denied. Grant access and retry</string>
     <string name="enhancement_module_timeout">Module operation timed out. Check your ROOT manager and retry</string>
     <string name="enhancement_module_title">Enhancement module</string>
-    <string name="enhancement_module_update">Update enhancement module</string>
     <string name="enhancement_module_update_available">A module update is available from this app. Update it and reboot before using application list enhancement</string>
 
     <!-- TUN -->
@@ -829,7 +822,6 @@
 
     <!-- Resource management -->
     <string name="error_resource_file_picker_missing">Resource file picker is not registered</string>
-    <string name="resource_file_download_notification_cancel">Cancel</string>
     <string name="resource_file_download_notification_cancelled">Resource file update cancelled</string>
     <string name="resource_file_download_notification_channel">Resource file updates</string>
     <string name="resource_file_download_notification_complete">Resource files updated</string>
@@ -982,7 +974,6 @@
         <item quantity="one">%1$d entry</item>
         <item quantity="other">%1$d entries</item>
     </plurals>
-    <string name="settings_core_logs">Core logs</string>
     <string name="settings_log_level">Log level</string>
     <string name="settings_logcat">Logcat</string>
     <string name="settings_logs">Logs</string>
@@ -995,7 +986,6 @@
     <string name="about_view_source">View source on GitHub</string>
     <string name="license_load_failed">Could not load license metadata</string>
     <string name="license_title">Third Party Licenses</string>
-    <string name="settings_about">About</string>
     <string name="settings_about_project">About project</string>
     <string name="settings_open_source_licenses">Open source licenses</string>
     <string name="settings_auto_switch">Automatic switching</string>

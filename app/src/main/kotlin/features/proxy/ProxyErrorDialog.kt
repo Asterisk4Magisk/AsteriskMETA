@@ -167,7 +167,7 @@ private fun ProxyErrorDialog(
             }) { Text(stringResource(R.string.proxy_error_dialog_copy)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.proxy_error_dialog_close)) }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_close)) }
         },
     )
 }

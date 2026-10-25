@@ -126,7 +126,7 @@ internal fun EnhancementModuleInstallDialog(
                         )
                     }
                     AsteriskActionButton(
-                        text = stringResource(R.string.enhancement_module_install_close),
+                        text = stringResource(R.string.common_close),
                         icon = Icons.Rounded.Check,
                         onClick = onDismiss,
                         enabled = !progress.running && !rebooting,

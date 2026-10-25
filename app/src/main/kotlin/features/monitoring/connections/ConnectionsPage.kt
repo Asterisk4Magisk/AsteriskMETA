@@ -575,7 +575,7 @@ private fun StatusCard(message: String, loading: Boolean = false) {
 @Composable
 private fun connectionRouteLabel(route: ConnectionRouteFilter): String = stringResource(
     when (route) {
-        ConnectionRouteFilter.All -> R.string.monitor_filter_all
+        ConnectionRouteFilter.All -> R.string.common_all
         ConnectionRouteFilter.Proxy -> R.string.monitor_filter_proxy
         ConnectionRouteFilter.Direct -> R.string.monitor_filter_direct
     },

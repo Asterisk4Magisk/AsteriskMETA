@@ -60,7 +60,7 @@ internal fun NetworkMonitorPage(padding: PaddingValues) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val pageSessionId = rememberSaveable { UUID.randomUUID().toString() }
-    val copiedMessage = stringResource(R.string.monitor_copied)
+    val copiedMessage = stringResource(R.string.common_copied)
     ObserveMonitoring(MonitoringIntent.Network, pageSessionId)
 
     fun copy(label: String, value: String) {
@@ -207,7 +207,7 @@ private fun PublicAddressFamilyCard(
                         onClick = onRetry,
                         enabled = !refreshing,
                     ) {
-                        Text(stringResource(R.string.monitor_retry))
+                        Text(stringResource(R.string.common_retry))
                     }
                 }
             }
