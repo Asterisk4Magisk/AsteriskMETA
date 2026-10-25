@@ -65,6 +65,7 @@ class MihomoTrafficStatsNotificationService : Service() {
     private var foregroundStarted = false
     private var latestStartId = 0
     private val notificationManager by lazy { getSystemService(NotificationManager::class.java) }
+    private val speedIcon by lazy { TrafficSpeedNotificationIcon(resources.displayMetrics.density) }
     private val contentIntent by lazy {
         PendingIntent.getActivity(
             this,
@@ -255,7 +256,12 @@ class MihomoTrafficStatsNotificationService : Service() {
             snapshot.totalDown.toReadableBytes(keepTrailingZero = true),
         )
         return Notification.Builder(this, ChannelId)
-            .setSmallIcon(android.R.drawable.stat_notify_sync)
+            .setSmallIcon(speedIcon.create(snapshot.downSpeed))
+            .apply {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE)
+                }
+            }
             .setContentTitle(title)
             .setContentText(speedLine)
             .setStyle(Notification.BigTextStyle().bigText("$speedLine\n$trafficLine"))
