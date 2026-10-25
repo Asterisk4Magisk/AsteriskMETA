@@ -5,6 +5,7 @@ package features.enhancement
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -64,36 +65,38 @@ internal fun EnhancementModuleInstallDialog(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
-                Text(
-                    text = stringResource(R.string.enhancement_module_install_title),
-                    style = MaterialTheme.typography.headlineSmall,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-                )
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = enhancementModuleSummary(
-                            progress.result ?: EnhancementModuleState(EnhancementModulePhase.Installing),
-                        ),
-                        modifier = Modifier.weight(1f).heightIn(max = 72.dp)
-                            .verticalScroll(rememberScrollState()),
-                        textAlign = TextAlign.Start,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (progress.result?.phase == EnhancementModulePhase.Failed) {
-                            MaterialTheme.colorScheme.error
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
+                        text = stringResource(R.string.enhancement_module_install_title),
+                        style = MaterialTheme.typography.headlineSmall,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
                     )
-                    if (progress.running) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                    Box(modifier = Modifier.size(24.dp)) {
+                        if (progress.running) {
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                        }
                     }
                 }
+                Text(
+                    text = enhancementModuleSummary(
+                        progress.result ?: EnhancementModuleState(EnhancementModulePhase.Installing),
+                    ),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
+                        .heightIn(max = 72.dp).verticalScroll(rememberScrollState()),
+                    textAlign = TextAlign.Start,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (progress.result?.phase == EnhancementModulePhase.Failed) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
                 SelectionContainer(
                     modifier = Modifier
                         .fillMaxWidth()
