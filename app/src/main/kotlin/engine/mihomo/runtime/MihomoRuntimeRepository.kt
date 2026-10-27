@@ -29,6 +29,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -38,7 +41,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import java.net.ConnectException
 import kotlin.time.Duration.Companion.milliseconds
@@ -404,6 +409,22 @@ internal class MihomoRuntimeRepository(
             withContext(Dispatchers.IO) {
                 ensureInteractiveRuntime(appState, backend)
                 client.closeAllConnections(control, backend.useBridge())
+            }
+        }
+    }
+
+    suspend fun closeConnectionsForGroup(appState: AppState, groupName: String): Result<Unit> {
+        return runMihomoRuntimeCatching {
+            require(appState.proxyRunning) { "Proxy service is not running" }
+            val control = resolveMihomoControlConfig(appState)
+            val backend = resolveInteractiveBackend(appState, control)
+            withContext(Dispatchers.IO) {
+                ensureInteractiveRuntime(appState, backend)
+                val useBridge = backend.useBridge()
+                val connections = client.getConnections(control, useBridge).connections
+                closeMihomoConnectionsForGroup(connections, groupName) { connectionId ->
+                    client.closeConnection(control, connectionId, useBridge)
+                }
             }
         }
     }
@@ -1093,6 +1114,23 @@ internal class MihomoRuntimeRepository(
 private fun saturatedTrafficAdd(previous: Long, increment: Long): Long {
     if (previous < 0L || increment <= 0L) return previous.coerceAtLeast(0L)
     return if (Long.MAX_VALUE - previous < increment) Long.MAX_VALUE else previous + increment
+}
+
+private suspend fun closeMihomoConnectionsForGroup(
+    connections: List<MihomoConnection>,
+    groupName: String,
+    closeConnection: suspend (String) -> Unit,
+): Unit = coroutineScope {
+    val semaphore = Semaphore(8)
+    val results = connections.filter { connection -> groupName in connection.chains }
+        .map { connection ->
+            async(Dispatchers.IO) {
+                semaphore.withPermit {
+                    runMihomoRuntimeCatching { closeConnection(connection.id) }
+                }
+            }
+        }.awaitAll()
+    results.firstOrNull { it.isFailure }?.getOrThrow()
 }
 
 private enum class MihomoRuntimeBackend {

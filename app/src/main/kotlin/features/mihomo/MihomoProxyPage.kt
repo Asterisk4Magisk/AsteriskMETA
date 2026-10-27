@@ -167,6 +167,7 @@ fun MihomoProxyPage(
     val tipNotifier = services.tipNotifier
     val runtimeUnavailableMessage = stringResource(R.string.mihomo_proxies_runtime_unavailable)
     val selectFailedMessage = stringResource(R.string.mihomo_proxies_select_failed)
+    val closeConnectionsFailedMessage = stringResource(R.string.mihomo_proxies_interrupt_connections_failed)
     val delayFailedMessage = stringResource(R.string.mihomo_proxies_delay_failed)
     val delayDoneMessage = stringResource(R.string.mihomo_proxies_delay_done)
 
@@ -330,7 +331,14 @@ fun MihomoProxyPage(
         pendingSelections = pendingSelections + (group.name to node.name)
         scope.launch {
             services.mihomoRuntime.selectProxy(appState, group.name, node.name)
-                .onSuccess { }
+                .onSuccess {
+                    if (appState.mihomoProxyInterruptConnections && appState.proxyRunning) {
+                        services.mihomoRuntime.closeConnectionsForGroup(appState, group.name)
+                            .onFailure { error ->
+                                tipNotifier.showError(error, closeConnectionsFailedMessage)
+                            }
+                    }
+                }
                 .onFailure { error ->
                     if (pendingSelections[group.name] == node.name) {
                         pendingSelections = pendingSelections - group.name
@@ -379,9 +387,15 @@ fun MihomoProxyPage(
                             }
                         }
                         MihomoProxyOptionsMenu(
+                            interruptConnections = appState.mihomoProxyInterruptConnections,
                             excludeNotSelectable = appState.mihomoProxyExcludeNotSelectable,
                             layout = appState.mihomoProxyLayout,
                             sort = resolveMihomoProxySort(appState.mihomoProxySort),
+                            onInterruptConnectionsChange = { enabled ->
+                                updateAppState { state ->
+                                    state.copy(mihomoProxyInterruptConnections = enabled)
+                                }
+                            },
                             onExcludeNotSelectableChange = { enabled ->
                                 updateAppState { state ->
                                     state.copy(mihomoProxyExcludeNotSelectable = enabled)
@@ -636,9 +650,11 @@ private data class ProxyGroupTabBounds(
 
 @Composable
 private fun MihomoProxyOptionsMenu(
+    interruptConnections: Boolean,
     excludeNotSelectable: Boolean,
     layout: Int,
     sort: Int,
+    onInterruptConnectionsChange: (Boolean) -> Unit,
     onExcludeNotSelectableChange: (Boolean) -> Unit,
     onLayoutChange: (Int) -> Unit,
     onSortChange: (Int) -> Unit,
@@ -692,6 +708,17 @@ private fun MihomoProxyOptionsMenu(
                 Column(modifier = Modifier.fillMaxWidth()) {
                     when (currentLevel) {
                 ProxyOptionsLevel.Main -> {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.mihomo_proxies_option_interrupt_connections)) },
+                        onClick = { onInterruptConnectionsChange(!interruptConnections) },
+                        leadingIcon = { Icon(Icons.Rounded.LinkOff, contentDescription = null) },
+                        trailingIcon = {
+                            AsteriskCheckbox(
+                                checked = interruptConnections,
+                                onCheckedChange = null,
+                            )
+                        },
+                    )
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.mihomo_proxies_option_filter_not_selectable)) },
                         onClick = { onExcludeNotSelectableChange(!excludeNotSelectable) },

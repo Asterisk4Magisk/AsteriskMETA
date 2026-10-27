@@ -55,6 +55,7 @@ data class AppState(
 
     val runMode: Int = RunModeVpnService,
     val mihomoMode: Int = MihomoModeRule,
+    val mihomoProxyInterruptConnections: Boolean = false,
     val mihomoProxyExcludeNotSelectable: Boolean = false,
     val mihomoProxyLayout: Int = MihomoProxyLayoutAuto,
     val mihomoProxySort: Int = MihomoProxySortDefault,

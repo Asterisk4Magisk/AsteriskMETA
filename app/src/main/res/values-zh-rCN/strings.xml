@@ -230,6 +230,8 @@
     <string name="mihomo_proxies_locate_selected">定位当前选中节点</string>
     <string name="mihomo_proxies_no_profile_summary">请先添加或导入 Mihomo YAML 配置，然后再查看和切换代理节点。</string>
     <string name="mihomo_proxies_no_profile_title">还没有配置文件</string>
+    <string name="mihomo_proxies_option_interrupt_connections">中断连接</string>
+    <string name="mihomo_proxies_interrupt_connections_failed">无法断开经过此策略组的部分连接</string>
     <string name="mihomo_proxies_option_filter_not_selectable">不可选择</string>
     <string name="mihomo_proxies_option_layout">布局</string>
     <string name="mihomo_proxies_option_layout_auto">自动</string>

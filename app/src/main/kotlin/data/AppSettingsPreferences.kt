@@ -86,6 +86,10 @@ internal class AppSettingsPreferences(
             ),
             runMode = preferences.getInt(KeyRunMode, defaults.runMode),
             mihomoMode = preferences.getInt(KeyMihomoMode, defaults.mihomoMode),
+            mihomoProxyInterruptConnections = preferences.getBoolean(
+                KeyMihomoProxyInterruptConnections,
+                defaults.mihomoProxyInterruptConnections,
+            ),
             mihomoProxyExcludeNotSelectable = preferences.getBoolean(
                 KeyMihomoProxyExcludeNotSelectable,
                 defaults.mihomoProxyExcludeNotSelectable,
@@ -328,6 +332,7 @@ internal class AppSettingsPreferences(
             .putInt(KeyPendingMihomoRestartProfileId, state.pendingMihomoRestartProfileId)
             .putInt(KeyRunMode, state.runMode)
             .putInt(KeyMihomoMode, state.mihomoMode)
+            .putBoolean(KeyMihomoProxyInterruptConnections, state.mihomoProxyInterruptConnections)
             .putBoolean(KeyMihomoProxyExcludeNotSelectable, state.mihomoProxyExcludeNotSelectable)
             .putInt(KeyMihomoProxyLayout, state.mihomoProxyLayout)
             .putInt(KeyMihomoProxySort, state.mihomoProxySort)
@@ -562,6 +567,7 @@ private const val KeySelectedMihomoProfileId = "selected_mihomo_profile_id"
 private const val KeyPendingMihomoRestartProfileId = "pending_mihomo_restart_profile_id"
 private const val KeyRunMode = "run_mode"
 private const val KeyMihomoMode = "mihomo_mode"
+private const val KeyMihomoProxyInterruptConnections = "mihomo_proxy_interrupt_connections"
 private const val KeyMihomoProxyExcludeNotSelectable = "mihomo_proxy_exclude_not_selectable"
 private const val KeyMihomoProxyLayout = "mihomo_proxy_layout"
 private const val KeyMihomoProxySort = "mihomo_proxy_sort"

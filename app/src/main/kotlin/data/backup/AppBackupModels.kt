@@ -46,6 +46,7 @@ internal data class AppBackupSettings(
     val hideLauncherIcon: Boolean = BackupDefaults.hideLauncherIcon,
     val autoHideNavigationBar: Boolean = BackupDefaults.autoHideNavigationBar,
     val mihomoMode: Int = BackupDefaults.mihomoMode,
+    val mihomoProxyInterruptConnections: Boolean = BackupDefaults.mihomoProxyInterruptConnections,
     val mihomoProxyExcludeNotSelectable: Boolean = BackupDefaults.mihomoProxyExcludeNotSelectable,
     val mihomoProxyLayout: Int = BackupDefaults.mihomoProxyLayout,
     val mihomoProxySort: Int = BackupDefaults.mihomoProxySort,
