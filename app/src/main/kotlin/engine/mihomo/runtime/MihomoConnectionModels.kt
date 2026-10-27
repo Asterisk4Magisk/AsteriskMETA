@@ -3,12 +3,14 @@
 
 package engine.mihomo.runtime
 
+import utils.longValue
+import utils.arrayValue
+import utils.objectValue
+import utils.stringValue
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.longOrNull
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -109,19 +111,6 @@ private fun String.toRfc3339MillisOrNull(): Long? {
     val fractionMillis = fraction.padEnd(3, '0').take(3).toLongOrNull() ?: 0L
     return secondsMillis + fractionMillis
 }
-
-private fun JsonObject.stringValue(name: String): String? {
-    return (this[name] as? JsonPrimitive)?.contentOrNull?.takeIf(String::isNotBlank)
-}
-
-private fun JsonObject.longValue(name: String): Long? {
-    val primitive = this[name] as? JsonPrimitive ?: return null
-    return primitive.longOrNull ?: primitive.contentOrNull?.toLongOrNull()
-}
-
-private fun JsonObject.objectValue(name: String): JsonObject? = this[name] as? JsonObject
-
-private fun JsonObject.arrayValue(name: String): JsonArray? = this[name] as? JsonArray
 
 private fun JsonObject.stringListValue(name: String): List<String> {
     return arrayValue(name)

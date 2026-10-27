@@ -3,6 +3,12 @@
 
 package engine.mihomo.runtime
 
+import utils.intValue
+import utils.longValue
+import utils.objectValue
+import utils.stringValue
+import utils.jsonArrayOrNull
+import utils.jsonObjectOrNull
 import engine.mihomo.binding.MihomoBridge as Clash
 import engine.mihomo.binding.model.ConfigurationOverride
 import engine.mihomo.binding.model.LogMessage
@@ -20,14 +26,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.isActive
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
-import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
 import java.io.BufferedReader
 import java.io.EOFException
@@ -813,38 +813,6 @@ private fun String.urlEncode(): String {
     return URLEncoder.encode(this, Charsets.UTF_8.name()).replace("+", "%20")
 }
 
-private fun JsonElement?.jsonObjectOrNull(): JsonObject? {
-    return this as? JsonObject
-}
-
-private fun JsonElement?.jsonArrayOrNull(): JsonArray? {
-    return this as? JsonArray
-}
-
-private fun JsonElement?.jsonPrimitiveOrNull(): JsonPrimitive? {
-    return this as? JsonPrimitive
-}
-
-private fun JsonObject.stringValue(name: String): String? {
-    return this[name].jsonPrimitiveOrNull()?.contentOrNull?.takeIf(String::isNotBlank)
-}
-
-private fun JsonObject.longValue(name: String): Long? {
-    return this[name].longValue()
-}
-
-private fun JsonObject.intValue(name: String): Int? {
-    return this[name].intValue()
-}
-
-private fun JsonObject.booleanValue(name: String): Boolean? {
-    return this[name].jsonPrimitiveOrNull()?.contentOrNull?.toBooleanStrictOrNull()
-}
-
-private fun JsonObject.objectValue(name: String): JsonObject? {
-    return this[name].jsonObjectOrNull()
-}
-
 private fun JsonObject.latestDelay(): Int? {
     return this["history"].jsonArrayOrNull()?.lastOrNull()
         .jsonObjectOrNull()?.intValue("delay")?.toMihomoHistoryDelay()
@@ -909,14 +877,6 @@ private fun Int.toMihomoHistoryDelay(
         this >= timeoutMillis -> MihomoTimeoutDelay
         else -> this
     }
-}
-
-private fun JsonElement?.longValue(): Long? {
-    return jsonPrimitiveOrNull()?.longOrNull ?: jsonPrimitiveOrNull()?.contentOrNull?.toLongOrNull()
-}
-
-private fun JsonElement?.intValue(): Int? {
-    return jsonPrimitiveOrNull()?.intOrNull ?: jsonPrimitiveOrNull()?.contentOrNull?.toIntOrNull()
 }
 
 private class MihomoApiException(

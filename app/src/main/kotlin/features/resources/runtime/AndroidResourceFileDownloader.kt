@@ -3,14 +3,13 @@
 
 package features.resources.runtime
 
+import engine.network.withProxyAuthenticator
+import engine.network.ProxyCredentials
+import engine.network.toSocksProxy
 import app.ProjectInfo
 import utils.writeAtomically
 import java.io.File
-import java.net.Authenticator
 import java.net.HttpURLConnection
-import java.net.InetSocketAddress
-import java.net.PasswordAuthentication
-import java.net.Proxy
 import java.net.URI
 
 internal class AndroidResourceFileDownloader {
@@ -20,7 +19,7 @@ internal class AndroidResourceFileDownloader {
         proxy: AndroidResourceFileDownloadProxy? = null,
         onProgress: (downloadedBytes: Long, totalBytes: Long) -> Unit = { _, _ -> },
     ) {
-        proxy.withAuthenticator {
+        proxy.withProxyAuthenticator {
             val connection = URI.create(url).toUrlConnection(proxy)
             try {
                 AndroidResourceFileDownloadCancellation.track(connection)
@@ -50,18 +49,18 @@ internal class AndroidResourceFileDownloader {
 }
 
 internal data class AndroidResourceFileDownloadProxy(
-    val host: String,
-    val port: Int,
-    val username: String,
-    val password: String,
-)
+    override val host: String,
+    override val port: Int,
+    override val username: String,
+    override val password: String,
+) : ProxyCredentials
 
 private fun URI.toUrlConnection(proxy: AndroidResourceFileDownloadProxy?): HttpURLConnection {
     val url = toURL()
     val connection = if (proxy == null) {
         url.openConnection()
     } else {
-        url.openConnection(proxy.toJavaProxy())
+        url.openConnection(proxy.toSocksProxy())
     }
     return (connection as HttpURLConnection).apply {
         connectTimeout = 15_000
@@ -72,32 +71,6 @@ private fun URI.toUrlConnection(proxy: AndroidResourceFileDownloadProxy?): HttpU
     }
 }
 
-private fun AndroidResourceFileDownloadProxy.toJavaProxy(): Proxy {
-    return Proxy(Proxy.Type.SOCKS, InetSocketAddress(host, port))
-}
-
-private inline fun <T> AndroidResourceFileDownloadProxy?.withAuthenticator(block: () -> T): T {
-    if (this == null || username.isBlank()) return block()
-    synchronized(ProxyAuthenticatorLock) {
-        Authenticator.setDefault(toAuthenticator())
-        return try {
-            block()
-        } finally {
-            Authenticator.setDefault(null)
-        }
-    }
-}
-
-private fun AndroidResourceFileDownloadProxy.toAuthenticator(): Authenticator {
-    return object : Authenticator() {
-        override fun getPasswordAuthentication(): PasswordAuthentication? {
-            if (requestingHost != host || requestingPort != port) return null
-            return PasswordAuthentication(username, password.toCharArray())
-        }
-    }
-}
-
-private val ProxyAuthenticatorLock = Any()
 private const val ResourceFileDefaultUserAgent = "${ProjectInfo.PROJECT_NAME}/v${ProjectInfo.VERSION_NAME}"
 
 internal fun overallProgress(

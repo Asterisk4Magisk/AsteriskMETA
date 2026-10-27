@@ -3,11 +3,11 @@
 
 package engine.mihomo.runtime
 
+import utils.stringValue
+import utils.jsonPrimitiveOrNull
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -29,10 +29,10 @@ internal fun JsonObject.toMihomoRuleProviderRuntimeSummary(
         name = stringValue("name") ?: fallbackName,
         behavior = stringValue("behavior")?.lowercase().orEmpty(),
         format = stringValue("format")?.lowercase().orEmpty(),
-        ruleCount = intValue("ruleCount") ?: 0,
+        ruleCount = this["ruleCount"].jsonPrimitiveOrNull()?.intOrNull ?: 0,
         type = stringValue("type").orEmpty(),
         vehicleType = stringValue("vehicleType").orEmpty(),
-        updatedAtMillis = longValue("updatedAt")
+        updatedAtMillis = this["updatedAt"].jsonPrimitiveOrNull()?.longOrNull
             ?: stringValue("updatedAt")?.toMihomoProviderTimestampMillis()
             ?: 0L,
     )
@@ -59,17 +59,3 @@ internal fun String.toMihomoProviderTimestampMillis(): Long {
 }
 
 private val Rfc3339FractionPattern = Regex("""\.(\d+)(?=Z|[+-]\d{2}:?\d{2}$)""")
-
-private fun JsonObject.stringValue(name: String): String? {
-    return runCatching { this[name]?.jsonPrimitive?.contentOrNull }
-        .getOrNull()
-        ?.takeIf(String::isNotBlank)
-}
-
-private fun JsonObject.intValue(name: String): Int? {
-    return runCatching { this[name]?.jsonPrimitive?.intOrNull }.getOrNull()
-}
-
-private fun JsonObject.longValue(name: String): Long? {
-    return runCatching { this[name]?.jsonPrimitive?.longOrNull }.getOrNull()
-}

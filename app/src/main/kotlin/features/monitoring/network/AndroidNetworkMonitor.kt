@@ -3,6 +3,8 @@
 
 package features.monitoring.network
 
+import engine.network.withProxyAuthenticator
+import engine.network.ProxyCredentials
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.LinkProperties
@@ -16,12 +18,10 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeout
-import java.net.Authenticator
 import java.net.HttpURLConnection
 import java.net.Inet4Address
 import java.net.Inet6Address
 import java.net.InetAddress
-import java.net.PasswordAuthentication
 import java.net.Proxy
 import java.net.URI
 import java.util.concurrent.atomic.AtomicReference
@@ -40,12 +40,12 @@ internal class AndroidNetworkMonitor(context: Context) {
 
 internal data class PublicProbeProxy(
     val proxy: Proxy,
-    val host: String = "",
-    val port: Int = 0,
-    val username: String = "",
-    val password: String = "",
+    override val host: String = "",
+    override val port: Int = 0,
+    override val username: String = "",
+    override val password: String = "",
     val proxyAuthorization: String? = null,
-)
+) : ProxyCredentials
 
 internal class PublicNetworkProbeClient(
     private val endpoints: List<PublicProbeEndpoint> = DefaultPublicProbeEndpoints,
@@ -104,7 +104,7 @@ internal class PublicNetworkProbeClient(
                 val startedAt = SystemClock.elapsedRealtime()
                 val attempt = runCatching {
                     val probeProxy = proxyProvider?.invoke()
-                    probeProxy.withAuthenticator {
+                    probeProxy.withProxyAuthenticator {
                         val rawConnection = if (probeProxy != null) {
                             URI(endpoint.url).toURL().openConnection(probeProxy.proxy)
                         } else {
@@ -271,28 +271,6 @@ private data class NetworkCandidate(
     val linkProperties: LinkProperties,
 )
 
-private fun PublicProbeProxy.toAuthenticator(): Authenticator {
-    return object : Authenticator() {
-        override fun getPasswordAuthentication(): PasswordAuthentication? {
-            if (requestingHost != host || requestingPort != port) return null
-            return PasswordAuthentication(username, password.toCharArray())
-        }
-    }
-}
-
-private inline fun <T> PublicProbeProxy?.withAuthenticator(block: () -> T): T {
-    if (this == null || username.isBlank()) return block()
-    synchronized(PublicProbeAuthenticatorLock) {
-        Authenticator.setDefault(toAuthenticator())
-        return try {
-            block()
-        } finally {
-            Authenticator.setDefault(null)
-        }
-    }
-}
-
-private val PublicProbeAuthenticatorLock = Any()
 private const val PublicProbeSocketTimeoutMillis = 15_000
 private const val PublicProbeOverallTimeoutMillis = 15_000L
 private const val PublicProbeMaxResponseChars = 8_192
