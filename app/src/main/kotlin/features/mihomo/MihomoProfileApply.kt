@@ -6,7 +6,6 @@ package features.mihomo
 import app.AppServices
 import app.AppState
 import app.withMihomoRestartApplied
-import engine.mihomo.selectedMihomoProfileOrNull
 import engine.proxy.ProxyServiceResult
 import features.home.HomeServiceOperation
 import kotlinx.coroutines.Dispatchers
@@ -42,18 +41,11 @@ internal fun AppServices.launchPendingProfileApply(
             when (val result = proxyServiceUseCase.applyConfiguration(snapshot)) {
                 is ProxyServiceResult.Success -> {
                     updateAppState { state ->
-                        val applied = state.copy(
+                        state.copy(
                             proxyRunning = result.proxyRunning,
                             localProxyPort = result.appState?.localProxyPort ?: state.localProxyPort,
                             mihomoControlPort = result.appState?.mihomoControlPort ?: state.mihomoControlPort,
-                        )
-                        // The core now runs [snapshot]'s profile. If that profile changed again
-                        // while the apply was in flight, the newer change is still pending.
-                        if (state.selectedMihomoProfileOrNull() == snapshot.selectedMihomoProfileOrNull()) {
-                            applied.withMihomoRestartApplied()
-                        } else {
-                            applied
-                        }
+                        ).withMihomoRestartApplied()
                     }
                     if (result.proxyRunning) tipNotifier.show(appliedMessage)
                     if (isPageActive()) onApplied()

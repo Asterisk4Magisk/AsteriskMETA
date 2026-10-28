@@ -54,7 +54,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.AppServices
-import app.AppState
 import app.LocalAppServices
 import app.LocalAppStateStore
 import app.LocalHomeServiceControl
@@ -285,7 +284,6 @@ fun MihomoDashboardPage(
         ) {
             item("controller") {
                 HomeControllerCard(
-                    appState = appState,
                     controllerState = controllerState,
                     networkActivityState = networkActivityState,
                     operationInProgress = operationInProgress,
@@ -362,7 +360,6 @@ fun MihomoDashboardPage(
 
 @Composable
 private fun HomeControllerCard(
-    appState: AppState,
     controllerState: HomeControllerState,
     networkActivityState: HomeNetworkActivityState,
     operationInProgress: Boolean,
@@ -400,32 +397,6 @@ private fun HomeControllerCard(
     ) {
         Box(modifier = Modifier.offset(y = HomeControllerContentOffset)) {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                if (
-                    appState.proxyRunning &&
-                    appState.pendingMihomoRestartProfileId == appState.selectedMihomoProfileId
-                ) {
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = MaterialTheme.shapes.large,
-                        color = MaterialTheme.colorScheme.tertiaryContainer,
-                        onClick = onOpenConfiguration,
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Icon(Icons.Rounded.Tune, contentDescription = null)
-                            Spacer(Modifier.size(12.dp))
-                            Text(
-                                text = stringResource(R.string.mihomo_profile_restart_required),
-                                modifier = Modifier.weight(1f),
-                                style = MaterialTheme.typography.labelLarge,
-                            )
-                            Icon(Icons.Rounded.ChevronRight, contentDescription = null)
-                        }
-                    }
-                }
-
                 controllerState.primaryRows
                     .filter { row -> row.kind == HomePrimaryRowKind.Node }
                     .forEach { row ->

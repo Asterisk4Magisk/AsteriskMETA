@@ -121,11 +121,9 @@ internal fun prepareProcessingProfileDir(
         profileContent.orEmpty().mihomoRemoteProviderFiles(
             dataDir = processingDir,
             type = MihomoProviderType.Proxy,
-        ).also { files ->
-            files.forEach { file ->
-                if (file.exists()) {
-                    file.delete()
-                }
+        ).onEach { file ->
+            if (file.exists()) {
+                file.delete()
             }
         }
     } else {

@@ -13,10 +13,12 @@ import androidx.compose.ui.res.stringResource
 import app.AppState
 import app.LocalAppServices
 import app.R
+import app.withMihomoRestartApplied
 import app.modes.RunModeBpf2Socks
 import app.modes.RunModeTproxy
 import app.modes.RunModeTun2Socks
 import app.modes.RunModeVpnService
+import app.modes.isRootRunMode
 import engine.mihomo.raw.usesRawMihomoConfig
 import features.logs.AndroidAppLogger
 import features.settings.sheets.AutoSwitchSettingsBottomSheet
@@ -317,11 +319,12 @@ internal fun SettingsBottomSheetsHost(
                     try {
                         val applied = applyServiceControl.apply(appState, draft)
                         updateAppState { current ->
-                            current.copy(
+                            val updated = current.copy(
                                 serviceControl = applied.serviceControl,
                                 proxyRunning = applied.proxyRunning,
                                 localProxyPort = applied.localProxyPort,
                             )
+                            if (applied.runMode.isRootRunMode()) updated.withMihomoRestartApplied() else updated
                         }
                         sheetState.showServiceControl = false
                     } catch (error: Throwable) {

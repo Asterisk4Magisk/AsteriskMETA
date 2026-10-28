@@ -359,6 +359,7 @@
     <string name="mihomo_profile_restart_later">稍后</string>
     <string name="mihomo_profile_restart_now">立即应用</string>
     <string name="mihomo_profile_restart_required">更改尚未生效</string>
+    <string name="mihomo_profile_config_apply_summary">配置已更改，运行中的服务仍在使用先前配置，应用后生效。</string>
     <string name="mihomo_profile_restart_required_message">当前服务仍在使用先前配置。是否立即将已保存的配置应用到运行中的服务？</string>
     <string name="mihomo_profile_save_anyway">仍然保存</string>
     <string name="mihomo_profile_save_failed">保存配置失败</string>

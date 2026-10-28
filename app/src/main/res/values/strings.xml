@@ -365,6 +365,7 @@
     <string name="mihomo_profile_restart_later">Later</string>
     <string name="mihomo_profile_restart_now">Apply now</string>
     <string name="mihomo_profile_restart_required">Changes not applied yet</string>
+    <string name="mihomo_profile_config_apply_summary">The profile has changed. The running service is still using the previous profile. Apply the changes to use the saved profile.</string>
     <string name="mihomo_profile_restart_required_message">The running service is still using the previous profile. Apply the saved profile to it now?</string>
     <string name="mihomo_profile_save_anyway">Save anyway</string>
     <string name="mihomo_profile_save_failed">Failed to save profile</string>

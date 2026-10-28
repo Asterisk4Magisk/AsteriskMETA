@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -52,6 +54,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.selected
@@ -114,6 +117,7 @@ import ui.layout.pageListPadding
 import ui.components.AsteriskInfoChip
 import ui.components.AsteriskChipTone
 import ui.components.AsteriskExtendedFab
+import ui.components.AsteriskConfigApplyBanner
 import ui.components.AsteriskSelectionCard
 import ui.theme.AsteriskShapeTokens
 import ui.text.formatTemplate
@@ -808,68 +812,100 @@ fun MihomoProfileListPage(
             isWideScreen = isWideScreen,
         )
         val listPadding = pageListPadding(contentPadding, bottomExtra = 88.dp)
+        val layoutDirection = LocalLayoutDirection.current
+        val showApplyBanner = appState.proxyRunning &&
+            appState.selectedMihomoProfileId != DefaultMihomoProfileId &&
+            appState.pendingMihomoRestartProfileId == appState.selectedMihomoProfileId
+        val profileListPadding = if (showApplyBanner) {
+            // The pinned banner owns the top bar inset; retain the list's card gap and FAB space.
+            PaddingValues(
+                start = listPadding.calculateStartPadding(layoutDirection),
+                end = listPadding.calculateEndPadding(layoutDirection),
+                top = 12.dp,
+                bottom = listPadding.calculateBottomPadding(),
+            )
+        } else {
+            listPadding
+        }
 
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = listPadding,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            if (appState.mihomoProfiles.isEmpty()) {
-                item(key = "profile_empty", contentType = "empty") {
-                    MihomoProfileListEmptyState()
-                }
-            } else {
-                items(
-                    items = appState.mihomoProfiles,
-                    key = { profile -> profile.id },
-                ) { profile ->
-                    val selected = profile.id == appState.selectedMihomoProfileId
-                    MihomoProfileCard(
-                        profile = profile,
-                        overrideScripts = appState.mihomoOverrideScripts,
-                        selected = selected,
-                        restartRequired = profile.id == appState.pendingMihomoRestartProfileId,
-                        syncing = profile.id in syncingProfileIds,
-                        hasProxyProviders = proxyProviderNamesByProfileId[profile.id]
-                            ?.takeIf { metadata ->
-                                metadata.contentKey == profile.providerMetadataContentKey()
-                            }
-                            ?.names
-                            ?.isNotEmpty() == true,
-                        providerUsageState = if (selected) {
-                            resolveSharedMihomoProviderUsageState(
-                                keyedState = keyedProviderUsageState,
-                                expectedKey = providerUsageLoadKey,
-                                waitingForStop = providerUsageWaitingForProfileStop,
-                                stopFailed = providerUsageProfileStopFailed,
-                            )
-                        } else {
-                            MihomoProviderUsageLoadState.Hidden
-                        },
-                        providerUsageExpanded = providerUsageExpandedProfileId == profile.id,
-                        onProviderUsageExpandedChange = { expanded ->
-                            providerUsageExpandedProfileId = if (expanded) profile.id else null
-                        },
-                        onProviderUsageRetry = ::retryProviderUsage,
-                        onOpenProviderDetails = { navigator.push(Route.MihomoProviderManagement) },
-                        onSelect = { selectProfile(profile) },
-                        onAction = { action ->
-                            when (action) {
-                                MihomoProfileAction.Edit -> {
-                                    navigator.push(
-                                        Route.MihomoProfileEdit(
-                                            profileId = profile.id,
-                                            type = profile.type.storageValue,
-                                        ),
-                                    )
+        Column(modifier = Modifier.fillMaxSize()) {
+            if (showApplyBanner) {
+                AsteriskConfigApplyBanner(
+                    title = stringResource(R.string.mihomo_profile_restart_required),
+                    summary = stringResource(R.string.mihomo_profile_config_apply_summary),
+                    actionLabel = stringResource(R.string.mihomo_profile_restart_now),
+                    applying = applyingProfile,
+                    enabled = services.profileApplyAvailable,
+                    onApply = ::restartWithUpdatedSubscription,
+                    modifier = Modifier.padding(
+                        start = listPadding.calculateStartPadding(layoutDirection),
+                        end = listPadding.calculateEndPadding(layoutDirection),
+                        top = listPadding.calculateTopPadding(),
+                    ),
+                )
+            }
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                contentPadding = profileListPadding,
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                if (appState.mihomoProfiles.isEmpty()) {
+                    item(key = "profile_empty", contentType = "empty") {
+                        MihomoProfileListEmptyState()
+                    }
+                } else {
+                    items(
+                        items = appState.mihomoProfiles,
+                        key = { profile -> profile.id },
+                    ) { profile ->
+                        val selected = profile.id == appState.selectedMihomoProfileId
+                        MihomoProfileCard(
+                            profile = profile,
+                            overrideScripts = appState.mihomoOverrideScripts,
+                            selected = selected,
+                            restartRequired = profile.id == appState.pendingMihomoRestartProfileId,
+                            syncing = profile.id in syncingProfileIds,
+                            hasProxyProviders = proxyProviderNamesByProfileId[profile.id]
+                                ?.takeIf { metadata ->
+                                    metadata.contentKey == profile.providerMetadataContentKey()
                                 }
-                                MihomoProfileAction.Preview -> previewProfile(profile)
-                                MihomoProfileAction.Sync -> syncProfile(profile)
-                                MihomoProfileAction.SyncProviders -> syncProfileProviders(profile)
-                                MihomoProfileAction.Delete -> deleteProfile(profile)
-                            }
-                        },
-                    )
+                                ?.names
+                                ?.isNotEmpty() == true,
+                            providerUsageState = if (selected) {
+                                resolveSharedMihomoProviderUsageState(
+                                    keyedState = keyedProviderUsageState,
+                                    expectedKey = providerUsageLoadKey,
+                                    waitingForStop = providerUsageWaitingForProfileStop,
+                                    stopFailed = providerUsageProfileStopFailed,
+                                )
+                            } else {
+                                MihomoProviderUsageLoadState.Hidden
+                            },
+                            providerUsageExpanded = providerUsageExpandedProfileId == profile.id,
+                            onProviderUsageExpandedChange = { expanded ->
+                                providerUsageExpandedProfileId = if (expanded) profile.id else null
+                            },
+                            onProviderUsageRetry = ::retryProviderUsage,
+                            onOpenProviderDetails = { navigator.push(Route.MihomoProviderManagement) },
+                            onSelect = { selectProfile(profile) },
+                            onAction = { action ->
+                                when (action) {
+                                    MihomoProfileAction.Edit -> {
+                                        navigator.push(
+                                            Route.MihomoProfileEdit(
+                                                profileId = profile.id,
+                                                type = profile.type.storageValue,
+                                            ),
+                                        )
+                                    }
+                                    MihomoProfileAction.Preview -> previewProfile(profile)
+                                    MihomoProfileAction.Sync -> syncProfile(profile)
+                                    MihomoProfileAction.SyncProviders -> syncProfileProviders(profile)
+                                    MihomoProfileAction.Delete -> deleteProfile(profile)
+                                }
+                            },
+                        )
+                    }
                 }
             }
         }
@@ -1047,21 +1083,16 @@ internal fun MihomoProfileCard(
                         Icon(Icons.Rounded.MoreVert, stringResource(R.string.mihomo_profile_actions))
                     }
                     DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
-                        MihomoProfileMenuItem(stringResource(R.string.common_edit), MihomoProfileAction.Edit,
-                            onAction, { menuExpanded = false })
-                        MihomoProfileMenuItem(stringResource(R.string.mihomo_profile_preview), MihomoProfileAction.Preview,
-                            onAction, { menuExpanded = false })
+                        MihomoProfileMenuItem(stringResource(R.string.common_edit), MihomoProfileAction.Edit, onAction) { menuExpanded = false }
+                        MihomoProfileMenuItem(stringResource(R.string.mihomo_profile_preview), MihomoProfileAction.Preview, onAction) { menuExpanded = false }
                         if (displayState.showSync && !syncing) {
-                            MihomoProfileMenuItem(stringResource(R.string.mihomo_profile_sync), MihomoProfileAction.Sync,
-                                onAction, { menuExpanded = false })
+                            MihomoProfileMenuItem(stringResource(R.string.mihomo_profile_sync), MihomoProfileAction.Sync, onAction) { menuExpanded = false }
                         }
                         if (hasProxyProviders && !syncing) {
-                            MihomoProfileMenuItem(stringResource(R.string.mihomo_profile_sync_providers), MihomoProfileAction.SyncProviders,
-                                onAction, { menuExpanded = false })
+                            MihomoProfileMenuItem(stringResource(R.string.mihomo_profile_sync_providers), MihomoProfileAction.SyncProviders, onAction) { menuExpanded = false }
                         }
                         if (!profile.builtIn) {
-                            MihomoProfileMenuItem(stringResource(R.string.common_delete), MihomoProfileAction.Delete,
-                                onAction, { menuExpanded = false })
+                            MihomoProfileMenuItem(stringResource(R.string.common_delete), MihomoProfileAction.Delete, onAction) { menuExpanded = false }
                         }
                     }
                 }
