@@ -184,23 +184,25 @@ private fun parseDnsHijack(root: Map<*, *>): RawConfigField<MihomoRawDnsHijack> 
     val dnsEnabled = root.mapValue("dns")?.get("enable") == true
     val dnsOutbounds = (root["proxies"] as? List<*>)
         .orEmpty()
-        .mapNotNull { it as? Map<*, *> }
+        .filterIsInstance<Map<*, *>>()
         .filter { it["type"]?.toString()?.equals("dns", true) == true }
-        .mapNotNull { it["name"]?.toString() }
+        .mapNotNull { it["name"]?.toString()?.trim()?.uppercase() }
         .toSet()
     val matches = (root["rules"] as? List<*>)
         .orEmpty()
-        .mapNotNull { it?.toString() }
-        .filter { rule ->
-            val compact = rule.replace(" ", "").uppercase()
-            val target = compact.substringAfterLast(',').trim(')', '(', ' ')
-            val matchesPort53 = Regex("DST-PORT,53(?:-53)?(?=[,)])").containsMatchIn(compact)
-            matchesPort53 && target in dnsOutbounds.map(String::uppercase)
+        .mapNotNull { it?.toString()?.trim() }
+        .mapNotNull { rule ->
+            // TYPE,PAYLOAD,TARGET[,OPTIONS...]; logic payloads keep their commas inside parentheses.
+            val fields = splitRuleFields(rule)
+            if (fields.size < 3) return@mapNotNull null
+            val target = fields[2]
+            if (target.uppercase() !in dnsOutbounds) return@mapNotNull null
+            DnsRuleMatch(rule, target, "${fields[0]},${fields[1]}")
         }
-    val tcp = matches.firstOrNull { dnsRuleCoversProtocol(it, "TCP") }
-    val udp = matches.firstOrNull { dnsRuleCoversProtocol(it, "UDP") }
-    val match = listOfNotNull(tcp, udp).distinct().joinToString("; ").takeIf(String::isNotEmpty)
-    val outbound = match?.substringAfterLast(',')?.trim(')', '(', ' ')
+    val tcp = matches.firstOrNull { dnsConditionCoversProtocol(it.condition, "TCP") }
+    val udp = matches.firstOrNull { dnsConditionCoversProtocol(it.condition, "UDP") }
+    val match = listOfNotNull(tcp, udp).distinct().joinToString("; ") { it.rule }.takeIf(String::isNotEmpty)
+    val outbound = (tcp ?: udp)?.target
     return RawConfigField(
         value = MihomoRawDnsHijack(
             dnsEnabled = dnsEnabled,
@@ -212,17 +214,68 @@ private fun parseDnsHijack(root: Map<*, *>): RawConfigField<MihomoRawDnsHijack> 
     )
 }
 
-// Only prove positive port rules and simple conjunctions. Negation or arbitrary
-// logical nesting can restrict a transport even when its name appears in the rule.
-private fun dnsRuleCoversProtocol(rule: String, protocol: String): Boolean {
-    val condition = rule.replace(" ", "").uppercase().substringBeforeLast(',')
-    if (condition == "DST-PORT,53" || condition == "DST-PORT,53-53") return true
-    if (!condition.startsWith("AND,((") || !condition.endsWith("))")) return false
-    val clauses = condition.removePrefix("AND,((").removeSuffix("))").split("),(")
-    return clauses.all { clause ->
-        clause == "DST-PORT,53" || clause == "DST-PORT,53-53" || clause == "NETWORK,$protocol" ||
-            Regex("IN-(?:NAME|TYPE),[^(),]+").matches(clause)
+private data class DnsRuleMatch(val rule: String, val target: String, val condition: String)
+
+// A condition covers a transport only when every port 53 packet of that transport matches it.
+// AND needs all clauses, OR needs one, nested logic is followed; NOT and unknown rule types
+// can restrict traffic in ways that cannot be proven here.
+private fun dnsConditionCoversProtocol(condition: String, protocol: String, depth: Int = 0): Boolean {
+    if (depth > 8) return false
+    val fields = splitRuleFields(condition)
+    if (fields.size < 2) return false
+    val payload = fields[1]
+    return when (fields[0].uppercase()) {
+        "DST-PORT" -> portSpecContains53(payload)
+        "NETWORK" -> payload.equals(protocol, true)
+        "IN-NAME", "IN-TYPE" -> payload.isNotEmpty()
+        "AND" -> logicClauses(payload)?.all { dnsConditionCoversProtocol(it, protocol, depth + 1) } == true
+        "OR" -> logicClauses(payload)?.any { dnsConditionCoversProtocol(it, protocol, depth + 1) } == true
+        else -> false
     }
+}
+
+// Mihomo port payloads are "/"-separated single ports or inclusive ranges, e.g. 53/853 or 1-1024.
+private fun portSpecContains53(payload: String): Boolean =
+    payload.split('/').any { part ->
+        val bounds = part.trim().split('-').map { it.trim().toIntOrNull() }
+        when (bounds.size) {
+            1 -> bounds[0] == 53
+            2 -> {
+                val (start, end) = bounds
+                start != null && end != null && 53 in start..end
+            }
+            else -> false
+        }
+    }
+
+// "((A,x),(B,y))" -> ["A,x", "B,y"]; null when the payload is not a parenthesized clause list.
+private fun logicClauses(payload: String): List<String>? {
+    val inner = payload.trim().takeIf { it.startsWith('(') && it.endsWith(')') }
+        ?.substring(1, payload.trim().length - 1) ?: return null
+    val clauses = splitRuleFields(inner).map { clause ->
+        clause.takeIf { it.startsWith('(') && it.endsWith(')') }?.substring(1, clause.length - 1)?.trim()
+            ?: return null
+    }
+    return clauses.takeIf { it.isNotEmpty() }
+}
+
+// Splits on commas outside parentheses and trims each field like Mihomo does.
+private fun splitRuleFields(rule: String): List<String> {
+    val fields = mutableListOf<String>()
+    var depth = 0
+    var start = 0
+    rule.forEachIndexed { index, char ->
+        when (char) {
+            '(' -> depth++
+            ')' -> depth--
+            ',' -> if (depth == 0) {
+                fields += rule.substring(start, index).trim()
+                start = index + 1
+            }
+        }
+    }
+    fields += rule.substring(start).trim()
+    return fields
 }
 
 private fun Map<*, *>.stringField(path: String): RawConfigField<String> {
