@@ -1,5 +1,5 @@
 [versions]
-agp = "9.4.1"
+agp = "9.5.0"
 androidx-activity-compose = "1.13.0"
 androidx-lifecycle = "2.11.0"
 androidx-navigation3 = "1.2.0"
