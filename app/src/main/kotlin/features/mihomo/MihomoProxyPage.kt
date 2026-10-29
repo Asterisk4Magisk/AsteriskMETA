@@ -329,7 +329,8 @@ fun MihomoProxyPage(
         val pendingProxyName = pendingSelections[group.name]
         if (pendingProxyName == node.name || (pendingProxyName == null && group.now == node.name)) return
         pendingSelections = pendingSelections + (group.name to node.name)
-        scope.launch {
+        // Finish the DNS transaction even if this page leaves composition.
+        services.appScope.launch(Dispatchers.Main.immediate) {
             services.mihomoRuntime.selectProxy(appState, group.name, node.name)
                 .onSuccess {
                     if (appState.mihomoProxyInterruptConnections && appState.proxyRunning) {

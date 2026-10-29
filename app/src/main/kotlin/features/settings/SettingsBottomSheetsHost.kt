@@ -4,11 +4,9 @@
 package features.settings
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
 import app.AppState
 import app.LocalAppServices
@@ -21,6 +19,7 @@ import app.modes.RunModeVpnService
 import app.modes.isRootRunMode
 import engine.mihomo.raw.usesRawMihomoConfig
 import features.logs.AndroidAppLogger
+import features.settings.servicecontrol.ServiceControlOperationState
 import features.settings.sheets.AutoSwitchSettingsBottomSheet
 import features.settings.sheets.ConnectionTestSettingsBottomSheet
 import features.settings.sheets.DnsSettingsBottomSheet
@@ -37,7 +36,6 @@ import features.settings.sheets.sanitizeExternalInterfaces
 import features.settings.sheets.sanitizeIgnoredInterfaceSelectors
 import features.settings.sheets.sanitizePrivateAddressCidrs
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.launch
 
 @Composable
 internal fun SettingsBottomSheetsHost(
@@ -46,11 +44,11 @@ internal fun SettingsBottomSheetsHost(
     tunStackOptions: List<String>,
     updateAppState: ((AppState) -> AppState) -> Unit,
 ) {
-    val scope = rememberCoroutineScope()
-    val applyServiceControl = LocalAppServices.current.applyServiceControlUseCase
+    val services = LocalAppServices.current
+    val applyServiceControl = services.applyServiceControlUseCase
     val serviceControlFailedMessage = stringResource(R.string.settings_service_control_save_failed)
-    var serviceControlSaving by remember { mutableStateOf(false) }
-    var serviceControlError by remember { mutableStateOf<String?>(null) }
+    val serviceControlSaving by ServiceControlOperationState.saving.collectAsState()
+    val serviceControlError by ServiceControlOperationState.error.collectAsState()
     ConnectionTestSettingsBottomSheet(
         show = sheetState.showConnectionTestSettings,
         overridesEnabled = !appState.usesRawMihomoConfig(),
@@ -299,13 +297,19 @@ internal fun SettingsBottomSheetsHost(
             sheetState.showExternalInterfaces = false
         },
     )
+    if (sheetState.showServiceControl) {
+        DisposableEffect(Unit) {
+            val observation = ServiceControlOperationState.observeSheet()
+            onDispose { observation.close() }
+        }
+    }
     ServiceControlBottomSheet(
         show = sheetState.showServiceControl,
         saving = serviceControlSaving,
         draft = sheetState.serviceControlDraft,
         runtimeError = serviceControlError,
         onDraftChange = {
-            serviceControlError = null
+            ServiceControlOperationState.clearError()
             sheetState.serviceControlDraft = it
         },
         onDismissRequest = {
@@ -313,9 +317,7 @@ internal fun SettingsBottomSheetsHost(
         },
         onSave = { draft ->
             if (!serviceControlSaving) {
-                serviceControlSaving = true
-                serviceControlError = null
-                scope.launch {
+                ServiceControlOperationState.launch(services.appScope) {
                     try {
                         val applied = applyServiceControl.apply(appState, draft)
                         updateAppState { current ->
@@ -330,10 +332,11 @@ internal fun SettingsBottomSheetsHost(
                     } catch (error: Throwable) {
                         if (error is CancellationException) throw error
                         AndroidAppLogger.error("ServiceControl", "Failed to restart asteriskd", error)
-                        serviceControlError = error.message?.takeIf(String::isNotBlank)
+                        val message = error.message?.takeIf(String::isNotBlank)
                             ?: serviceControlFailedMessage
-                    } finally {
-                        serviceControlSaving = false
+                        if (!ServiceControlOperationState.reportError(message)) {
+                            services.tipNotifier.show(message)
+                        }
                     }
                 }
             }

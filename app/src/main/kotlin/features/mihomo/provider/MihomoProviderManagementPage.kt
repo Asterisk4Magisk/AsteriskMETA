@@ -257,7 +257,8 @@ fun MihomoProviderManagementPage(
             )
         ) return
         setProviderRefreshing(type, provider.name, true)
-        actionScope.launch {
+        // Finish the DNS transaction even if this page leaves composition or appState changes.
+        services.appScope.launch(Dispatchers.Main.immediate) {
             try {
                 val result = when (type) {
                     MihomoProviderType.Proxy -> services.mihomoRuntime.refreshProxyProvider(appState, provider.name)
@@ -336,7 +337,8 @@ fun MihomoProviderManagementPage(
         refreshingNamesByType = refreshingNamesByType + (
             type to providers.map(MihomoProviderDeclaration::name).toSet()
         )
-        actionScope.launch {
+        // Finish the DNS transactions even if this page leaves composition or appState changes.
+        services.appScope.launch(Dispatchers.Main.immediate) {
             try {
                 val results = providers.map { provider ->
                     when (type) {
