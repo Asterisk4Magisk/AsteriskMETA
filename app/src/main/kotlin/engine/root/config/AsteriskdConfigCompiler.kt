@@ -65,7 +65,7 @@ internal fun RootStartConfig.buildAsteriskdConfig(
                 ignoredInterfaces = emptyList(),
                 virtualInterfaces = emptyList(),
                 // Shared interfaces are used only for Android offload preparation.
-                hotspotInterfacePrefixes = if (mode == AsteriskdMode.Tun) {
+                hotspotInterfaces = if (mode == AsteriskdMode.Tun) {
                     iptablesConfig.externalInterfacePrefixes.distinct()
                 } else {
                     emptyList()
@@ -89,7 +89,7 @@ internal fun RootStartConfig.buildAsteriskdConfig(
                 fakeDnsIpv4Pool = fakeIpIpv4Pool.takeIf { enableFakeIp },
                 ignoredInterfaces = iptablesConfig.ignoredInterfaces.distinct(),
                 virtualInterfaces = virtualInterfaces.distinct(),
-                hotspotInterfacePrefixes = iptablesConfig.externalInterfacePrefixes.distinct(),
+                hotspotInterfaces = iptablesConfig.externalInterfacePrefixes.distinct(),
                 proxyPrivateCidrs = (
                     iptablesConfig.proxyPrivateIpv4Cidrs +
                         iptablesConfig.proxyPrivateIpv6Cidrs.takeIf { enableIpv6 }.orEmpty()

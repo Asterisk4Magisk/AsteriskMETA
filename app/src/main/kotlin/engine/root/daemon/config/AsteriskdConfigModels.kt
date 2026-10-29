@@ -127,7 +127,7 @@ internal data class AsteriskdNetworkConfig(
     val fakeDnsIpv4Pool: String?,
     val ignoredInterfaces: List<String>,
     val virtualInterfaces: List<String>,
-    val hotspotInterfacePrefixes: List<String>,
+    val hotspotInterfaces: List<String>,
     val proxyPrivateCidrs: List<String>,
     val bypassPrivateCidrs: List<String>,
     val appPolicy: AsteriskdAppPolicy,
@@ -183,7 +183,7 @@ internal data class AsteriskdBpf2SocksHelper(
     val udpBatchSize: Int = 32,
     val maxUdpSessions: Int = 4096,
     val maxUdpBindings: Int = 16384,
-    val udpIdleTimeoutSeconds: Int = 60,
+    val udpIdleTimeoutMilliseconds: Int = 60000,
     val maxUdpPendingBytes: Int = 64 * 1024 * 1024,
     val dnsTransactionTimeoutMilliseconds: Int = 60000,
 ) : AsteriskdHelper

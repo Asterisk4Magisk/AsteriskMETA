@@ -49,7 +49,7 @@ internal object AsteriskdConfigValidator {
             require(!network.enableLocalDns && !network.enableFakeDns && network.fakeDnsIpv4Pool == null)
             require(network.ignoredInterfaces.isEmpty())
             require(network.virtualInterfaces.isEmpty())
-            if (mode == AsteriskdMode.Ebpf) require(network.hotspotInterfacePrefixes.isEmpty())
+            if (mode == AsteriskdMode.Ebpf) require(network.hotspotInterfaces.isEmpty())
             require(network.proxyPrivateCidrs.isEmpty() && network.bypassPrivateCidrs.isEmpty())
             require(network.appPolicy == AsteriskdAppPolicy(
                 mode = AsteriskdAppPolicyMode.Global,
