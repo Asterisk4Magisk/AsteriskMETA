@@ -100,6 +100,11 @@ internal fun settingsTopLevelSearchItems(
         ),
         SettingsSearchItem(
             SettingsSectionId.Apps,
+            stringResource(R.string.settings_proxy_group_layout),
+            stringResource(R.string.settings_proxy_group_layout_summary),
+        ),
+        SettingsSearchItem(
+            SettingsSectionId.Apps,
             stringResource(R.string.settings_language),
             value = optionValue(languageOptions, languageMode),
             optionText = languageOptions,

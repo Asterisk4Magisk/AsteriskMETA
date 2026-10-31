@@ -3,6 +3,8 @@
 
 package features.mihomo
 
+import app.modes.MihomoProxyGroupLayoutExpandable
+import app.modes.MihomoProxyGroupLayoutTabs
 import app.modes.MihomoProxyLayoutAuto
 import app.modes.MihomoProxyLayoutDouble
 import app.modes.MihomoProxyLayoutMultiple
@@ -54,6 +56,13 @@ internal fun reduceMihomoProxyNodeNames(
         }
         ?.sortMihomoProxyNodeNames(proxies, resolveMihomoProxySort(sort))
         .orEmpty()
+}
+
+internal fun resolveMihomoProxyGroupLayout(groupLayout: Int): Int {
+    return when (groupLayout) {
+        MihomoProxyGroupLayoutTabs -> MihomoProxyGroupLayoutTabs
+        else -> MihomoProxyGroupLayoutExpandable
+    }
 }
 
 internal fun resolveMihomoProxyLayout(layout: Int, isWideScreen: Boolean): Int {

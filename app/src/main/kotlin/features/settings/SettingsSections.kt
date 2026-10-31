@@ -4,6 +4,8 @@
 package features.settings
 
 import android.os.Build
+import app.modes.MihomoProxyGroupLayoutExpandable
+import app.modes.MihomoProxyGroupLayoutTabs
 import app.modes.RunModeBpf2Socks
 import app.modes.RunModeTun
 import app.modes.RunModeTun2Socks
@@ -56,6 +58,8 @@ internal fun SettingsAppSection(
     onLanguageModeChange: (Int) -> Unit,
     autoHideNavigationBar: Boolean,
     onAutoHideNavigationBarChange: (Boolean) -> Unit,
+    proxyGroupLayout: Int,
+    onProxyGroupLayoutChange: (Int) -> Unit,
 ) {
     SmallTitle(text = stringResource(R.string.settings_app))
     SettingsSectionCard {
@@ -87,6 +91,35 @@ internal fun SettingsAppSection(
                 checked = autoHideNavigationBar,
                 onCheckedChange = onAutoHideNavigationBarChange,
                 accent = IconAccent.MaskBlueVariant,
+            )
+        }
+    }
+    val proxyGroupLayoutTitle = stringResource(R.string.settings_proxy_group_layout)
+    val proxyGroupLayoutSummary = stringResource(
+        if (proxyGroupLayout == MihomoProxyGroupLayoutExpandable) {
+            R.string.settings_proxy_group_layout_expandable_summary
+        } else {
+            R.string.settings_proxy_group_layout_tabs_summary
+        }
+    )
+    val proxyGroupLayoutOptions = listOf(
+        stringResource(R.string.settings_proxy_group_layout_expandable),
+        stringResource(R.string.settings_proxy_group_layout_tabs),
+    )
+    if (settingsRowMatchesQuery(proxyGroupLayoutTitle, proxyGroupLayoutSummary, proxyGroupLayoutOptions.joinToString())) {
+        SettingsSectionCard {
+            OverlayDropdownPreference(
+                title = proxyGroupLayoutTitle,
+                icon = Icons.Rounded.ViewAgenda,
+                summary = proxyGroupLayoutSummary,
+                items = proxyGroupLayoutOptions,
+                selectedIndex = if (proxyGroupLayout == MihomoProxyGroupLayoutTabs) 1 else 0,
+                onSelectedIndexChange = { index ->
+                    onProxyGroupLayoutChange(
+                        if (index == 1) MihomoProxyGroupLayoutTabs else MihomoProxyGroupLayoutExpandable
+                    )
+                },
+                accent = IconAccent.MaskPurple,
             )
         }
     }
