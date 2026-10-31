@@ -3,24 +3,13 @@
 
 package features.mihomo
 
-import ui.isInDarkTheme
-import ui.components.AsteriskSearchTopAppBar
-import ui.components.AsteriskTopBarControls
-import ui.components.AsteriskDropdownMenuItem
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -28,21 +17,11 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.rememberScrollState
-import ui.icons.AsteriskIcons as Icons
-import androidx.compose.material3.Text
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
-import ui.components.AsteriskScaffold
-import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -56,25 +35,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalViewConfiguration
-import androidx.compose.ui.platform.ViewConfiguration
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.selected
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.DpSize
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import app.AppServices
 import app.LocalAppServices
 import app.LocalAppStateStore
@@ -85,38 +48,29 @@ import app.LocalUpdateAppState
 import app.MihomoOverrideScriptState
 import app.R
 import app.collectAppState
-import app.modes.MihomoProxyLayoutAuto
-import app.modes.MihomoProxyLayoutDouble
-import app.modes.MihomoProxyLayoutMultiple
-import app.modes.MihomoProxyLayoutSingle
-import app.modes.MihomoProxySortDefault
-import app.modes.MihomoProxySortDelay
-import app.modes.MihomoProxySortName
-import ui.components.AsteriskCheckbox
-import ui.components.AsteriskFilterChip
-import ui.components.AsteriskInfoChip
-import ui.components.AsteriskPageCard
-import ui.components.AsteriskSelectionCard
-import ui.components.AsteriskTonalButton
-import app.navigation.Route
+import app.modes.MihomoProxyGroupLayoutExpandable
+import app.modes.MihomoProxyGroupLayoutTabs
 import app.navigation.MainDestination
+import app.navigation.Route
 import engine.mihomo.MihomoProfileFactory
 import engine.mihomo.MihomoProviderMetadataCache
 import engine.mihomo.hasUsableMihomoProfile
-import engine.mihomo.selectedMihomoProfileOrNull
-import engine.mihomo.sha256Hex
-import engine.mihomo.runtime.MihomoProxiesState
 import engine.mihomo.runtime.MihomoDelayTarget
-import engine.mihomo.runtime.MihomoDelayStatus
+import engine.mihomo.runtime.MihomoProxiesState
 import engine.mihomo.runtime.MihomoProxyGroup
 import engine.mihomo.runtime.MihomoProxyNode
 import engine.mihomo.runtime.MihomoRuntimeState
+import engine.mihomo.selectedMihomoProfileOrNull
+import engine.mihomo.sha256Hex
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlin.math.roundToInt
+import ui.components.AsteriskScaffold
+import ui.components.AsteriskSearchTopAppBar
+import ui.components.AsteriskTopBarControls
+import ui.icons.AsteriskIcons as Icons
 import ui.layout.pageContentPaddingWithCutout
 import ui.layout.pageListPadding
 import ui.theme.AsteriskMotion
@@ -255,10 +209,16 @@ fun MihomoProxyPage(
     val testingTarget = runtimeState.delayTestingTarget
     var searchQuery by rememberSaveable { mutableStateOf("") }
     val selectedGroup = visibleProxies.groups.firstOrNull { group -> group.name == resolvedSelectedGroupName }
+    val groupLayout = resolveMihomoProxyGroupLayout(appState.mihomoProxyGroupLayout)
     val proxyLayout = resolveMihomoProxyLayout(appState.mihomoProxyLayout, isWideScreen)
     val columns = resolveMihomoProxyColumns(proxyLayout)
+    val groupColumns = resolveMihomoProxyGroupColumns(appState.mihomoProxyGroupColumns, columns)
+    val totalGridColumns = resolveMihomoGridTotalColumns(groupColumns, columns)
+    val groupSpan = totalGridColumns / groupColumns.coerceIn(1, 3)
+    val nodeSpan = totalGridColumns / columns.coerceIn(1, 3)
     var pendingSelections by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var locateRequestTrigger by remember { mutableIntStateOf(0) }
+    var expandedGroupNames by rememberSaveable { mutableStateOf<Set<String>>(emptySet()) }
     val resolvedSelectedGroupIndex = groupNames.indexOf(resolvedSelectedGroupName).coerceAtLeast(0)
     val groupPagerState = key(groupNames) {
         rememberPagerState(
@@ -269,6 +229,7 @@ fun MihomoProxyPage(
 
     LaunchedEffect(groupNames) {
         pendingSelections = pendingSelections.filterKeys { groupName -> groupName in groupNames }
+        expandedGroupNames = expandedGroupNames.filter { groupName -> groupName in groupNames }.toSet()
         if (selectedGroupName !in groupNames) {
             selectedGroupName = groupNames.firstOrNull().orEmpty()
         }
@@ -390,6 +351,8 @@ fun MihomoProxyPage(
                         MihomoProxyOptionsMenu(
                             interruptConnections = appState.mihomoProxyInterruptConnections,
                             excludeNotSelectable = appState.mihomoProxyExcludeNotSelectable,
+                            groupLayout = groupLayout,
+                            groupColumns = appState.mihomoProxyGroupColumns,
                             layout = appState.mihomoProxyLayout,
                             sort = resolveMihomoProxySort(appState.mihomoProxySort),
                             onInterruptConnectionsChange = { enabled ->
@@ -400,6 +363,16 @@ fun MihomoProxyPage(
                             onExcludeNotSelectableChange = { enabled ->
                                 updateAppState { state ->
                                     state.copy(mihomoProxyExcludeNotSelectable = enabled)
+                                }
+                            },
+                            onGroupLayoutChange = { nextGroupLayout ->
+                                updateAppState { state ->
+                                    state.copy(mihomoProxyGroupLayout = nextGroupLayout)
+                                }
+                            },
+                            onGroupColumnsChange = { nextGroupColumns ->
+                                updateAppState { state ->
+                                    state.copy(mihomoProxyGroupColumns = nextGroupColumns)
                                 }
                             },
                             onLayoutChange = { layout ->
@@ -415,7 +388,7 @@ fun MihomoProxyPage(
                         )
                     },
                 )
-                if (hasProfiles && visibleProxies.groups.size > 1) {
+                if (groupLayout == MihomoProxyGroupLayoutTabs && hasProfiles && visibleProxies.groups.size > 1) {
                     AsteriskTopBarControls {
                         ProxyGroupTabs(
                             groups = visibleProxies.groups,
@@ -436,89 +409,82 @@ fun MihomoProxyPage(
         val listPadding = pageListPadding(contentPadding, bottomExtra = 104.dp)
 
         Box {
-            HorizontalPager(
-                state = groupPagerState,
-                modifier = Modifier.fillMaxSize(),
-                verticalAlignment = Alignment.Top,
-            ) { page ->
-                val group = visibleProxies.groups.getOrNull(page)
-                val pageNodes = remember(group, visibleProxies, searchQuery, appState.mihomoProxySort) {
-                    reduceMihomoProxyNodeNames(
-                        group = group,
-                        proxies = visibleProxies,
-                        query = searchQuery,
-                        sort = resolveMihomoProxySort(appState.mihomoProxySort),
-                    )
-                }
-                val pageGridState = rememberLazyGridState()
-                val selectedNodeName = (pendingSelections[group?.name] ?: group?.now)
-                    .orEmpty().takeIf(String::isNotBlank)
-                var handledLocateRequest by remember { mutableIntStateOf(locateRequestTrigger) }
-
-                LaunchedEffect(locateRequestTrigger) {
-                    if (handledLocateRequest == locateRequestTrigger) return@LaunchedEffect
-                    handledLocateRequest = locateRequestTrigger
-                    if (groupPagerState.currentPage != page || selectedNodeName == null) return@LaunchedEffect
-                    val selectedIndex = pageNodes.indexOfFirst { nodeId -> nodeId.name == selectedNodeName }
-                    if (selectedIndex < 0) return@LaunchedEffect
-                    val targetItemIndex = (selectedIndex / columns) * columns
-                    val firstVisible = pageGridState.firstVisibleItemIndex
-                    if (kotlin.math.abs(firstVisible - targetItemIndex) > 12) {
-                        val preIndex = if (targetItemIndex > firstVisible) {
-                            (targetItemIndex - columns).coerceAtLeast(0)
-                        } else {
-                            (targetItemIndex + columns).coerceAtMost(pageNodes.lastIndex)
-                        }
-                        pageGridState.scrollToItem(preIndex)
-                    }
-                    pageGridState.animateScrollToItem(targetItemIndex)
-                }
-
-                Box(Modifier.fillMaxSize()) {
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(columns),
-                        state = pageGridState,
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = listPadding,
-                        verticalArrangement = Arrangement.spacedBy(MihomoProxyNodeGridSpacing),
-                        horizontalArrangement = Arrangement.spacedBy(MihomoProxyNodeGridSpacing),
+            if (!hasProfiles || visibleProxies.groups.isEmpty()) {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(columns),
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = listPadding,
+                    verticalArrangement = Arrangement.spacedBy(MihomoProxyNodeGridSpacing),
+                    horizontalArrangement = Arrangement.spacedBy(MihomoProxyNodeGridSpacing),
+                ) {
+                    item(
+                        key = "empty",
+                        span = { GridItemSpan(maxLineSpan) },
                     ) {
-                        if (group == null) {
-                            item(
-                                key = "empty",
-                                span = { GridItemSpan(maxLineSpan) },
-                            ) {
-                                if (
-                                    loadingPresentation == MihomoProxyLoadingPresentation.Initial &&
-                                    hasUsableProfile
-                                ) {
-                                    MihomoProxyLoadingCard()
-                                } else if (hasProfiles) {
-                                    MihomoProxyEmptyCard()
-                                } else {
-                                    MihomoProxyNoConfigurationCard(
-                                        onAddConfiguration = {
-                                            mainDestinationState?.select(MainDestination.Configurations)
-                                                ?: navigator.push(Route.MihomoProfileList)
-                                        },
-                                    )
-                                }
-                            }
-                        } else if (pageNodes.isEmpty()) {
-                            item(
-                                key = "group_empty:${group.name}",
-                                span = { GridItemSpan(maxLineSpan) },
-                            ) {
-                                MihomoProxyEmptyCard()
-                            }
+                        if (
+                            loadingPresentation == MihomoProxyLoadingPresentation.Initial &&
+                            hasUsableProfile
+                        ) {
+                            MihomoProxyLoadingCard()
+                        } else if (hasProfiles) {
+                            MihomoProxyEmptyCard()
                         } else {
-                            items(
-                                items = pageNodes,
-                                key = { nodeId -> nodeId.toMihomoProxyLazyItemKey() },
-                            ) { nodeId ->
-                                val node = proxies.node(nodeId)
-                                val selectionEnabled = isMihomoProxyGroupSelectable(group) && runtimeAvailable
-                                MihomoProxyNodeCard(
+                            MihomoProxyNoConfigurationCard(
+                                onAddConfiguration = {
+                                    mainDestinationState?.select(MainDestination.Configurations)
+                                        ?: navigator.push(Route.MihomoProfileList)
+                                },
+                            )
+                        }
+                    }
+                }
+            } else if (groupLayout == MihomoProxyGroupLayoutExpandable) {
+                val gridState = rememberLazyGridState()
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(totalGridColumns),
+                    state = gridState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = listPadding,
+                    verticalArrangement = Arrangement.spacedBy(MihomoProxyNodeGridSpacing),
+                    horizontalArrangement = Arrangement.spacedBy(MihomoProxyNodeGridSpacing),
+                ) {
+                    visibleProxies.groups.forEach { group ->
+                        val pageNodes = reduceMihomoProxyNodeNames(
+                            group = group,
+                            proxies = visibleProxies,
+                            query = searchQuery,
+                            sort = resolveMihomoProxySort(appState.mihomoProxySort),
+                        )
+                        val matchesSearch = searchQuery.isBlank() ||
+                            group.name.contains(searchQuery.trim(), ignoreCase = true) ||
+                            pageNodes.isNotEmpty()
+                        if (matchesSearch) {
+                            val isExpanded = group.name in expandedGroupNames ||
+                                (searchQuery.isNotBlank() && pageNodes.isNotEmpty())
+                            val currentSelectedName = (pendingSelections[group.name] ?: group.now)
+                                .takeIf(String::isNotBlank).orEmpty()
+
+                            item(
+                                key = "group_header:${group.name}",
+                                span = { GridItemSpan(if (isExpanded) maxLineSpan else groupSpan) },
+                            ) {
+                                MihomoProxyGroupCard(
+                                    group = group,
+                                    currentNodeName = currentSelectedName,
+                                    nodeCount = group.all.size,
+                                    expanded = isExpanded,
+                                    compact = !isExpanded && groupColumns > 1,
+                                    testing = testingTarget == MihomoDelayTarget.Group(group.name),
+                                    delayTestEnabled = runtimeAvailable && testingTarget == null,
+                                    onToggleExpand = {
+                                        selectedGroupName = group.name
+                                        expandedGroupNames = if (group.name in expandedGroupNames) {
+                                            expandedGroupNames - group.name
+                                        } else {
+                                            expandedGroupNames + group.name
+                                        }
+                                    },
+                                    onDelayTest = { testGroup(group) },
                                     modifier = Modifier
                                         .animateItem(
                                             fadeInSpec = AsteriskMotion.effects(),
@@ -526,19 +492,156 @@ fun MihomoProxyPage(
                                             fadeOutSpec = AsteriskMotion.effects(),
                                         )
                                         .fillMaxWidth(),
-                                    node = node,
-                                    selected = isMihomoProxyNodeCurrent(
-                                        group = group,
-                                        nodeName = node.name,
-                                        pendingSelections = pendingSelections,
-                                    ),
-                                    selectionEnabled = selectionEnabled,
-                                    delayTestEnabled = runtimeAvailable && testingTarget == null,
-                                    compact = columns > 1,
-                                    testing = testingTarget == MihomoDelayTarget.Node(node.id),
-                                    onSelect = { selectProxy(group, node) },
-                                    onDelayTest = { testProxy(node) },
                                 )
+                            }
+                            if (isExpanded) {
+                                if (pageNodes.isEmpty()) {
+                                    item(
+                                        key = "group_empty:${group.name}",
+                                        span = { GridItemSpan(maxLineSpan) },
+                                    ) {
+                                        MihomoProxyEmptyCard()
+                                    }
+                                } else {
+                                    items(
+                                        items = pageNodes,
+                                        key = { nodeId -> "group_node:${group.name}:${nodeId.toMihomoProxyLazyItemKey()}" },
+                                        span = { GridItemSpan(nodeSpan) },
+                                    ) { nodeId ->
+                                        val node = proxies.node(nodeId)
+                                        val selectionEnabled = isMihomoProxyGroupSelectable(group) && runtimeAvailable
+                                        MihomoProxyNodeCard(
+                                            modifier = Modifier
+                                                .animateItem(
+                                                    fadeInSpec = AsteriskMotion.effects(),
+                                                    placementSpec = AsteriskMotion.spatial(),
+                                                    fadeOutSpec = AsteriskMotion.effects(),
+                                                )
+                                                .fillMaxWidth(),
+                                            node = node,
+                                            selected = isMihomoProxyNodeCurrent(
+                                                group = group,
+                                                nodeName = node.name,
+                                                pendingSelections = pendingSelections,
+                                            ),
+                                            selectionEnabled = selectionEnabled,
+                                            delayTestEnabled = runtimeAvailable && testingTarget == null,
+                                            compact = columns > 1,
+                                            testing = testingTarget == MihomoDelayTarget.Node(node.id),
+                                            onSelect = { selectProxy(group, node) },
+                                            onDelayTest = { testProxy(node) },
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                HorizontalPager(
+                    state = groupPagerState,
+                    modifier = Modifier.fillMaxSize(),
+                    verticalAlignment = Alignment.Top,
+                ) { page ->
+                    val group = visibleProxies.groups.getOrNull(page)
+                    val pageNodes = remember(group, visibleProxies, searchQuery, appState.mihomoProxySort) {
+                        reduceMihomoProxyNodeNames(
+                            group = group,
+                            proxies = visibleProxies,
+                            query = searchQuery,
+                            sort = resolveMihomoProxySort(appState.mihomoProxySort),
+                        )
+                    }
+                    val pageGridState = rememberLazyGridState()
+                    val selectedNodeName = (pendingSelections[group?.name] ?: group?.now)
+                        .orEmpty().takeIf(String::isNotBlank)
+                    var handledLocateRequest by remember { mutableIntStateOf(locateRequestTrigger) }
+
+                    LaunchedEffect(locateRequestTrigger) {
+                        if (handledLocateRequest == locateRequestTrigger) return@LaunchedEffect
+                        handledLocateRequest = locateRequestTrigger
+                        if (groupPagerState.currentPage != page || selectedNodeName == null) return@LaunchedEffect
+                        val selectedIndex = pageNodes.indexOfFirst { nodeId -> nodeId.name == selectedNodeName }
+                        if (selectedIndex < 0) return@LaunchedEffect
+                        val targetItemIndex = (selectedIndex / columns) * columns
+                        val firstVisible = pageGridState.firstVisibleItemIndex
+                        if (kotlin.math.abs(firstVisible - targetItemIndex) > 12) {
+                            val preIndex = if (targetItemIndex > firstVisible) {
+                                (targetItemIndex - columns).coerceAtLeast(0)
+                            } else {
+                                (targetItemIndex + columns).coerceAtMost(pageNodes.lastIndex)
+                            }
+                            pageGridState.scrollToItem(preIndex)
+                        }
+                        pageGridState.animateScrollToItem(targetItemIndex)
+                    }
+
+                    Box(Modifier.fillMaxSize()) {
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(columns),
+                            state = pageGridState,
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = listPadding,
+                            verticalArrangement = Arrangement.spacedBy(MihomoProxyNodeGridSpacing),
+                            horizontalArrangement = Arrangement.spacedBy(MihomoProxyNodeGridSpacing),
+                        ) {
+                            if (group == null) {
+                                item(
+                                    key = "empty",
+                                    span = { GridItemSpan(maxLineSpan) },
+                                ) {
+                                    if (
+                                        loadingPresentation == MihomoProxyLoadingPresentation.Initial &&
+                                        hasUsableProfile
+                                    ) {
+                                        MihomoProxyLoadingCard()
+                                    } else if (hasProfiles) {
+                                        MihomoProxyEmptyCard()
+                                    } else {
+                                        MihomoProxyNoConfigurationCard(
+                                            onAddConfiguration = {
+                                                mainDestinationState?.select(MainDestination.Configurations)
+                                                    ?: navigator.push(Route.MihomoProfileList)
+                                            },
+                                        )
+                                    }
+                                }
+                            } else if (pageNodes.isEmpty()) {
+                                item(
+                                    key = "group_empty:${group.name}",
+                                    span = { GridItemSpan(maxLineSpan) },
+                                ) {
+                                    MihomoProxyEmptyCard()
+                                }
+                            } else {
+                                items(
+                                    items = pageNodes,
+                                    key = { nodeId -> nodeId.toMihomoProxyLazyItemKey() },
+                                ) { nodeId ->
+                                    val node = proxies.node(nodeId)
+                                    val selectionEnabled = isMihomoProxyGroupSelectable(group) && runtimeAvailable
+                                    MihomoProxyNodeCard(
+                                        modifier = Modifier
+                                            .animateItem(
+                                                fadeInSpec = AsteriskMotion.effects(),
+                                                placementSpec = AsteriskMotion.spatial(),
+                                                fadeOutSpec = AsteriskMotion.effects(),
+                                            )
+                                            .fillMaxWidth(),
+                                        node = node,
+                                        selected = isMihomoProxyNodeCurrent(
+                                            group = group,
+                                            nodeName = node.name,
+                                            pendingSelections = pendingSelections,
+                                        ),
+                                        selectionEnabled = selectionEnabled,
+                                        delayTestEnabled = runtimeAvailable && testingTarget == null,
+                                        compact = columns > 1,
+                                        testing = testingTarget == MihomoDelayTarget.Node(node.id),
+                                        onSelect = { selectProxy(group, node) },
+                                        onDelayTest = { testProxy(node) },
+                                    )
+                                }
                             }
                         }
                     }
@@ -552,567 +655,20 @@ fun MihomoProxyPage(
                         .padding(top = contentPadding.calculateTopPadding()),
                 )
             }
-            selectedGroup?.let { group ->
-                MihomoDelayToolbar(
-                    enabled = runtimeAvailable && testingTarget == null,
-                    testing = testingTarget == MihomoDelayTarget.Group(group.name),
-                    canLocate = (pendingSelections[group.name] ?: group.now).isNotBlank(),
-                    onLocate = { locateRequestTrigger++ },
-                    onDelayTest = { testGroup(group) },
-                    bottomPadding = contentPadding.calculateBottomPadding(),
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ProxyGroupTabs(
-    groups: List<MihomoProxyGroup>,
-    selectedGroupName: String,
-    onSelectedGroupNameChange: (String) -> Unit,
-    modifier: Modifier = Modifier,
-    onReselectCurrentGroup: () -> Unit = {},
-) {
-    if (groups.isEmpty()) return
-    val tabScrollState = rememberScrollState()
-    var viewportWidthPx by remember { mutableIntStateOf(0) }
-    var tabBounds by remember { mutableStateOf<Map<String, ProxyGroupTabBounds>>(emptyMap()) }
-    val selectedBounds = tabBounds[selectedGroupName]
-
-    LaunchedEffect(selectedGroupName, selectedBounds, viewportWidthPx, tabScrollState.maxValue) {
-        if (selectedBounds == null || viewportWidthPx <= 0) return@LaunchedEffect
-        val targetScroll = resolveProxyTabScrollTarget(
-            visibleStart = tabScrollState.value,
-            viewportWidth = viewportWidthPx,
-            tabStart = selectedBounds.leftPx,
-            tabEnd = selectedBounds.leftPx + selectedBounds.widthPx,
-            maxScroll = tabScrollState.maxValue,
-        )
-        if (targetScroll != tabScrollState.value) {
-            tabScrollState.animateScrollTo(targetScroll)
-        }
-    }
-
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .onSizeChanged { size -> viewportWidthPx = size.width }
-            .horizontalScroll(tabScrollState),
-    ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            groups.forEach { group ->
-                AsteriskFilterChip(
-                    selected = group.name == selectedGroupName,
-                    onClick = {
-                        if (group.name == selectedGroupName) {
-                            onReselectCurrentGroup()
-                        } else {
-                            onSelectedGroupNameChange(group.name)
-                        }
-                    },
-                    label = group.name,
-                    modifier = Modifier.onGloballyPositioned { coordinates ->
-                        val bounds = ProxyGroupTabBounds(
-                            leftPx = coordinates.positionInParent().x.roundToInt(),
-                            widthPx = coordinates.size.width,
-                        )
-                        if (tabBounds[group.name] != bounds) {
-                            tabBounds = tabBounds + (group.name to bounds)
-                        }
-                    },
-                )
-            }
-        }
-    }
-}
-
-internal fun resolveProxyTabScrollTarget(
-    visibleStart: Int,
-    viewportWidth: Int,
-    tabStart: Int,
-    tabEnd: Int,
-    maxScroll: Int,
-): Int {
-    val visibleEnd = visibleStart + viewportWidth
-    return when {
-        tabStart < visibleStart -> tabStart
-        tabEnd > visibleEnd -> tabEnd - viewportWidth
-        else -> visibleStart
-    }.coerceIn(0, maxScroll)
-}
-
-private data class ProxyGroupTabBounds(
-    val leftPx: Int,
-    val widthPx: Int,
-)
-
-@Composable
-private fun MihomoProxyOptionsMenu(
-    interruptConnections: Boolean,
-    excludeNotSelectable: Boolean,
-    layout: Int,
-    sort: Int,
-    onInterruptConnectionsChange: (Boolean) -> Unit,
-    onExcludeNotSelectableChange: (Boolean) -> Unit,
-    onLayoutChange: (Int) -> Unit,
-    onSortChange: (Int) -> Unit,
-) {
-    var expanded by rememberSaveable { mutableStateOf(false) }
-    var level by rememberSaveable { mutableStateOf(ProxyOptionsLevel.Main) }
-    val dismissMenu = {
-        expanded = false
-        level = ProxyOptionsLevel.Main
-    }
-    val layoutLabel = stringResource(
-        when (layout) {
-            MihomoProxyLayoutSingle -> R.string.mihomo_proxies_option_layout_single
-            MihomoProxyLayoutDouble -> R.string.mihomo_proxies_option_layout_double
-            MihomoProxyLayoutMultiple -> R.string.mihomo_proxies_option_layout_multiple
-            else -> R.string.mihomo_proxies_option_layout_auto
-        },
-    )
-    val sortLabel = stringResource(
-        when (sort) {
-            MihomoProxySortName -> R.string.mihomo_proxies_option_sort_name
-            MihomoProxySortDelay -> R.string.mihomo_proxies_option_sort_delay
-            else -> R.string.mihomo_proxies_option_sort_default
-        },
-    )
-    val menuSpatialMotion = AsteriskMotion.fastSpatial<IntOffset>()
-    val menuSizeMotion = AsteriskMotion.fastSpatial<IntSize>()
-    val menuEffectsMotion = AsteriskMotion.fastEffects<Float>()
-    Box {
-        IconButton(onClick = { expanded = true }) {
-            Icon(Icons.Rounded.MoreVert, stringResource(R.string.mihomo_proxies_options))
-        }
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = dismissMenu,
-            modifier = Modifier.width(MihomoProxyOptionsMenuWidth),
-        ) {
-            AnimatedContent(
-                targetState = level,
-                modifier = Modifier.fillMaxWidth(),
-                transitionSpec = AsteriskMotion.horizontalSlideFade(
-                    spatialSpec = menuSpatialMotion,
-                    effectsSpec = menuEffectsMotion,
-                    sizeSpec = menuSizeMotion,
-                ) {
-                    if (targetState == ProxyOptionsLevel.Main) -1 else 1
-                },
-                contentAlignment = Alignment.TopStart,
-                label = "proxy-options-level",
-            ) { currentLevel ->
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    when (currentLevel) {
-                ProxyOptionsLevel.Main -> {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.mihomo_proxies_option_interrupt_connections)) },
-                        onClick = { onInterruptConnectionsChange(!interruptConnections) },
-                        leadingIcon = { Icon(Icons.Rounded.LinkOff, contentDescription = null) },
-                        trailingIcon = {
-                            AsteriskCheckbox(
-                                checked = interruptConnections,
-                                onCheckedChange = null,
-                            )
-                        },
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.mihomo_proxies_option_filter_not_selectable)) },
-                        onClick = { onExcludeNotSelectableChange(!excludeNotSelectable) },
-                        leadingIcon = { Icon(Icons.Rounded.FilterAlt, contentDescription = null) },
-                        trailingIcon = {
-                            AsteriskCheckbox(
-                                checked = excludeNotSelectable,
-                                onCheckedChange = null,
-                            )
-                        },
-                    )
-                    HorizontalDivider()
-                    DropdownMenuItem(
-                        text = {
-                            Column {
-                                Text(stringResource(R.string.mihomo_proxies_option_layout))
-                                Text(
-                                    layoutLabel,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        },
-                        onClick = { level = ProxyOptionsLevel.Layout },
-                        leadingIcon = { Icon(Icons.Rounded.ViewModule, contentDescription = null) },
-                        trailingIcon = { Icon(Icons.Rounded.ChevronRight, contentDescription = null) },
-                    )
-                    DropdownMenuItem(
-                        text = {
-                            Column {
-                                Text(stringResource(R.string.mihomo_proxies_option_sort))
-                                Text(
-                                    sortLabel,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        },
-                        onClick = { level = ProxyOptionsLevel.Sort },
-                        leadingIcon = { Icon(Icons.AutoMirrored.Rounded.Sort, contentDescription = null) },
-                        trailingIcon = { Icon(Icons.Rounded.ChevronRight, contentDescription = null) },
-                    )
-                }
-
-                ProxyOptionsLevel.Layout -> {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.mihomo_proxies_option_layout)) },
-                        onClick = { level = ProxyOptionsLevel.Main },
-                        leadingIcon = { Icon(Icons.Rounded.ChevronLeft, contentDescription = null) },
-                    )
-                    HorizontalDivider()
-                    listOf(
-                        Triple(
-                            MihomoProxyLayoutAuto,
-                            R.string.mihomo_proxies_option_layout_auto,
-                            Icons.Rounded.AutoAwesome,
-                        ),
-                        Triple(
-                            MihomoProxyLayoutSingle,
-                            R.string.mihomo_proxies_option_layout_single,
-                            Icons.Rounded.ViewAgenda,
-                        ),
-                        Triple(
-                            MihomoProxyLayoutDouble,
-                            R.string.mihomo_proxies_option_layout_double,
-                            Icons.Rounded.ViewColumn,
-                        ),
-                        Triple(
-                            MihomoProxyLayoutMultiple,
-                            R.string.mihomo_proxies_option_layout_multiple,
-                            Icons.Rounded.GridView,
-                        ),
-                    ).forEach { (value, label, _) ->
-                        AsteriskDropdownMenuItem(
-                            text = stringResource(label),
-                            selected = layout == value,
-                            onClick = {
-                                dismissMenu()
-                                onLayoutChange(value)
-                            },
-                        )
-                    }
-                }
-
-                ProxyOptionsLevel.Sort -> {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.mihomo_proxies_option_sort)) },
-                        onClick = { level = ProxyOptionsLevel.Main },
-                        leadingIcon = { Icon(Icons.Rounded.ChevronLeft, contentDescription = null) },
-                    )
-                    HorizontalDivider()
-                    listOf(
-                        Triple(
-                            MihomoProxySortDefault,
-                            R.string.mihomo_proxies_option_sort_default,
-                            Icons.AutoMirrored.Rounded.Sort,
-                        ),
-                        Triple(
-                            MihomoProxySortName,
-                            R.string.mihomo_proxies_option_sort_name,
-                            Icons.Rounded.SortByAlpha,
-                        ),
-                        Triple(
-                            MihomoProxySortDelay,
-                            R.string.mihomo_proxies_option_sort_delay,
-                            Icons.Rounded.Speed,
-                        ),
-                    ).forEach { (value, label, _) ->
-                        AsteriskDropdownMenuItem(
-                            text = stringResource(label),
-                            selected = sort == value,
-                            onClick = {
-                                dismissMenu()
-                                onSortChange(value)
-                            },
-                        )
-                    }
-                }
-                    }
-                }
-            }
-        }
-    }
-}
-
-private enum class ProxyOptionsLevel {
-    Main,
-    Layout,
-    Sort,
-}
-
-private val MihomoProxyOptionsMenuWidth = 224.dp
-
-@Composable
-private fun MihomoProxyNodeCard(
-    node: MihomoProxyNode,
-    selected: Boolean,
-    selectionEnabled: Boolean,
-    delayTestEnabled: Boolean,
-    compact: Boolean,
-    testing: Boolean,
-    onSelect: () -> Unit,
-    onDelayTest: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val content: @Composable () -> Unit = {
-        Column(
-            modifier = Modifier.fillMaxSize().padding(MihomoProxyNodeCardPadding),
-            verticalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Top,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Text(
-                    text = node.title.ifBlank { node.name },
-                    modifier = Modifier.weight(1f),
-                    style = if (compact) {
-                        MaterialTheme.typography.titleSmall.copy(
-                            fontSize = 13.sp,
-                            lineHeight = 17.sp,
-                        )
-                    } else {
-                        MaterialTheme.typography.titleMedium
-                    },
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                if (selected) {
-                    Icon(
-                        imageVector = Icons.Rounded.CheckCircle,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                }
-            }
-            ProtocolDelayLine(
-                protocol = node.type,
-                providerName = node.providerName.orEmpty(),
-                delay = node.delay,
-                delayStatus = node.delayStatus,
-                selected = selected,
-                testing = testing,
-                enabled = delayTestEnabled,
-                compact = compact,
-                onClick = onDelayTest,
-            )
-        }
-    }
-    val cardModifier = modifier
-        .height(MihomoProxyNodeCardHeight)
-        .semantics { this.selected = selected }
-    AsteriskSelectionCard(
-        selected = selected,
-        enabled = selectionEnabled,
-        onClick = onSelect,
-        modifier = cardModifier,
-    ) {
-        content()
-    }
-}
-
-@Composable
-private fun ProtocolDelayLine(
-    protocol: String,
-    providerName: String,
-    delay: Int?,
-    delayStatus: MihomoDelayStatus?,
-    selected: Boolean,
-    testing: Boolean,
-    enabled: Boolean,
-    compact: Boolean,
-    onClick: () -> Unit,
-) {
-    val delayText = when {
-        testing -> ""
-        delayStatus == MihomoDelayStatus.Timeout -> stringResource(R.string.mihomo_proxies_delay_timeout)
-        delayStatus == MihomoDelayStatus.Failed -> stringResource(R.string.mihomo_proxies_delay_failed)
-        delayStatus == null || delay == null -> stringResource(R.string.mihomo_proxies_delay_not_tested)
-        else -> "$delay ms"
-    }.trim()
-    val viewConfiguration = LocalViewConfiguration.current
-    val chipTouchTargetViewConfiguration = remember(viewConfiguration) {
-        object : ViewConfiguration by viewConfiguration {
-            override val minimumTouchTargetSize = DpSize(28.dp, 28.dp)
-        }
-    }
-    CompositionLocalProvider(LocalViewConfiguration provides chipTouchTargetViewConfiguration) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(28.dp)
-                .clip(ui.theme.AsteriskShapeTokens.Pill)
-                .clickable(enabled = enabled, onClick = onClick),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Row(
-                modifier = Modifier.weight(1f),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                AsteriskInfoChip(
-                    text = protocol.displayMihomoProtocolName(compact = compact),
-                    modifier = Modifier.weight(1f, fill = false),
-                    emphasized = selected,
-                    textStyle = if (compact) {
-                        MaterialTheme.typography.labelSmall.copy(
-                            fontSize = 10.sp,
-                            lineHeight = 14.sp,
-                        )
-                    } else {
-                        MaterialTheme.typography.labelSmall
-                    },
-                )
-                if (providerName.isNotBlank()) {
-                    Text(
-                        text = providerName,
-                        modifier = Modifier.padding(start = 6.dp).weight(1f, fill = false),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-            Box(
-                modifier = Modifier.padding(end = 8.dp).height(28.dp),
-                contentAlignment = Alignment.CenterEnd,
-            ) {
-                if (testing) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.5.dp,
-                    )
-                } else {
-                    Text(
-                        text = delayText,
-                        style = if (compact) {
-                            MaterialTheme.typography.labelSmall.copy(
-                                fontSize = 10.sp,
-                                lineHeight = 14.sp,
-                            )
-                        } else {
-                            MaterialTheme.typography.labelMedium
-                        },
-                        fontWeight = FontWeight.Medium,
-                        color = delayColor(delay, delayStatus),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        textAlign = TextAlign.End,
+            if (groupLayout == MihomoProxyGroupLayoutTabs) {
+                selectedGroup?.let { group ->
+                    MihomoDelayToolbar(
+                        enabled = runtimeAvailable && testingTarget == null,
+                        testing = testingTarget == MihomoDelayTarget.Group(group.name),
+                        canLocate = (pendingSelections[group.name] ?: group.now).isNotBlank(),
+                        onLocate = { locateRequestTrigger++ },
+                        onDelayTest = { testGroup(group) },
+                        bottomPadding = contentPadding.calculateBottomPadding(),
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd),
                     )
                 }
             }
         }
     }
 }
-
-@Composable
-private fun MihomoProxyEmptyCard() {
-    Text(
-        text = stringResource(R.string.common_empty),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 16.dp),
-        textAlign = TextAlign.Center,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
-}
-
-@Composable
-private fun MihomoProxyNoConfigurationCard(
-    onAddConfiguration: () -> Unit,
-) {
-    AsteriskPageCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 8.dp),
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Surface(
-                modifier = Modifier.size(48.dp),
-                shape = ui.theme.AsteriskShapeTokens.SmallContainer,
-                color = MaterialTheme.colorScheme.secondaryContainer,
-                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Rounded.Description,
-                        contentDescription = null,
-                    )
-                }
-            }
-            Text(
-                text = stringResource(R.string.mihomo_proxies_no_profile_title),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-                text = stringResource(R.string.mihomo_proxies_no_profile_summary),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            AsteriskTonalButton(
-                text = stringResource(R.string.mihomo_profile_add),
-                icon = Icons.Rounded.Add,
-                onClick = onAddConfiguration,
-                modifier = Modifier.align(Alignment.End),
-            )
-        }
-    }
-}
-
-@Composable
-private fun MihomoProxyLoadingCard() {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        CircularProgressIndicator(
-            modifier = Modifier.size(28.dp),
-            strokeWidth = 3.dp,
-        )
-        Text(
-            text = stringResource(R.string.mihomo_proxies_loading),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
-
-@Composable
-private fun delayColor(delay: Int?, status: MihomoDelayStatus?): Color {
-    val darkTheme = isInDarkTheme()
-    return when {
-        status == MihomoDelayStatus.Timeout || status == MihomoDelayStatus.Failed -> if (darkTheme) Color(0xFFF12522) else Color(0xFFE94634)
-        status == null || delay == null -> MaterialTheme.colorScheme.onSurfaceVariant
-        delay < 0 -> if (darkTheme) Color(0xFFF12522) else Color(0xFFE94634)
-        delay < 100 -> if (darkTheme) Color(0xFF6BD58A) else Color(0xFF128A3C)
-        delay < 200 -> if (darkTheme) Color(0xFFFFC857) else Color(0xFFD18A00)
-        delay < 300 -> if (darkTheme) Color(0xFFFF9B63) else Color(0xFFE06400)
-        else -> if (darkTheme) Color(0xFFF12522) else Color(0xFFE94634)
-    }
-}
-
-private val MihomoProxyNodeCardHeight = 112.dp
-private val MihomoProxyNodeCardPadding = PaddingValues(start = 10.dp, top = 14.dp, end = 10.dp, bottom = 10.dp)
-private val MihomoProxyNodeGridSpacing = 12.dp

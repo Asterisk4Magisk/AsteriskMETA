@@ -4,6 +4,8 @@
 package features.settings
 
 import android.os.Build
+import app.modes.MihomoProxyGroupLayoutExpandable
+import app.modes.MihomoProxyGroupLayoutTabs
 import app.modes.RunModeBpf2Socks
 import app.modes.RunModeTun
 import app.modes.RunModeTun2Socks
@@ -42,55 +44,6 @@ internal fun settingsTunStackOptions() = listOf(
     stringResource(R.string.settings_tun_stack_mixed),
     stringResource(R.string.settings_tun_stack_mips),
 )
-
-@Composable
-internal fun SettingsAppSection(
-    languageOptions: List<String>,
-    languageMode: Int,
-    colorModeOptions: List<String>,
-    colorMode: Int,
-    keyColorOptions: List<String>,
-    seedIndex: Int,
-    onColorModeChange: (Int) -> Unit,
-    onSeedIndexChange: (Int) -> Unit,
-    onLanguageModeChange: (Int) -> Unit,
-    autoHideNavigationBar: Boolean,
-    onAutoHideNavigationBarChange: (Boolean) -> Unit,
-) {
-    SmallTitle(text = stringResource(R.string.settings_app))
-    SettingsSectionCard {
-        OverlayDropdownPreference(
-            title = stringResource(R.string.settings_language),
-            icon = Icons.Rounded.Language,
-            items = languageOptions,
-            selectedIndex = languageMode,
-            onSelectedIndexChange = onLanguageModeChange,
-            accent = IconAccent.MaskBlue,
-        )
-    }
-    ThemeSettingsContent(
-        colorModeOptions = colorModeOptions,
-        colorMode = colorMode,
-        keyColorOptions = keyColorOptions,
-        seedIndex = seedIndex,
-        onColorModeChange = onColorModeChange,
-        onSeedIndexChange = onSeedIndexChange,
-    )
-    val autoHideNavigationBarTitle = stringResource(R.string.settings_auto_hide_navigation_bar)
-    val autoHideNavigationBarSummary = stringResource(R.string.settings_auto_hide_navigation_bar_summary)
-    if (settingsRowMatchesQuery(autoHideNavigationBarTitle, autoHideNavigationBarSummary, autoHideNavigationBar.toString())) {
-        SettingsSectionCard {
-            SwitchPreference(
-                title = autoHideNavigationBarTitle,
-                icon = Icons.Rounded.ExpandMore,
-                summary = autoHideNavigationBarSummary,
-                checked = autoHideNavigationBar,
-                onCheckedChange = onAutoHideNavigationBarChange,
-                accent = IconAccent.MaskBlueVariant,
-            )
-        }
-    }
-}
 
 @Composable
 internal fun SettingsPrivacySection(
