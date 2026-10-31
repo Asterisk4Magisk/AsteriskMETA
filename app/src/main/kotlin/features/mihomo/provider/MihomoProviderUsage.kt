@@ -9,7 +9,6 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
-import java.math.BigInteger
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.roundToInt
 
@@ -143,7 +142,7 @@ internal fun reduceMihomoProviderUsage(
                 declarationIndex = index,
             )
         }
-    }.sortedWith(MihomoProviderUsageComparator)
+    }
     val metered = items.filter { item -> item.kind == MihomoProviderUsageKind.Metered }
     return MihomoProviderUsageSummary(
         providerCount = providerNames.size,
@@ -191,31 +190,6 @@ private fun Long.saturatingPlus(other: Long): Long {
 private fun clampedUsageProgress(usedBytes: Long, totalBytes: Long): Float {
     if (totalBytes <= 0L) return 0f
     return (usedBytes.toDouble() / totalBytes.toDouble()).coerceIn(0.0, 1.0).toFloat()
-}
-
-private val MihomoProviderUsageComparator = Comparator<MihomoProviderUsageItem> { left, right ->
-    val kindComparison = left.kind.ordinal.compareTo(right.kind.ordinal)
-    if (kindComparison != 0) {
-        kindComparison
-    } else {
-        val ratioComparison = if (
-            left.kind == MihomoProviderUsageKind.Metered &&
-            right.kind == MihomoProviderUsageKind.Metered
-        ) {
-            val leftCrossProduct = BigInteger.valueOf(left.usedBytes)
-                .multiply(BigInteger.valueOf(right.totalBytes))
-            val rightCrossProduct = BigInteger.valueOf(right.usedBytes)
-                .multiply(BigInteger.valueOf(left.totalBytes))
-            rightCrossProduct.compareTo(leftCrossProduct)
-        } else {
-            0
-        }
-        if (ratioComparison != 0) {
-            ratioComparison
-        } else {
-            left.declarationIndex.compareTo(right.declarationIndex)
-        }
-    }
 }
 
 private const val MaximumConcurrentProviderRequests = 4
