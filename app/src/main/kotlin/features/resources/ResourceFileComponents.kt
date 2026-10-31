@@ -50,7 +50,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.R
+import app.ResourceFileKind
 import app.ResourceFileStatus
+import features.resources.runtime.managedByCurrentCore
 import ui.components.AsteriskActionButton
 import ui.components.AsteriskChipTone
 import ui.components.AsteriskInfoChip
@@ -191,6 +193,7 @@ internal fun CustomResourceSourceEditorSheet(
     geoIpUrlState: TextFieldState,
     geoSiteUrlState: TextFieldState,
     mmdbUrlState: TextFieldState,
+    countryMmdbUrlState: TextFieldState,
     asnUrlState: TextFieldState,
     directCidrIpv4UrlState: TextFieldState,
     directCidrIpv6UrlState: TextFieldState,
@@ -229,9 +232,16 @@ internal fun CustomResourceSourceEditorSheet(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                ResourceUrlField(geoIpUrlState, ResourceFileGeoIpName)
+                if (ResourceFileKind.GeoIp.managedByCurrentCore()) {
+                    ResourceUrlField(geoIpUrlState, ResourceFileGeoIpName)
+                }
                 ResourceUrlField(geoSiteUrlState, ResourceFileGeoSiteName)
-                ResourceUrlField(mmdbUrlState, ResourceFileMmdbName)
+                if (ResourceFileKind.Mmdb.managedByCurrentCore()) {
+                    ResourceUrlField(mmdbUrlState, ResourceFileMmdbName)
+                }
+                if (ResourceFileKind.CountryMmdb.managedByCurrentCore()) {
+                    ResourceUrlField(countryMmdbUrlState, ResourceFileCountryMmdbName)
+                }
                 ResourceUrlField(asnUrlState, ResourceFileAsnName)
                 ResourceUrlField(directCidrIpv4UrlState, ResourceFileDirectCidrIpv4Name)
                 ResourceUrlField(directCidrIpv6UrlState, ResourceFileDirectCidrIpv6Name)

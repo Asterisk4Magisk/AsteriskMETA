@@ -45,6 +45,7 @@ import app.modes.isRootRunMode
 import app.navigation.Route
 import app.withMihomoRestartApplied
 import data.backup.AppBackupRestorePreview
+import engine.mihomo.CoreCapabilitiesStore
 import engine.mihomo.MihomoGeodataLoaderValues
 import engine.mihomo.raw.MihomoRawConfigParser
 import engine.proxy.ProxyServiceResult
@@ -166,13 +167,14 @@ private fun SettingsContent(
         stringResource(R.string.option_english),
         stringResource(R.string.option_simplified_chinese),
     )
+    val coreCapabilities = CoreCapabilitiesStore.current
     val runModeItems = listOf(
         RunModeVpnService to stringResource(R.string.settings_run_mode_vpn_service),
         RunModeTproxy to stringResource(R.string.settings_run_mode_tproxy),
         RunModeTun to stringResource(R.string.settings_run_mode_tun),
         RunModeTun2Socks to stringResource(R.string.settings_run_mode_tun2socks),
         RunModeBpf2Socks to stringResource(R.string.settings_run_mode_bpf2socks),
-    )
+    ).filter { (mode, _) -> coreCapabilities.supportsRunMode(mode) }
     val runModeOptions = runModeItems.map { item -> item.second }
     val selectedRunModeIndex = runModeItems
         .indexOfFirst { item -> item.first == appState.runMode }

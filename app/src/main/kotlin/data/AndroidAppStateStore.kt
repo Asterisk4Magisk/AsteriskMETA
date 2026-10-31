@@ -8,6 +8,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import app.AppState
 import app.withCompatibleProxyAppListMode
+import engine.mihomo.withCompatibleCoreSettings
 import features.logs.AndroidAppLogger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -48,7 +49,7 @@ class AndroidAppStateStore private constructor(
     fun update(transform: (AppState) -> AppState) {
         val pendingSave = synchronized(updateLock) {
             val previousState = mutableState.value
-            val nextState = transform(previousState).withCompatibleProxyAppListMode()
+            val nextState = transform(previousState).withCompatibleProxyAppListMode().withCompatibleCoreSettings()
             if (nextState === previousState || nextState.isCheapNoopUpdate(previousState)) {
                 null
             } else {

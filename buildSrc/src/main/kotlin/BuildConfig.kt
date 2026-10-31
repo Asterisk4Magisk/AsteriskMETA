@@ -17,7 +17,7 @@ object ProjectConfig {
     const val BPF2SOCKS_VERSION = "v1.2.2"
     const val BPF_MATCHER_VERSION = "v1.0.2"
     const val ENHANCE_VERSION = "v1.0.8"
-    const val ANDROID_LIB_CLASH_LITE_VERSION = "v1.19.33-android.3"
+    const val ANDROID_LIB_CLASH_LITE_VERSION = "v1.19.33-android.4"
     const val HEV_SOCKS5_TUNNEL_VERSION = "2.19.3"
     const val TARGET_SDK = 37
     const val TARGET_SDK_MINOR = 2
@@ -50,6 +50,9 @@ abstract class GenerateProjectInfoTask : DefaultTask() {
     @get:Input
     abstract val hevSocks5TunnelVersion: Property<String>
 
+    @get:Input
+    abstract val coreId: Property<String>
+
     @get:OutputDirectory
     abstract val outputDirectory: DirectoryProperty
 
@@ -57,6 +60,7 @@ abstract class GenerateProjectInfoTask : DefaultTask() {
     fun generate() {
         val packagePath = packageName.get().replace('.', '/')
         val file = outputDirectory.file("$packagePath/ProjectInfo.kt").get().asFile
+        val core = coreId.get()
         file.parentFile.mkdirs()
         file.writeText(
             """
@@ -67,6 +71,7 @@ abstract class GenerateProjectInfoTask : DefaultTask() {
                 const val VERSION_NAME = "${versionName.get()}"
                 const val VERSION_CODE = ${versionCode.get()}
                 const val ANDROID_LIB_CLASH_LITE_VERSION = "${androidLibClashLiteVersion.get()}"
+                const val CORE_ID = "$core"
                 const val HEV_SOCKS5_TUNNEL_VERSION = "${hevSocks5TunnelVersion.get()}"
             }
             """.trimIndent(),

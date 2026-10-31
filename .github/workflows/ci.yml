@@ -14,9 +14,13 @@ concurrency:
 
 jobs:
   build:
-    name: Compile Check
+    name: Compile Check ${{ matrix.core }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        core: [mihomo, meow]
 
     steps:
       - name: Checkout
@@ -109,4 +113,4 @@ jobs:
           echo "ANDROID_NDK_ROOT=$ANDROID_HOME/ndk/$ndk_version" >> "$GITHUB_ENV"
 
       - name: Assemble release APKs
-        run: ./gradlew --no-daemon :app:assembleRelease
+        run: ./gradlew --no-daemon :app:assembleRelease -Pcore=${{ matrix.core }}

@@ -32,6 +32,7 @@ import app.LocalNavigator
 import app.LocalUpdateAppState
 import app.R
 import app.ResourceFileKind
+import features.resources.runtime.managedByCurrentCore
 import app.ResourceFilesStatus
 import app.collectAppState
 import app.resourceFileUpdateSource
@@ -68,6 +69,7 @@ fun ResourceManagementPage(
     val sourceGeoIpUrlState = rememberTextFieldState()
     val sourceGeoSiteUrlState = rememberTextFieldState()
     val sourceMmdbUrlState = rememberTextFieldState()
+    val sourceCountryMmdbUrlState = rememberTextFieldState()
     val sourceAsnUrlState = rememberTextFieldState()
     val sourceDirectCidrIpv4UrlState = rememberTextFieldState()
     val sourceDirectCidrIpv6UrlState = rememberTextFieldState()
@@ -126,6 +128,9 @@ fun ResourceManagementPage(
             appState.customResourceFileGeoSiteUrl.ifBlank { source.geoSiteUrl },
         )
         sourceMmdbUrlState.setTextAndPlaceCursorAtEnd(appState.customResourceFileMmdbUrl.ifBlank { source.mmdbUrl })
+        sourceCountryMmdbUrlState.setTextAndPlaceCursorAtEnd(
+            appState.customResourceFileCountryMmdbUrl.ifBlank { source.countryMmdbUrl },
+        )
         sourceAsnUrlState.setTextAndPlaceCursorAtEnd(appState.customResourceFileAsnUrl.ifBlank { source.asnUrl })
         sourceDirectCidrIpv4UrlState.setTextAndPlaceCursorAtEnd(
             appState.customResourceFileDirectCidrIpv4Url.ifBlank { source.directCidrIpv4Url },
@@ -251,7 +256,7 @@ fun ResourceManagementPage(
             sectionTitleItem(key = "resource_rules_section") {
                 ResourceSectionTitle(stringResource(R.string.settings_resource_files_files))
             }
-            ResourceFileKind.entries.filterNot { it == ResourceFileKind.MihomoCore }.forEach { kind ->
+            ResourceFileKind.entries.filter { it != ResourceFileKind.MihomoCore && it.managedByCurrentCore() }.forEach { kind ->
                 item(key = kind.fileName) {
                     ResourceFileCard(
                         fileName = kind.displayName,
@@ -295,6 +300,7 @@ fun ResourceManagementPage(
             geoIpUrlState = sourceGeoIpUrlState,
             geoSiteUrlState = sourceGeoSiteUrlState,
             mmdbUrlState = sourceMmdbUrlState,
+            countryMmdbUrlState = sourceCountryMmdbUrlState,
             asnUrlState = sourceAsnUrlState,
             directCidrIpv4UrlState = sourceDirectCidrIpv4UrlState,
             directCidrIpv6UrlState = sourceDirectCidrIpv6UrlState,
@@ -305,7 +311,16 @@ fun ResourceManagementPage(
                         resourceFileSource = ResourceFileSourceCustom,
                         customResourceFileGeoIpUrl = sourceGeoIpUrlState.text.toString().trim(),
                         customResourceFileGeoSiteUrl = sourceGeoSiteUrlState.text.toString().trim(),
-                        customResourceFileMmdbUrl = sourceMmdbUrlState.text.toString().trim(),
+                        customResourceFileMmdbUrl = if (ResourceFileKind.Mmdb.managedByCurrentCore()) {
+                            sourceMmdbUrlState.text.toString().trim()
+                        } else {
+                            state.customResourceFileMmdbUrl
+                        },
+                        customResourceFileCountryMmdbUrl = if (ResourceFileKind.CountryMmdb.managedByCurrentCore()) {
+                            sourceCountryMmdbUrlState.text.toString().trim()
+                        } else {
+                            state.customResourceFileCountryMmdbUrl
+                        },
                         customResourceFileAsnUrl = sourceAsnUrlState.text.toString().trim(),
                         customResourceFileDirectCidrIpv4Url = sourceDirectCidrIpv4UrlState.text.toString().trim(),
                         customResourceFileDirectCidrIpv6Url = sourceDirectCidrIpv6UrlState.text.toString().trim(),

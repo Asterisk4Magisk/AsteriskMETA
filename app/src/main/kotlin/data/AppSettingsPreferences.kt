@@ -182,6 +182,10 @@ internal class AppSettingsPreferences(
                 KeyCustomResourceFileMmdbUrl,
                 defaults.customResourceFileMmdbUrl,
             ) ?: defaults.customResourceFileMmdbUrl,
+            customResourceFileCountryMmdbUrl = preferences.getString(
+                KeyCustomResourceFileCountryMmdbUrl,
+                defaults.customResourceFileCountryMmdbUrl,
+            ) ?: defaults.customResourceFileCountryMmdbUrl,
             customResourceFileAsnUrl = preferences.getString(
                 KeyCustomResourceFileAsnUrl,
                 defaults.customResourceFileAsnUrl,
@@ -377,6 +381,7 @@ internal class AppSettingsPreferences(
             .putString(KeyCustomResourceFileGeoIpUrl, state.customResourceFileGeoIpUrl)
             .putString(KeyCustomResourceFileGeoSiteUrl, state.customResourceFileGeoSiteUrl)
             .putString(KeyCustomResourceFileMmdbUrl, state.customResourceFileMmdbUrl)
+            .putString(KeyCustomResourceFileCountryMmdbUrl, state.customResourceFileCountryMmdbUrl)
             .putString(KeyCustomResourceFileAsnUrl, state.customResourceFileAsnUrl)
             .putString(KeyCustomResourceFileDirectCidrIpv4Url, state.customResourceFileDirectCidrIpv4Url)
             .putString(KeyCustomResourceFileDirectCidrIpv6Url, state.customResourceFileDirectCidrIpv6Url)
@@ -609,6 +614,7 @@ private const val KeyResourceFileSource = "resource_file_source"
 private const val KeyCustomResourceFileGeoIpUrl = "custom_resource_file_geoip_url"
 private const val KeyCustomResourceFileGeoSiteUrl = "custom_resource_file_geosite_url"
 private const val KeyCustomResourceFileMmdbUrl = "custom_resource_file_mmdb_url"
+private const val KeyCustomResourceFileCountryMmdbUrl = "custom_resource_file_country_mmdb_url"
 private const val KeyCustomResourceFileAsnUrl = "custom_resource_file_asn_url"
 private const val KeyCustomResourceFileDirectCidrIpv4Url = "custom_resource_file_direct_cidr_ipv4_url"
 private const val KeyCustomResourceFileDirectCidrIpv6Url = "custom_resource_file_direct_cidr_ipv6_url"

@@ -101,6 +101,7 @@ data class AppState(
     val customResourceFileGeoIpUrl: String = "",
     val customResourceFileGeoSiteUrl: String = "",
     val customResourceFileMmdbUrl: String = "",
+    val customResourceFileCountryMmdbUrl: String = "",
     val customResourceFileAsnUrl: String = "",
     val customResourceFileDirectCidrIpv4Url: String = "",
     val customResourceFileDirectCidrIpv6Url: String = "",

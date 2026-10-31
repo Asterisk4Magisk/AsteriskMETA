@@ -160,7 +160,10 @@ abstract class GenerateAboutLibrariesJsonTask : DefaultTask() {
 
                 if (group == "org.jetbrains.compose.hot-reload") return@mapNotNull null
                 val id = "$group:$name"
-                libraryOverrides[id]?.let { override -> return@mapNotNull override(version) }
+                val overrideId = if (id == "com.github.Asterisk4Magisk:libclash-rs") {
+                    "com.github.Asterisk4Magisk:libclash"
+                } else id
+                libraryOverrides[overrideId]?.let { override -> return@mapNotNull override(version) }
                 val fallbackUrl = "https://mvnrepository.com/artifact/$group/$name"
                 runCatching {
                     val artifact = project.dependencies.createArtifactResolutionQuery()

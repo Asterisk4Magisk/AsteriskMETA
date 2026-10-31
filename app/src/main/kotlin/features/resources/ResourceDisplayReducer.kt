@@ -7,6 +7,7 @@ import app.ResourceFileKind
 import app.ResourceFileStatus
 import app.ResourceFilesStatus
 import app.statusOf
+import features.resources.runtime.managedByCurrentCore
 
 internal enum class ResourceDisplayAction {
     Update,
@@ -33,7 +34,7 @@ internal data class ResourceOverviewState(
 internal fun reduceResourceOverview(
     status: ResourceFilesStatus,
 ): ResourceOverviewState {
-    val builtInStatuses = ResourceFileKind.entries.map(status::statusOf)
+    val builtInStatuses = ResourceFileKind.entries.filter(ResourceFileKind::managedByCurrentCore).map(status::statusOf)
     val allStatuses = builtInStatuses
     return ResourceOverviewState(
         readyCount = allStatuses.count(ResourceFileStatus::exists),
@@ -47,7 +48,7 @@ internal fun resourceVisualKind(fileName: String): ResourceVisualKind {
         ResourceFileMihomoCoreName, ResourceFileKind.MihomoCore.displayName -> ResourceVisualKind.Core
         ResourceFileGeoIpName -> ResourceVisualKind.GeoIp
         ResourceFileGeoSiteName -> ResourceVisualKind.GeoSite
-        ResourceFileMmdbName -> ResourceVisualKind.Database
+        ResourceFileMmdbName, ResourceFileCountryMmdbName -> ResourceVisualKind.Database
         ResourceFileAsnName -> ResourceVisualKind.Asn
         ResourceFileDirectCidrIpv4Name,
         ResourceFileDirectCidrIpv6Name,

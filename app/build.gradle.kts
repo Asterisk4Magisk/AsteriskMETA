@@ -14,6 +14,11 @@ plugins {
 }
 
 val generatedSrcDir: Provider<Directory> = layout.buildDirectory.dir("generated/projectInfo")
+val bundledCoreId = providers.gradleProperty("core").orElse("mihomo").get()
+require(bundledCoreId == "mihomo" || bundledCoreId == "meow") {
+    "Gradle property core must be mihomo or meow, but was $bundledCoreId"
+}
+val bundledCoreArtifact = if (bundledCoreId == "meow") "libclash-rs" else "libclash"
 
 android {
     namespace = "app"
@@ -129,7 +134,7 @@ dependencies {
     implementation(libs.haze)
     implementation(libs.haze.blur)
     //noinspection UseTomlInstead
-    implementation("com.github.Asterisk4Magisk:libclash:${ProjectConfig.ANDROID_LIB_CLASH_LITE_VERSION}@aar")
+    implementation("com.github.Asterisk4Magisk:$bundledCoreArtifact:${ProjectConfig.ANDROID_LIB_CLASH_LITE_VERSION}@aar")
     implementation(dependencies.project(":asteriskd"))
     implementation(dependencies.project(":enhance"))
     implementation(dependencies.project(":bpfmatcher"))
@@ -160,6 +165,7 @@ val generateProjectInfo = tasks.register<GenerateProjectInfoTask>("generateProje
     versionCode.set(getGitVersionCode())
     androidLibClashLiteVersion.set(ProjectConfig.ANDROID_LIB_CLASH_LITE_VERSION)
     hevSocks5TunnelVersion.set(ProjectConfig.HEV_SOCKS5_TUNNEL_VERSION)
+    coreId.set(bundledCoreId)
     outputDirectory.set(generatedSrcDir.map { it.dir("kotlin") })
 }
 
@@ -180,7 +186,7 @@ androidComponents {
         variant.sources.kotlin?.addGeneratedSourceDirectory(generateProjectInfo) { task ->
             task.outputDirectory
         }
-        variant.sources.assets?.addStaticSourceDirectory("build/generated/resourceFileAssets")
+        variant.sources.assets?.addStaticSourceDirectory("build/generated/resourceFileAssets/$bundledCoreId")
     }
 }
 

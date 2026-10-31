@@ -152,7 +152,7 @@
     <string name="monitor_resource_embedded_explanation">CPU 包含同一进程内的 Mihomo 与 AsteriskMETA 开销，不能与 ROOT 模式直接横向比较。</string>
     <string name="monitor_resource_focus_memory">内存 %1$s</string>
     <string name="monitor_resource_interval">采样间隔</string>
-    <string name="monitor_resource_memory">Mihomo 内存</string>
+    <string name="monitor_resource_memory">进程内存</string>
     <string name="monitor_resource_memory_peak">内存峰值</string>
     <string name="monitor_resource_pid">进程 PID</string>
     <string name="monitor_resource_root_explanation">CPU 数据来自独立运行的 Mihomo 进程。</string>
@@ -567,6 +567,7 @@
     <string name="error_tun2socks_start_failed">TUN2SOCKS 模式启动失败：%1$s</string>
     <string name="error_tun_root_required">ROOT 权限不可用，无法启动 TUN 模式</string>
     <string name="error_tun_start_failed">TUN 模式启动失败：%1$s</string>
+    <string name="error_root_tun_unsupported">%1$s 不支持 ROOT TUN</string>
     <string name="root_foreign_owner_conflict">ROOT 代理服务正被 %1$s 占用，请先在 %1$s 中停止服务后重试。</string>
     <string name="settings_app_list_enhancement">应用名单增强</string>
     <string name="settings_app_list_enhancement_summary">按应用名单分流系统 DNS，并隔离缓存</string>
@@ -990,7 +991,7 @@
     <string name="auto_switch_log_stopped">自动检测未运行</string>
     <string name="auto_switch_log_not_running">自动检测仅在代理服务运行时进行</string>
     <string name="auto_switch_log_unavailable">无法从核心读取自动切换状态</string>
-    <string name="auto_switch_log_unsupported_core">当前运行的核心不支持自动切换。请在资源管理中移除上传的自定义 Mihomo 核心以使用内置核心。</string>
+    <string name="auto_switch_log_unsupported_core">当前运行的核心不支持自动切换。请在资源管理中移除上传的自定义核心以使用内置核心。</string>
     <string name="auto_switch_log_groups">监测的策略组</string>
     <string name="auto_switch_log_events">最近事件</string>
     <string name="auto_switch_progress_preparing">正在读取策略组…</string>
@@ -1015,7 +1016,7 @@
     <string name="auto_switch_event_restored">已从 %1$s 切回此前选择的节点 %2$s · %3$d ms</string>
     <string name="auto_switch_info">说明</string>
     <string name="auto_switch_policy_title">自动切换的工作方式</string>
-    <string name="auto_switch_policy">代理服务运行期间由核心执行检测，App 无需常驻后台。\n\n检测使用「连接测试」中的测试地址、超时与并发数。\n\n达到连续失败次数后，优先检测偏好节点，并按以往测速结果从快到慢检测。期望延迟不为 0 时，找到第一个低于该延迟的可用节点即切换，不再检测其余节点；为 0 或没有节点达标时，选择延迟最低的可用节点。偏好节点全部不可用时才检测其他节点。\n\n当前节点正常或已被手动更改时不切换；全部不可用时保留原选择，并逐步拉长后续扫描间隔。\n\n开启「恢复切回」后，每个检测间隔都会检测首次自动切换前选择的节点，连续成功 3 次后切回该节点；期间手动更改选择则取消切回。\n\n需要使用内置核心，上传的自定义 Mihomo 核心不支持此功能。</string>
+    <string name="auto_switch_policy">代理服务运行期间由核心执行检测，App 无需常驻后台。\n\n检测使用「连接测试」中的测试地址、超时与并发数。\n\n达到连续失败次数后，优先检测偏好节点，并按以往测速结果从快到慢检测。期望延迟不为 0 时，找到第一个低于该延迟的可用节点即切换，不再检测其余节点；为 0 或没有节点达标时，选择延迟最低的可用节点。偏好节点全部不可用时才检测其他节点。\n\n当前节点正常或已被手动更改时不切换；全部不可用时保留原选择，并逐步拉长后续扫描间隔。\n\n开启「恢复切回」后，每个检测间隔都会检测首次自动切换前选择的节点，连续成功 3 次后切回该节点；期间手动更改选择则取消切回。\n\n需要使用内置核心，上传的自定义核心不支持此功能。</string>
     <string name="auto_switch_policy_raw">当前配置使用原始配置文件，核心遵循其中的 asterisk-auto-switch 字段；这里的设置会保存但不会生效。</string>
     <string name="auto_switch_groups">监测的策略组</string>
     <string name="auto_switch_groups_summary">至少选择当前配置中的一个手动选择组。\n\n仅监测直接选中的节点；直连、拒绝、嵌套策略组及核心管理的自动策略组保持原行为。\n\n切换配置后需重新选择策略组。</string>

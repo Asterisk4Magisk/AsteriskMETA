@@ -28,6 +28,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import java.io.BufferedReader
 import java.io.EOFException
@@ -634,6 +636,9 @@ internal class MihomoControlClient(
             val status = connection.responseCode
             val stream = if (status in 200..299) connection.inputStream else connection.errorStream
             val response = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
+            if (status == HttpURLConnection.HTTP_CONFLICT) {
+                response.toCoreRestartRequiredOrNull()?.let { throw it }
+            }
             if (status !in 200..299) {
                 throw MihomoApiException(method, path, status, response)
             }
@@ -877,6 +882,23 @@ private fun Int.toMihomoHistoryDelay(
         this >= timeoutMillis -> MihomoTimeoutDelay
         else -> this
     }
+}
+
+internal class CoreRestartRequiredException(
+    val fields: List<String>,
+    message: String,
+) : IllegalStateException(message)
+
+private fun String.toCoreRestartRequiredOrNull(): CoreRestartRequiredException? {
+    val root = runCatching { Json.parseToJsonElement(this) }.getOrNull()?.jsonObjectOrNull() ?: return null
+    val code = root["code"]?.jsonPrimitive?.contentOrNull
+    if (code != "RESTART_REQUIRED") return null
+    val fields = root["fields"]?.jsonArrayOrNull()
+        ?.mapNotNull { element -> element.jsonPrimitive.contentOrNull }
+        .orEmpty()
+    val message = root["message"]?.jsonPrimitive?.contentOrNull?.takeIf(String::isNotBlank)
+        ?: "Restart the core to apply startup-only configuration changes"
+    return CoreRestartRequiredException(fields, message)
 }
 
 private class MihomoApiException(

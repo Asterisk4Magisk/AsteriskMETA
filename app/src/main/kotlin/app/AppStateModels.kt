@@ -4,6 +4,9 @@
 package app
 
 import androidx.compose.runtime.Stable
+import engine.mihomo.BundledCore
+import features.resources.ResourceFileCountryMmdbName
+import features.resources.ResourceFileCountryMmdbUrl
 import features.resources.ResourceFileDirectCidrIpv4Name
 import features.resources.ResourceFileDirectCidrIpv4Url
 import features.resources.ResourceFileDirectCidrIpv6Name
@@ -98,6 +101,7 @@ enum class ResourceFileKind(
     GeoIp(ResourceFileGeoIpName),
     GeoSite(ResourceFileGeoSiteName),
     Mmdb(ResourceFileMmdbName),
+    CountryMmdb(ResourceFileCountryMmdbName),
     Asn(ResourceFileAsnName),
     DirectCidrIpv4(ResourceFileDirectCidrIpv4Name),
     DirectCidrIpv6(ResourceFileDirectCidrIpv6Name),
@@ -105,7 +109,7 @@ enum class ResourceFileKind(
 
     val displayName: String
         get() = when (this) {
-            MihomoCore -> "Mihomo"
+            MihomoCore -> BundledCore.displayName
             else -> fileName
         }
 }
@@ -128,6 +132,7 @@ data class ResourceFileUpdateSource(
     val geoIpUrl: String,
     val geoSiteUrl: String,
     val mmdbUrl: String,
+    val countryMmdbUrl: String,
     val asnUrl: String,
     val directCidrIpv4Url: String,
     val directCidrIpv6Url: String,
@@ -139,6 +144,7 @@ val ResourceFileUpdateSources = listOf(
         geoIpUrl = ResourceFileGeoIpUrl,
         geoSiteUrl = ResourceFileGeoSiteUrl,
         mmdbUrl = ResourceFileMmdbUrl,
+        countryMmdbUrl = ResourceFileCountryMmdbUrl,
         asnUrl = ResourceFileAsnUrl,
         directCidrIpv4Url = ResourceFileDirectCidrIpv4Url,
         directCidrIpv6Url = ResourceFileDirectCidrIpv6Url,
@@ -177,6 +183,7 @@ fun AppState.resourceFileUpdateSource(): ResourceFileUpdateSource {
         geoIpUrl = customResourceFileGeoIpUrl.trim().ifBlank { fallback.geoIpUrl },
         geoSiteUrl = customResourceFileGeoSiteUrl.trim().ifBlank { fallback.geoSiteUrl },
         mmdbUrl = customResourceFileMmdbUrl.trim().ifBlank { fallback.mmdbUrl },
+        countryMmdbUrl = customResourceFileCountryMmdbUrl.trim().ifBlank { fallback.countryMmdbUrl },
         asnUrl = customResourceFileAsnUrl.trim().ifBlank { fallback.asnUrl },
         directCidrIpv4Url = customResourceFileDirectCidrIpv4Url.trim().ifBlank { fallback.directCidrIpv4Url },
         directCidrIpv6Url = customResourceFileDirectCidrIpv6Url.trim().ifBlank { fallback.directCidrIpv6Url },
@@ -196,9 +203,10 @@ fun MihomoProfileState.hasRuntimeRelevantChanges(next: MihomoProfileState): Bool
 fun ResourceFileUpdateSource.urlFor(kind: ResourceFileKind): String? {
     return when (kind) {
         ResourceFileKind.MihomoCore -> null
-        ResourceFileKind.GeoIp -> geoIpUrl
+        ResourceFileKind.GeoIp -> geoIpUrl.takeUnless { BundledCore.usesRealMmdb }
         ResourceFileKind.GeoSite -> geoSiteUrl
-        ResourceFileKind.Mmdb -> mmdbUrl
+        ResourceFileKind.Mmdb -> mmdbUrl.takeUnless { BundledCore.usesRealMmdb }
+        ResourceFileKind.CountryMmdb -> countryMmdbUrl.takeIf { BundledCore.usesRealMmdb }
         ResourceFileKind.Asn -> asnUrl
         ResourceFileKind.DirectCidrIpv4 -> directCidrIpv4Url
         ResourceFileKind.DirectCidrIpv6 -> directCidrIpv6Url

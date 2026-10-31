@@ -4,6 +4,8 @@
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.TaskAction
 import java.io.File
@@ -11,6 +13,9 @@ import java.net.HttpURLConnection
 import java.net.URI
 
 abstract class UpdateResourceFileAssetsTask : DefaultTask() {
+    @get:Input
+    abstract val coreId: Property<String>
+
     @get:OutputDirectory
     abstract val resourceFileAssetsDir: DirectoryProperty
 
@@ -21,7 +26,23 @@ abstract class UpdateResourceFileAssetsTask : DefaultTask() {
 
     @TaskAction
     fun updateAssets() {
-        AndroidMihomoResourceFileAssets.forEach { asset ->
+        val meow = coreId.get() == "meow"
+        val excludedFiles = if (meow) setOf("GeoIP.dat", "geoip.metadb") else emptySet()
+        val assets = AndroidMihomoResourceFileAssets.filterNot { it.fileName in excludedFiles }.toMutableList()
+        if (meow) {
+            assets += MihomoResourceFileAsset(
+                "Country.mmdb",
+                "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/country.mmdb",
+            )
+        }
+        // Remove files left by earlier builds from this core's generated assets.
+        excludedFiles.forEach { fileName ->
+            val target = File(resourceFileAssetsDir.get().asFile, "clash/$fileName")
+            if (target.exists() && !target.delete()) {
+                throw GradleException("Unable to remove unused bundled resource ${target.absolutePath}")
+            }
+        }
+        assets.forEach { asset ->
             downloadFile(
                 url = asset.url,
                 target = File(resourceFileAssetsDir.get().asFile, "clash/${asset.fileName}"),

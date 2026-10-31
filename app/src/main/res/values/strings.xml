@@ -154,7 +154,7 @@
     <string name="monitor_resource_embedded_explanation">CPU includes Mihomo and other AsteriskMETA work in the same process, so it is not directly comparable with ROOT mode.</string>
     <string name="monitor_resource_focus_memory">Memory %1$s</string>
     <string name="monitor_resource_interval">Sampling interval</string>
-    <string name="monitor_resource_memory">Mihomo memory</string>
+    <string name="monitor_resource_memory">Process memory</string>
     <string name="monitor_resource_memory_peak">Memory peak</string>
     <string name="monitor_resource_pid">Process PID</string>
     <string name="monitor_resource_root_explanation">CPU is sampled from the independent Mihomo process.</string>
@@ -578,6 +578,7 @@
     <string name="error_tun2socks_start_failed">Failed to start TUN2SOCKS mode: %1$s</string>
     <string name="error_tun_root_required">ROOT access is required for TUN mode</string>
     <string name="error_tun_start_failed">Failed to start TUN mode: %1$s</string>
+    <string name="error_root_tun_unsupported">%1$s does not support ROOT TUN</string>
     <string name="root_foreign_owner_conflict">The ROOT proxy service is being used by %1$s. Stop it in %1$s and try again.</string>
     <string name="settings_app_list_enhancement">Application list enhancement</string>
     <string name="settings_app_list_enhancement_summary">Route system DNS by app list; isolate caches</string>
@@ -1004,7 +1005,7 @@
     <string name="auto_switch_log_stopped">Automatic checks are not running</string>
     <string name="auto_switch_log_not_running">Automatic checks run only while the proxy service is running</string>
     <string name="auto_switch_log_unavailable">Could not read automatic switching status from the core</string>
-    <string name="auto_switch_log_unsupported_core">The running core does not support automatic switching. Remove the uploaded custom Mihomo core in Resource management to use the built-in core.</string>
+    <string name="auto_switch_log_unsupported_core">The running core does not support automatic switching. Remove the uploaded custom core in Resource management to use the built-in core.</string>
     <string name="auto_switch_log_groups">Monitored groups</string>
     <string name="auto_switch_log_events">Recent events</string>
     <string name="auto_switch_progress_preparing">Reading policy groups…</string>
@@ -1030,7 +1031,7 @@
     <string name="auto_switch_event_restored">Switched back from %1$s to previously selected proxy %2$s · %3$d ms</string>
     <string name="auto_switch_info">Details</string>
     <string name="auto_switch_policy_title">How automatic switching works</string>
-    <string name="auto_switch_policy">Checks run inside the core while the proxy service is running, so the app does not need to stay in the background.\n\nThey use the test URL, timeout and concurrency from Connection test.\n\nAfter the consecutive failure count is reached, preferred proxies are tested first, starting with those that were fastest in earlier tests. With a nonzero expected latency, the first healthy proxy below it is selected and the remaining proxies are not tested. With zero, or when no proxy meets it, the lowest-latency healthy proxy is selected. Other proxies are tested only when no preferred proxy is healthy.\n\nHealthy and manually changed selections are kept. When no proxy is healthy, the selection is kept and later scans back off.\n\nWith Switch back on, the proxy selected before the first automatic switch is checked every interval and selected again after 3 consecutive successes. Changing the selection manually cancels this.\n\nRequires the built-in core; an uploaded custom Mihomo core does not support it.</string>
+    <string name="auto_switch_policy">Checks run inside the core while the proxy service is running, so the app does not need to stay in the background.\n\nThey use the test URL, timeout and concurrency from Connection test.\n\nAfter the consecutive failure count is reached, preferred proxies are tested first, starting with those that were fastest in earlier tests. With a nonzero expected latency, the first healthy proxy below it is selected and the remaining proxies are not tested. With zero, or when no proxy meets it, the lowest-latency healthy proxy is selected. Other proxies are tested only when no preferred proxy is healthy.\n\nHealthy and manually changed selections are kept. When no proxy is healthy, the selection is kept and later scans back off.\n\nWith Switch back on, the proxy selected before the first automatic switch is checked every interval and selected again after 3 consecutive successes. Changing the selection manually cancels this.\n\nRequires the built-in core; an uploaded custom core does not support it.</string>
     <string name="auto_switch_policy_raw">This profile uses its raw configuration. The core follows the asterisk-auto-switch key in that configuration; these settings are saved but not applied.</string>
     <string name="auto_switch_groups">Monitored policy groups</string>
     <string name="auto_switch_groups_summary">Choose at least one manual selection group in the current profile.\n\nOnly directly selected proxies are monitored. DIRECT, REJECT, nested groups and core-managed automatic groups are left unchanged.\n\nAfter changing profiles, select groups again.</string>

@@ -66,7 +66,7 @@ fun LicensePage(
             LicenseLoadState.Failed(error.message.orEmpty())
         }
     }
-    val libraries = (loadState as? LicenseLoadState.Ready)?.libraries.orEmpty()
+    val libraries = (loadState as? LicenseLoadState.Ready)?.libraries.orEmpty().forBundledCore()
     val visibleLibraries = remember(libraries, query) {
         reduceLibraries(libraries, query)
     }

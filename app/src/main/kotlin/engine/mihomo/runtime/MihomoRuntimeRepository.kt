@@ -75,6 +75,11 @@ internal class MihomoRuntimeRepository(
     context: Context,
     private val client: MihomoControlClient = MihomoControlClient(),
 ) : MihomoRuntimeLifecycleTarget {
+    private var supervisedRestart: (suspend (AppState) -> Unit)? = null
+
+    fun bindSupervisedRestart(restart: suspend (AppState) -> Unit) {
+        supervisedRestart = restart
+    }
     private val appContext = context.applicationContext
     private val mutableState = MutableStateFlow(MihomoRuntimeState())
     private val trafficHistory = MihomoTrafficHistoryBuffer(MaxTrafficHistorySize)
@@ -344,15 +349,25 @@ internal class MihomoRuntimeRepository(
             val backend = resolveInteractiveBackend(appState, control)
             withContext(Dispatchers.IO) {
                 ensureInteractiveRuntime(appState, backend)
-                appContext.withRootDnsMutation(appState) {
-                    if (appState.runMode.isRootRunMode() && backend == MihomoRuntimeBackend.Api && !appState.usesRawMihomoConfig()) {
-                        appContext.publishRootProviderUpdates()
+                try {
+                    appContext.withRootDnsMutation(appState) {
+                        if (appState.runMode.isRootRunMode() && backend == MihomoRuntimeBackend.Api && !appState.usesRawMihomoConfig()) {
+                            appContext.publishRootProviderUpdates()
+                        }
+                        client.reloadProfile(
+                            config = control,
+                            profilePath = java.io.File(appContext.mihomoResourceFilePaths().dataDir, "config.yaml").absolutePath,
+                            reloadLocally = backend.useBridge() || appState.runMode == RunModeVpnService,
+                        )
                     }
-                    client.reloadProfile(
-                        config = control,
-                        profilePath = java.io.File(appContext.mihomoResourceFilePaths().dataDir, "config.yaml").absolutePath,
-                        reloadLocally = backend.useBridge() || appState.runMode == RunModeVpnService,
+                } catch (error: CoreRestartRequiredException) {
+                    if (!appState.runMode.isRootRunMode()) throw error
+                    AndroidAppLogger.info(
+                        LogTag,
+                        "ROOT configuration reload needs a supervised restart: ${error.fields.joinToString(",")}",
                     )
+                    val restart = supervisedRestart ?: throw error
+                    restart(appState)
                 }
             }
         }
@@ -1196,6 +1211,7 @@ private fun AppState.mihomoRuntimeConfigKey(backend: MihomoRuntimeBackend): Int 
             customResourceFileGeoIpUrl,
             customResourceFileGeoSiteUrl,
             customResourceFileMmdbUrl,
+            customResourceFileCountryMmdbUrl,
             customResourceFileAsnUrl,
             enableSniffer,
             enableSnifferOverrideDestination,

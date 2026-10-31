@@ -4,7 +4,6 @@ import libclash.*
 import android.app.Application
 import android.os.Build
 import androidx.core.net.toUri
-import go.Seq
 import engine.mihomo.binding.model.*
 import engine.mihomo.binding.util.parseInetSocketAddress
 import kotlinx.coroutines.CompletableDeferred
@@ -26,7 +25,7 @@ import kotlin.coroutines.cancellation.CancellationException
 internal object MihomoBridge {
     private lateinit var application: Application
     private val initialized by lazy {
-        Seq.setContext(application)
+        AndroidPlatform.initialize(application)
         val home = application.filesDir.resolve("clash").apply { mkdirs() }
         Libclash.init(home.absolutePath, app.ProjectInfo.VERSION_NAME, Build.VERSION.SDK_INT, object : ContentResolver {
             override fun openContent(uri: String): Int {
@@ -49,6 +48,11 @@ internal object MihomoBridge {
     fun coreVersion(): String {
         ensureInitialized()
         return Libclash.coreVersion()
+    }
+
+    fun capabilities(): String {
+        ensureInitialized()
+        return Libclash.capabilities()
     }
 
     fun queryProvider(type: Provider.Type, name: String): String {
@@ -125,7 +129,7 @@ internal object MihomoBridge {
         ensureInitialized()
         Libclash.startTunWithCongestionController(fd, stack, gateway, portal, dns, congestionController, object : TunInterface {
             override fun markSocket(fd: Int) {
-                markSocket(fd)
+                check(markSocket(fd)) { "VpnService.protect failed" }
             }
 
             override fun querySocketUid(protocol: Int, source: String, target: String): Int {
@@ -150,7 +154,7 @@ internal object MihomoBridge {
         ensureInitialized()
         Libclash.startTunContext(object : TunInterface {
             override fun markSocket(fd: Int) {
-                markSocket(fd)
+                check(markSocket(fd)) { "VpnService.protect failed" }
             }
 
             override fun querySocketUid(protocol: Int, source: String, target: String): Int {

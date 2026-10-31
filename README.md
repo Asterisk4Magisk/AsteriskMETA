@@ -94,6 +94,8 @@ On macOS or Linux:
 
 The build downloads the pinned AndroidLibClashLite AAR, builds the native submodules, and produces ABI split APKs plus a universal APK.
 
+Use `-Pcore=meow` for the Rust build, default is `-Pcore=mihomo`.
+
 If Gradle cannot find the Android NDK, configure it through Android Studio, `ndk.dir` in `local.properties`, or `ANDROID_NDK_HOME`.
 
 ## License

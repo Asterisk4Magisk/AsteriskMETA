@@ -52,20 +52,27 @@ internal object AndroidMihomoRuntime {
         if (preserveActiveTun && running) {
             return
         }
-        ensureLoadedLocked(context, config)
+        ensureLoadedLocked(context, config, tunCallbacks = null)
         if (!running) owner = MihomoRuntimeOwner.Standby
     }
 
     @Synchronized
-    fun start(
+    fun prepareTunnel(
         context: Context,
+        config: VpnServiceStartConfig,
+        markSocket: (Int) -> Boolean,
+        querySocketUid: (protocol: Int, source: InetSocketAddress, target: InetSocketAddress) -> Int,
+    ) {
+        ensureLoadedLocked(context, config, TunCallbacks(markSocket, querySocketUid))
+    }
+
+    @Synchronized
+    fun startNativeTun(
         config: VpnServiceStartConfig,
         tunFileDescriptor: ParcelFileDescriptor,
         markSocket: (Int) -> Boolean,
         querySocketUid: (protocol: Int, source: InetSocketAddress, target: InetSocketAddress) -> Int,
     ) {
-        ensureLoadedLocked(context, config)
-
         runCatching {
             tunFileDescriptor.use {
                 Clash.startTun(
@@ -84,37 +91,15 @@ internal object AndroidMihomoRuntime {
             coreLogSubscriber = null
             throw error
         }
-        serviceStartedElapsedMillis = SystemClock.elapsedRealtime()
-        running = true
-        nativeTunRunning = true
-        tunContextRunning = true
-        owner = MihomoRuntimeOwner.ProxyService
+        markProxyRunning(nativeTun = true)
         AndroidAppLogger.info(LogTag, "Started mihomo VPN runtime with profile ${config.mihomoProfilePath}")
     }
 
     @Synchronized
-    fun startLocalProxy(
-        context: Context,
+    fun startPreparedLocalProxy(
         config: VpnServiceStartConfig,
-        markSocket: (Int) -> Boolean,
-        querySocketUid: (protocol: Int, source: InetSocketAddress, target: InetSocketAddress) -> Int,
     ) {
-        ensureLoadedLocked(context, config)
-        runCatching {
-            Clash.startTunContext(
-                markSocket = markSocket,
-                querySocketUid = querySocketUid,
-            )
-        }.onFailure { error ->
-            coreLogSubscriber?.stop()
-            coreLogSubscriber = null
-            throw error
-        }
-        serviceStartedElapsedMillis = SystemClock.elapsedRealtime()
-        running = true
-        nativeTunRunning = false
-        tunContextRunning = true
-        owner = MihomoRuntimeOwner.ProxyService
+        markProxyRunning(nativeTun = false)
         AndroidAppLogger.info(LogTag, "Started mihomo VPN runtime without native TUN using profile ${config.mihomoProfilePath}")
     }
 
@@ -134,7 +119,7 @@ internal object AndroidMihomoRuntime {
             return
         }
         val shouldStopTun = nativeTunRunning
-        val shouldStopTunContext = !nativeTunRunning && tunContextRunning
+        val shouldStopTunContext = tunContextRunning
         serviceStartedElapsedMillis = 0L
         running = false
         nativeTunRunning = false
@@ -143,7 +128,8 @@ internal object AndroidMihomoRuntime {
         if (shouldStopTun) {
             runCatching { Clash.stopTun() }
                 .onFailure { error -> AndroidAppLogger.warn(LogTag, "Failed to stop mihomo TUN runtime", error) }
-        } else if (shouldStopTunContext) {
+        }
+        if (shouldStopTunContext) {
             runCatching { Clash.stopTunContext() }
                 .onFailure { error -> AndroidAppLogger.warn(LogTag, "Failed to stop mihomo TUN context", error) }
         }
@@ -212,9 +198,11 @@ internal object AndroidMihomoRuntime {
     private fun ensureLoadedLocked(
         context: Context,
         config: VpnServiceStartConfig,
+        tunCallbacks: TunCallbacks?,
     ) {
         val signature = config.runtimeConfigSignature()
         if (loaded && activeProfile?.signature == signature) {
+            tunCallbacks?.let(::installTunCallbacks)
             return
         }
         stop(resetCore = true)
@@ -236,6 +224,8 @@ internal object AndroidMihomoRuntime {
         runCatching {
             runBlocking {
                 withTimeout(DefaultLoadTimeoutMillis.milliseconds) {
+                    // Both facades retain this context across reset/load.
+                    tunCallbacks?.let(::installTunCallbacks)
                     Clash.reset()
                     Clash.clearOverride(Clash.OverrideSlot.Session)
                     setRuntimeAgeSecretKey(config.ageSecretKey)
@@ -247,16 +237,36 @@ internal object AndroidMihomoRuntime {
             coreLogSubscriber = null
             loaded = false
             activeProfile = null
+            running = false
+            nativeTunRunning = false
+            tunContextRunning = false
+            runCatching { Clash.stopTunContext() }
             throw error
         }
         loaded = true
         serviceStartedElapsedMillis = 0L
         running = false
         nativeTunRunning = false
-        tunContextRunning = false
+        tunContextRunning = tunCallbacks != null
         activeProfile = LoadedMihomoProfile(profileDir, profileContent, signature)
         val source = if (profileContent == null) "file" else "memory"
         AndroidAppLogger.info(LogTag, "Loaded mihomo runtime profile source=$source")
+    }
+
+    private fun installTunCallbacks(callbacks: TunCallbacks) {
+        Clash.startTunContext(
+            markSocket = callbacks.markSocket,
+            querySocketUid = callbacks.querySocketUid,
+        )
+        tunContextRunning = true
+    }
+
+    private fun markProxyRunning(nativeTun: Boolean) {
+        serviceStartedElapsedMillis = SystemClock.elapsedRealtime()
+        running = true
+        nativeTunRunning = nativeTun
+        tunContextRunning = true
+        owner = MihomoRuntimeOwner.ProxyService
     }
 
     private suspend fun loadProfile(profileDir: File, content: ByteArray?) {
@@ -279,6 +289,11 @@ internal object AndroidMihomoRuntime {
 private fun setRuntimeAgeSecretKey(ageSecretKey: String) {
     Clash.setAgeSecretKey(ageSecretKey.trim().takeIf(String::isNotBlank))
 }
+
+private data class TunCallbacks(
+    val markSocket: (Int) -> Boolean,
+    val querySocketUid: (protocol: Int, source: InetSocketAddress, target: InetSocketAddress) -> Int,
+)
 
 private data class MihomoRuntimeConfigSignature(
     val dataDir: String,

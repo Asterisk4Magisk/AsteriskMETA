@@ -60,6 +60,20 @@ internal val AppState.effectiveMihomoTunCongestionController: String
         ""
     }
 
+internal fun AppState.runtimeTunStackName(): String {
+    return CoreCapabilitiesStore.current.effectiveTunStack(MihomoProfileFactory.tunStack(this))
+}
+
+internal fun AppState.runtimeTunCongestionController(): String {
+    val capabilities = CoreCapabilitiesStore.current
+    if (!capabilities.selectableCongestionController) return ""
+    val stack = runtimeTunStackName()
+    if (capabilities.congestionControllerStacks.isNotEmpty() && stack !in capabilities.congestionControllerStacks) {
+        return ""
+    }
+    return effectiveMihomoTunCongestionController
+}
+
 internal object MihomoProfileFactory {
     fun buildProfileBytes(
         context: Context,
@@ -71,7 +85,7 @@ internal object MihomoProfileFactory {
         val selectedProfile = appState.selectedMihomoProfileOrNull()
             ?: error(MihomoProfileMissingErrorMessage)
         val sourceBytes = context.mihomoProfileContentStore().readBytes(selectedProfile)
-        val resolved = resolveMihomoRuntimeProfileBytes(
+        return resolveMihomoRuntimeProfileBytes(
             sourceBytes = sourceBytes,
             disableOverrides = selectedProfile.disableOverrides,
         ) { rawContent ->
@@ -81,7 +95,6 @@ internal object MihomoProfileFactory {
                 useRootProviderPaths,
             )
         }
-        return resolved
     }
 
     fun buildProfile(
@@ -284,9 +297,11 @@ private fun AppState.toMihomoGeoXUrlYamlMap(): Map<String, String> {
     return linkedMapOf(
         "geoip" to source.geoIpUrl,
         "geosite" to source.geoSiteUrl,
-        "mmdb" to source.mmdbUrl,
+        "mmdb" to if (BundledCore.usesRealMmdb) source.countryMmdbUrl else source.mmdbUrl,
         "asn" to source.asnUrl,
-    )
+    ).apply {
+        if (BundledCore.usesRealMmdb) remove("geoip")
+    }
 }
 
 private fun MutableMap<String, Any?>.putDnsOverrides(
@@ -406,7 +421,7 @@ internal fun AppState.toMihomoTunListenerYamlMap(
         "name" to MihomoTunInboundName,
         "type" to "tun",
         "device" to MihomoTunDevice,
-        "stack" to MihomoProfileFactory.tunStack(this),
+        "stack" to runtimeTunStackName(),
         "auto-route" to true,
         "auto-detect-interface" to true,
         "auto-redirect" to true,
@@ -418,7 +433,7 @@ internal fun AppState.toMihomoTunListenerYamlMap(
             applicationUids, tunSharedNetworkInterfaces,
             tunBypassRuleSetTags, ruleProviders,
         ))
-        effectiveMihomoTunCongestionController.takeIf(String::isNotEmpty)?.let {
+        runtimeTunCongestionController().takeIf(String::isNotEmpty)?.let {
             put("congestion-controller", it)
         }
         if (effectiveLocalDnsEnabled) {

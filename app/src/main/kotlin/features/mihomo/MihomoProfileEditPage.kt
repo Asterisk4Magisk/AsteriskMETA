@@ -397,7 +397,7 @@ fun MihomoProfileEditPage(
             scope.launch { services.tipNotifier.show(invalidUrlMessage) }
             return
         }
-        if (!cleanAgeSecretKey.isValidAgeSecretKey()) {
+        if (!cleanAgeSecretKey.isValidAgeSecretKey(targetProfile?.ageSecretKey)) {
             scope.launch { services.tipNotifier.show(invalidAgeSecretKeyMessage) }
             return
         }
@@ -1257,8 +1257,9 @@ private fun RawModeConfirmationDialog(
     )
 }
 
-private fun String.isValidAgeSecretKey(): Boolean {
-    return isBlank() || Clash.veritySecretKeys(this)
+private fun String.isValidAgeSecretKey(stored: String?): Boolean {
+    if (isBlank() || trim() == stored?.trim()) return true
+    return Clash.veritySecretKeys(this)
 }
 
 private const val RawConfigValidationDebounceMillis = 350L

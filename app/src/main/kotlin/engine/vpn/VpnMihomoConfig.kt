@@ -11,9 +11,10 @@ import engine.hevtun.HevSocks5TunnelConfigFileName
 import engine.hevtun.HevSocks5TunnelLogFileName
 import engine.hevtun.hevSocks5TunnelLogFile
 import engine.hevtun.hevSocks5TunnelSocksTargetAddress
+import engine.mihomo.CoreCapabilitiesStore
 import engine.mihomo.MihomoProfileFactory
 import engine.mihomo.DefaultMihomoTunCongestionController
-import engine.mihomo.effectiveMihomoTunCongestionController
+import engine.mihomo.runtimeTunCongestionController
 import engine.mihomo.sha256Hex
 import engine.mihomo.selectedMihomoProfileOrNull
 import engine.proxy.LocalProxyOptions
@@ -105,11 +106,14 @@ internal object VpnMihomoConfigFactory {
             mihomoProfileSignature = profileSignature,
             standbyProfileContent = profileBytes.takeUnless { exposePorts },
             ageSecretKey = ageSecretKey,
-            mihomoTunStack = rawConfig?.tunInbound?.value?.stack ?: MihomoProfileFactory.tunStack(appState),
+            mihomoTunStack = CoreCapabilitiesStore.current.effectiveTunStack(
+                rawConfig?.tunInbound?.value?.stack ?: MihomoProfileFactory.tunStack(appState),
+            ),
             mihomoTunCongestionController = if (rawConfig == null) {
-                appState.effectiveMihomoTunCongestionController
+                appState.runtimeTunCongestionController()
             } else {
-                rawConfig.tunInbound.value?.congestionController.orEmpty()
+                val controller = rawConfig.tunInbound.value?.congestionController.orEmpty()
+                controller.takeIf { CoreCapabilitiesStore.current.selectableCongestionController && it in CoreCapabilitiesStore.current.congestionControllers }.orEmpty()
             },
             applicationPolicy = appState.toVpnApplicationPolicy(Process.myUid().toAndroidUserId()),
             localProxyOptions = localProxyOptions,

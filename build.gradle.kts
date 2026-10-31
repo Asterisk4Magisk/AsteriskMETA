@@ -7,5 +7,7 @@ plugins {
 }
 
 tasks.register<UpdateResourceFileAssetsTask>("updateResourceFileAssets") {
-    resourceFileAssetsDir.set(layout.projectDirectory.dir("app/build/generated/resourceFileAssets"))
+    val core = providers.gradleProperty("core").orElse("mihomo").get()
+    coreId.set(core)
+    resourceFileAssetsDir.set(layout.projectDirectory.dir("app/build/generated/resourceFileAssets/$core"))
 }

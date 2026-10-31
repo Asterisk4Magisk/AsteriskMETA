@@ -11,6 +11,7 @@ import app.modes.RunModeTun2Socks
 import app.modes.RunModeTproxy
 import app.modes.RunModeVpnService
 import app.modes.isRootRunMode
+import engine.mihomo.CoreCapabilitiesStore
 import engine.hevtun.deleteHevSocks5TunnelLogFile
 import engine.proxy.AndroidProxyEngine
 import engine.root.runtime.RootFailureWatcher
@@ -45,7 +46,7 @@ internal class SwitchRunModeUseCase(
             RunModeTun2Socks -> RunModeTun2Socks
             RunModeBpf2Socks -> RunModeBpf2Socks
             else -> RunModeVpnService
-        }
+        }.takeIf(CoreCapabilitiesStore.current::supportsRunMode) ?: RunModeVpnService
         if (currentState.runMode == normalizedTargetMode) {
             return SwitchRunModeResult.Success(
                 runMode = currentState.runMode,

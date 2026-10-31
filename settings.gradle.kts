@@ -43,7 +43,10 @@ dependencyResolutionManagement {
                     metadataSources { artifact() }
                 }
             }
-            filter { includeModule("com.github.Asterisk4Magisk", "libclash") }
+            filter {
+                includeModule("com.github.Asterisk4Magisk", "libclash")
+                includeModule("com.github.Asterisk4Magisk", "libclash-rs")
+            }
         }
         maven("https://raw.githubusercontent.com/MetaCubeX/maven-backup/main/releases")
     }

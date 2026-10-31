@@ -30,6 +30,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.ProjectInfo
 import app.R
+import engine.mihomo.BundledCore
 import ui.components.AsteriskListRow
 import ui.components.AsteriskSection
 import ui.theme.AsteriskShapeTokens
@@ -117,7 +118,11 @@ internal fun AboutRuntimeSection(
         modifier = modifier.fillMaxWidth(),
         title = stringResource(R.string.about_runtime),
     ) {
-        AboutRuntimeRow("AndroidLibClashLite", ProjectInfo.ANDROID_LIB_CLASH_LITE_VERSION, Icons.Rounded.Memory)
+        AboutRuntimeRow(
+            "AndroidLibClashLite (${BundledCore.displayName})",
+            ProjectInfo.ANDROID_LIB_CLASH_LITE_VERSION,
+            Icons.Rounded.Memory,
+        )
         AboutRuntimeRow("hev-socks5-tunnel", ProjectInfo.HEV_SOCKS5_TUNNEL_VERSION, Icons.Rounded.VpnLock)
     }
 }

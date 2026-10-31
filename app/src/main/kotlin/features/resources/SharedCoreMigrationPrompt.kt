@@ -12,6 +12,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import app.LocalAppServices
+import engine.mihomo.BundledCore
+import engine.mihomo.MihomoCoreId
 import app.LocalAppStateStore
 import app.R
 import app.modes.isRootRunMode
@@ -47,6 +49,12 @@ internal fun SharedCoreMigrationPrompt() {
     }
 
     LaunchedEffect(marker, services.resourceFileUseCase) {
+        // Only legacy Mihomo installations need this migration prompt.
+        if (BundledCore.id != MihomoCoreId) {
+            migration.checked = true
+            migration.show = false
+            return@LaunchedEffect
+        }
         if (migration.checked) return@LaunchedEffect
         try {
             if (!withContext(Dispatchers.IO) { marker.exists() }) {

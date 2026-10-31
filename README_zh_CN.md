@@ -94,6 +94,8 @@ macOS 或 Linux：
 
 构建会下载固定版本的 AndroidLibClashLite AAR，构建 native submodule，并生成 ABI split APK 和 universal APK。
 
+使用 `-Pcore=meow` 构建 Rust 版，默认值为 `-Pcore=mihomo`。
+
 如果 Gradle 找不到 Android NDK，请通过 Android Studio、`local.properties` 中的 `ndk.dir` 或 `ANDROID_NDK_HOME` 配置。
 
 ## 许可

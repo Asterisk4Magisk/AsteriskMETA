@@ -8,6 +8,7 @@ import android.net.Uri
 import app.ResourceFileKind
 import app.ResourceFileStatus
 import app.ResourceFilesStatus
+import engine.mihomo.BundledCore
 import features.resources.ResourceFileSourceMetaCubeXGithub
 import system.getPackageInfoCompat
 import utils.writeAtomically
@@ -28,7 +29,7 @@ internal class AndroidResourceFileStore(
 
     fun currentStatus(): ResourceFilesStatus {
         return ResourceFilesStatus(
-            resourceFiles = ResourceFileKind.entries.associateWith { kind ->
+            resourceFiles = ResourceFileKind.entries.filter(ResourceFileKind::managedByCurrentCore).associateWith { kind ->
                 val target = if (kind == ResourceFileKind.MihomoCore) effectiveMihomoCoreFile() else file(kind)
                 target.toStatus(kind).copy(
                     isBundledCore = kind == ResourceFileKind.MihomoCore && target != file(kind),
@@ -44,7 +45,7 @@ internal class AndroidResourceFileStore(
     fun restoreBundledDefaults(resourceFileSource: Int = ResourceFileSourceMetaCubeXGithub) {
         val bundledUpdatedAtMillis = appContext.packageUpdatedAtMillis()
         ResourceFileKind.entries.forEach { kind ->
-            if (kind == ResourceFileKind.MihomoCore) return@forEach
+            if (kind == ResourceFileKind.MihomoCore || !kind.managedByCurrentCore()) return@forEach
             val target = file(kind)
             if (!target.needsBundledRestore(kind, resourceFileSource, bundledUpdatedAtMillis)) return@forEach
             if (!hasBundledFile(kind)) return@forEach
@@ -72,7 +73,7 @@ internal class AndroidResourceFileStore(
     }
 
     fun restoreBundled(kind: ResourceFileKind) {
-        require(kind != ResourceFileKind.MihomoCore) { "Mihomo core must be restored through the locked publisher" }
+        require(kind != ResourceFileKind.MihomoCore) { "${BundledCore.displayName} core must be restored through the locked publisher" }
         restoreBundledResourceFile(kind)
     }
 
@@ -87,19 +88,22 @@ internal class AndroidResourceFileStore(
     fun hasCustomMihomoCore(): Boolean = file(ResourceFileKind.MihomoCore).coreBinaryOwnerUidOrNull() != null
 
     fun effectiveMihomoCoreFile(): File {
+        val bundled = bundledMihomoCoreFile()
         val custom = file(ResourceFileKind.MihomoCore)
         // Keep invalid uploads visible; only an absent custom core falls back.
-        return if (hasCustomMihomoCore()) custom
-        else File(appContext.applicationInfo.nativeLibraryDir, MihomoCoreLibraryName)
+        return if (hasCustomMihomoCore()) custom else bundled
+    }
+
+    private fun bundledMihomoCoreFile(): File {
+        return File(appContext.applicationInfo.nativeLibraryDir, BundledCore.launcherFileName)
     }
 
     private fun bundledMihomoCoreFileOrNull(): File? {
-        return File(appContext.applicationInfo.nativeLibraryDir, MihomoCoreLibraryName)
-            .takeIf { it.isFile }
+        return bundledMihomoCoreFile().takeIf { it.isFile }
     }
 
     fun replace(kind: ResourceFileKind, uri: Uri) {
-        require(kind != ResourceFileKind.MihomoCore) { "Mihomo core must be replaced through the locked publisher" }
+        require(kind != ResourceFileKind.MihomoCore) { "${BundledCore.displayName} core must be replaced through the locked publisher" }
         dataDir.mkdirs()
         val replaceTempFile = file(kind).resolveSibling("${kind.fileName}.replace.tmp")
         appContext.contentResolver.openInputStream(uri)?.use { input ->
@@ -121,7 +125,7 @@ internal class AndroidResourceFileStore(
     fun normalizeMihomoCoreCandidate(uploaded: File): File {
         val extracted = createMihomoCoreCandidateFile("mihomo-extracted-")
         try {
-            val found = uploaded.extractZipEntry("mihomo", extracted) || uploaded.extractGzip(extracted)
+            val found = uploaded.extractZipEntry(ResourceFileKind.MihomoCore.fileName, extracted) || uploaded.extractGzip(extracted)
             return if (found) {
                 uploaded.delete()
                 extracted
@@ -246,10 +250,17 @@ private fun Context.packageUpdatedAtMillis(): Long {
     }.getOrDefault(0L)
 }
 
+internal fun ResourceFileKind.managedByCurrentCore(): Boolean {
+    return when (this) {
+        ResourceFileKind.GeoIp, ResourceFileKind.Mmdb -> !BundledCore.usesRealMmdb
+        ResourceFileKind.CountryMmdb -> BundledCore.usesRealMmdb
+        else -> true
+    }
+}
+
 private const val AsteriskdLibraryName = "libasteriskd.so"
 private const val BpfMatcherLibraryName = "libbpf-matcher.so"
 private const val Bpf2SocksLibraryName = "libbpf2socks.so"
-private const val MihomoCoreLibraryName = "libmihomo.so"
 private const val HevSocks5TunnelLibraryName = "libhev-socks5-tunnel-cli.so"
 private const val MihomoHomeDirName = "clash"
 

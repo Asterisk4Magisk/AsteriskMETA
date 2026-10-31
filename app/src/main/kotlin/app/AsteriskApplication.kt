@@ -30,6 +30,7 @@ import engine.mihomo.MihomoProfileContentStore
 import engine.mihomo.runtime.MihomoRuntimeRepository
 import data.AndroidAppStateStore
 import engine.proxy.AndroidProxyEngine
+import engine.proxy.ProxyEngineStartRequest
 import system.AndroidRootShellGateway
 import features.mihomo.provider.MihomoProviderUsageStateHolder
 import features.mihomo.provider.loadSelectedMihomoProviderUsageState
@@ -117,6 +118,10 @@ class AsteriskApplication : Application(), SingletonImageLoader.Factory {
                 .collect(scheduler::reconcile)
         }
         MihomoBridge.initialize(this)
+        mihomoRuntime.bindSupervisedRestart { state ->
+            val status = proxyEngine.restart(ProxyEngineStartRequest(state))
+            check(status.running) { "ROOT restart did not start the core" }
+        }
         AndroidLogcatRepository.initialize(applicationContext)
         AndroidCoreLogRepository.initialize(applicationContext)
         AndroidAsteriskdLogRepository.initialize(applicationContext)

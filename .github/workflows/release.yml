@@ -26,21 +26,26 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release:
-    name: Build, Publish, And Notify
+  build:
+    name: Build ${{ matrix.core }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        core: [mihomo, meow]
+    outputs:
+      version_name: ${{ steps.version.outputs.version_name }}
+      tag_name: ${{ steps.version.outputs.tag_name }}
+      create_github_release: ${{ steps.version.outputs.create_github_release }}
+      version_code: ${{ steps.collect.outputs.version_code }}
     env:
-      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-      TELEGRAM_MESSAGE_THREAD_ID: ${{ secrets.TELEGRAM_MESSAGE_THREAD_ID }}
-      TELEGRAM_MAX_DOCUMENT_BYTES: ${{ vars.TELEGRAM_MAX_DOCUMENT_BYTES }}
       RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
       RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
       RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
       RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
-      SEND_TO_TELEGRAM: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.send_to_telegram == 'true' }}
       REQUESTED_VERSION_NAME: ${{ github.event.inputs.version_name }}
+      CORE_ID: ${{ matrix.core }}
 
     steps:
       - name: Checkout
@@ -180,7 +185,7 @@ jobs:
           fi
 
       - name: Build release APKs
-        run: ./gradlew --no-daemon :app:assembleRelease
+        run: ./gradlew --no-daemon :app:assembleRelease -Pcore=${{ matrix.core }}
 
       - name: Sign release APKs
         shell: bash
@@ -263,7 +268,11 @@ jobs:
               *universal*) abi="universal" ;;
             esac
 
-            cp "$apk" "release-artifacts/AsteriskMETA_${version_name}-${version_code}-${abi}.apk"
+            name_suffix=""
+            if [ "$CORE_ID" = "meow" ]; then
+              name_suffix="-meow"
+            fi
+            cp "$apk" "release-artifacts/AsteriskMETA_${version_name}${name_suffix}-${version_code}-${abi}.apk"
           done
 
           if ! find release-artifacts -type f -name "*.apk" | grep -q .; then
@@ -310,14 +319,40 @@ jobs:
           if-no-files-found: error
           archive: false
 
+  publish:
+    name: Publish And Notify
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      TELEGRAM_MESSAGE_THREAD_ID: ${{ secrets.TELEGRAM_MESSAGE_THREAD_ID }}
+      TELEGRAM_MAX_DOCUMENT_BYTES: ${{ vars.TELEGRAM_MAX_DOCUMENT_BYTES }}
+      SEND_TO_TELEGRAM: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.send_to_telegram == 'true' }}
+      REQUESTED_VERSION_NAME: ${{ github.event.inputs.version_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Download signed APKs
+        uses: actions/download-artifact@v8
+        with:
+          pattern: AsteriskMETA_*.apk
+          merge-multiple: true
+          path: release-artifacts
+          skip-decompress: true
+
       - name: Create tag and release notes
-        if: steps.version.outputs.create_github_release == 'true'
+        if: needs.build.outputs.create_github_release == 'true'
         id: release_info
         shell: bash
         env:
-          TAG_NAME: ${{ steps.version.outputs.tag_name }}
-          VERSION_NAME: ${{ steps.version.outputs.version_name }}
-          VERSION_CODE: ${{ steps.collect.outputs.version_code }}
+          TAG_NAME: ${{ needs.build.outputs.tag_name }}
+          VERSION_NAME: ${{ needs.build.outputs.version_name }}
+          VERSION_CODE: ${{ needs.build.outputs.version_code }}
         run: |
           set -euo pipefail
 
@@ -403,11 +438,11 @@ jobs:
           cat release-notes.md
 
       - name: Create GitHub Release
-        if: steps.version.outputs.create_github_release == 'true'
+        if: needs.build.outputs.create_github_release == 'true'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG_NAME: ${{ steps.version.outputs.tag_name }}
+          TAG_NAME: ${{ needs.build.outputs.tag_name }}
         run: |
           set -euo pipefail
 

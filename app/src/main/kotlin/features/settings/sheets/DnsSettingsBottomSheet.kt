@@ -17,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.R
+import engine.mihomo.CoreCapabilitiesStore
 import ui.icons.AsteriskIcons as Icons
 import engine.mihomo.DefaultMihomoDnsFakeIpRange
 import engine.mihomo.MihomoDnsModeFakeIp
@@ -138,18 +139,23 @@ internal fun DnsSettingsBottomSheet(
                         selectedIndex = draft.dnsEnhancedMode.coerceIn(MihomoDnsModeValues.indices),
                         onSelectedIndexChange = { onDraftChange(draft.copy(dnsEnhancedMode = it)) },
                     )
-                    SwitchPreference(
-                        title = stringResource(R.string.settings_dns_respect_rules),
-                        icon = Icons.Rounded.Policy,
-                        checked = draft.dnsRespectRules,
-                        onCheckedChange = { onDraftChange(draft.copy(dnsRespectRules = it)) },
-                    )
-                    SwitchPreference(
-                        title = stringResource(R.string.settings_dns_prefer_h3),
-                        icon = Icons.Rounded.Speed,
-                        checked = draft.dnsPreferH3,
-                        onCheckedChange = { onDraftChange(draft.copy(dnsPreferH3 = it)) },
-                    )
+                    val capabilities = CoreCapabilitiesStore.current
+                    if (capabilities.dnsOptions.respectRules) {
+                        SwitchPreference(
+                            title = stringResource(R.string.settings_dns_respect_rules),
+                            icon = Icons.Rounded.Policy,
+                            checked = draft.dnsRespectRules,
+                            onCheckedChange = { onDraftChange(draft.copy(dnsRespectRules = it)) },
+                        )
+                    }
+                    if (capabilities.dnsOptions.preferH3) {
+                        SwitchPreference(
+                            title = stringResource(R.string.settings_dns_prefer_h3),
+                            icon = Icons.Rounded.Speed,
+                            checked = draft.dnsPreferH3,
+                            onCheckedChange = { onDraftChange(draft.copy(dnsPreferH3 = it)) },
+                        )
+                    }
                 }
 
                 AnimatedVisibility(

@@ -211,23 +211,25 @@ internal fun SettingsCoreSection(
                 summary = snifferSettingsSummary,
                 onClick = onOpenSnifferSettings,
             )
-            SwitchPreference(
-                title = stringResource(R.string.settings_geodata_mode),
-                accent = IconAccent.MaskBlue,
-                icon = Icons.Rounded.Public,
-                summary = stringResource(R.string.settings_geodata_mode_summary),
-                checked = enableGeodataMode,
-                onCheckedChange = onEnableGeodataModeChange,
-            )
-            OverlayDropdownPreference(
-                title = stringResource(R.string.settings_geodata_loader),
-                accent = IconAccent.MaskGrey,
-                icon = Icons.Rounded.Storage,
-                summary = stringResource(R.string.settings_geodata_loader_summary),
-                items = geodataLoaderOptions,
-                selectedIndex = geodataLoader.coerceIn(geodataLoaderOptions.indices),
-                onSelectedIndexChange = onGeodataLoaderChange,
-            )
+            if (!engine.mihomo.BundledCore.usesRealMmdb) {
+                SwitchPreference(
+                    title = stringResource(R.string.settings_geodata_mode),
+                    accent = IconAccent.MaskBlue,
+                    icon = Icons.Rounded.Public,
+                    summary = stringResource(R.string.settings_geodata_mode_summary),
+                    checked = enableGeodataMode,
+                    onCheckedChange = onEnableGeodataModeChange,
+                )
+                OverlayDropdownPreference(
+                    title = stringResource(R.string.settings_geodata_loader),
+                    accent = IconAccent.MaskGrey,
+                    icon = Icons.Rounded.Storage,
+                    summary = stringResource(R.string.settings_geodata_loader_summary),
+                    items = geodataLoaderOptions,
+                    selectedIndex = geodataLoader.coerceIn(geodataLoaderOptions.indices),
+                    onSelectedIndexChange = onGeodataLoaderChange,
+                )
+            }
         } else {
             SwitchPreference(
                 title = stringResource(R.string.settings_dns),

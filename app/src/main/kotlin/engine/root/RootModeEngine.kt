@@ -4,6 +4,10 @@
 package engine.root
 
 import android.content.Context
+import app.R
+import engine.mihomo.BundledCore
+import engine.mihomo.BundledCoreMarker
+import engine.mihomo.CoreCapabilitiesStore
 import engine.proxy.LocalProxyRuntime
 import engine.proxy.ProxyEngineStartRequest
 import engine.proxy.ProxyEngineStatus
@@ -55,6 +59,7 @@ internal class RootModeEngine(
     }
 
     suspend fun resumeIfRunning(request: ProxyEngineStartRequest): ProxyEngineStatus? {
+        if (!currentCoreSupportsThisMode() || BundledCoreMarker.needsRepublish(context)) return null
         if (!rootAccess.hasRootAccess()) error(context.getString(definition.rootRequiredErrorResId))
         controller.preflightStart(definition.daemonMode, explicitRestart = false) ?: return null
         val restored = buildLocalProxyOptions(request)
@@ -71,7 +76,15 @@ internal class RootModeEngine(
         if (!resumeAlreadyChecked && !rootAccess.hasRootAccess()) {
             error(context.getString(definition.rootRequiredErrorResId))
         }
-        if (!explicitRestart) {
+        if (!currentCoreSupportsThisMode()) {
+            if (rootAccess.hasRootAccess() && controller.ownsRuntime()) {
+                controller.shutdownOwn()
+            }
+            error(context.getString(R.string.error_root_tun_unsupported, BundledCore.displayName))
+        }
+        val republish = BundledCoreMarker.needsRepublish(context)
+        val restart = explicitRestart || republish
+        if (!restart) {
             if (!resumeAlreadyChecked) resumeIfRunning(request)?.let { return it }
         } else {
             controller.preflightStart(definition.daemonMode, explicitRestart = true)
@@ -82,12 +95,13 @@ internal class RootModeEngine(
         val config = definition.buildConfig(rootContext)
         require(config.asteriskdConfig.mode == definition.daemonMode)
         return runCatching {
-            val snapshot = if (explicitRestart) {
+            val snapshot = if (restart) {
                 controller.restart(config.root, config.asteriskdConfig)
             } else {
                 controller.start(config.root, config.asteriskdConfig)
             }
             controller.requireRunning(snapshot, definition.daemonMode)
+            BundledCoreMarker.record(context)
             config.localProxyOptions?.let(LocalProxyRuntime::update) ?: LocalProxyRuntime.clear()
             controller.proxyStatus(snapshot, runMode, definition.daemonMode)
         }.onFailure {
@@ -138,9 +152,13 @@ internal class RootModeEngine(
 
     suspend fun reconfigureServiceControl(request: ProxyEngineStartRequest): Boolean {
         if (!rootAccess.hasRootAccess()) error(context.getString(definition.rootRequiredErrorResId))
+        if (!currentCoreSupportsThisMode()) {
+            error(context.getString(R.string.error_root_tun_unsupported, BundledCore.displayName))
+        }
         val config = definition.buildConfig(context.prepareRootConfigBuildContext(request))
         require(config.asteriskdConfig.mode == definition.daemonMode)
         val wasRunning = controller.reconfigureServiceControl(config.root, config.asteriskdConfig)
+        BundledCoreMarker.record(context)
         if (wasRunning) {
             config.localProxyOptions?.let(LocalProxyRuntime::update) ?: LocalProxyRuntime.clear()
         } else {
@@ -162,6 +180,10 @@ internal class RootModeEngine(
             snapshot.toStableProxyEngineStatus(runMode, definition.daemonMode)
         }
         .distinctUntilChanged()
+
+    private fun currentCoreSupportsThisMode(): Boolean {
+        return CoreCapabilitiesStore.current.supportsRunMode(runMode)
+    }
 
     companion object {
         const val DefaultTproxyPort = ModeDefaultTproxyPort

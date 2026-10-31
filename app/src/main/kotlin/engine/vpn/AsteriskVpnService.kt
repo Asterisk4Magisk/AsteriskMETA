@@ -277,12 +277,17 @@ class AsteriskVpnService : VpnService() {
         // Keep the foreground promotion from resumeVpn() while clearing a previous session.
         stopVpn(removeForeground = false)
         clearVpnServiceLogsAsApp(File(config.coreLogPaths.logDirectoryPath()), LogTag)
+        AndroidMihomoRuntime.prepareTunnel(
+            context = this,
+            config = config,
+            markSocket = this::protect,
+            querySocketUid = this::querySocketUid,
+        )
         val tunDescriptor = establishTun(config)
         tunFileDescriptor = tunDescriptor
         val hevConfig = config.hevSocks5TunnelConfig
         if (hevConfig == null) {
-            AndroidMihomoRuntime.start(
-                context = this,
+            AndroidMihomoRuntime.startNativeTun(
                 config = config,
                 tunFileDescriptor = tunDescriptor,
                 markSocket = this::protect,
@@ -291,11 +296,8 @@ class AsteriskVpnService : VpnService() {
             tunFileDescriptor = null
         } else {
             val tunFd = tunFileDescriptor?.fd ?: error(getString(R.string.error_vpn_tun_fd_unavailable))
-            AndroidMihomoRuntime.startLocalProxy(
-                context = this,
+            AndroidMihomoRuntime.startPreparedLocalProxy(
                 config = config,
-                markSocket = this::protect,
-                querySocketUid = this::querySocketUid,
             )
             val runtime = hevTunRuntime ?: HevTunRuntime().also { hevTunRuntime = it }
             runtime.start(hevConfig, tunFd)

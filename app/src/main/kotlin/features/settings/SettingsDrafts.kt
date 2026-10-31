@@ -4,6 +4,7 @@
 package features.settings
 
 import app.AppState
+import engine.mihomo.CoreCapabilitiesStore
 import app.modes.MihomoTunStackMips
 import app.modes.RunModeTun2Socks
 import app.modes.RunModeVpnService
@@ -15,7 +16,8 @@ import engine.mihomo.MihomoDnsModeRedirHost
 import engine.mihomo.MihomoSnifferProtocolOverrideFollowGlobal
 
 internal val AppState.showMihomoTunStackSettings: Boolean
-    get() = runMode != RunModeTun2Socks && !(runMode == RunModeVpnService && enableVpnHevTun)
+    get() = CoreCapabilitiesStore.current.tunStacks.size > 1 &&
+        runMode != RunModeTun2Socks && !(runMode == RunModeVpnService && enableVpnHevTun)
 
 internal data class TunSettingsDraft(
     val tunStack: Int = MihomoTunStackMips,

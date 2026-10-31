@@ -82,6 +82,7 @@ internal data class AppBackupSettings(
     val customResourceFileGeoIpUrl: String = BackupDefaults.customResourceFileGeoIpUrl,
     val customResourceFileGeoSiteUrl: String = BackupDefaults.customResourceFileGeoSiteUrl,
     val customResourceFileMmdbUrl: String = BackupDefaults.customResourceFileMmdbUrl,
+    val customResourceFileCountryMmdbUrl: String = BackupDefaults.customResourceFileCountryMmdbUrl,
     val customResourceFileAsnUrl: String = BackupDefaults.customResourceFileAsnUrl,
     val customResourceFileDirectCidrIpv4Url: String = BackupDefaults.customResourceFileDirectCidrIpv4Url,
     val customResourceFileDirectCidrIpv6Url: String = BackupDefaults.customResourceFileDirectCidrIpv6Url,
