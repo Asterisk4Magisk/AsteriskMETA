@@ -653,6 +653,10 @@ private fun SettingsContent(
                     onProxyGroupLayoutChange = { groupLayout ->
                         updateAppState { state -> state.copy(mihomoProxyGroupLayout = groupLayout) }
                     },
+                    proxyGroupColumns = appState.mihomoProxyGroupColumns,
+                    onProxyGroupColumnsChange = { groupColumns ->
+                        updateAppState { state -> state.copy(mihomoProxyGroupColumns = groupColumns) }
+                    },
                 )
             }
             item(key = "settings_backup_restore") {
