@@ -212,6 +212,10 @@ fun MihomoProxyPage(
     val groupLayout = resolveMihomoProxyGroupLayout(appState.mihomoProxyGroupLayout)
     val proxyLayout = resolveMihomoProxyLayout(appState.mihomoProxyLayout, isWideScreen)
     val columns = resolveMihomoProxyColumns(proxyLayout)
+    val groupColumns = resolveMihomoProxyGroupColumns(appState.mihomoProxyGroupColumns, columns)
+    val totalGridColumns = resolveMihomoGridTotalColumns(groupColumns, columns)
+    val groupSpan = totalGridColumns / groupColumns.coerceIn(1, 3)
+    val nodeSpan = totalGridColumns / columns.coerceIn(1, 3)
     var pendingSelections by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var locateRequestTrigger by remember { mutableIntStateOf(0) }
     var expandedGroupNames by rememberSaveable { mutableStateOf<Set<String>>(emptySet()) }
@@ -348,6 +352,7 @@ fun MihomoProxyPage(
                             interruptConnections = appState.mihomoProxyInterruptConnections,
                             excludeNotSelectable = appState.mihomoProxyExcludeNotSelectable,
                             groupLayout = groupLayout,
+                            groupColumns = appState.mihomoProxyGroupColumns,
                             layout = appState.mihomoProxyLayout,
                             sort = resolveMihomoProxySort(appState.mihomoProxySort),
                             onInterruptConnectionsChange = { enabled ->
@@ -363,6 +368,11 @@ fun MihomoProxyPage(
                             onGroupLayoutChange = { nextGroupLayout ->
                                 updateAppState { state ->
                                     state.copy(mihomoProxyGroupLayout = nextGroupLayout)
+                                }
+                            },
+                            onGroupColumnsChange = { nextGroupColumns ->
+                                updateAppState { state ->
+                                    state.copy(mihomoProxyGroupColumns = nextGroupColumns)
                                 }
                             },
                             onLayoutChange = { layout ->
@@ -431,7 +441,7 @@ fun MihomoProxyPage(
             } else if (groupLayout == MihomoProxyGroupLayoutExpandable) {
                 val gridState = rememberLazyGridState()
                 LazyVerticalGrid(
-                    columns = GridCells.Fixed(columns),
+                    columns = GridCells.Fixed(totalGridColumns),
                     state = gridState,
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = listPadding,
@@ -456,13 +466,14 @@ fun MihomoProxyPage(
 
                             item(
                                 key = "group_header:${group.name}",
-                                span = { GridItemSpan(maxLineSpan) },
+                                span = { GridItemSpan(if (isExpanded) maxLineSpan else groupSpan) },
                             ) {
                                 MihomoProxyGroupCard(
                                     group = group,
                                     currentNodeName = currentSelectedName,
                                     nodeCount = group.all.size,
                                     expanded = isExpanded,
+                                    compact = !isExpanded && groupColumns > 1,
                                     testing = testingTarget == MihomoDelayTarget.Group(group.name),
                                     delayTestEnabled = runtimeAvailable && testingTarget == null,
                                     onToggleExpand = {
@@ -495,7 +506,7 @@ fun MihomoProxyPage(
                                     items(
                                         items = pageNodes,
                                         key = { nodeId -> "group_node:${group.name}:${nodeId.toMihomoProxyLazyItemKey()}" },
-                                        span = { GridItemSpan(1) },
+                                        span = { GridItemSpan(nodeSpan) },
                                     ) { nodeId ->
                                         val node = proxies.node(nodeId)
                                         val selectionEnabled = isMihomoProxyGroupSelectable(group) && runtimeAvailable

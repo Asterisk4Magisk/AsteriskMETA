@@ -96,6 +96,7 @@ internal class AppSettingsPreferences(
             ),
             mihomoProxyLayout = preferences.getInt(KeyMihomoProxyLayout, defaults.mihomoProxyLayout),
             mihomoProxyGroupLayout = preferences.getInt(KeyMihomoProxyGroupLayout, defaults.mihomoProxyGroupLayout),
+            mihomoProxyGroupColumns = preferences.getInt(KeyMihomoProxyGroupColumns, defaults.mihomoProxyGroupColumns),
             mihomoProxySort = preferences.getInt(KeyMihomoProxySort, defaults.mihomoProxySort),
             autoSwitch = AutoSwitchSettings(
                 enabled = preferences.getBoolean(KeyAutoSwitchEnabled, defaults.autoSwitch.enabled),
@@ -337,6 +338,7 @@ internal class AppSettingsPreferences(
             .putBoolean(KeyMihomoProxyExcludeNotSelectable, state.mihomoProxyExcludeNotSelectable)
             .putInt(KeyMihomoProxyLayout, state.mihomoProxyLayout)
             .putInt(KeyMihomoProxyGroupLayout, state.mihomoProxyGroupLayout)
+            .putInt(KeyMihomoProxyGroupColumns, state.mihomoProxyGroupColumns)
             .putInt(KeyMihomoProxySort, state.mihomoProxySort)
             .putBoolean(KeyAutoSwitchEnabled, state.autoSwitch.enabled)
             .putBoolean(KeyAutoSwitchRestore, state.autoSwitch.restore)
@@ -573,6 +575,7 @@ private const val KeyMihomoProxyInterruptConnections = "mihomo_proxy_interrupt_c
 private const val KeyMihomoProxyExcludeNotSelectable = "mihomo_proxy_exclude_not_selectable"
 private const val KeyMihomoProxyLayout = "mihomo_proxy_layout"
 private const val KeyMihomoProxyGroupLayout = "mihomo_proxy_group_layout"
+private const val KeyMihomoProxyGroupColumns = "mihomo_proxy_group_columns"
 private const val KeyMihomoProxySort = "mihomo_proxy_sort"
 private const val KeyAutoSwitchEnabled = "auto_switch_enabled"
 private const val KeyAutoSwitchRestore = "auto_switch_restore"

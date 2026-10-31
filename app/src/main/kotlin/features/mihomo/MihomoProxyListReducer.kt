@@ -3,6 +3,10 @@
 
 package features.mihomo
 
+import app.modes.MihomoProxyGroupColumnsDouble
+import app.modes.MihomoProxyGroupColumnsFollow
+import app.modes.MihomoProxyGroupColumnsMultiple
+import app.modes.MihomoProxyGroupColumnsSingle
 import app.modes.MihomoProxyGroupLayoutExpandable
 import app.modes.MihomoProxyGroupLayoutTabs
 import app.modes.MihomoProxyLayoutAuto
@@ -78,6 +82,26 @@ internal fun resolveMihomoProxyColumns(layout: Int): Int {
         MihomoProxyLayoutSingle -> 1
         MihomoProxyLayoutMultiple -> 3
         else -> 2
+    }
+}
+
+internal fun resolveMihomoProxyGroupColumns(groupColumns: Int, nodeColumns: Int): Int {
+    return when (groupColumns) {
+        MihomoProxyGroupColumnsSingle -> 1
+        MihomoProxyGroupColumnsDouble -> 2
+        MihomoProxyGroupColumnsMultiple -> 3
+        else -> nodeColumns
+    }
+}
+
+internal fun resolveMihomoGridTotalColumns(groupColumns: Int, nodeColumns: Int): Int {
+    val g = groupColumns.coerceIn(1, 3)
+    val n = nodeColumns.coerceIn(1, 3)
+    return when {
+        g == n -> g
+        g == 1 -> n
+        n == 1 -> g
+        else -> 6
     }
 }
 

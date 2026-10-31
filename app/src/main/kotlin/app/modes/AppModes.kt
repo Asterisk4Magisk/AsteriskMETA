@@ -41,6 +41,11 @@ const val MihomoProxyLayoutMultiple = 3
 const val MihomoProxyGroupLayoutExpandable = 0
 const val MihomoProxyGroupLayoutTabs = 1
 
+const val MihomoProxyGroupColumnsFollow = 0
+const val MihomoProxyGroupColumnsSingle = 1
+const val MihomoProxyGroupColumnsDouble = 2
+const val MihomoProxyGroupColumnsMultiple = 3
+
 const val MihomoProxySortDefault = 0
 const val MihomoProxySortName = 1
 const val MihomoProxySortDelay = 2

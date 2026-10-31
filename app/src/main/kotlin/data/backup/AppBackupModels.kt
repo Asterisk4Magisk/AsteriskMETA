@@ -49,6 +49,8 @@ internal data class AppBackupSettings(
     val mihomoProxyInterruptConnections: Boolean = BackupDefaults.mihomoProxyInterruptConnections,
     val mihomoProxyExcludeNotSelectable: Boolean = BackupDefaults.mihomoProxyExcludeNotSelectable,
     val mihomoProxyLayout: Int = BackupDefaults.mihomoProxyLayout,
+    val mihomoProxyGroupLayout: Int = BackupDefaults.mihomoProxyGroupLayout,
+    val mihomoProxyGroupColumns: Int = BackupDefaults.mihomoProxyGroupColumns,
     val mihomoProxySort: Int = BackupDefaults.mihomoProxySort,
     val mihomoTunStack: Int = BackupDefaults.mihomoTunStack,
     val mihomoTunCongestionController: String = BackupDefaults.mihomoTunCongestionController,
