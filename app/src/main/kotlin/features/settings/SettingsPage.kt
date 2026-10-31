@@ -647,6 +647,10 @@ private fun SettingsContent(
                     onAutoHideNavigationBarChange = { enabled ->
                         updateAppState { state -> state.copy(autoHideNavigationBar = enabled) }
                     },
+                    proxyGroupLayout = appState.mihomoProxyGroupLayout,
+                    onProxyGroupLayoutChange = { groupLayout ->
+                        updateAppState { state -> state.copy(mihomoProxyGroupLayout = groupLayout) }
+                    },
                 )
             }
             item(key = "settings_backup_restore") {

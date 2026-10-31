@@ -233,6 +233,9 @@
     <string name="mihomo_proxies_option_interrupt_connections">中断连接</string>
     <string name="mihomo_proxies_interrupt_connections_failed">无法断开经过此策略组的部分连接</string>
     <string name="mihomo_proxies_option_filter_not_selectable">不可选择</string>
+    <string name="mihomo_proxies_option_group_layout">代理组布局</string>
+    <string name="mihomo_proxies_option_group_layout_expandable">展开全部代理组</string>
+    <string name="mihomo_proxies_option_group_layout_tabs">顶栏标签页</string>
     <string name="mihomo_proxies_option_layout">布局</string>
     <string name="mihomo_proxies_option_layout_auto">自动</string>
     <string name="mihomo_proxies_option_layout_double">双列</string>
@@ -920,6 +923,12 @@
     <string name="settings_theme_color">强调色</string>
     <string name="settings_auto_hide_navigation_bar">自动隐藏导航栏</string>
     <string name="settings_auto_hide_navigation_bar_summary">开启后上滑页面自动隐藏底部导航栏</string>
+    <string name="settings_proxy_group_layout">代理组布局</string>
+    <string name="settings_proxy_group_layout_summary">在全部代理组展开列表与顶栏标签分页之间切换</string>
+    <string name="settings_proxy_group_layout_expandable">展开全部代理组</string>
+    <string name="settings_proxy_group_layout_tabs">顶栏标签页</string>
+    <string name="settings_proxy_group_layout_expandable_summary">默认显示全部代理组，点击展开代理节点</string>
+    <string name="settings_proxy_group_layout_tabs_summary">顶栏单行标签滑动切换代理组</string>
     <string name="theme_color_blue">默认蓝</string>
     <string name="theme_color_coffee">咖啡色</string>
     <string name="theme_color_cyan">青蓝色</string>

@@ -8,6 +8,7 @@ import engine.network.withoutIpv6FakeIpPool
 import app.modes.ColorModeSystem
 import app.modes.LanguageModeSystem
 import app.modes.MihomoModeRule
+import app.modes.MihomoProxyGroupLayoutExpandable
 import app.modes.MihomoProxyLayoutAuto
 import app.modes.MihomoProxySortDefault
 import app.modes.MihomoTunStackMips
@@ -58,6 +59,7 @@ data class AppState(
     val mihomoProxyInterruptConnections: Boolean = false,
     val mihomoProxyExcludeNotSelectable: Boolean = false,
     val mihomoProxyLayout: Int = MihomoProxyLayoutAuto,
+    val mihomoProxyGroupLayout: Int = MihomoProxyGroupLayoutExpandable,
     val mihomoProxySort: Int = MihomoProxySortDefault,
     val autoSwitch: AutoSwitchSettings = AutoSwitchSettings(),
     val mihomoTunStack: Int = MihomoTunStackMips,
