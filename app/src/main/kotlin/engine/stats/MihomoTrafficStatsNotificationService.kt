@@ -64,6 +64,9 @@ class MihomoTrafficStatsNotificationService : Service() {
     private var activeRuntime: MihomoTrafficStatsRuntime? = null
     private var foregroundStarted = false
     private var latestStartId = 0
+    private var lastNodeName = ""
+    private var lastSnapshot = TrafficStatsSnapshot()
+    private val screenObserver = ScreenInteractiveObserver(this, ::onScreenInteractiveChanged)
     private val notificationManager by lazy { getSystemService(NotificationManager::class.java) }
     private val speedIcon by lazy { TrafficSpeedNotificationIcon(resources.displayMetrics.density) }
     private val contentIntent by lazy {
@@ -111,14 +114,31 @@ class MihomoTrafficStatsNotificationService : Service() {
             stopSelf(startId)
             return START_NOT_STICKY
         }
-        if (activeRuntime == runtime && monitor.isActive) {
+        if (activeRuntime == runtime && (monitor.isActive || !screenObserver.isInteractive)) {
             return START_NOT_STICKY
         }
 
+        if (activeRuntime != runtime) {
+            lastNodeName = runtime.nodeName
+            lastSnapshot = TrafficStatsSnapshot()
+        }
         activeRuntime = runtime
         if (!startForegroundNotification(runtime.nodeName, startId)) return START_NOT_STICKY
-        startMonitor(runtime)
+        screenObserver.register()
+        if (screenObserver.isInteractive) startMonitor(runtime)
         return START_NOT_STICKY
+    }
+
+    // Sampling pauses while the screen is off. The core keeps counting, so the totals it
+    // reports after resuming already include that time.
+    private fun onScreenInteractiveChanged(interactive: Boolean) {
+        val runtime = activeRuntime ?: return
+        if (!interactive) {
+            monitor.cancel()
+            updateNotification(lastNodeName, lastSnapshot.copy(upSpeed = 0L, downSpeed = 0L))
+        } else if (!monitor.isActive) {
+            startMonitor(runtime)
+        }
     }
 
     private fun startForegroundNotification(nodeName: String, startId: Int): Boolean {
@@ -142,9 +162,10 @@ class MihomoTrafficStatsNotificationService : Service() {
     }
 
     private fun startMonitor(runtime: MihomoTrafficStatsRuntime) {
+        // Created on the main thread, which owns lastSnapshot and every accept() call.
+        val accumulator = TrafficStatsAccumulator(lastSnapshot.totalUp, lastSnapshot.totalDown)
         monitor.start {
             val repository = (application as AsteriskApplication).mihomoRuntime
-            val accumulator = TrafficStatsAccumulator()
             var nodeName = runtime.nodeName.ifBlank { getString(R.string.proxy_traffic_stats_notification_title) }
             var lastNodeRefreshAt = 0L
             var consecutiveFailures = 0
@@ -237,6 +258,8 @@ class MihomoTrafficStatsNotificationService : Service() {
     }
 
     private fun updateNotification(nodeName: String, snapshot: TrafficStatsSnapshot) {
+        lastNodeName = nodeName
+        lastSnapshot = snapshot
         notificationManager.notify(NotificationId, buildNotification(nodeName, snapshot))
     }
 
@@ -274,8 +297,10 @@ class MihomoTrafficStatsNotificationService : Service() {
     }
 
     private fun stopStats() {
+        screenObserver.unregister()
         monitor.cancel()
         activeRuntime = null
+        lastSnapshot = TrafficStatsSnapshot()
         stopForegroundCompat()
         foregroundStarted = false
         notificationManager.cancel(NotificationId)
@@ -358,9 +383,10 @@ private data class TrafficSpeedSample(
     val down: Long,
 )
 
-internal class TrafficStatsAccumulator {
-    private var totalUp = 0L
-    private var totalDown = 0L
+internal class TrafficStatsAccumulator(
+    private var totalUp: Long = 0L,
+    private var totalDown: Long = 0L,
+) {
     private val speedSamples = ArrayDeque<TrafficSpeedSample>(TrafficSpeedWindowSamples)
 
     fun accept(sample: MihomoTrafficSample): TrafficStatsSnapshot {
