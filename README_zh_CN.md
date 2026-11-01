@@ -2,11 +2,16 @@
 
 # AsteriskMETA
 
-Android Mihomo GUI 客户端。
+Android Mihomo/Meow GUI 客户端。
 
 ## Telegram 频道
 
 [Asterisk4Magisk](https://t.me/Asterisk4Magisk)
+
+## 代理核心
+
+- 每个 APK 只内置一个代理核心，Release 中带 `-meow` 后缀的 APK 内置 Meow。
+- 两者包名相同，覆盖安装即可切换代理核心。
 
 ## 运行模式
 
@@ -17,23 +22,24 @@ Android Mihomo GUI 客户端。
 
 ### TPROXY(ROOT)
 
-- 通过 libsu 直接运行本地 Mihomo 可执行文件。
+- 通过 libsu 直接运行代理核心可执行文件。
 - 使用 iptables 和策略路由处理透明代理流量。
 
 ### TUN(ROOT)
 
-- 通过 libsu 直接运行本地 Mihomo 可执行文件。
+- 仅 Mihomo 版可用。
+- 通过 libsu 直接运行代理核心可执行文件。
 - 使用 Mihomo TUN 入站的 `auto-route` 和 `auto-redirect` 管理路由。
 
 ### TUN2SOCKS(ROOT)
 
-- 通过 libsu 直接运行本地 Mihomo 可执行文件。
-- 使用 `hev-socks5-tunnel` 创建 TUN 设备并将流量送入 Mihomo SOCKS5 入站
+- 通过 libsu 直接运行代理核心可执行文件。
+- 使用 `hev-socks5-tunnel` 创建 TUN 设备并将流量送入代理核心 SOCKS5 入站。
 
 ### BPF2SOCKS(ROOT)
 
-- 通过 libsu 直接运行本地 Mihomo 可执行文件。
-- 使用 `bpf2socks` 劫持流量并送入 Mihomo SOCKS5 入站。
+- 通过 libsu 直接运行代理核心可执行文件。
+- 使用 `bpf2socks` 劫持流量并送入代理核心 SOCKS5 入站。
 - 是否可用取决于设备内核 eBPF 支持情况。
 
 ### asteriskd
@@ -94,7 +100,7 @@ macOS 或 Linux：
 
 构建会下载固定版本的 AndroidLibClashLite AAR，构建 native submodule，并生成 ABI split APK 和 universal APK。
 
-使用 `-Pcore=meow` 构建 Rust 版，默认值为 `-Pcore=mihomo`。
+使用 `-Pcore=meow` 构建 Meow 版，默认值为 `-Pcore=mihomo`。
 
 如果 Gradle 找不到 Android NDK，请通过 Android Studio、`local.properties` 中的 `ndk.dir` 或 `ANDROID_NDK_HOME` 配置。
 
@@ -105,6 +111,7 @@ macOS 或 Linux：
 ## 致谢
 
 - [@MetaCubeX/mihomo](https://github.com/MetaCubeX/mihomo)
+- [@meow-rs/meow-rs](https://github.com/meow-rs/meow-rs)
 - [@MetaCubeX/ClashMetaForAndroid](https://github.com/MetaCubeX/ClashMetaForAndroid)
 - [@Asterisk4Magisk/AndroidLibClashLite](https://github.com/Asterisk4Magisk/AndroidLibClashLite)
 - [@heiher/hev-socks5-tunnel](https://github.com/heiher/hev-socks5-tunnel)

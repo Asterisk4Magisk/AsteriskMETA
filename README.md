@@ -2,11 +2,16 @@ English | [简体中文](README_zh_CN.md)
 
 # AsteriskMETA
 
-Android Mihomo GUI client.
+Android Mihomo/Meow GUI client.
 
 ## Telegram Channel
 
 [Asterisk4Magisk](https://t.me/Asterisk4Magisk)
+
+## Proxy Cores
+
+- Each APK bundles one proxy core; release APKs with the `-meow` suffix bundle Meow.
+- Both builds share the package name; installing one over the other switches the proxy core.
 
 ## Run Modes
 
@@ -17,23 +22,24 @@ Android Mihomo GUI client.
 
 ### TPROXY(ROOT)
 
-- Runs the local Mihomo executable directly with libsu.
+- Runs the proxy core executable directly with libsu.
 - Uses iptables and policy routing for transparent proxy traffic.
 
 ### TUN(ROOT)
 
-- Runs the local Mihomo executable directly with libsu.
+- Mihomo build only.
+- Runs the proxy core executable directly with libsu.
 - Uses `auto-route` and `auto-redirect` in the Mihomo TUN inbound to manage routing.
 
 ### TUN2SOCKS(ROOT)
 
-- Runs the local Mihomo executable directly with libsu.
-- Uses `hev-socks5-tunnel` to create a TUN device and send traffic to the Mihomo SOCKS5 inbound.
+- Runs the proxy core executable directly with libsu.
+- Uses `hev-socks5-tunnel` to create a TUN device and send traffic to the proxy core SOCKS5 inbound.
 
 ### BPF2SOCKS(ROOT)
 
-- Runs the local Mihomo executable directly with libsu.
-- Uses `bpf2socks` to capture traffic and send it to the Mihomo SOCKS5 inbound.
+- Runs the proxy core executable directly with libsu.
+- Uses `bpf2socks` to capture traffic and send it to the proxy core SOCKS5 inbound.
 - Availability depends on eBPF support in the device kernel.
 
 ### asteriskd
@@ -94,7 +100,7 @@ On macOS or Linux:
 
 The build downloads the pinned AndroidLibClashLite AAR, builds the native submodules, and produces ABI split APKs plus a universal APK.
 
-Use `-Pcore=meow` for the Rust build, default is `-Pcore=mihomo`.
+Use `-Pcore=meow` for the Meow build, default is `-Pcore=mihomo`.
 
 If Gradle cannot find the Android NDK, configure it through Android Studio, `ndk.dir` in `local.properties`, or `ANDROID_NDK_HOME`.
 
@@ -105,6 +111,7 @@ If Gradle cannot find the Android NDK, configure it through Android Studio, `ndk
 ## Credits
 
 - [@MetaCubeX/mihomo](https://github.com/MetaCubeX/mihomo)
+- [@meow-rs/meow-rs](https://github.com/meow-rs/meow-rs)
 - [@MetaCubeX/ClashMetaForAndroid](https://github.com/MetaCubeX/ClashMetaForAndroid)
 - [@Asterisk4Magisk/AndroidLibClashLite](https://github.com/Asterisk4Magisk/AndroidLibClashLite)
 - [@heiher/hev-socks5-tunnel](https://github.com/heiher/hev-socks5-tunnel)
