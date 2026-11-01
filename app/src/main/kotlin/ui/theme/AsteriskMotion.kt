@@ -214,6 +214,20 @@ internal object AsteriskMotion {
     fun contentSize(): FiniteAnimationSpec<IntSize> =
         contentSize(reducedMotion = LocalReduceMotion.current)
 
+    fun contentPlacement(reducedMotion: Boolean): FiniteAnimationSpec<IntOffset> = if (reducedMotion) {
+        snap()
+    } else {
+        spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMediumLow,
+            visibilityThreshold = IntOffset.VisibilityThreshold,
+        )
+    }
+
+    @Composable
+    fun contentPlacement(): FiniteAnimationSpec<IntOffset> =
+        contentPlacement(reducedMotion = LocalReduceMotion.current)
+
     @Composable
     fun contentEnter(): EnterTransition =
         fadeIn(animationSpec = contentFade()) +
@@ -335,12 +349,6 @@ internal object AsteriskMotion {
         (fadeIn(animationSpec = effectsSpec) togetherWith fadeOut(animationSpec = effectsSpec))
             .withSizeSpec(sizeSpec)
     }
-
-    fun fadeEnter(spec: FiniteAnimationSpec<Float>): EnterTransition =
-        fadeIn(animationSpec = spec)
-
-    fun fadeExit(spec: FiniteAnimationSpec<Float>): ExitTransition =
-        fadeOut(animationSpec = spec)
 
     fun <S> scaleSwap(
         spatialSpec: FiniteAnimationSpec<Float>,
