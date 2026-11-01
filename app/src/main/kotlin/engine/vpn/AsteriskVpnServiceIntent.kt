@@ -5,6 +5,8 @@ package engine.vpn
 
 import android.content.Context
 import android.content.Intent
+import android.os.Bundle
+import android.os.ResultReceiver
 import app.modes.ProxyAppListModeGlobal
 import engine.hevtun.DefaultHevSocks5TunnelLogLevel
 import engine.hevtun.DefaultHevSocks5TunnelTcpReadWriteTimeoutMillis
@@ -14,15 +16,25 @@ import engine.proxy.LocalProxyLoopbackAddress
 import engine.proxy.LocalProxyOptions
 import engine.mihomo.MihomoCoreLogPaths
 import engine.mihomo.DefaultMihomoTunCongestionController
+import engine.mihomo.binding.model.ConfigurationOverride
+import features.logs.AndroidAppLogger
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.time.Duration.Companion.milliseconds
 
 internal object AsteriskVpnServiceIntents {
     const val ACTION_START = "app.action.START_VPN"
     const val ACTION_STOP = "app.action.STOP_VPN"
+    const val ACTION_FINISH_RESUME = "app.action.FINISH_VPN_RESUME"
+    const val ACTION_UPDATE_AGE_SECRET_KEY = "app.action.UPDATE_VPN_AGE_SECRET_KEY"
 
     /**
      * Starts the service without an embedded configuration. Used by the boot receiver and by
-     * the system's always-on VPN start; both carry no configuration because it is compiled
-     * from the persisted app state inside the service.
+     * the system's always-on VPN start; both carry no configuration because the service hands
+     * the start back to the app process, which compiles it from the persisted app state.
      */
     const val ACTION_RESUME = "app.action.RESUME_VPN"
 
@@ -44,6 +56,105 @@ internal object AsteriskVpnServiceIntents {
             action = ACTION_STOP
         }
     }
+
+    fun finishResumeIntent(context: Context): Intent {
+        return Intent(context, AsteriskVpnService::class.java).apply {
+            action = ACTION_FINISH_RESUME
+        }
+    }
+
+    fun updateAgeSecretKeyIntent(context: Context, ageSecretKey: String?): Intent {
+        return Intent(context, AsteriskVpnService::class.java).apply {
+            action = ACTION_UPDATE_AGE_SECRET_KEY
+            putExtra(EXTRA_AGE_SECRET_KEY, ageSecretKey)
+        }
+    }
+}
+
+private const val EXTRA_SERVICE_REPLY = "service_reply"
+private const val EXTRA_SERVICE_REPLY_MESSAGE = "message"
+private const val ServiceReplySuccess = 0
+private const val ServiceReplyFailure = 1
+
+internal fun Intent.putServiceReply(reply: ResultReceiver) {
+    putExtra(EXTRA_SERVICE_REPLY, reply)
+}
+
+internal fun Intent.serviceReply(): ResultReceiver? {
+    @Suppress("DEPRECATION")
+    return getParcelableExtra(EXTRA_SERVICE_REPLY)
+}
+
+internal fun ResultReceiver.sendServiceResult(result: Result<Unit>) {
+    val error = result.exceptionOrNull()
+    if (error == null) {
+        send(ServiceReplySuccess, null)
+    } else {
+        send(
+            ServiceReplyFailure,
+            Bundle().apply {
+                putString(EXTRA_SERVICE_REPLY_MESSAGE, error.message ?: error::class.java.simpleName)
+            },
+        )
+    }
+}
+
+/** A dispatched START failed after its service cleanup or lost-reply recovery was handled. */
+internal class VpnServiceStartException(cause: Throwable) : IllegalStateException(cause.message, cause)
+
+/**
+ * Sends [intent] to the VPN Service, which may run in another process, and waits for its reply.
+ * A service that never answers is a failed call rather than a cancellation, so callers can fall
+ * back or report it like any other failure.
+ */
+internal suspend fun awaitServiceCall(context: Context, intent: Intent, timeoutMillis: Long) {
+    val reply = CompletableDeferred<Result<Unit>>()
+    val isStart = intent.action == AsteriskVpnServiceIntents.ACTION_START
+    AndroidMihomoRuntime.dispatchServiceCall(isStart) { onReply ->
+        intent.putServiceReply(
+            object : ResultReceiver(null) {
+                override fun onReceiveResult(resultCode: Int, resultData: Bundle?) {
+                    onReply()
+                    reply.complete(
+                        if (resultCode == ServiceReplySuccess) {
+                            Result.success(Unit)
+                        } else {
+                            Result.failure(
+                                IllegalStateException(resultData?.getString(EXTRA_SERVICE_REPLY_MESSAGE).orEmpty()),
+                            )
+                        },
+                    )
+                }
+            },
+        )
+        checkNotNull(context.startService(intent)) { "VPN Service is unavailable" }
+    }
+    // Cancellation/timeout only ends this wait. The dispatched command can
+    // still run, so its fence ends on an actual service-queue reply.
+    try {
+        val result = withTimeoutOrNull(timeoutMillis.milliseconds) { reply.await() }
+            ?: Result.failure(IllegalStateException("VPN Service did not answer ${intent.action}"))
+        result.getOrThrow()
+    } catch (error: Throwable) {
+        if (isStart) {
+            if (!reply.isCompleted) {
+                withContext(NonCancellable) {
+                    runCatching { AsteriskVpnService.finishResume(context) }.onFailure { cleanupError ->
+                        AndroidAppLogger.warn("AsteriskVpnService", "Failed to finish the VPN Service start", cleanupError)
+                    }
+                }
+            }
+            if (error !is CancellationException) throw VpnServiceStartException(error)
+        }
+        throw error
+    }
+}
+
+internal fun Intent.readVpnServiceAgeSecretKey(): String? = getStringExtra(EXTRA_AGE_SECRET_KEY)
+
+private fun Intent.readVpnSessionOverride(): ConfigurationOverride? {
+    @Suppress("DEPRECATION")
+    return getParcelableExtra(EXTRA_SESSION_OVERRIDE)
 }
 
 internal fun Intent.readVpnServiceStartConfig(): VpnServiceStartConfig? {
@@ -73,7 +184,8 @@ internal fun Intent.readVpnServiceStartConfig(): VpnServiceStartConfig? {
         },
         mihomoProfilePath = mihomoProfilePath,
         mihomoProfileSignature = mihomoProfileSignature,
-        ageSecretKey = getStringExtra(EXTRA_AGE_SECRET_KEY).orEmpty(),
+        ageSecretKey = readVpnServiceAgeSecretKey().orEmpty(),
+        sessionOverride = readVpnSessionOverride(),
         mihomoTunStack = getStringExtra(EXTRA_MIHOMO_TUN_STACK).orEmpty().ifBlank { "mips" },
         mihomoTunCongestionController = getStringExtra(EXTRA_MIHOMO_TUN_CONGESTION_CONTROLLER)
             ?: DefaultMihomoTunCongestionController,
@@ -107,6 +219,7 @@ private fun Intent.writeStartConfig(config: VpnServiceStartConfig) {
     putExtra(EXTRA_MIHOMO_PROFILE_PATH, config.mihomoProfilePath)
     putExtra(EXTRA_MIHOMO_PROFILE_SIGNATURE, config.mihomoProfileSignature)
     putExtra(EXTRA_AGE_SECRET_KEY, config.ageSecretKey)
+    putExtra(EXTRA_SESSION_OVERRIDE, config.sessionOverride)
     putExtra(EXTRA_MIHOMO_TUN_STACK, config.mihomoTunStack)
     putExtra(EXTRA_MIHOMO_TUN_CONGESTION_CONTROLLER, config.mihomoTunCongestionController)
     putExtra(EXTRA_PROXY_APP_LIST_MODE, config.applicationPolicy.mode)
@@ -190,6 +303,7 @@ private const val EXTRA_DNS_SERVERS = "dns_servers"
 private const val EXTRA_MIHOMO_PROFILE_PATH = "mihomo_profile_path"
 private const val EXTRA_MIHOMO_PROFILE_SIGNATURE = "mihomo_profile_signature"
 private const val EXTRA_AGE_SECRET_KEY = "age_secret_key"
+private const val EXTRA_SESSION_OVERRIDE = "session_override"
 private const val EXTRA_MIHOMO_TUN_STACK = "mihomo_tun_stack"
 private const val EXTRA_MIHOMO_TUN_CONGESTION_CONTROLLER = "mihomo_tun_congestion_controller"
 private const val EXTRA_PROXY_APP_LIST_MODE = "proxy_app_list_mode"

@@ -93,6 +93,7 @@ internal object MihomoProfileFactory {
                 appState, selectedProfile, runMode, exposePorts,
                 if (runMode == RunModeTun) context.resolveRootProxyApplicationUids(appState.proxyAppListSelectedApps) else emptyList(),
                 useRootProviderPaths,
+                context.mihomoControllerSocket().absolutePath,
             )
         }
     }
@@ -125,6 +126,7 @@ private fun String.withAsteriskRuntimeOverrides(
     exposePorts: Boolean,
     tunApplicationUids: List<Int>,
     useRootProviderPaths: Boolean,
+    controllerSocketPath: String,
 ): String {
     val escaped = escapeSupplementaryYamlCodePoints()
     val root = runCatching {
@@ -135,7 +137,7 @@ private fun String.withAsteriskRuntimeOverrides(
         if (selectedProfile?.overrideScriptId != DefaultMihomoOverrideScriptId) {
             error("Override script requires a YAML object profile")
         }
-        return appendRuntimeOverrides(appState, runMode, exposePorts, tunApplicationUids)
+        return appendRuntimeOverrides(appState, runMode, exposePorts, tunApplicationUids, controllerSocketPath)
     }
 
     val rawProfile = linkedMapOf<String, Any?>()
@@ -148,7 +150,7 @@ private fun String.withAsteriskRuntimeOverrides(
             .applyMihomoProfileScriptOverride(selectedProfile, appState.mihomoOverrideScripts)
             .toAsteriskRuntimeProfileYaml(
                 appState, runMode, exposePorts = exposePorts, tunApplicationUids = tunApplicationUids,
-                useRootProviderPaths = useRootProviderPaths,
+                useRootProviderPaths = useRootProviderPaths, controllerSocketPath = controllerSocketPath,
             ),
     )
 }
@@ -160,6 +162,7 @@ internal fun Map<String, Any?>.toAsteriskRuntimeProfileYaml(
     exposePorts: Boolean = true,
     tunApplicationUids: List<Int>,
     useRootProviderPaths: Boolean = runMode.isRootRunMode(),
+    controllerSocketPath: String? = null,
 ): String {
     val updated = linkedMapOf<String, Any?>()
     val managedKeys = AsteriskManagedTopLevelKeys
@@ -171,7 +174,7 @@ internal fun Map<String, Any?>.toAsteriskRuntimeProfileYaml(
     if (useRootProviderPaths) {
         updated.putCmfaRootProviderPaths()
     }
-    updated.putAsteriskRuntimeOverrides(appState, runMode, forceDns = forceDns, exposePorts = exposePorts, tunApplicationUids = tunApplicationUids)
+    updated.putAsteriskRuntimeOverrides(appState, runMode, forceDns = forceDns, exposePorts = exposePorts, tunApplicationUids = tunApplicationUids, controllerSocketPath = controllerSocketPath)
     return dumpYaml(normalizeYamlValue(updated))
 }
 
@@ -180,9 +183,10 @@ private fun String.appendRuntimeOverrides(
     runMode: Int,
     exposePorts: Boolean,
     tunApplicationUids: List<Int>,
+    controllerSocketPath: String,
 ): String {
     val managed = linkedMapOf<String, Any?>()
-    managed.putAsteriskRuntimeOverrides(appState, runMode, exposePorts = exposePorts, tunApplicationUids = tunApplicationUids)
+    managed.putAsteriskRuntimeOverrides(appState, runMode, exposePorts = exposePorts, tunApplicationUids = tunApplicationUids, controllerSocketPath = controllerSocketPath)
     val overrideYaml = dumpYaml(normalizeYamlValue(managed))
     return trimEnd() + "\n\n# AsteriskMETA runtime overrides\n" + overrideYaml
 }
@@ -193,6 +197,7 @@ private fun MutableMap<String, Any?>.putAsteriskRuntimeOverrides(
     forceDns: Boolean = false,
     exposePorts: Boolean = true,
     tunApplicationUids: List<Int>,
+    controllerSocketPath: String?,
 ) {
     val mixedPort = appState.localProxyPort.toPortOrNull() ?: VpnDefaults.LOCAL_PROXY_PORT
     val tproxyPort = appState.transparentProxyPort.toPortOrNull() ?: RootModeEngine.DefaultTproxyPort
@@ -222,6 +227,9 @@ private fun MutableMap<String, Any?>.putAsteriskRuntimeOverrides(
         if (runMode == RunModeTun) {
             put(MihomoTunRuntimeMarkerKey, true)
             put("listeners", listOf(appState.toMihomoTunListenerYamlMap(tunApplicationUids, this["rule-providers"])))
+        }
+        if (runMode == RunModeVpnService) {
+            put("external-controller-unix", requireNotNull(controllerSocketPath))
         }
         put("external-controller", control.address)
         put("secret", control.secret)

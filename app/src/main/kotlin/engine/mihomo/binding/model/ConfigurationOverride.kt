@@ -47,6 +47,9 @@ data class ConfigurationOverride(
     @SerialName("external-controller-tls")
     var externalControllerTLS: String? = null,
 
+    @SerialName("external-controller-unix")
+    var externalControllerUnix: String? = null,
+
     @SerialName("external-controller-cors")
     var externalControllerCors: ExternalControllerCors = ExternalControllerCors(),
 

@@ -20,11 +20,21 @@ import engine.mihomo.MihomoAutoSwitchOptions
 import engine.mihomo.MihomoControlConfig
 import engine.vpn.AndroidMihomoRuntime
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
@@ -35,6 +45,7 @@ import java.io.BufferedReader
 import java.io.EOFException
 import java.io.IOException
 import java.io.InputStreamReader
+import java.net.ConnectException
 import java.net.HttpURLConnection
 import java.net.SocketException
 import java.net.SocketTimeoutException
@@ -56,6 +67,14 @@ internal typealias MihomoBridgeGroupDelay = (
     timeoutMillis: Int,
     expectedStatus: String,
 ) -> Map<String, Int>
+
+internal data class LogRecord(
+    val level: String,
+    val message: String,
+    val timestampMillis: Long,
+)
+
+internal const val StreamReconnectDelayMillis = 1_000L
 
 internal class MihomoControlClient(
     private val bridgeProviderProxyDelay: MihomoBridgeProviderProxyDelay =
@@ -222,6 +241,47 @@ internal class MihomoControlClient(
             return
         }
         request(config, "/providers/proxies/${providerName.urlEncode()}", method = "PUT")
+    }
+
+    suspend fun updateHttpProxyProviders(config: MihomoControlConfig, useBridge: Boolean) {
+        withContext(Dispatchers.IO) {
+            val providerNames = if (useBridge) {
+                Clash.queryProviders()
+                    .filter { provider ->
+                        provider.type == Provider.Type.Proxy && provider.vehicleType == Provider.VehicleType.HTTP
+                    }
+                    .map(Provider::name)
+            } else {
+                val providers = requestJsonObject(config, "/providers/proxies").objectValue("providers")
+                    ?: throw IOException("Invalid Mihomo API response for /providers/proxies")
+                providers.mapNotNull { (name, value) ->
+                    val provider = value.jsonObjectOrNull() ?: return@mapNotNull null
+                    val vehicleType = provider.stringValue("vehicleType") ?: provider.stringValue("VehicleType")
+                    name.takeIf { vehicleType.equals("HTTP", ignoreCase = true) }
+                }
+            }
+            val semaphore = Semaphore(4)
+            val failures = providerNames.map { name ->
+                async {
+                    semaphore.withPermit {
+                        currentCoroutineContext().ensureActive()
+                        try {
+                            updateProxyProvider(config, name, useBridge)
+                            null
+                        } catch (error: Throwable) {
+                            if (error is CancellationException) throw error
+                            error
+                        }
+                    }
+                }
+            }.awaitAll().filterNotNull()
+            if (failures.isNotEmpty()) {
+                throw IOException(
+                    "Failed to update ${failures.size} of ${providerNames.size} HTTP proxy providers",
+                    failures.first(),
+                )
+            }
+        }
     }
 
     suspend fun updateRuleProvider(
@@ -538,7 +598,7 @@ internal class MihomoControlClient(
                     }
                 }
             } catch (error: IOException) {
-                if (!error.isExpectedMihomoStreamEnd()) {
+                if (!(config.unixSocketPath != null && error is ConnectException) && !error.isExpectedMihomoStreamEnd()) {
                     throw error
                 }
             } finally {
@@ -546,6 +606,48 @@ internal class MihomoControlClient(
             }
             delay(StreamReconnectDelayMillis.milliseconds)
         }
+    }
+
+    fun streamLogs(config: MihomoControlConfig, level: String): Flow<LogRecord> = callbackFlow {
+        val path = "/logs?level=${level.urlEncode()}"
+        // Logs have no heartbeat. Keep the reader intact through idle periods and partial records.
+        val connection = openConnection(config, path, readTimeoutMillis = 0)
+        launch(Dispatchers.IO) {
+            try {
+                val status = connection.responseCode
+                val stream = if (status in 200..299) connection.inputStream else connection.errorStream
+                if (status !in 200..299) {
+                    val response = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
+                    throw MihomoApiException("GET", path, status, response)
+                }
+                val reader = stream?.bufferedReader() ?: error("Invalid Mihomo API response for /logs")
+                reader.use {
+                    while (currentCoroutineContext().isActive) {
+                        val line = reader.readNextNonBlankLine() ?: break
+                        val record = parseLogLine(line) ?: continue
+                        send(record)
+                    }
+                }
+            } catch (error: Throwable) {
+                if (error is CancellationException) throw error
+                if (error !is IOException || !error.isExpectedMihomoStreamEnd()) close(error)
+            } finally {
+                connection.disconnect()
+                close()
+            }
+        }
+        awaitClose { connection.disconnect() }
+    }
+
+    private fun parseLogLine(line: String): LogRecord? {
+        val root = runCatching {
+            RuntimeJson.parseToJsonElement(line).jsonObjectOrNull()
+        }.getOrNull() ?: return null
+        return LogRecord(
+            level = root.stringValue("type") ?: return null,
+            message = root.stringValue("payload") ?: return null,
+            timestampMillis = System.currentTimeMillis(),
+        )
     }
 
     private fun parseTrafficLine(line: String): MihomoTrafficSample? {
@@ -655,7 +757,9 @@ internal class MihomoControlClient(
         connectTimeoutMillis: Int = DefaultConnectTimeoutMillis,
         readTimeoutMillis: Int = DefaultReadTimeoutMillis,
     ): HttpURLConnection {
-        val connection = (URI("${config.baseUrl}$path").toURL().openConnection() as HttpURLConnection).apply {
+        val url = URI("${if (config.unixSocketPath != null) "http://localhost" else config.baseUrl}$path").toURL()
+        val connection = (config.unixSocketPath?.let { LocalSocketHttpURLConnection(url, it) }
+            ?: url.openConnection() as HttpURLConnection).apply {
             requestMethod = method
             connectTimeout = connectTimeoutMillis
             readTimeout = readTimeoutMillis
@@ -685,7 +789,6 @@ internal class MihomoControlClient(
         const val TrafficReadTimeoutMillis = 3_000
         const val MemoryReadTimeoutMillis = 3_500
         const val MemorySampleReadLimit = 3
-        const val StreamReconnectDelayMillis = 1_000L
         const val BridgeTrafficPollIntervalMillis = 1_000L
     }
 }

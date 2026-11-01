@@ -63,6 +63,12 @@ private fun parseSnapshot(root: Map<*, *>, sourceSha256: String): MihomoRawConfi
         socksInbound = parseSocksInbound(root),
         tunInbound = parseTunInbound(root),
         dnsHijack = parseDnsHijack(root),
+        controller = MihomoRawControllerConfig(
+            externalController = root["external-controller"]?.toString().orEmpty(),
+            externalControllerTls = root["external-controller-tls"]?.toString().orEmpty(),
+            externalControllerUnix = root["external-controller-unix"]?.toString().orEmpty(),
+            secret = root["secret"]?.toString().orEmpty(),
+        ),
     )
 }
 

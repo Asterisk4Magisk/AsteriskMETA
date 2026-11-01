@@ -8,13 +8,13 @@ import android.os.SystemClock
 import android.os.ParcelFileDescriptor
 import app.R
 import engine.mihomo.binding.MihomoBridge as Clash
+import engine.mihomo.binding.model.ConfigurationOverride
 import engine.mihomo.MihomoCoreLogSubscriber
-import engine.mihomo.sha256Hex
 import features.logs.AndroidAppLogger
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import java.io.File
-import utils.writeAtomically
+import java.net.ConnectException
 import java.net.InetSocketAddress
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -43,17 +43,41 @@ internal object AndroidMihomoRuntime {
 
     private var coreLogSubscriber: MihomoCoreLogSubscriber? = null
 
+    // App-process fence until the service answers a dispatched START. The
+    // session lock takes over once the service has acquired native ownership.
+    private var pendingVpnStart: Any? = null
+
+    @Synchronized
+    fun dispatchServiceCall(isStart: Boolean, dispatch: (onReply: () -> Unit) -> Unit) {
+        val previous = pendingVpnStart
+        val token = if (isStart) Any() else previous
+        if (isStart) pendingVpnStart = token
+        try {
+            if (isStart) releaseStandby()
+            dispatch {
+                synchronized(this) {
+                    // A late reply must not release a newer START's fence.
+                    if (pendingVpnStart === token) pendingVpnStart = null
+                }
+            }
+        } catch (error: Throwable) {
+            if (pendingVpnStart === token) pendingVpnStart = previous
+            throw error
+        }
+    }
+
     @Synchronized
     fun ensureLoaded(
         context: Context,
         config: VpnServiceStartConfig,
-        preserveActiveTun: Boolean = false,
-    ) {
-        if (preserveActiveTun && running) {
-            return
+    ): Boolean {
+        if (pendingVpnStart != null || VpnSession.isRunning(context)) {
+            throw ConnectException("VPN session owns the Mihomo runtime")
         }
-        ensureLoadedLocked(context, config, tunCallbacks = null)
+        val previousProfile = activeProfile
+        ensureLoadedLocked(context, config, tunCallbacks = null, subscribeCoreLogs = true)
         if (!running) owner = MihomoRuntimeOwner.Standby
+        return activeProfile !== previousProfile
     }
 
     @Synchronized
@@ -62,8 +86,9 @@ internal object AndroidMihomoRuntime {
         config: VpnServiceStartConfig,
         markSocket: (Int) -> Boolean,
         querySocketUid: (protocol: Int, source: InetSocketAddress, target: InetSocketAddress) -> Int,
+        subscribeCoreLogs: Boolean,
     ) {
-        ensureLoadedLocked(context, config, TunCallbacks(markSocket, querySocketUid))
+        ensureLoadedLocked(context, config, TunCallbacks(markSocket, querySocketUid), subscribeCoreLogs)
     }
 
     @Synchronized
@@ -170,28 +195,15 @@ internal object AndroidMihomoRuntime {
         }
     }
 
-    /**
-     * Replaces the profile of the running VPN runtime in place: writes [content] over the
-     * loaded profile file and reloads it through the embedded Clash bridge, so the native TUN,
-     * the VpnService and its notification stay up. Only a runtime that was loaded from its
-     * profile file qualifies; an in-memory standby profile does not.
-     */
-    suspend fun reloadProfileContent(content: ByteArray, ageSecretKey: String) {
-        val profile = activeProfile ?: error("mihomo profile is not loaded")
-        check(running && profile.content == null) { "mihomo VPN runtime is not running from a profile file" }
-        writeAtomically(File(profile.signature.profilePath)) { output -> output.write(content) }
-        setRuntimeAgeSecretKey(ageSecretKey)
-        withTimeout(DefaultLoadTimeoutMillis.milliseconds) {
-            loadProfile(profile.directory, null)
-        }
-        // Keep the signature truthful so a later ensureLoaded compares against what runs now.
+    @Synchronized
+    fun updateAgeSecretKey(ageSecretKey: String?) {
+        val profile = checkNotNull(activeProfile) { "Mihomo profile is not loaded" }
+        val key = ageSecretKey.orEmpty()
+        setRuntimeAgeSecretKey(key)
         activeProfile = LoadedMihomoProfile(
             directory = profile.directory,
-            content = null,
-            signature = profile.signature.copy(
-                profileSignature = content.sha256Hex(),
-                ageSecretKey = ageSecretKey,
-            ),
+            content = profile.content,
+            signature = profile.signature.copy(ageSecretKey = key),
         )
     }
 
@@ -199,9 +211,11 @@ internal object AndroidMihomoRuntime {
         context: Context,
         config: VpnServiceStartConfig,
         tunCallbacks: TunCallbacks?,
+        subscribeCoreLogs: Boolean,
     ) {
         val signature = config.runtimeConfigSignature()
         if (loaded && activeProfile?.signature == signature) {
+            syncCoreLogSubscriber(subscribeCoreLogs)
             tunCallbacks?.let(::installTunCallbacks)
             return
         }
@@ -219,8 +233,7 @@ internal object AndroidMihomoRuntime {
             error("mihomo profile file is unavailable")
         }
 
-        coreLogSubscriber?.stop()
-        coreLogSubscriber = MihomoCoreLogSubscriber().also { subscriber -> subscriber.start() }
+        syncCoreLogSubscriber(subscribeCoreLogs)
         runCatching {
             runBlocking {
                 withTimeout(DefaultLoadTimeoutMillis.milliseconds) {
@@ -228,6 +241,7 @@ internal object AndroidMihomoRuntime {
                     tunCallbacks?.let(::installTunCallbacks)
                     Clash.reset()
                     Clash.clearOverride(Clash.OverrideSlot.Session)
+                    config.sessionOverride?.let { Clash.patchOverride(Clash.OverrideSlot.Session, it) }
                     setRuntimeAgeSecretKey(config.ageSecretKey)
                     loadProfile(profileDir, profileContent)
                 }
@@ -251,6 +265,17 @@ internal object AndroidMihomoRuntime {
         activeProfile = LoadedMihomoProfile(profileDir, profileContent, signature)
         val source = if (profileContent == null) "file" else "memory"
         AndroidAppLogger.info(LogTag, "Loaded mihomo runtime profile source=$source")
+    }
+
+    private fun syncCoreLogSubscriber(subscribe: Boolean) {
+        if (subscribe) {
+            if (coreLogSubscriber == null) {
+                coreLogSubscriber = MihomoCoreLogSubscriber().also { it.start() }
+            }
+        } else {
+            coreLogSubscriber?.stop()
+            coreLogSubscriber = null
+        }
     }
 
     private fun installTunCallbacks(callbacks: TunCallbacks) {
@@ -300,6 +325,7 @@ private data class MihomoRuntimeConfigSignature(
     val profilePath: String,
     val profileSignature: String,
     val ageSecretKey: String,
+    val sessionOverride: ConfigurationOverride?,
     val inMemoryProfile: Boolean,
 )
 
@@ -315,6 +341,7 @@ private fun VpnServiceStartConfig.runtimeConfigSignature(): MihomoRuntimeConfigS
         profilePath = mihomoProfilePath,
         profileSignature = mihomoProfileSignature,
         ageSecretKey = ageSecretKey,
+        sessionOverride = sessionOverride,
         inMemoryProfile = standbyProfileContent != null,
     )
 }

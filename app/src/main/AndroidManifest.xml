@@ -128,6 +128,12 @@
             </intent-filter>
         </receiver>
 
+        <!-- Receives the start that the VPN Service hands back after a boot resume or an
+             always-on start; only the service sends it, by explicit component. -->
+        <receiver
+            android:name="features.boot.VpnResumeReceiver"
+            android:exported="false" />
+
         <!--
             Opens the main screen when the user dials *#*#260608#*#*
             from the system dialer. The broadcast is dispatched system-wide
@@ -173,11 +179,13 @@
              settings. Lint's ForegroundServicePermission check only models the exact-alarm
              criterion, so the documented VPN criterion is suppressed here instead of adding an
              alarm permission this app never uses. -->
+        <!-- Keep android:process in sync with AsteriskVpnService.ServiceProcessSuffix. -->
         <service
             android:name="engine.vpn.AsteriskVpnService"
             android:exported="false"
             android:foregroundServiceType="systemExempted"
             android:permission="android.permission.BIND_VPN_SERVICE"
+            android:process=":vpn"
             tools:ignore="ForegroundServicePermission,VpnServicePolicy">
             <intent-filter>
                 <action android:name="android.net.VpnService" />

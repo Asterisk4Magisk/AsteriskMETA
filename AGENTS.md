@@ -28,6 +28,17 @@ VPN Service is an independent non-ROOT execution path. Even on a rooted device, 
 - When switching from ROOT to VPN, any active ROOT cycle must be stopped by the ROOT lifecycle boundary before entering VPN. The VPN runtime itself must not perform ROOT cleanup.
 - Changes to proxy orchestration, mode selection, or lifecycle handling must include a regression check that the entire VPN lifecycle performs zero ROOT operations.
 
+### Keep the VPN Service in Its Own Process
+
+`engine.vpn.AsteriskVpnService` and its embedded Mihomo/Meow core run in `:vpn` so the app process can be reclaimed while the tunnel runs. The app process owns decisions and configuration compilation; the service executes the supplied configuration.
+
+- Keep the three process contracts in `engine/vpn`: explicit start/stop intents answered through a `ResultReceiver`, the locked `vpn-session` file as the authority for a running tunnel and its local proxy options, and the boot/always-on resume hand-off through `features.boot.VpnResumeReceiver`. Do not use process-local statics as cross-process state.
+- `AsteriskApplication.onCreate` in `:vpn` only registers the application with `MihomoBridge.initialize` and returns. Do not initialize app state, schedulers, WorkManager, runtime monitors or log repositories there, and do not read or write app-owned log files such as `logcat.log` or the core log repository's `error.log` from the service.
+- Compile configuration in the app process, including boot and always-on starts. The service must not read app state or compile/replay profiles.
+- Managed VPN runtime control and traffic statistics use the existing Clash API over `filesDir/clash/controller.sock`. Do not add a TCP control listener for cross-process access; the configured local proxy listener remains independent. Raw configuration keeps the user's controller.
+- The app process owns the `/logs` stream and persists received core records. The service must not create `MihomoCoreLogSubscriber`; logs produced while the app process is absent are not retained.
+- Standby bridge loading belongs to the app process only while the VPN session is stopped. Release Standby before starting VPN, use the API while the session lock is held, and discover/adopt a surviving tunnel when the app process restarts. Hot reload uses the running core's API and keeps the tunnel alive.
+
 ### Respect Core API Stability and Product-Specific Control Paths
 
 - As a rule, do not introduce or depend on an experimental core feature. An exception exists only when this repository already uses that feature or a developer explicitly authorizes its use; adoption by a sibling app is not authorization for this app.

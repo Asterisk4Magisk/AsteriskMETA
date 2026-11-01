@@ -14,6 +14,7 @@ import app.modes.RunModeVpnService
 import features.boot.BootAutoConnect
 import features.home.HomeServiceOperationState
 import engine.mihomo.binding.MihomoBridge
+import engine.vpn.AsteriskVpnService
 import features.logs.AndroidCoreLogRepository
 import features.logs.AndroidAsteriskdLogRepository
 import features.logs.AndroidLogcatRepository
@@ -53,6 +54,7 @@ class AsteriskApplication : Application(), SingletonImageLoader.Factory {
         AndroidProxyEngine(
             context = applicationContext,
             rootAccess = AndroidRootShellGateway(),
+            appScope = appScope,
         )
     }
     internal val mihomoProfilePreparer: AndroidMihomoProfilePreparer by lazy {
@@ -110,6 +112,12 @@ class AsteriskApplication : Application(), SingletonImageLoader.Factory {
 
     override fun onCreate() {
         super.onCreate()
+        // The VPN Service process hosts the core only. State, schedulers, WorkManager,
+        // runtime monitoring and log repositories belong to the app process.
+        if (AsteriskVpnService.isServiceProcess(this)) {
+            MihomoBridge.initialize(this)
+            return
+        }
         appScope.launch {
             val scheduler = ResourceAutoUpdateScheduler(applicationContext)
             stateStore.state

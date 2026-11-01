@@ -31,7 +31,7 @@ internal fun TrafficStatsNotificationSynchronizer(
                 } else {
                     null
                 }
-                appState.toMihomoTrafficStatsRuntime(rawConfig = rawConfig)
+                appState.toMihomoTrafficStatsRuntime(context = appContext, rawConfig = rawConfig)
             } else {
                 null
             }

@@ -18,7 +18,9 @@ import engine.mihomo.raw.loadSelectedRawConfig
 import engine.mihomo.raw.usesRawMihomoConfig
 import engine.proxy.ProxyEngineStartRequest
 import engine.root.publication.publishRootProviderUpdates
+import engine.vpn.VpnSession
 import engine.vpn.AndroidMihomoRuntime
+import engine.vpn.AsteriskVpnService
 import engine.vpn.VpnMihomoConfigFactory
 import features.resources.runtime.mihomoResourceFilePaths
 import features.logs.AndroidAppLogger
@@ -149,7 +151,7 @@ internal class MihomoRuntimeRepository(
         } else {
             resolveMihomoControlConfig(appState)
         }
-        val backend = appState.mihomoRuntimeBackend()
+        val backend = appState.mihomoRuntimeBackend(appContext)
         val trafficEnabled = appState.proxyRunning
         val signature = MihomoRuntimeSignature(
             control = control,
@@ -261,7 +263,7 @@ internal class MihomoRuntimeRepository(
             val generation = currentRuntimeGeneration()
             val control = resolveMihomoControlConfig(appState)
             val backend = resolveInteractiveBackend(appState, control)
-            val configKey = appState.mihomoRuntimeConfigKey(appState.mihomoRuntimeBackend())
+            val configKey = appState.mihomoRuntimeConfigKey(appState.mihomoRuntimeBackend(appContext))
             withContext(Dispatchers.IO) {
                 ensureInteractiveRuntime(appState, backend)
                 refreshRuntime(control, backend.useBridge(), generation, configKey)
@@ -275,7 +277,7 @@ internal class MihomoRuntimeRepository(
             val generation = currentRuntimeGeneration()
             val control = resolveMihomoControlConfig(appState)
             val backend = resolveInteractiveBackend(appState, control)
-            val configKey = appState.mihomoRuntimeConfigKey(appState.mihomoRuntimeBackend())
+            val configKey = appState.mihomoRuntimeConfigKey(appState.mihomoRuntimeBackend(appContext))
             withContext(Dispatchers.IO) {
                 ensureInteractiveRuntime(appState, backend)
                 refreshProxySnapshot(
@@ -354,12 +356,24 @@ internal class MihomoRuntimeRepository(
                         if (appState.runMode.isRootRunMode() && backend == MihomoRuntimeBackend.Api && !appState.usesRawMihomoConfig()) {
                             appContext.publishRootProviderUpdates()
                         }
-                        client.reloadProfile(
-                            config = control,
-                            profilePath = java.io.File(appContext.mihomoResourceFilePaths().dataDir, "config.yaml").absolutePath,
-                            reloadLocally = backend.useBridge() || appState.runMode == RunModeVpnService,
-                        )
-                    }
+                        if (appState.runMode == RunModeVpnService && backend == MihomoRuntimeBackend.Api) {
+                            AsteriskVpnService.updateAgeSecretKey(
+                                appContext,
+                                appState.selectedMihomoProfileOrNull()?.ageSecretKey,
+                            )
+                        }
+                        // Raw provider sync updates the active providers; configuration changes
+                        // use the explicit restart path with their session controller overrides.
+                        if (!appState.usesRawMihomoConfig()) {
+                            client.reloadProfile(
+                                config = control,
+                                profilePath = java.io.File(appContext.mihomoResourceFilePaths().dataDir, "config.yaml").absolutePath,
+                                reloadLocally = backend.useBridge(),
+                            )
+                        }
+                        // Resume ROOT DNS after the mutation even when a provider is offline.
+                        runCatching { client.updateHttpProxyProviders(control, backend.useBridge()) }
+                    }.getOrThrow()
                 } catch (error: CoreRestartRequiredException) {
                     if (!appState.runMode.isRootRunMode()) throw error
                     AndroidAppLogger.info(
@@ -455,7 +469,7 @@ internal class MihomoRuntimeRepository(
             val control = resolveMihomoControlConfig(appState)
             val backend = resolveInteractiveBackend(appState, control)
             val generation = currentRuntimeGeneration()
-            val configKey = appState.mihomoRuntimeConfigKey(appState.mihomoRuntimeBackend())
+            val configKey = appState.mihomoRuntimeConfigKey(appState.mihomoRuntimeBackend(appContext))
             withContext(Dispatchers.IO) {
                 ensureInteractiveRuntime(appState, backend)
                 appContext.withRootDnsMutation(appState) {
@@ -498,7 +512,7 @@ internal class MihomoRuntimeRepository(
             val control = resolveMihomoControlConfig(appState)
             val backend = resolveInteractiveBackend(appState, control)
             val generation = currentRuntimeGeneration()
-            val configKey = appState.mihomoRuntimeConfigKey(appState.mihomoRuntimeBackend())
+            val configKey = appState.mihomoRuntimeConfigKey(appState.mihomoRuntimeBackend(appContext))
             withContext(Dispatchers.IO) {
                 ensureInteractiveRuntime(appState, backend)
                 appContext.withRootDnsMutation(appState) {
@@ -539,7 +553,7 @@ internal class MihomoRuntimeRepository(
             val control = resolveMihomoControlConfig(appState)
             val backend = resolveInteractiveBackend(appState, control)
             val generation = currentRuntimeGeneration()
-            val configKey = appState.mihomoRuntimeConfigKey(appState.mihomoRuntimeBackend())
+            val configKey = appState.mihomoRuntimeConfigKey(appState.mihomoRuntimeBackend(appContext))
             withContext(Dispatchers.IO) {
                 ensureInteractiveRuntime(appState, backend)
                 appContext.withRootDnsMutation(appState) {
@@ -676,7 +690,7 @@ internal class MihomoRuntimeRepository(
         val control = resolveMihomoControlConfig(appState)
         val backend = resolveInteractiveBackend(appState, control)
         val generation = currentRuntimeGeneration()
-        val configKey = appState.mihomoRuntimeConfigKey(appState.mihomoRuntimeBackend())
+        val configKey = appState.mihomoRuntimeConfigKey(appState.mihomoRuntimeBackend(appContext))
         return withContext(Dispatchers.IO) {
             ensureInteractiveRuntime(appState, backend)
             val groupFallbackName = state.value.proxies.groupFallbackFor(proxyId)
@@ -703,7 +717,7 @@ internal class MihomoRuntimeRepository(
         val control = resolveMihomoControlConfig(appState)
         val backend = resolveInteractiveBackend(appState, control)
         val generation = currentRuntimeGeneration()
-        val configKey = appState.mihomoRuntimeConfigKey(appState.mihomoRuntimeBackend())
+        val configKey = appState.mihomoRuntimeConfigKey(appState.mihomoRuntimeBackend(appContext))
         return withContext(Dispatchers.IO) {
             ensureInteractiveRuntime(appState, backend)
             val expectedProxyIds = state.value.proxies.groups
@@ -724,37 +738,45 @@ internal class MihomoRuntimeRepository(
         }
     }
 
-    private fun prepareRuntime(
+    private suspend fun prepareRuntime(
         appState: AppState,
         backend: MihomoRuntimeBackend,
     ) {
         when (backend) {
             MihomoRuntimeBackend.Bridge -> {
-                val preserveActiveTun = appState.runMode == RunModeVpnService
-                if (preserveActiveTun && AndroidMihomoRuntime.isRunning()) {
-                    return
+                if (appState.runMode == RunModeVpnService && VpnSession.isRunning(appContext)) {
+                    AndroidMihomoRuntime.releaseStandby()
+                    throw ConnectException("VPN session owns the Mihomo runtime")
                 }
-                AndroidMihomoRuntime.ensureLoaded(
+                val newlyLoaded = AndroidMihomoRuntime.ensureLoaded(
                     context = appContext,
                     config = VpnMihomoConfigFactory.create(
                         context = appContext,
                         request = ProxyEngineStartRequest(appState),
                         exposePorts = appState.exposeBridgePorts(),
                     ),
-                    preserveActiveTun = preserveActiveTun,
                 )
+                if (newlyLoaded) {
+                    appScope.launch(Dispatchers.IO) {
+                        try {
+                            client.updateHttpProxyProviders(appState.mihomoControlConfig(appContext), useBridge = true)
+                        } catch (error: CancellationException) {
+                            throw error
+                        } catch (error: Throwable) {
+                            AndroidAppLogger.warn(LogTag, "Failed to refresh Standby provider usage", error)
+                        }
+                    }
+                }
             }
 
             MihomoRuntimeBackend.Api -> {
-                if (!(appState.proxyRunning && appState.runMode == RunModeVpnService)) {
-                    AndroidMihomoRuntime.stop(resetCore = true)
-                }
+                AndroidMihomoRuntime.releaseStandby()
             }
         }
     }
 
     private fun resolveMihomoControlConfig(appState: AppState): MihomoControlConfig {
-        if (!appState.usesRawMihomoConfig()) return appState.mihomoControlConfig()
+        if (!appState.usesRawMihomoConfig()) return appState.mihomoControlConfig(appContext)
         require(appState.proxyRunning) { "Raw configuration API is available only while the proxy service is running" }
         val parsed = appContext.loadSelectedRawConfig(appState)
             ?: error("Raw configuration is not available")
@@ -771,7 +793,7 @@ internal class MihomoRuntimeRepository(
             require(appState.proxyRunning) { "Raw configuration API is available only while the proxy service is running" }
             return MihomoRuntimeBackend.Api
         }
-        val backend = appState.mihomoRuntimeBackend()
+        val backend = appState.mihomoRuntimeBackend(appContext)
         if (backend == MihomoRuntimeBackend.Api) {
             return backend
         }
@@ -812,7 +834,7 @@ internal class MihomoRuntimeRepository(
         val control = resolveMihomoControlConfig(appState)
         val backend = resolveInteractiveBackend(appState, control)
         val generation = currentRuntimeGeneration()
-        val configKey = appState.mihomoRuntimeConfigKey(appState.mihomoRuntimeBackend())
+        val configKey = appState.mihomoRuntimeConfigKey(appState.mihomoRuntimeBackend(appContext))
         return withContext(Dispatchers.IO) {
             ensureInteractiveRuntime(appState, backend)
             client.testProviderDelay(
@@ -838,9 +860,10 @@ internal class MihomoRuntimeRepository(
             preparedRuntimeSignature == signature
         }
         return signatureMatches && when (signature.backend) {
-            MihomoRuntimeBackend.Bridge -> AndroidMihomoRuntime.isLoaded()
+            MihomoRuntimeBackend.Bridge -> AndroidMihomoRuntime.isLoaded() &&
+                !(appState.runMode == RunModeVpnService && VpnSession.isRunning(appContext))
             MihomoRuntimeBackend.Api -> {
-                appState.proxyRunning && appState.runMode == RunModeVpnService ||
+                appState.runMode == RunModeVpnService && VpnSession.isRunning(appContext) ||
                         !AndroidMihomoRuntime.isLoaded()
             }
         }
@@ -1168,8 +1191,11 @@ private fun Throwable.isTransientControlConnectionFailure(): Boolean {
     return false
 }
 
-private fun AppState.mihomoRuntimeBackend(): MihomoRuntimeBackend {
-    return if (usesRawMihomoConfig() || proxyRunning && runMode.isRootRunMode()) {
+private fun AppState.mihomoRuntimeBackend(context: Context): MihomoRuntimeBackend {
+    return if (
+        usesRawMihomoConfig() || proxyRunning && runMode.isRootRunMode() ||
+        runMode == RunModeVpnService && VpnSession.isRunning(context)
+    ) {
         MihomoRuntimeBackend.Api
     } else {
         MihomoRuntimeBackend.Bridge

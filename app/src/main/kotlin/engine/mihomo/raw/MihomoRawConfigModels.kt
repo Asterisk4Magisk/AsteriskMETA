@@ -16,6 +16,13 @@ internal data class MihomoRawApiConfig(
     val hasSecret: Boolean,
 )
 
+internal data class MihomoRawControllerConfig(
+    val externalController: String = "",
+    val externalControllerTls: String = "",
+    val externalControllerUnix: String = "",
+    val secret: String = "",
+)
+
 internal data class MihomoRawSocksInbound(
     val port: Int,
     val path: String,
@@ -52,6 +59,7 @@ internal data class MihomoRawConfigSnapshot(
     val socksInbound: RawConfigField<MihomoRawSocksInbound>,
     val tunInbound: RawConfigField<MihomoRawTunInbound>,
     val dnsHijack: RawConfigField<MihomoRawDnsHijack>,
+    val controller: MihomoRawControllerConfig = MihomoRawControllerConfig(),
 )
 
 internal data class MihomoRawConfigParseResult(
@@ -74,8 +82,8 @@ internal data class MihomoRawConfigParseResult(
 
     override fun hashCode(): Int {
         var result = sourceBytes.contentHashCode()
-        result = 31 * result + (snapshot?.hashCode() ?: 0)
-        result = 31 * result + (error?.hashCode() ?: 0)
+        result = 31 * result + snapshot.hashCode()
+        result = 31 * result + error.hashCode()
         return result
     }
 }

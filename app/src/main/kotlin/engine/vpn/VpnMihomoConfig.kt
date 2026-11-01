@@ -13,6 +13,9 @@ import engine.hevtun.hevSocks5TunnelLogFile
 import engine.hevtun.hevSocks5TunnelSocksTargetAddress
 import engine.mihomo.CoreCapabilitiesStore
 import engine.mihomo.MihomoProfileFactory
+import engine.mihomo.binding.model.ConfigurationOverride
+import engine.mihomo.mihomoControllerSocket
+import engine.mihomo.raw.MihomoRawControllerConfig
 import engine.mihomo.DefaultMihomoTunCongestionController
 import engine.mihomo.runtimeTunCongestionController
 import engine.mihomo.sha256Hex
@@ -53,6 +56,7 @@ internal data class VpnServiceStartConfig(
     val hevSocks5TunnelConfig: HevSocks5TunnelConfig? = null,
     // Standby is loaded in-process; it must not replace the ROOT/boot service profile.
     val standbyProfileContent: ByteArray? = null,
+    val sessionOverride: ConfigurationOverride? = null,
 )
 
 internal object VpnMihomoConfigFactory {
@@ -106,6 +110,7 @@ internal object VpnMihomoConfigFactory {
             mihomoProfileSignature = profileSignature,
             standbyProfileContent = profileBytes.takeUnless { exposePorts },
             ageSecretKey = ageSecretKey,
+            sessionOverride = rawConfig?.controller?.vpnSessionOverride(context.mihomoControllerSocket()),
             mihomoTunStack = CoreCapabilitiesStore.current.effectiveTunStack(
                 rawConfig?.tunInbound?.value?.stack ?: MihomoProfileFactory.tunStack(appState),
             ),
@@ -130,6 +135,21 @@ internal object VpnMihomoConfigFactory {
             ),
         )
     }
+}
+
+internal fun MihomoRawControllerConfig.vpnSessionOverride(defaultSocket: File): ConfigurationOverride {
+    val configuredSocket = File(externalControllerUnix.ifBlank { defaultSocket.absolutePath })
+    val socket = if (configuredSocket.isAbsolute) {
+        configuredSocket
+    } else {
+        File(defaultSocket.parentFile, configuredSocket.path)
+    }
+    return ConfigurationOverride(
+        externalController = externalController,
+        externalControllerTLS = externalControllerTls,
+        externalControllerUnix = socket.absolutePath,
+        secret = secret,
+    )
 }
 
 internal fun buildVpnHevSocks5TunnelConfig(

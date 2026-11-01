@@ -10,7 +10,6 @@ import android.content.IntentFilter
 import android.os.PowerManager
 import androidx.core.content.ContextCompat
 import app.AppState
-import app.modes.RunModeVpnService
 import engine.mihomo.MihomoControlConfig
 import engine.mihomo.mihomoControlConfig
 import engine.mihomo.raw.MihomoRawConfigSnapshot
@@ -159,6 +158,7 @@ internal data class MihomoTrafficStatsRuntime(
 )
 
 internal fun AppState.toMihomoTrafficStatsRuntime(
+    context: Context,
     runMode: Int = this.runMode,
     rawConfig: MihomoRawConfigSnapshot? = null,
 ): MihomoTrafficStatsRuntime? {
@@ -167,11 +167,11 @@ internal fun AppState.toMihomoTrafficStatsRuntime(
     val control = if (usesRawConfig) {
         rawConfig?.api?.value?.control ?: return null
     } else {
-        mihomoControlConfig()
+        mihomoControlConfig(context, runMode)
     }
     return MihomoTrafficStatsRuntime(
         control = control,
-        useBridge = !usesRawConfig && runMode == RunModeVpnService,
+        useBridge = false,
         nodeName = selectedMihomoProfileOrNull()?.name.orEmpty(),
     )
 }

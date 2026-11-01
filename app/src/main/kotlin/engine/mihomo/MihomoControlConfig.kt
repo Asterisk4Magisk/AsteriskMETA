@@ -3,12 +3,17 @@
 
 package engine.mihomo
 
+import android.content.Context
 import app.AppState
+import app.modes.RunModeVpnService
+import engine.mihomo.raw.usesRawMihomoConfig
+import engine.vpn.VpnSession
 import engine.network.findAvailableTcpPort
 import engine.network.isTcpPortAvailable
 import engine.network.toPortOrNull
 import engine.root.RootModeEngine
 import engine.vpn.VpnDefaults
+import java.io.File
 
 internal const val MihomoControlHost = "127.0.0.1"
 internal const val DefaultMihomoControlPort = 9090
@@ -20,6 +25,7 @@ internal data class MihomoControlConfig(
     val port: Int = DefaultMihomoControlPort,
     val secret: String = "",
     val scheme: String = "http",
+    val unixSocketPath: String? = null,
 ) {
     val address: String
         get() = if (":" in host) "[$host]:$port" else "$host:$port"
@@ -28,7 +34,7 @@ internal data class MihomoControlConfig(
         get() = "$scheme://$address"
 
     override fun toString(): String {
-        return "MihomoControlConfig(host=$host, port=$port, scheme=$scheme, secret=<redacted>)"
+        return "MihomoControlConfig(host=$host, port=$port, scheme=$scheme, unixSocket=${unixSocketPath != null}, secret=<redacted>)"
     }
 }
 
@@ -37,6 +43,17 @@ internal fun AppState.mihomoControlConfig(): MihomoControlConfig {
         port = mihomoControlPort.toPortOrNull() ?: DefaultMihomoControlPort,
         secret = mihomoControlSecret.trim(),
     )
+}
+
+internal fun Context.mihomoControllerSocket(): File = File(filesDir, "clash/controller.sock")
+
+internal fun AppState.mihomoControlConfig(context: Context, runMode: Int = this.runMode): MihomoControlConfig {
+    val control = mihomoControlConfig()
+    return if (!usesRawMihomoConfig() && runMode == RunModeVpnService && VpnSession.isRunning(context)) {
+        control.copy(unixSocketPath = context.mihomoControllerSocket().absolutePath)
+    } else {
+        control
+    }
 }
 
 internal fun AppState.withResolvedMihomoControlPort(): AppState {

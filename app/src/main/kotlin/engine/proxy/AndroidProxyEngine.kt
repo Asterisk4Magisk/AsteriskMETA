@@ -13,13 +13,18 @@ import engine.stats.MihomoTrafficStatsNotificationService
 import engine.stats.toMihomoTrafficStatsRuntime
 import engine.mihomo.withResolvedMihomoControlPort
 import engine.mihomo.MihomoProfileFactory
+import engine.mihomo.mihomoControlConfig
 import engine.mihomo.selectedMihomoProfileOrNull
+import engine.mihomo.runtime.MihomoControlClient
 import engine.mihomo.raw.requireStartableRawConfig
 import engine.mihomo.raw.usesRawMihomoConfig
+import engine.root.dns.withRootDnsMutation
 import engine.vpn.AndroidMihomoRuntime
+import engine.vpn.AsteriskVpnService
 import engine.vpn.VpnMihomoEngine
 import features.logs.AndroidAppLogger
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,10 +33,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import system.AndroidRootShellGateway
+import features.resources.runtime.mihomoResourceFilePaths
+import utils.writeAtomically
+import java.io.File
 
 /**
  * Process-wide proxy engine shared by the UI, quick settings tile and broadcast control so
@@ -41,6 +50,7 @@ import system.AndroidRootShellGateway
 internal class AndroidProxyEngine(
     context: Context,
     rootAccess: AndroidRootShellGateway,
+    private val appScope: CoroutineScope,
 ) {
     private val appContext = context.applicationContext
     private var requestVpnPermission: VpnPermissionRequester = DenyVpnPermission
@@ -105,7 +115,7 @@ internal class AndroidProxyEngine(
 
     /**
      * Applies a changed profile to a running VPN core in place: the profile is rebuilt with
-     * the ports the core is already running on and reloaded through the embedded Clash bridge,
+     * the ports the core is already running on and reloaded through its control API,
      * keeping the TUN and the VpnService. A raw profile can change what the VpnService itself
      * was configured with (TUN stack, DNS hijack, IPv6, local proxy port), so it takes the
      * explicit restart, as does any reload failure. Both steps run under [operationMutex], so a
@@ -124,12 +134,22 @@ internal class AndroidProxyEngine(
         if (!request.appState.usesRawMihomoConfig()) {
             try {
                 withContext(Dispatchers.IO) {
-                    val profileBytes = MihomoProfileFactory.buildProfileBytes(appContext, request.appState)
-                    AndroidMihomoRuntime.reloadProfileContent(
-                        content = profileBytes,
-                        ageSecretKey = request.appState.selectedMihomoProfileOrNull()?.ageSecretKey.orEmpty(),
+                    val profileBytes = MihomoProfileFactory.buildProfileBytes(
+                        appContext, request.appState, runMode = RunModeVpnService, useRootProviderPaths = false,
+                    )
+                    val profileFile = File(appContext.mihomoResourceFilePaths().dataDir, "config.yaml")
+                    writeAtomically(profileFile) { output -> output.write(profileBytes) }
+                    AsteriskVpnService.updateAgeSecretKey(
+                        appContext,
+                        request.appState.selectedMihomoProfileOrNull()?.ageSecretKey,
+                    )
+                    MihomoControlClient().reloadProfile(
+                        config = request.appState.mihomoControlConfig(appContext, RunModeVpnService),
+                        profilePath = profileFile.absolutePath,
+                        reloadLocally = false,
                     )
                 }
+                refreshProviderUsageAfterActivation(request.appState)
                 return@withLock status.copy(appState = request.appState)
             } catch (error: CancellationException) {
                 throw error
@@ -197,12 +217,16 @@ internal class AndroidProxyEngine(
         var rootResumeChecked = false
         // A start that reaches an already running engine does not relaunch the core, so the
         // ports it is running with must be kept instead of being resolved again.
-        if (!explicitRestart && requestedEngine is VpnMihomoEngine && activeEngine === requestedEngine) {
+        if (!explicitRestart && requestedEngine is VpnMihomoEngine &&
+            (activeEngine == null || activeEngine === requestedEngine)
+        ) {
             val status = requestedEngine.status()
             if (status.running) {
+                activeEngine = requestedEngine
                 MihomoTrafficStatsNotificationService.reconcile(
                     appContext,
                     validatedRequest.appState.toMihomoTrafficStatsRuntime(
+                        context = appContext,
                         runMode = status.runMode ?: validatedRequest.appState.runMode,
                         rawConfig = validatedRequest.rawConfig,
                     ),
@@ -218,6 +242,7 @@ internal class AndroidProxyEngine(
                 MihomoTrafficStatsNotificationService.reconcile(
                     appContext,
                     validatedRequest.appState.toMihomoTrafficStatsRuntime(
+                        context = appContext,
                         runMode = status.runMode ?: validatedRequest.appState.runMode,
                         rawConfig = validatedRequest.rawConfig,
                     ),
@@ -270,6 +295,7 @@ internal class AndroidProxyEngine(
                 )
             val runtime = if (status.running) {
                 resolvedRequest.appState.toMihomoTrafficStatsRuntime(
+                    context = appContext,
                     runMode = status.runMode ?: resolvedRequest.appState.runMode,
                     rawConfig = resolvedRequest.rawConfig,
                 )
@@ -277,10 +303,32 @@ internal class AndroidProxyEngine(
                 null
             }
             MihomoTrafficStatsNotificationService.reconcile(appContext, runtime)
+            if (status.running) refreshProviderUsageAfterActivation(resolvedRequest.appState)
             status
         } catch (error: Throwable) {
             MihomoTrafficStatsNotificationService.reconcile(appContext, null)
             throw error
+        }
+    }
+
+    private fun refreshProviderUsageAfterActivation(appState: app.AppState) {
+        if (appState.usesRawMihomoConfig()) return
+        appScope.launch(Dispatchers.IO) {
+            try {
+                appContext.withRootDnsMutation(appState.copy(proxyRunning = true)) {
+                    // A failed download still leaves a usable core and cached providers.
+                    runCatching {
+                        MihomoControlClient().updateHttpProxyProviders(
+                            config = appState.mihomoControlConfig(appContext),
+                            useBridge = false,
+                        )
+                    }
+                }.getOrThrow()
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                AndroidAppLogger.warn(LogTag, "Failed to refresh provider usage after activation", error)
+            }
         }
     }
 
