@@ -64,6 +64,14 @@ internal fun parseProcessStat(procStat: String): ProcessStat? {
     )
 }
 
+internal fun parseProcessResidentMemoryBytes(procStatm: String, pageSizeBytes: Long): Long? {
+    if (pageSizeBytes <= 0L) return null
+    val residentPages = procStatm.trim().split(WhitespaceRegex)
+        .getOrNull(1)?.toLongOrNull() ?: return null
+    if (residentPages < 0L) return null
+    return runCatching { Math.multiplyExact(residentPages, pageSizeBytes) }.getOrNull()
+}
+
 internal fun calculateProcessCpuPercent(
     previous: ProcessTickSnapshot?,
     current: ProcessTickSnapshot,

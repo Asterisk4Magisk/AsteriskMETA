@@ -52,7 +52,7 @@ internal fun resolveMonitoringPlan(counts: Map<MonitoringIntent, Int>): Monitori
             else -> null
         },
         resourceIntervalMillis = when {
-            resource -> DetailMonitoringIntervalMillis
+            resource || traffic -> DetailMonitoringIntervalMillis
             home -> HomeMonitoringIntervalMillis
             else -> null
         },

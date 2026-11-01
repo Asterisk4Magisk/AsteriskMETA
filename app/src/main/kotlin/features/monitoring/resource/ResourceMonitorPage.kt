@@ -138,8 +138,10 @@ internal fun ResourceMonitorPage(padding: PaddingValues) {
             title = { Text(stringResource(R.string.monitor_resource_source_info)) },
             text = {
                 Text(stringResource(
-                    if (source == ProcessStatsSourceKind.CoreProcess) R.string.monitor_resource_root_explanation
-                    else R.string.monitor_resource_embedded_explanation,
+                    when (source) {
+                        ProcessStatsSourceKind.CoreProcess -> R.string.monitor_resource_root_explanation
+                        ProcessStatsSourceKind.VpnProcess -> R.string.monitor_resource_vpn_explanation
+                    },
                 ))
             },
             confirmButton = {
@@ -352,10 +354,9 @@ private fun ResourceDetails(resource: MonitoringResourceSummary) {
 
 @Composable
 private fun resourceSourceLabel(source: ProcessStatsSourceKind): String = stringResource(
-    if (source == ProcessStatsSourceKind.CoreProcess) {
-        R.string.monitor_resource_source_root
-    } else {
-        R.string.monitor_resource_source_embedded
+    when (source) {
+        ProcessStatsSourceKind.CoreProcess -> R.string.monitor_resource_source_root
+        ProcessStatsSourceKind.VpnProcess -> R.string.monitor_resource_source_vpn
     },
 )
 

@@ -102,6 +102,7 @@ import features.mihomo.provider.resolveSharedMihomoProviderUsageState
 import features.mihomo.provider.selectedMihomoProviderUsageLoadKeyOrNull
 import features.monitoring.MonitoringIntent
 import features.monitoring.ObserveMonitoring
+import features.monitoring.resource.ProcessStatsSourceKind
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -980,17 +981,16 @@ private fun HomeServiceRuntimeSummary() {
     val uptimeMillis by produceState<Long?>(null, appState.proxyRunning, appState.runMode) {
         value = null
         if (!appState.proxyRunning) return@produceState
+        val expectedSource = if (appState.runMode.isRootRunMode()) {
+            ProcessStatsSourceKind.CoreProcess
+        } else {
+            ProcessStatsSourceKind.VpnProcess
+        }
         while (true) {
-            value = if (appState.runMode.isRootRunMode()) {
-                val resource = services.monitoring.state.value.resource
-                resource.uptimeMillis
-                    .takeIf { resource.source == features.monitoring.resource.ProcessStatsSourceKind.CoreProcess }
-                    ?.let { it + (SystemClock.elapsedRealtime() - resource.uptimeMeasuredAtElapsedMillis).coerceAtLeast(0L) }
-            } else {
-                engine.vpn.AndroidMihomoRuntime.serviceStartedElapsedMillis
-                    .takeIf { it > 0L }
-                    ?.let { (SystemClock.elapsedRealtime() - it).coerceAtLeast(0L) }
-            }
+            val resource = services.monitoring.state.value.resource
+            value = resource.uptimeMillis
+                .takeIf { resource.source == expectedSource }
+                ?.let { it + (SystemClock.elapsedRealtime() - resource.uptimeMeasuredAtElapsedMillis).coerceAtLeast(0L) }
             delay(1_000L.milliseconds)
         }
     }
