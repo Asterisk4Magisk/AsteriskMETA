@@ -61,6 +61,9 @@ class AsteriskVpnService : VpnService() {
 
     @Volatile
     private var running = false
+
+    /** Whether this instance received a lifecycle intent; a stats query alone must not keep it started. */
+    private var lifecycleRequested = false
     private var session: Closeable? = null
     private val connectivityManager: ConnectivityManager by lazy {
         getSystemService(ConnectivityManager::class.java)
@@ -68,6 +71,13 @@ class AsteriskVpnService : VpnService() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val reply = intent?.serviceReply()
+        if (intent?.action == AsteriskVpnServiceIntents.ACTION_QUERY_PROCESS_STATS) {
+            val isRunning = running
+            reply?.sendProcessStats(if (isRunning) VpnProcessStats.sampleCurrentProcess() else null)
+            if (!isRunning && !lifecycleRequested) stopSelf(startId)
+            return START_NOT_STICKY
+        }
+        lifecycleRequested = true
         when (intent?.action) {
             AsteriskVpnServiceIntents.ACTION_STOP -> {
                 cancelResumeWatchdog()
@@ -513,6 +523,7 @@ class AsteriskVpnService : VpnService() {
 
         private const val StartTimeoutMillis = 10_000L
         private const val StopTimeoutMillis = 5_000L
+        private const val ProcessStatsTimeoutMillis = 2_000L
         private const val ResumeWatchdogMillis = 60_000L
 
         internal suspend fun start(context: Context, config: VpnServiceStartConfig) {
@@ -536,6 +547,12 @@ class AsteriskVpnService : VpnService() {
         }
 
         internal fun isRunning(context: Context): Boolean = VpnSession.isRunning(context)
+
+        /** Samples the service process; probing the session first keeps a query from starting an idle service. */
+        internal suspend fun queryProcessStats(context: Context): VpnProcessStats? {
+            if (!isRunning(context)) return null
+            return queryServiceProcessStats(context, ProcessStatsTimeoutMillis)
+        }
 
         /** Must match `android:process` of this service in the manifest. */
         internal const val ServiceProcessSuffix = ":vpn"

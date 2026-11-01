@@ -3,9 +3,7 @@
 
 package features.monitoring.resource
 
-import android.app.ActivityManager
 import android.content.Context
-import android.os.Process
 import android.os.SystemClock
 import android.system.Os
 import android.system.OsConstants
@@ -19,7 +17,6 @@ import kotlinx.coroutines.withContext
 import system.AndroidRootShellGateway
 import system.ShellExecOptions
 import utils.shellQuote
-import java.io.File
 
 internal enum class ProcessStatsSourceKind {
     CoreProcess,
@@ -34,49 +31,40 @@ internal data class ProcessStatsReading(
 )
 
 internal class AndroidProcessStatsSource(
-    context: Context,
+    private val context: Context,
     private val rootAccess: AndroidRootShellGateway,
 ) {
     private val rootSupervisor = RootSupervisorController(context, rootAccess)
-    private val activityManager = context.applicationContext.getSystemService(ActivityManager::class.java)
-    private val vpnProcessName = context.packageName + AsteriskVpnService.ServiceProcessSuffix
 
     suspend fun read(appState: AppState): ProcessStatsReading? = withContext(Dispatchers.IO) {
         if (!appState.proxyRunning) return@withContext null
         if (appState.runMode.isRootRunMode()) readRootProcess() else readVpnProcess()
     }
 
-    private fun readVpnProcess(): ProcessStatsReading? = runCatching {
-        val runningProcess = activityManager?.runningAppProcesses?.firstOrNull { process ->
-            process.uid == Process.myUid() && process.processName == vpnProcessName
-        } ?: return@runCatching null
-        val process = parseProcessStat(File("/proc/${runningProcess.pid}/stat").readText())
-            ?: return@runCatching null
-        val clockTicksPerSecond = Os.sysconf(OsConstants._SC_CLK_TCK)
-        if (clockTicksPerSecond <= 0L) return@runCatching null
-        val elapsedRealtimeMillis = SystemClock.elapsedRealtime()
-        val processStartElapsedRealtimeMillis =
-            Math.multiplyExact(process.startTimeTicks, 1_000L) / clockTicksPerSecond
+    private suspend fun readVpnProcess(): ProcessStatsReading? {
+        val stats = AsteriskVpnService.queryProcessStats(context) ?: return null
         val snapshot = buildAppProcessTickSnapshot(
-            pid = process.pid,
-            processCpuMillis = Math.multiplyExact(process.processTicks, 1_000L) / clockTicksPerSecond,
-            elapsedRealtimeMillis = elapsedRealtimeMillis,
+            pid = stats.pid,
+            processCpuMillis = stats.cpuTimeMillis,
+            elapsedRealtimeMillis = stats.elapsedRealtimeMillis,
             processorCount = Runtime.getRuntime().availableProcessors().coerceAtLeast(1),
-            processStartElapsedRealtimeMillis = processStartElapsedRealtimeMillis,
-        ) ?: return@runCatching null
-        val memoryBytes = runCatching {
-            parseProcessResidentMemoryBytes(
-                procStatm = File("/proc/${process.pid}/statm").readText(),
-                pageSizeBytes = Os.sysconf(OsConstants._SC_PAGESIZE),
-            )
-        }.getOrNull()
-        ProcessStatsReading(
+            processStartElapsedRealtimeMillis = stats.startElapsedRealtimeMillis,
+        ) ?: return null
+        val memoryBytes = stats.procStatm?.let { procStatm ->
+            runCatching {
+                parseProcessResidentMemoryBytes(
+                    procStatm = procStatm,
+                    pageSizeBytes = Os.sysconf(OsConstants._SC_PAGESIZE),
+                )
+            }.getOrNull()
+        }
+        return ProcessStatsReading(
             snapshot = snapshot,
             source = ProcessStatsSourceKind.VpnProcess,
-            uptimeMillis = (elapsedRealtimeMillis - processStartElapsedRealtimeMillis).coerceAtLeast(0L),
+            uptimeMillis = (stats.elapsedRealtimeMillis - stats.startElapsedRealtimeMillis).coerceAtLeast(0L),
             memoryBytes = memoryBytes,
         )
-    }.getOrNull()
+    }
 
     private suspend fun readRootProcess(): ProcessStatsReading? {
         val pid = runCatching { rootSupervisor.runningCorePid() }.getOrNull() ?: return null

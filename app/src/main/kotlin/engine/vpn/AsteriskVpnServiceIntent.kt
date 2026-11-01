@@ -6,7 +6,9 @@ package engine.vpn
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.os.Process
 import android.os.ResultReceiver
+import android.os.SystemClock
 import app.modes.ProxyAppListModeGlobal
 import engine.hevtun.DefaultHevSocks5TunnelLogLevel
 import engine.hevtun.DefaultHevSocks5TunnelTcpReadWriteTimeoutMillis
@@ -23,11 +25,19 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import java.io.File
 import kotlin.time.Duration.Companion.milliseconds
 
 internal object AsteriskVpnServiceIntents {
     const val ACTION_START = "app.action.START_VPN"
     const val ACTION_STOP = "app.action.STOP_VPN"
+
+    /**
+     * Asks the running service for a sample of its own process. Another process cannot read
+     * `/proc/<pid>` of a non-debuggable app process, even with the same UID, so `:vpn` samples
+     * itself and answers through the reply.
+     */
+    const val ACTION_QUERY_PROCESS_STATS = "app.action.QUERY_VPN_PROCESS_STATS"
     const val ACTION_FINISH_RESUME = "app.action.FINISH_VPN_RESUME"
     const val ACTION_UPDATE_AGE_SECRET_KEY = "app.action.UPDATE_VPN_AGE_SECRET_KEY"
 
@@ -69,12 +79,85 @@ internal object AsteriskVpnServiceIntents {
             putExtra(EXTRA_AGE_SECRET_KEY, ageSecretKey)
         }
     }
+
+    fun queryProcessStatsIntent(context: Context): Intent {
+        return Intent(context, AsteriskVpnService::class.java).apply {
+            action = ACTION_QUERY_PROCESS_STATS
+        }
+    }
+}
+
+/** A sample the `:vpn` process takes of itself; times share the system-wide elapsed-realtime clock. */
+internal data class VpnProcessStats(
+    val pid: Int,
+    val cpuTimeMillis: Long,
+    val startElapsedRealtimeMillis: Long,
+    val elapsedRealtimeMillis: Long,
+    val procStatm: String?,
+) {
+    companion object {
+        fun sampleCurrentProcess(): VpnProcessStats = VpnProcessStats(
+            pid = Process.myPid(),
+            cpuTimeMillis = Process.getElapsedCpuTime(),
+            startElapsedRealtimeMillis = Process.getStartElapsedRealtime(),
+            elapsedRealtimeMillis = SystemClock.elapsedRealtime(),
+            procStatm = runCatching { File("/proc/self/statm").readText() }.getOrNull(),
+        )
+    }
+}
+
+internal fun ResultReceiver.sendProcessStats(stats: VpnProcessStats?) {
+    if (stats == null) {
+        send(ServiceReplyFailure, null)
+        return
+    }
+    send(
+        ServiceReplySuccess,
+        Bundle().apply {
+            putInt(EXTRA_STATS_PID, stats.pid)
+            putLong(EXTRA_STATS_CPU_TIME_MILLIS, stats.cpuTimeMillis)
+            putLong(EXTRA_STATS_START_ELAPSED_REALTIME_MILLIS, stats.startElapsedRealtimeMillis)
+            putLong(EXTRA_STATS_ELAPSED_REALTIME_MILLIS, stats.elapsedRealtimeMillis)
+            putString(EXTRA_STATS_PROC_STATM, stats.procStatm)
+        },
+    )
+}
+
+/** Asks the VPN Service for a sample of its process; null when it is not running or does not answer. */
+internal suspend fun queryServiceProcessStats(context: Context, timeoutMillis: Long): VpnProcessStats? {
+    val reply = CompletableDeferred<VpnProcessStats?>()
+    val intent = AsteriskVpnServiceIntents.queryProcessStatsIntent(context)
+    intent.putServiceReply(
+        object : ResultReceiver(null) {
+            override fun onReceiveResult(resultCode: Int, resultData: Bundle?) {
+                reply.complete(resultData?.takeIf { resultCode == ServiceReplySuccess }?.toProcessStats())
+            }
+        },
+    )
+    runCatching { context.startService(intent) }.getOrElse { return null }
+    return withTimeoutOrNull(timeoutMillis.milliseconds) { reply.await() }
+}
+
+private fun Bundle.toProcessStats(): VpnProcessStats? {
+    val pid = getInt(EXTRA_STATS_PID, 0).takeIf { it > 0 } ?: return null
+    return VpnProcessStats(
+        pid = pid,
+        cpuTimeMillis = getLong(EXTRA_STATS_CPU_TIME_MILLIS, -1L),
+        startElapsedRealtimeMillis = getLong(EXTRA_STATS_START_ELAPSED_REALTIME_MILLIS, -1L),
+        elapsedRealtimeMillis = getLong(EXTRA_STATS_ELAPSED_REALTIME_MILLIS, -1L),
+        procStatm = getString(EXTRA_STATS_PROC_STATM),
+    )
 }
 
 private const val EXTRA_SERVICE_REPLY = "service_reply"
 private const val EXTRA_SERVICE_REPLY_MESSAGE = "message"
 private const val ServiceReplySuccess = 0
 private const val ServiceReplyFailure = 1
+private const val EXTRA_STATS_PID = "stats_pid"
+private const val EXTRA_STATS_CPU_TIME_MILLIS = "stats_cpu_time_millis"
+private const val EXTRA_STATS_START_ELAPSED_REALTIME_MILLIS = "stats_start_elapsed_realtime_millis"
+private const val EXTRA_STATS_ELAPSED_REALTIME_MILLIS = "stats_elapsed_realtime_millis"
+private const val EXTRA_STATS_PROC_STATM = "stats_proc_statm"
 
 internal fun Intent.putServiceReply(reply: ResultReceiver) {
     putExtra(EXTRA_SERVICE_REPLY, reply)
