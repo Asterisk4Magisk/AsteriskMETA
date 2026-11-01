@@ -245,7 +245,7 @@
     <string name="mihomo_proxies_option_layout_double">Double</string>
     <string name="mihomo_proxies_option_layout_multiple">Multiple</string>
     <string name="mihomo_proxies_option_layout_single">Single</string>
-    <string name="mihomo_proxies_option_sort">Sort</string>
+    <string name="mihomo_proxies_option_sort">Proxy sorting</string>
     <string name="mihomo_proxies_option_sort_default">Default</string>
     <string name="mihomo_proxies_option_sort_delay">Delay</string>
     <string name="mihomo_proxies_option_sort_name">Name</string>

@@ -243,7 +243,7 @@
     <string name="mihomo_proxies_option_layout_double">双列</string>
     <string name="mihomo_proxies_option_layout_multiple">多列</string>
     <string name="mihomo_proxies_option_layout_single">单列</string>
-    <string name="mihomo_proxies_option_sort">排序</string>
+    <string name="mihomo_proxies_option_sort">代理排序</string>
     <string name="mihomo_proxies_option_sort_default">默认</string>
     <string name="mihomo_proxies_option_sort_delay">延迟</string>
     <string name="mihomo_proxies_option_sort_name">名称</string>
