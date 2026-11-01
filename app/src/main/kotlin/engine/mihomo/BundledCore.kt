@@ -82,8 +82,10 @@ internal data class CoreCapabilities(
 }
 
 internal object CoreCapabilitiesStore {
+    private val json = Json { ignoreUnknownKeys = true }
+
     val current: CoreCapabilities by lazy {
-        Json { ignoreUnknownKeys = true }.decodeFromString<CoreCapabilities>(MihomoBridge.capabilities())
+        json.decodeFromString<CoreCapabilities>(MihomoBridge.capabilities())
     }
 }
 
