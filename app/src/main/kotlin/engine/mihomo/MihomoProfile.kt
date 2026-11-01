@@ -60,20 +60,6 @@ internal val AppState.effectiveMihomoTunCongestionController: String
         ""
     }
 
-internal fun AppState.runtimeTunStackName(): String {
-    return CoreCapabilitiesStore.current.effectiveTunStack(MihomoProfileFactory.tunStack(this))
-}
-
-internal fun AppState.runtimeTunCongestionController(): String {
-    val capabilities = CoreCapabilitiesStore.current
-    if (!capabilities.selectableCongestionController) return ""
-    val stack = runtimeTunStackName()
-    if (capabilities.congestionControllerStacks.isNotEmpty() && stack !in capabilities.congestionControllerStacks) {
-        return ""
-    }
-    return effectiveMihomoTunCongestionController
-}
-
 internal object MihomoProfileFactory {
     fun buildProfileBytes(
         context: Context,
@@ -429,7 +415,7 @@ internal fun AppState.toMihomoTunListenerYamlMap(
         "name" to MihomoTunInboundName,
         "type" to "tun",
         "device" to MihomoTunDevice,
-        "stack" to runtimeTunStackName(),
+        "stack" to MihomoProfileFactory.tunStack(this),
         "auto-route" to true,
         "auto-detect-interface" to true,
         "auto-redirect" to true,
@@ -441,7 +427,7 @@ internal fun AppState.toMihomoTunListenerYamlMap(
             applicationUids, tunSharedNetworkInterfaces,
             tunBypassRuleSetTags, ruleProviders,
         ))
-        runtimeTunCongestionController().takeIf(String::isNotEmpty)?.let {
+        effectiveMihomoTunCongestionController.takeIf(String::isNotEmpty)?.let {
             put("congestion-controller", it)
         }
         if (effectiveLocalDnsEnabled) {

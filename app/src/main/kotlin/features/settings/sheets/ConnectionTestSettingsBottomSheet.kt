@@ -24,7 +24,6 @@ import app.ConnectionTestConcurrentBounds
 import app.ConnectionTestTimeoutBounds
 import app.ConnectionTestTimeoutStepMillis
 import app.R
-import engine.mihomo.CoreCapabilitiesStore
 import features.settings.ConnectionTestSettingsDraft
 import app.isValidConnectionTestUrl
 import kotlin.math.roundToInt
@@ -100,19 +99,17 @@ internal fun ConnectionTestSettingsBottomSheet(
                     steps = (ConnectionTestTimeoutBounds.max - ConnectionTestTimeoutBounds.min) /
                         ConnectionTestTimeoutStepMillis - 1,
                 )
-                if (CoreCapabilitiesStore.current.appliesUnifiedDelay) {
-                    SwitchPreference(
-                        title = stringResource(R.string.connection_test_unified_delay),
-                        icon = Icons.Rounded.Speed,
-                        summary = stringResource(
-                            if (overridesEnabled) R.string.connection_test_unified_delay_summary
-                            else R.string.connection_test_unified_delay_raw_summary,
-                        ),
-                        checked = draft.unifiedDelay,
-                        enabled = overridesEnabled,
-                        onCheckedChange = { onDraftChange(draft.copy(unifiedDelay = it)) },
-                    )
-                }
+                SwitchPreference(
+                    title = stringResource(R.string.connection_test_unified_delay),
+                    icon = Icons.Rounded.Speed,
+                    summary = stringResource(
+                        if (overridesEnabled) R.string.connection_test_unified_delay_summary
+                        else R.string.connection_test_unified_delay_raw_summary,
+                    ),
+                    checked = draft.unifiedDelay,
+                    enabled = overridesEnabled,
+                    onCheckedChange = { onDraftChange(draft.copy(unifiedDelay = it)) },
+                )
             }
         }
     }

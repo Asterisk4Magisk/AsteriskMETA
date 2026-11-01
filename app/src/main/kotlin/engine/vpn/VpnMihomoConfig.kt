@@ -11,13 +11,12 @@ import engine.hevtun.HevSocks5TunnelConfigFileName
 import engine.hevtun.HevSocks5TunnelLogFileName
 import engine.hevtun.hevSocks5TunnelLogFile
 import engine.hevtun.hevSocks5TunnelSocksTargetAddress
-import engine.mihomo.CoreCapabilitiesStore
 import engine.mihomo.MihomoProfileFactory
 import engine.mihomo.binding.model.ConfigurationOverride
 import engine.mihomo.mihomoControllerSocket
 import engine.mihomo.raw.MihomoRawControllerConfig
 import engine.mihomo.DefaultMihomoTunCongestionController
-import engine.mihomo.runtimeTunCongestionController
+import engine.mihomo.effectiveMihomoTunCongestionController
 import engine.mihomo.sha256Hex
 import engine.mihomo.selectedMihomoProfileOrNull
 import engine.proxy.LocalProxyOptions
@@ -111,14 +110,11 @@ internal object VpnMihomoConfigFactory {
             standbyProfileContent = profileBytes.takeUnless { exposePorts },
             ageSecretKey = ageSecretKey,
             sessionOverride = rawConfig?.controller?.vpnSessionOverride(context.mihomoControllerSocket()),
-            mihomoTunStack = CoreCapabilitiesStore.current.effectiveTunStack(
-                rawConfig?.tunInbound?.value?.stack ?: MihomoProfileFactory.tunStack(appState),
-            ),
+            mihomoTunStack = rawConfig?.tunInbound?.value?.stack ?: MihomoProfileFactory.tunStack(appState),
             mihomoTunCongestionController = if (rawConfig == null) {
-                appState.runtimeTunCongestionController()
+                appState.effectiveMihomoTunCongestionController
             } else {
-                val controller = rawConfig.tunInbound.value?.congestionController.orEmpty()
-                controller.takeIf { CoreCapabilitiesStore.current.selectableCongestionController && it in CoreCapabilitiesStore.current.congestionControllers }.orEmpty()
+                rawConfig.tunInbound.value?.congestionController.orEmpty()
             },
             applicationPolicy = appState.toVpnApplicationPolicy(Process.myUid().toAndroidUserId()),
             localProxyOptions = localProxyOptions,
