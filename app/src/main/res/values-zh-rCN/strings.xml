@@ -149,7 +149,7 @@
     <string name="monitor_resource_cpu">进程 CPU</string>
     <string name="monitor_resource_cpu_peak">CPU 峰值</string>
     <string name="monitor_resource_details">采样详情</string>
-    <string name="monitor_resource_vpn_explanation">CPU、内存、PID 和运行时长均来自独立运行的 :vpn 进程。</string>
+    <string name="monitor_resource_vpn_explanation">CPU、内存、PID 和运行时长均来自独立运行的 :service 进程。</string>
     <string name="monitor_resource_focus_memory">内存 %1$s</string>
     <string name="monitor_resource_interval">采样间隔</string>
     <string name="monitor_resource_memory">进程内存</string>

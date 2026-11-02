@@ -1,8 +1,6 @@
 // Copyright 2026, AsteriskMETA contributors
 // SPDX-License-Identifier: GPL-3.0
 
-@file:OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-
 package engine.stats
 
 import android.app.Notification
@@ -16,12 +14,10 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import androidx.core.content.ContextCompat
-import app.AsteriskApplication
 import app.R
 import engine.mihomo.MihomoControlConfig
 import engine.mihomo.runtime.MihomoControlClient
 import engine.mihomo.runtime.MihomoProxiesState
-import engine.mihomo.runtime.MihomoRuntimeRepository
 import engine.mihomo.runtime.MihomoTrafficSample
 import features.logs.AndroidAppLogger
 import java.math.BigInteger
@@ -33,11 +29,6 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.map
 import system.AndroidLauncherIcon
 import utils.toReadableBytes
 import kotlin.time.Duration.Companion.milliseconds
@@ -100,12 +91,14 @@ class MihomoTrafficStatsNotificationService : Service() {
         val runtime = if (intent?.action == ActionStart) {
             // Every startForegroundService() request must reach startForeground() before the
             // service may stop, including requests superseded by a later stop request.
-            val nodeName = intent.readRuntime()?.nodeName.orEmpty()
-            if (!foregroundStarted && !startForegroundNotification(nodeName, startId)) {
-                requests.consumeStart()
+            val requested = intent.readRuntime()
+            if (!foregroundStarted && !startForegroundNotification(requested?.nodeName.orEmpty(), startId)) {
+                intent.acknowledgeTrafficStatsStart()
                 return START_NOT_STICKY
             }
-            requests.consumeStart()
+            // The app process waits for this before it may stop the service.
+            intent.acknowledgeTrafficStatsStart()
+            requested
         } else {
             intent?.readRuntime()
         }
@@ -165,23 +158,18 @@ class MihomoTrafficStatsNotificationService : Service() {
         // Created on the main thread, which owns lastSnapshot and every accept() call.
         val accumulator = TrafficStatsAccumulator(lastSnapshot.totalUp, lastSnapshot.totalDown)
         monitor.start {
-            val repository = (application as AsteriskApplication).mihomoRuntime
             var nodeName = runtime.nodeName.ifBlank { getString(R.string.proxy_traffic_stats_notification_title) }
             var lastNodeRefreshAt = 0L
             var consecutiveFailures = 0
 
             while (currentCoroutineContext().isActive) {
                 val result = runCatching {
-                    trafficSamples(runtime, repository).collect { sample ->
+                    // The service runs in the `:service` process, apart from the app's runtime
+                    // repository, so it owns its traffic stream and looks up the node itself.
+                    client.traffic(runtime.control, runtime.useBridge).collect { sample ->
                         consecutiveFailures = 0
                         val now = System.currentTimeMillis()
-                        val repositoryState = repository.state.value
-                        repositoryState.proxies
-                            .currentProxyNodeName(repositoryState.configs.mode)
-                            ?.let { currentNode -> nodeName = currentNode }
-                        if (!repositoryState.traffic.connected &&
-                            now - lastNodeRefreshAt >= NodeRefreshIntervalMillis
-                        ) {
+                        if (now - lastNodeRefreshAt >= NodeRefreshIntervalMillis) {
                             nodeName = resolveCurrentNodeName(runtime, nodeName)
                             lastNodeRefreshAt = now
                         }
@@ -208,39 +196,6 @@ class MihomoTrafficStatsNotificationService : Service() {
                 delay(StreamRestartDelayMillis.milliseconds)
             }
         }
-    }
-
-    private fun trafficSamples(
-        runtime: MihomoTrafficStatsRuntime,
-        repository: MihomoRuntimeRepository,
-    ): Flow<MihomoTrafficSample> {
-        return repository.state
-            .map { state -> state.traffic.connected }
-            .distinctUntilChanged()
-            .flatMapLatest { repositoryConnected ->
-                AndroidAppLogger.debug(
-                    LogTag,
-                    if (repositoryConnected) {
-                        "Using foreground runtime traffic stream"
-                    } else {
-                        "Using notification-owned traffic stream"
-                    },
-                )
-                if (repositoryConnected) {
-                    repository.state
-                        .map { state -> state.traffic }
-                        .distinctUntilChanged()
-                        .filter { traffic -> traffic.connected }
-                        .map { traffic ->
-                            traffic.latest.copy(
-                                totalUp = traffic.totalUp,
-                                totalDown = traffic.totalDown,
-                            )
-                        }
-                } else {
-                    client.traffic(runtime.control, runtime.useBridge)
-                }
-            }
     }
 
     private suspend fun resolveCurrentNodeName(
@@ -333,7 +288,7 @@ class MihomoTrafficStatsNotificationService : Service() {
     }
 
     companion object {
-        private val requests = TrafficStatsServiceRequests<MihomoTrafficStatsRuntime>()
+        private val requests = TrafficStatsServiceRequests()
 
         internal fun reconcile(context: Context, runtime: MihomoTrafficStatsRuntime?) {
             if (runtime == null) {
@@ -349,7 +304,8 @@ class MihomoTrafficStatsNotificationService : Service() {
                 action = ActionStart
                 putRuntime(runtime)
             }
-            requests.start(runtime) {
+            requests.start { acknowledgement ->
+                intent.putTrafficStatsStartAcknowledgement(acknowledgement)
                 tryStartTrafficStatsService(
                     start = { ContextCompat.startForegroundService(appContext, intent) },
                     onFailure = { error ->
@@ -429,6 +385,7 @@ private fun Intent.putRuntime(runtime: MihomoTrafficStatsRuntime) {
     putExtra(ExtraPort, runtime.control.port)
     putExtra(ExtraSecret, runtime.control.secret)
     putExtra(ExtraScheme, runtime.control.scheme)
+    putExtra(ExtraUnixSocketPath, runtime.control.unixSocketPath)
     putExtra(ExtraUseBridge, runtime.useBridge)
     putExtra(ExtraNodeName, runtime.nodeName)
 }
@@ -442,6 +399,7 @@ private fun Intent.readRuntime(): MihomoTrafficStatsRuntime? {
             port = port,
             secret = getStringExtra(ExtraSecret).orEmpty(),
             scheme = getStringExtra(ExtraScheme).orEmpty().takeIf { it in setOf("http", "https") } ?: "http",
+            unixSocketPath = getStringExtra(ExtraUnixSocketPath)?.takeIf(String::isNotBlank),
         ),
         useBridge = getBooleanExtra(ExtraUseBridge, true),
         nodeName = getStringExtra(ExtraNodeName).orEmpty(),
@@ -449,3 +407,4 @@ private fun Intent.readRuntime(): MihomoTrafficStatsRuntime? {
 }
 
 private const val ExtraScheme = "mihomo_control_scheme"
+private const val ExtraUnixSocketPath = "mihomo_control_unix_socket_path"

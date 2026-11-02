@@ -140,8 +140,9 @@ class AsteriskApplication : Application(), SingletonImageLoader.Factory {
 
     override fun onCreate() {
         super.onCreate()
-        // The VPN Service process hosts the core only. State, schedulers, WorkManager,
-        // runtime monitoring and log repositories belong to the app process.
+        // The `:service` process only executes: the VPN Service with its core and the traffic
+        // statistics service. State, schedulers, WorkManager, runtime monitoring and the core log
+        // repositories belong to the app process; `:service` only appends its own app log.
         if (AsteriskVpnService.isServiceProcess(this)) {
             MihomoBridge.initialize(this)
             AndroidLogcatRepository.initializeServiceProcess(this)

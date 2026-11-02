@@ -37,7 +37,7 @@ internal object AsteriskVpnServiceIntents {
 
     /**
      * Asks the running service for a sample of its own process. Another process cannot read
-     * `/proc/<pid>` of a non-debuggable app process, even with the same UID, so `:vpn` samples
+     * `/proc/<pid>` of a non-debuggable app process, even with the same UID, so `:service` samples
      * itself and answers through the reply.
      */
     const val ACTION_QUERY_PROCESS_STATS = "app.action.QUERY_VPN_PROCESS_STATS"
@@ -90,7 +90,7 @@ internal object AsteriskVpnServiceIntents {
     }
 }
 
-/** A sample the `:vpn` process takes of itself; times share the system-wide elapsed-realtime clock. */
+/** A sample the `:service` process takes of itself; times share the system-wide elapsed-realtime clock. */
 internal data class VpnProcessStats(
     val pid: Int,
     val cpuTimeMillis: Long,

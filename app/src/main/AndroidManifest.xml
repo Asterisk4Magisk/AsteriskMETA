@@ -166,9 +166,12 @@
                 android:value="true" />
         </service>
 
+        <!-- Runs in the ":service" process beside the VPN Service, so showing traffic statistics
+             never keeps the UI process alive, in VPN and ROOT modes alike. -->
         <service
             android:name="engine.stats.MihomoTrafficStatsNotificationService"
             android:exported="false"
+            android:process=":service"
             android:foregroundServiceType="specialUse">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
@@ -185,7 +188,7 @@
             android:exported="false"
             android:foregroundServiceType="systemExempted"
             android:permission="android.permission.BIND_VPN_SERVICE"
-            android:process=":vpn"
+            android:process=":service"
             tools:ignore="ForegroundServicePermission,VpnServicePolicy">
             <intent-filter>
                 <action android:name="android.net.VpnService" />
