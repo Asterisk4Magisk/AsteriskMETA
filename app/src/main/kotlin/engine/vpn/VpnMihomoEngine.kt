@@ -19,8 +19,6 @@ import engine.mihomo.raw.loadSelectedRawConfig
 import engine.mihomo.raw.usesRawMihomoConfig
 import engine.mihomo.runtime.MihomoControlClient
 import engine.mihomo.runtime.StreamReconnectDelayMillis
-import engine.proxy.LocalProxyOptions
-import engine.proxy.LocalProxyRuntime
 import engine.proxy.ProxyEngineStartRequest
 import engine.proxy.ProxyEngineStatus
 import engine.proxy.mode.AndroidModeProxyEngine
@@ -51,9 +49,6 @@ internal class VpnMihomoEngine(
     private val runtimeRunning: () -> Boolean = { AsteriskVpnService.isRunning(context) },
 ) : AndroidModeProxyEngine {
     override val runMode: Int = RunModeVpnService
-
-    @Volatile
-    private var publishedLocalProxy: LocalProxyOptions? = null
 
     private val logStreamLock = Any()
     private val logScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -86,7 +81,15 @@ internal class VpnMihomoEngine(
             val config = VpnMihomoConfigFactory.create(context, request)
             stopLogStream()
             clearVpnServiceLogsAsApp(File(config.coreLogPaths.logDirectoryPath()), LogTag)
-            AsteriskVpnService.start(context = context, config = config)
+            try {
+                AsteriskVpnService.start(context = context, config = config)
+            } catch (error: VpnServiceStartException) {
+                if (error.cause !is VpnServiceProcessExitedException) throw error
+                // The service process kills itself when the previous core does not shut down
+                // in time, which takes this start with it. A fresh process starts cleanly.
+                AndroidAppLogger.warn(LogTag, "VPN Service process exited during the start; starting it again", error)
+                AsteriskVpnService.start(context = context, config = config)
+            }
         } catch (error: Throwable) {
             if (error is CancellationException) throw error
             AndroidAppLogger.error(LogTag, "Failed to start VPN Service", error)
@@ -95,35 +98,21 @@ internal class VpnMihomoEngine(
     }
 
     override suspend fun stop(): ProxyEngineStatus {
-        AsteriskVpnService.stop(context)
+        // Without a session there is nothing to stop, and asking would launch the service process.
+        if (runtimeRunning()) AsteriskVpnService.stop(context)
         return status()
     }
 
     override suspend fun status(): ProxyEngineStatus = withContext(Dispatchers.IO) {
         val running = runtimeRunning()
-        syncLocalProxy(running)
+        // The local proxy is read from the session on demand (LocalProxyRuntime), and the
+        // watch reports the end of the tunnel, however it ends, to this process.
+        if (running) VpnSession.watch(context)
         syncLogStream(running)
         ProxyEngineStatus(
             running = running,
             runMode = runMode,
         )
-    }
-
-    /** Withdraw only the proxy this engine published; a ROOT engine may have replaced it. */
-    private fun syncLocalProxy(running: Boolean) {
-        val published = publishedLocalProxy
-        if (!running) {
-            if (published != null && LocalProxyRuntime.current() == published) LocalProxyRuntime.clear()
-            publishedLocalProxy = null
-            return
-        }
-        val options = VpnSession.localProxyOptions(context)
-        if (options != null) {
-            LocalProxyRuntime.update(options)
-        } else if (published != null && LocalProxyRuntime.current() == published) {
-            LocalProxyRuntime.clear()
-        }
-        publishedLocalProxy = options
     }
 
     private fun syncLogStream(running: Boolean) {

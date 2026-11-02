@@ -14,7 +14,10 @@ import app.modes.RunModeVpnService
 import features.boot.BootAutoConnect
 import features.home.HomeServiceOperationState
 import engine.mihomo.binding.MihomoBridge
+import engine.proxy.LocalProxyRuntime
 import engine.vpn.AsteriskVpnService
+import engine.vpn.VpnSession
+import app.effects.synchronizeProxyStatus
 import features.logs.AndroidCoreLogRepository
 import features.logs.AndroidAsteriskdLogRepository
 import features.logs.AndroidLogcatRepository
@@ -110,14 +113,43 @@ class AsteriskApplication : Application(), SingletonImageLoader.Factory {
         )
     }
 
+    /**
+     * Brings the app state in line when a tunnel ends in the service process, whether it was
+     * stopped, revoked or its process died. The session watch reports the end, so this costs
+     * nothing while the tunnel runs; a tunnel that is up when this process starts is watched
+     * from here as well.
+     */
+    private fun synchronizeOnVpnSessionEnd() {
+        appScope.launch {
+            VpnSession.ended.collect {
+                // Only the VPN mode is resynchronized: other modes are probed through ROOT.
+                if (stateStore.state.value.runMode != RunModeVpnService) return@collect
+                synchronizeProxyStatus(
+                    currentState = { stateStore.state.value },
+                    readStatus = { snapshot ->
+                        runCatching {
+                            proxyEngine.status(snapshot.runMode, snapshot)
+                        }.getOrNull()
+                    },
+                    updateAppState = stateStore::update,
+                )
+            }
+        }
+        appScope.launch(Dispatchers.IO) { VpnSession.watch(applicationContext) }
+    }
+
     override fun onCreate() {
         super.onCreate()
         // The VPN Service process hosts the core only. State, schedulers, WorkManager,
         // runtime monitoring and log repositories belong to the app process.
         if (AsteriskVpnService.isServiceProcess(this)) {
             MihomoBridge.initialize(this)
+            AndroidLogcatRepository.initializeServiceProcess(this)
             return
         }
+        // HTTP fetches here go through the tunnel's local proxy, which the service publishes.
+        LocalProxyRuntime.attachExternalSource { VpnSession.runningLocalProxyOptions(applicationContext) }
+        synchronizeOnVpnSessionEnd()
         appScope.launch {
             val scheduler = ResourceAutoUpdateScheduler(applicationContext)
             stateStore.state
