@@ -8,6 +8,7 @@ import android.net.Uri
 import app.ResourceFileKind
 import app.ResourceFileStatus
 import app.ResourceFilesStatus
+import app.modes.isRootRunMode
 import engine.mihomo.BundledCore
 import features.resources.ResourceFileSourceMetaCubeXGithub
 import system.getPackageInfoCompat
@@ -243,6 +244,13 @@ internal fun Context.prepareMihomoResourceFilePaths(): MihomoResourceFilePaths {
 internal fun Context.mihomoResourceFilePaths(): MihomoResourceFilePaths {
     return AndroidResourceFileStore(this).currentPaths()
 }
+
+/**
+ * A ROOT run with a user-supplied core skips checks made by the bundled core, which may reject
+ * fields that only the custom core understands. That core reports its own errors when it starts.
+ */
+internal fun Context.skipsBundledCoreConfigCheck(runMode: Int): Boolean =
+    runMode.isRootRunMode() && AndroidResourceFileStore(this).hasCustomMihomoCore()
 
 private fun Context.packageUpdatedAtMillis(): Long {
     return runCatching {

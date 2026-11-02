@@ -5,10 +5,13 @@ package features.subscription.runtime
 
 import android.content.Context
 import app.MihomoSubscriptionInfo
+import data.AndroidAppStateStore
 import engine.mihomo.binding.MihomoBridge as Clash
 import engine.mihomo.binding.model.FetchOptions
 import engine.mihomo.binding.model.FetchStatus
+import features.logs.AndroidAppLogger
 import features.resources.runtime.prepareMihomoResourceFilePaths
+import features.resources.runtime.skipsBundledCoreConfigCheck
 import java.io.File
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -128,18 +131,36 @@ internal class AndroidMihomoProfilePreparer(
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {
-                AndroidMihomoProfilePreparation.Failure(
-                    action = lastAction,
-                    error = localizeHwidError(error),
-                    content = runCatching {
-                        withContext(Dispatchers.IO) {
-                            processingDir.readPreparedProfileContent(ageSecretKey)
-                        }
-                    }.getOrNull(),
-                    subscriptionInfo = subscriptionInfo,
-                    updateIntervalMillis = updateIntervalMillis,
-                    remoteName = remoteName,
-                )
+                val content = runCatching {
+                    withContext(Dispatchers.IO) {
+                        processingDir.readPreparedProfileContent(ageSecretKey)
+                    }
+                }.getOrNull()
+                // Only the final parse by the bundled core is skipped; download and decryption
+                // failures still fail, and the custom core validates the profile when it starts.
+                if (content != null && lastAction == FetchStatus.Action.Verifying &&
+                    appContext.skipsBundledCoreConfigCheck(AndroidAppStateStore.get(appContext).state.value.runMode)
+                ) {
+                    AndroidAppLogger.warn(LogTag, "Bundled core check skipped for a custom ROOT core", error)
+                    withContext(Dispatchers.IO) {
+                        copyProcessingProvidersBack(processingDir = processingDir, dataDir = dataDir)
+                    }
+                    AndroidMihomoProfilePreparation.Success(
+                        content = content,
+                        subscriptionInfo = subscriptionInfo ?: MihomoSubscriptionInfo(),
+                        updateIntervalMillis = updateIntervalMillis,
+                        remoteName = remoteName,
+                    )
+                } else {
+                    AndroidMihomoProfilePreparation.Failure(
+                        action = lastAction,
+                        error = localizeHwidError(error),
+                        content = content,
+                        subscriptionInfo = subscriptionInfo,
+                        updateIntervalMillis = updateIntervalMillis,
+                        remoteName = remoteName,
+                    )
+                }
             }
         } finally {
             withContext(NonCancellable + Dispatchers.IO) {
@@ -177,3 +198,4 @@ private fun File.readPreparedProfileContent(ageSecretKey: String): String? {
 }
 
 private const val ProcessingDirPrefix = "mihomo-profile-processing"
+private const val LogTag = "MihomoProfilePreparer"
