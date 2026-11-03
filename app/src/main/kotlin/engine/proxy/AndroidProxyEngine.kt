@@ -51,7 +51,7 @@ internal class AndroidProxyEngine(
     context: Context,
     rootAccess: AndroidRootShellGateway,
     private val appScope: CoroutineScope,
-) {
+) : ProxyLifecycleLock {
     private val appContext = context.applicationContext
     private var requestVpnPermission: VpnPermissionRequester = DenyVpnPermission
     private val vpnMihomoEngine = VpnMihomoEngine(
@@ -86,6 +86,9 @@ internal class AndroidProxyEngine(
     suspend fun shutdownCurrentRunMode(runMode: Int): ProxyEngineStatus = operationMutex.withLock {
         shutdownRunModeUnlocked(runMode)
     }
+
+    override suspend fun <T> withLifecycleLock(action: suspend () -> T): T =
+        operationMutex.withLock { action() }
 
     suspend fun <T> changeRootCore(
         runMode: Int,

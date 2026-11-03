@@ -15,13 +15,20 @@ internal suspend fun AppServices.restoreSharedMihomoCore(
     onRootStopped: () -> Unit,
 ): ResourceFilesStatus = proxyEngine.changeRootCore(state.runMode, onRootStopped) {
     val status = resourceFileUseCase.restoreBundled(ResourceFileKind.MihomoCore)
-    refreshMihomoCoreBoot(state.copy(proxyRunning = false))
+    // changeRootCore already holds the lifecycle lock.
+    refreshMihomoCoreBoot(state.copy(proxyRunning = false)) { rootBootScriptUseCase.refreshWithinLifecycle(it) }
     status
 }
 
-internal suspend fun AppServices.refreshMihomoCoreBoot(state: AppState) {
+internal suspend fun AppServices.refreshMihomoCoreBoot(state: AppState) =
+    refreshMihomoCoreBoot(state) { rootBootScriptUseCase.refresh(it) }
+
+private suspend fun AppServices.refreshMihomoCoreBoot(
+    state: AppState,
+    refresh: suspend (AppState) -> RootBootScriptResult,
+) {
     if (state.runMode.isRootRunMode() && state.enableRootBootScript) {
-        when (val result = rootBootScriptUseCase.refresh(state)) {
+        when (val result = refresh(state)) {
             RootBootScriptResult.Success -> Unit
             is RootBootScriptResult.Failed -> throw result.error
             else -> error("Failed to refresh ROOT boot configuration after changing Core: $result")

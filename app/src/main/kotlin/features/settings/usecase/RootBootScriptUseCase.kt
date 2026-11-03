@@ -10,6 +10,7 @@ import app.modes.isRootRunMode
 import engine.mihomo.BundledCore
 import engine.mihomo.CoreCapabilitiesStore
 import engine.proxy.ProxyEngineStartRequest
+import engine.proxy.ProxyLifecycleLock
 import engine.root.RootModeEngine
 import engine.root.runtime.RootFailureKind
 import engine.root.runtime.RootOperationResult
@@ -23,7 +24,8 @@ import kotlin.coroutines.cancellation.CancellationException
 internal class RootBootScriptUseCase(
     context: Context,
     private val rootAccess: AndroidRootShellGateway,
-    private val operationGate: RootBootScriptOperationGate = RootBootScriptOperationGate(),
+    lifecycleLock: ProxyLifecycleLock,
+    private val operationGate: RootBootScriptOperationGate = RootBootScriptOperationGate(lifecycleLock),
 ) {
     private val appContext = context.applicationContext
     private val controller = RootSupervisorController(appContext, rootAccess)
@@ -31,9 +33,9 @@ internal class RootBootScriptUseCase(
     suspend fun setEnabled(
         state: AppState,
         enabled: Boolean,
-    ): RootBootScriptResult = operationGate.exclusive {
+    ): RootBootScriptResult = operationGate.exclusiveWithLifecycle {
         if (!rootAccess.hasRootAccess()) {
-            return@exclusive RootBootScriptResult.RootUnavailable
+            return@exclusiveWithLifecycle RootBootScriptResult.RootUnavailable
         }
         if (enabled) {
             install(state)
@@ -42,17 +44,33 @@ internal class RootBootScriptUseCase(
         }
     }
 
+    /**
+     * Republishes the boot configuration for [state]. A start or restart in progress may be
+     * about to launch from the same runtime files with a freshly resolved control port, so
+     * this waits for it and then re-checks [isStillCurrent] against the state it left.
+     */
     suspend fun refresh(
         state: AppState,
         isStillCurrent: () -> Boolean = { true },
-    ): RootBootScriptResult = operationGate.exclusive {
+    ): RootBootScriptResult = operationGate.exclusiveWithLifecycle {
+        refreshUnlocked(state, isStillCurrent)
+    }
+
+    /** [refresh] for callers already inside [ProxyLifecycleLock.withLifecycleLock]. */
+    suspend fun refreshWithinLifecycle(state: AppState): RootBootScriptResult =
+        operationGate.exclusive { refreshUnlocked(state) { true } }
+
+    private suspend fun refreshUnlocked(
+        state: AppState,
+        isStillCurrent: () -> Boolean,
+    ): RootBootScriptResult {
         if (!isStillCurrent() || !state.enableRootBootScript) {
-            return@exclusive RootBootScriptResult.Success
+            return RootBootScriptResult.Success
         }
         if (!rootAccess.hasRootAccess()) {
-            return@exclusive RootBootScriptResult.RootUnavailable
+            return RootBootScriptResult.RootUnavailable
         }
-        install(state)
+        return install(state)
     }
 
     suspend fun uninstall(rootAccessVerified: Boolean = false): RootBootScriptResult =
