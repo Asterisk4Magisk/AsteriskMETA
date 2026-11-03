@@ -84,7 +84,7 @@ internal class MihomoRuntimeRepository(
     }
     private val appContext = context.applicationContext
     private val mutableState = MutableStateFlow(MihomoRuntimeState())
-    private val trafficHistory = MihomoTrafficHistoryBuffer(MaxTrafficHistorySize)
+    private val trafficHistory = MihomoTrafficHistoryBuffer(TrafficHistoryCapacity)
     private val trafficHistoryLock = Any()
     private val runtimeStateLock = Any()
     private val runtimePreparationMutex = Mutex()
@@ -1145,7 +1145,6 @@ internal class MihomoRuntimeRepository(
     private companion object {
         const val LogTag = "MihomoRuntime"
         const val ProxyFallbackPollIntervalMillis = 30_000L
-        const val MaxTrafficHistorySize = 48
     }
 }
 

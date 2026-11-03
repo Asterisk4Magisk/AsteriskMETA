@@ -7,6 +7,7 @@ import engine.network.withoutIpv6FakeIpPool
 
 import app.modes.ColorModeSystem
 import app.modes.LanguageModeSystem
+import app.modes.NetworkActivityStyleDotted
 import app.modes.MihomoModeRule
 import app.modes.MihomoProxyGroupLayoutTabs
 import app.modes.MihomoProxyLayoutAuto
@@ -42,6 +43,7 @@ data class AppState(
     val colorMode: Int = ColorModeSystem,
     val languageMode: Int = LanguageModeSystem,
     val seedIndex: Int = 0,
+    val networkActivityStyle: Int = NetworkActivityStyleDotted,
     val hideRecentTasks: Boolean = false,
     val allowScreenshots: Boolean = false,
     val hideLauncherIcon: Boolean = false,

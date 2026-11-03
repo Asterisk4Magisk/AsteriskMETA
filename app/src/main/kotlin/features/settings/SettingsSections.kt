@@ -51,8 +51,11 @@ internal fun SettingsAppSection(
     colorMode: Int,
     keyColorOptions: List<String>,
     seedIndex: Int,
+    chartStyleOptions: List<String>,
+    networkActivityStyle: Int,
     onColorModeChange: (Int) -> Unit,
     onSeedIndexChange: (Int) -> Unit,
+    onNetworkActivityStyleChange: (Int) -> Unit,
     onLanguageModeChange: (Int) -> Unit,
     autoHideNavigationBar: Boolean,
     onAutoHideNavigationBarChange: (Boolean) -> Unit,
@@ -73,8 +76,11 @@ internal fun SettingsAppSection(
         colorMode = colorMode,
         keyColorOptions = keyColorOptions,
         seedIndex = seedIndex,
+        chartStyleOptions = chartStyleOptions,
+        networkActivityStyle = networkActivityStyle,
         onColorModeChange = onColorModeChange,
         onSeedIndexChange = onSeedIndexChange,
+        onNetworkActivityStyleChange = onNetworkActivityStyleChange,
     )
     val autoHideNavigationBarTitle = stringResource(R.string.settings_auto_hide_navigation_bar)
     val autoHideNavigationBarSummary = stringResource(R.string.settings_auto_hide_navigation_bar_summary)

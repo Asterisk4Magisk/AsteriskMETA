@@ -11,6 +11,7 @@ import app.modes.MihomoModeRule
 import engine.mihomo.runtime.MihomoRuntimeState
 import engine.mihomo.runtime.MihomoTrafficSample
 import engine.mihomo.runtime.MihomoTrafficState
+import engine.mihomo.runtime.TrafficHistoryCapacity
 import engine.mihomo.selectedMihomoProfileOrNull
 import features.mihomo.provider.MihomoProviderUsageItem
 import features.mihomo.provider.MihomoProviderUsageKind
@@ -237,7 +238,8 @@ private fun MihomoSubscriptionInfo.toHomeSubscriptionSummaryOrNull(): HomeSubscr
     )
 }
 
-private const val HomeNetworkSampleLimit = 60
+// Fixed chart window, sourced from the ring-buffer capacity so the axis can always be filled.
+internal const val HomeNetworkSampleLimit = TrafficHistoryCapacity
 internal const val HomeUnavailableValue = "—"
 
 // Applying: a pending profile change is being reloaded or restarted into the running core.

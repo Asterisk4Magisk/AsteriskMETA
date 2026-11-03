@@ -15,6 +15,10 @@ import androidx.compose.material.icons.automirrored.rounded.Sort
 import androidx.compose.material.icons.rounded.AccountTree
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Apps
+import androidx.compose.material.icons.rounded.ArrowDownward
+import androidx.compose.material.icons.rounded.ArrowUpward
+import androidx.compose.material.icons.rounded.ArrowDownward
+import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.AutoFixHigh
 import androidx.compose.material.icons.rounded.Block
@@ -103,6 +107,8 @@ internal object AsteriskIcons {
         val AccountTree: ImageVector = MaterialIcons.Rounded.AccountTree
         val Add: ImageVector = MaterialIcons.Rounded.Add
         val Apps: ImageVector = MaterialIcons.Rounded.Apps
+        val ArrowDownward: ImageVector = MaterialIcons.Rounded.ArrowDownward
+        val ArrowUpward: ImageVector = MaterialIcons.Rounded.ArrowUpward
         val AutoFixHigh: ImageVector = MaterialIcons.Rounded.AutoFixHigh
         val AutoAwesome: ImageVector = MaterialIcons.Rounded.AutoAwesome
         val Block: ImageVector = MaterialIcons.Rounded.Block

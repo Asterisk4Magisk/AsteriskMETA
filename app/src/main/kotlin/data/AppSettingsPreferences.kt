@@ -15,6 +15,7 @@ import app.ServiceControlSettings
 import app.ServiceControlWifi
 import app.ServiceControlWifiRule
 import app.modes.normalizeColorMode
+import app.modes.normalizeNetworkActivityStyle
 import androidx.core.content.edit
 import features.settings.servicecontrol.normalizeServiceControlSettings
 import java.util.UUID
@@ -45,6 +46,9 @@ internal class AppSettingsPreferences(
 
         return defaults.copy(
             colorMode = normalizeColorMode(preferences.getInt(KeyColorMode, defaults.colorMode)),
+            networkActivityStyle = normalizeNetworkActivityStyle(
+                preferences.getInt(KeyNetworkActivityStyle, defaults.networkActivityStyle),
+            ),
             languageMode = preferences.getInt(KeyLanguageMode, defaults.languageMode),
             seedIndex = preferences.getInt(KeySeedIndex, defaults.seedIndex),
             hideRecentTasks = preferences.getBoolean(KeyHideRecentTasks, defaults.hideRecentTasks),
@@ -308,6 +312,7 @@ internal class AppSettingsPreferences(
 
     private fun SharedPreferences.Editor.putAppState(state: AppState): SharedPreferences.Editor {
         return putInt(KeyColorMode, state.colorMode)
+            .putInt(KeyNetworkActivityStyle, state.networkActivityStyle)
             .putInt(KeyLanguageMode, state.languageMode)
             .putInt(KeySeedIndex, state.seedIndex)
             .putBoolean(KeyHideRecentTasks, state.hideRecentTasks)
@@ -545,6 +550,7 @@ internal class AppSettingsPreferences(
 
 private const val PreferencesName = "asteriskmeta_settings"
 private const val KeyColorMode = "color_mode"
+private const val KeyNetworkActivityStyle = "network_activity_style"
 private const val KeyLanguageMode = "language_mode"
 private const val KeySeedIndex = "seed_index"
 private const val KeyHideRecentTasks = "hide_recent_tasks"

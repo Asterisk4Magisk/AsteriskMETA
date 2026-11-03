@@ -5,6 +5,7 @@ package data.backup
 
 import app.withNormalizedConnectionTestSettings
 import app.AppState
+import app.modes.normalizeNetworkActivityStyle
 import app.AutoSwitchSettings
 import app.DefaultMihomoOverrideScriptId
 import app.DefaultMihomoProfileId
@@ -69,6 +70,7 @@ private fun AppState.toBackupSettings(): AppBackupSettings =
         colorMode = colorMode,
         languageMode = languageMode,
         seedIndex = seedIndex,
+        networkActivityStyle = networkActivityStyle,
         hideRecentTasks = hideRecentTasks,
         allowScreenshots = allowScreenshots,
         hideLauncherIcon = hideLauncherIcon,
@@ -288,6 +290,7 @@ private fun AppBackupData.toAppState(): AppState {
         colorMode = settings.colorMode,
         languageMode = settings.languageMode,
         seedIndex = settings.seedIndex,
+        networkActivityStyle = normalizeNetworkActivityStyle(settings.networkActivityStyle),
         hideRecentTasks = settings.hideRecentTasks,
         allowScreenshots = settings.allowScreenshots,
         hideLauncherIcon = settings.hideLauncherIcon,

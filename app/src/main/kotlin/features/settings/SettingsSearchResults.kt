@@ -37,6 +37,8 @@ internal fun settingsTopLevelSearchItems(
     colorMode: Int,
     keyColorOptions: List<String>,
     seedIndex: Int,
+    chartStyleOptions: List<String>,
+    networkActivityStyle: Int,
     languageOptions: List<String>,
     languageMode: Int,
     geodataLoaderOptions: List<String>,
@@ -92,6 +94,12 @@ internal fun settingsTopLevelSearchItems(
             stringResource(R.string.settings_theme_color),
             value = optionValue(keyColorOptions, seedIndex),
             optionText = keyColorOptions,
+        ),
+        SettingsSearchItem(
+            SettingsSectionId.Apps,
+            stringResource(R.string.settings_network_activity_style),
+            value = optionValue(chartStyleOptions, networkActivityStyle),
+            optionText = chartStyleOptions,
         ),
         SettingsSearchItem(
             SettingsSectionId.Apps,

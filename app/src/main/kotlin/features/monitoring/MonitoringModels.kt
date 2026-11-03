@@ -23,21 +23,6 @@ internal data class MonitoringResourceSummary(
     val oneHourSamples: List<ProcessStatsSample> = emptyList(),
 )
 
-internal data class MonitoringResourceFocusState(
-    val serviceRunning: Boolean,
-    val cpuPercent: Double?,
-    val memoryBytes: Long?,
-)
-
-internal fun buildMonitoringResourceFocusState(
-    serviceRunning: Boolean,
-    summary: MonitoringResourceSummary,
-): MonitoringResourceFocusState = MonitoringResourceFocusState(
-    serviceRunning = serviceRunning,
-    cpuPercent = summary.cpuPercent,
-    memoryBytes = summary.memoryBytes,
-)
-
 internal enum class ConnectionMonitorStatus {
     ServiceStopped,
     Loading,

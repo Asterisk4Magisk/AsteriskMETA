@@ -46,9 +46,11 @@ internal fun resolveMonitoringPlan(counts: Map<MonitoringIntent, Int>): Monitori
             home && !connections && !resource && !traffic && !network -> HomeMonitoringIntervalMillis
             else -> DetailMonitoringIntervalMillis
         },
+        // The resource page only shows the connection count and today's traffic, so it uses the
+        // lightweight home cadence: polling connection details would load the core it is measuring.
         connectionIntervalMillis = when {
             connections -> DetailMonitoringIntervalMillis
-            home -> HomeMonitoringIntervalMillis
+            home || resource -> HomeMonitoringIntervalMillis
             else -> null
         },
         resourceIntervalMillis = when {
@@ -58,7 +60,7 @@ internal fun resolveMonitoringPlan(counts: Map<MonitoringIntent, Int>): Monitori
         },
         trafficIntervalMillis = when {
             traffic -> DetailMonitoringIntervalMillis
-            home -> HomeMonitoringIntervalMillis
+            home || resource -> HomeMonitoringIntervalMillis
             else -> null
         },
         collectConnectionDetails = connections,

@@ -58,8 +58,11 @@ internal fun ThemeSettingsContent(
     colorMode: Int,
     keyColorOptions: List<String>,
     seedIndex: Int,
+    chartStyleOptions: List<String>,
+    networkActivityStyle: Int,
     onColorModeChange: (Int) -> Unit,
     onSeedIndexChange: (Int) -> Unit,
+    onNetworkActivityStyleChange: (Int) -> Unit,
 ) {
     val showColorMode = settingsRowMatchesQuery(
         title = stringResource(R.string.settings_color_mode),
@@ -73,11 +76,18 @@ internal fun ThemeSettingsContent(
         value = keyColorOptions.getOrNull(seedIndex).orEmpty(),
         optionText = keyColorOptions,
     )
-    if (!showColorMode && !showThemeColor) return
+    val showChartStyle = settingsRowMatchesQuery(
+        title = stringResource(R.string.settings_network_activity_style),
+        summary = "",
+        value = chartStyleOptions.getOrNull(networkActivityStyle).orEmpty(),
+        optionText = chartStyleOptions,
+    )
+    if (!showColorMode && !showThemeColor && !showChartStyle) return
 
     SettingsSectionCard {
         if (showColorMode) {
-            ThemeModeSegmentedRow(
+            SettingsSegmentedRow(
+                title = stringResource(R.string.settings_color_mode),
                 options = colorModeOptions,
                 selectedIndex = colorMode,
                 onSelectedIndexChange = onColorModeChange,
@@ -90,16 +100,24 @@ internal fun ThemeSettingsContent(
                 onSelectedIndexChange = onSeedIndexChange,
             )
         }
+        if (showChartStyle) {
+            SettingsSegmentedRow(
+                title = stringResource(R.string.settings_network_activity_style),
+                options = chartStyleOptions,
+                selectedIndex = networkActivityStyle,
+                onSelectedIndexChange = onNetworkActivityStyleChange,
+            )
+        }
     }
 }
 
 @Composable
-private fun ThemeModeSegmentedRow(
+private fun SettingsSegmentedRow(
+    title: String,
     options: List<String>,
     selectedIndex: Int,
     onSelectedIndexChange: (Int) -> Unit,
 ) {
-    val title = stringResource(R.string.settings_color_mode)
     val safeIndex = if (selectedIndex in options.indices) selectedIndex else 0
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
         Text(

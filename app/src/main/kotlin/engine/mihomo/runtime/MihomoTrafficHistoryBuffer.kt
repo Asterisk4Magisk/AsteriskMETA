@@ -5,6 +5,14 @@ package engine.mihomo.runtime
 
 import java.util.ArrayDeque
 
+/**
+ * How many traffic samples the runtime keeps, and therefore how many columns the home network
+ * chart's fixed time axis has. Keeping one constant for both is deliberate: the chart's x axis must
+ * never be wider than the buffer, or its oldest slots could never be filled. Callers that only need
+ * the retention window should read this instead of reaching into the repository's internals.
+ */
+internal const val TrafficHistoryCapacity = 64
+
 internal class MihomoTrafficHistoryBuffer(
     private val capacity: Int,
 ) {

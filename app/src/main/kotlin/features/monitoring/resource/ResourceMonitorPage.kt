@@ -4,17 +4,19 @@
 package features.monitoring.resource
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -24,31 +26,33 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import android.text.format.DateUtils
 import androidx.compose.ui.unit.dp
 import app.LocalAppServices
-import app.R
 import features.monitoring.MonitoringIntent
-import features.monitoring.MonitoringResourceFocusState
 import features.monitoring.MonitoringResourceSummary
 import features.monitoring.MonitoringScaffold
 import features.monitoring.MonitoringSectionCard
 import features.monitoring.MonitoringStatusHeader
 import features.monitoring.MonitoringValueRow
 import features.monitoring.ObserveMonitoring
-import features.monitoring.buildMonitoringResourceFocusState
+import app.R
+import ui.charts.ChartAxisLabelMinWidth
+import ui.charts.ChartAxisLabelSpacing
+import ui.charts.drawSmoothAreaLine
 import ui.components.AsteriskFilterChip
+import ui.components.AsteriskSegmentItem
+import ui.components.AsteriskSegmentedControl
 import ui.layout.rememberPageGutter
 import utils.toReadableBytes
-import kotlin.math.ceil
-import kotlin.math.roundToInt
 import ui.icons.AsteriskIcons as Icons
 
 @Composable
@@ -59,6 +63,16 @@ internal fun ResourceMonitorPage(padding: PaddingValues) {
     val resource = monitoring.resource
     var sourceInfo by rememberSaveable { mutableStateOf<ProcessStatsSourceKind?>(null) }
     var range by rememberSaveable { mutableStateOf(ResourceChartRange.FifteenMinutes) }
+    val chartWindowSamples = resource.samplesFor(range)
+    val chart = remember(chartWindowSamples, range, resource.sampleIntervalMillis) {
+        buildResourceChartData(
+            samples = chartWindowSamples,
+            windowMillis = range.windowMillis,
+            intervalMillis = resource.sampleIntervalMillis ?: 1_000L,
+        )
+    }
+    // The resource intent also keeps the connection count and today's traffic current, at the
+    // lightweight home cadence, for the details card.
     ObserveMonitoring(MonitoringIntent.Resource)
 
     MonitoringScaffold(
@@ -76,18 +90,21 @@ internal fun ResourceMonitorPage(padding: PaddingValues) {
             verticalArrangement = Arrangement.spacedBy(14.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            item("status") {
-                ResourceMonitorStatus(
-                    state = buildMonitoringResourceFocusState(
-                        serviceRunning = monitoring.serviceRunning,
-                        summary = resource,
-                    ),
-                )
+            if (!monitoring.serviceRunning) {
+                item("status") {
+                    MonitoringStatusHeader(
+                        title = stringResource(R.string.monitor_resource_cpu),
+                        value = "—",
+                        summary = stringResource(R.string.monitor_service_not_enabled),
+                        modifier = ResourceContentModifier,
+                        compactStatus = true,
+                    )
+                }
             }
             if (monitoring.serviceRunning) {
-                item("controls") {
+                item("process") {
                     Row(
-                        modifier = ResourceContentModifier.horizontalScroll(rememberScrollState()),
+                        modifier = ResourceContentModifier,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -108,11 +125,14 @@ internal fun ResourceMonitorPage(padding: PaddingValues) {
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        ResourceChartRange.entries.forEach { option ->
-                            AsteriskFilterChip(
-                                selected = range == option,
-                                onClick = { range = option },
-                                label = stringResource(
+                    }
+                }
+                item("range") {
+                    AsteriskSegmentedControl(
+                        items = ResourceChartRange.entries.map { option ->
+                            AsteriskSegmentItem(
+                                option,
+                                stringResource(
                                     if (option == ResourceChartRange.FifteenMinutes) {
                                         R.string.monitor_resource_15_minutes
                                     } else {
@@ -120,14 +140,36 @@ internal fun ResourceMonitorPage(padding: PaddingValues) {
                                     },
                                 ),
                             )
-                        }
-                    }
+                        },
+                        selectedValue = range,
+                        onSelected = { option -> range = option },
+                        modifier = ResourceContentModifier,
+                    )
                 }
-                item("chart") {
-                    ResourceTrendCard(resource = resource, range = range)
+                item("cpu_card") {
+                    ResourceMetricCard(
+                        title = stringResource(R.string.monitor_resource_card_cpu),
+                        value = resource.cpuPercent?.let { "%.1f%%".format(it) } ?: "—",
+                        amplitudes = chart.cpu,
+                        scaleLabel = chart.cpuScaleLabel,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+                item("memory_card") {
+                    ResourceMetricCard(
+                        title = stringResource(R.string.monitor_resource_card_memory),
+                        value = resource.memoryBytes?.toReadableBytes() ?: "—",
+                        amplitudes = chart.memory,
+                        scaleLabel = chart.memoryScaleLabel,
+                        color = MaterialTheme.colorScheme.tertiary,
+                    )
                 }
                 item("details") {
-                    ResourceDetails(resource)
+                    ResourceDetails(
+                        resource = resource,
+                        todayTrafficBytes = monitoring.traffic.today.total,
+                        activeConnectionCount = monitoring.connections.activeCount,
+                    )
                 }
             }
         }
@@ -154,195 +196,230 @@ internal fun ResourceMonitorPage(padding: PaddingValues) {
 }
 
 @Composable
-private fun ResourceMonitorStatus(state: MonitoringResourceFocusState) {
-    MonitoringStatusHeader(
-        title = stringResource(R.string.monitor_resource_cpu),
-        value = state.cpuPercent?.let { "%.1f%%".format(it) } ?: "—",
-        summary = if (state.serviceRunning) {
-            stringResource(
-                R.string.monitor_resource_focus_memory,
-                state.memoryBytes?.toReadableBytes() ?: "—",
+private fun ResourceMetricCard(
+    title: String,
+    value: String,
+    amplitudes: FloatArray,
+    scaleLabel: String?,
+    color: Color,
+) {
+    MonitoringSectionCard(title, ResourceContentModifier) {
+        // The section card wraps its content in a Box, so the value and the plot need an explicit
+        // column: without it the two would be drawn on top of each other.
+        Column {
+            Text(
+                text = value,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.SemiBold,
             )
-        } else {
-            stringResource(R.string.monitor_service_not_enabled)
-        },
-        modifier = ResourceContentModifier,
-        compactStatus = true,
+            Spacer(Modifier.height(10.dp))
+            ResourceMetricPlot(amplitudes = amplitudes, scaleLabel = scaleLabel, color = color)
+        }
+    }
+}
+
+@Composable
+private fun ResourceMetricPlot(
+    amplitudes: FloatArray,
+    scaleLabel: String?,
+    color: Color,
+) {
+    if (amplitudes.all { value -> value.isNaN() }) {
+        Text(
+            stringResource(R.string.monitor_no_samples),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        return
+    }
+    Row(modifier = Modifier.fillMaxWidth().height(ResourceChartHeight)) {
+        Canvas(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight(),
+        ) {
+            drawSmoothAreaLine(
+                values = amplitudes,
+                color = color,
+                strokeWidth = ResourceChartLineWidth.toPx(),
+            )
+        }
+        Column(
+            modifier = Modifier
+                .fillMaxHeight()
+                .padding(start = ChartAxisLabelSpacing)
+                .widthIn(min = ChartAxisLabelMinWidth),
+            horizontalAlignment = Alignment.End,
+        ) {
+            Box(
+                modifier = Modifier.weight(1f),
+                contentAlignment = Alignment.TopEnd,
+            ) {
+                ResourceAxisLabel(scaleLabel)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ResourceAxisLabel(text: String?) {
+    if (text == null) return
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        maxLines = 1,
+    )
+}
+
+/**
+ * Each series is a smooth line over equal time buckets; a bucket keeps its peak, so a spike is never
+ * averaged away. CPU and memory have their own scale, and the axis label states that scale's top.
+ */
+private class ResourceChartData(
+    val cpu: FloatArray,
+    val memory: FloatArray,
+    val cpuScalePercent: Double,
+    val memoryScaleBytes: Long,
+) {
+    val cpuScaleLabel: String?
+        get() = cpuScalePercent.takeIf { it > 0.0 }?.let { value -> "%.1f%%".format(value) }
+
+    val memoryScaleLabel: String?
+        get() = memoryScaleBytes.takeIf { it > 0L }?.toReadableBytes()
+}
+
+private class ResourceSampleStats(
+    val cpuAverage: Double?,
+    val cpuPeak: Double?,
+    val memoryAverage: Long?,
+    val memoryPeak: Long?,
+)
+
+private fun MonitoringResourceSummary.samplesFor(range: ResourceChartRange): List<ProcessStatsSample> =
+    if (range == ResourceChartRange.FifteenMinutes) fifteenMinuteSamples else oneHourSamples
+
+private fun buildResourceChartData(
+    samples: List<ProcessStatsSample>,
+    windowMillis: Long,
+    intervalMillis: Long,
+): ResourceChartData {
+    if (samples.isEmpty() || windowMillis <= 0L) {
+        return ResourceChartData(FloatArray(0), FloatArray(0), 0.0, 0L)
+    }
+    val endTime = samples.last().timestampMillis
+    val interval = intervalMillis.coerceAtLeast(1L)
+    // While the history is shorter than the range the axis spans only the history, so an early
+    // session fills the card instead of being squeezed into its right-hand edge.
+    val visibleWindow = (endTime - samples.first().timestampMillis).coerceIn(interval, windowMillis)
+    // A bucket covers at least two sampling intervals: the real sampling period runs a little longer
+    // than the nominal one (the read itself takes time), and one-interval buckets would then leave
+    // empty buckets that break the line.
+    val bucketMillis = maxOf(
+        (visibleWindow + ResourceChartSlots - 2) / (ResourceChartSlots - 1),
+        interval * ResourceChartMinBucketIntervals,
+    )
+    val slots = (visibleWindow / bucketMillis + 1).toInt().coerceIn(2, ResourceChartSlots)
+    var cpuPeak = 0.0
+    var memoryPeak = 0L
+    // NaN marks a bucket without any sample, so the line breaks there instead of dropping to zero.
+    val cpu = FloatArray(slots) { Float.NaN }
+    val memory = FloatArray(slots) { Float.NaN }
+    for (index in samples.indices.reversed()) {
+        val sample = samples[index]
+        // Buckets are aligned to the newest sample, which always owns the rightmost one.
+        val slot = slots - 1 - ((endTime - sample.timestampMillis) / bucketMillis).toInt()
+        if (slot < 0) break
+        sample.cpuPercent?.let { value ->
+            cpuPeak = maxOf(cpuPeak, value)
+            cpu[slot] = if (cpu[slot].isNaN()) value.toFloat() else maxOf(cpu[slot], value.toFloat())
+        }
+        sample.memoryBytes?.let { value ->
+            memoryPeak = maxOf(memoryPeak, value)
+            memory[slot] = if (memory[slot].isNaN()) value.toFloat() else maxOf(memory[slot], value.toFloat())
+        }
+    }
+    // 10% headroom keeps a nearly constant series off the top edge. CPU also has a floor, so an idle
+    // core's sub-percent noise stays a low line instead of swinging across the whole plot.
+    val cpuScale = maxOf(cpuPeak * ResourceChartHeadroom, ResourceCpuScaleFloorPercent)
+    val memoryScale = (maxOf(memoryPeak, 1L) * ResourceChartHeadroom).toLong()
+    for (slot in 0 until slots) {
+        cpu[slot] = (cpu[slot] / cpuScale).toFloat()
+        memory[slot] = memory[slot] / memoryScale
+    }
+    return ResourceChartData(
+        cpu = cpu,
+        memory = memory,
+        cpuScalePercent = cpuScale,
+        memoryScaleBytes = memoryScale,
+    )
+}
+
+private fun buildResourceSampleStats(samples: List<ProcessStatsSample>): ResourceSampleStats {
+    var cpuPeak: Double? = null
+    var cpuSum = 0.0
+    var cpuCount = 0
+    var memoryPeak: Long? = null
+    var memorySum = 0.0
+    var memoryCount = 0
+    samples.forEach { sample ->
+        sample.cpuPercent?.let { value ->
+            cpuPeak = maxOf(cpuPeak ?: value, value)
+            cpuSum += value
+            cpuCount += 1
+        }
+        sample.memoryBytes?.let { value ->
+            memoryPeak = maxOf(memoryPeak ?: value, value)
+            memorySum += value
+            memoryCount += 1
+        }
+    }
+    return ResourceSampleStats(
+        cpuAverage = if (cpuCount > 0) cpuSum / cpuCount else null,
+        cpuPeak = cpuPeak,
+        memoryAverage = if (memoryCount > 0) (memorySum / memoryCount).toLong() else null,
+        memoryPeak = memoryPeak,
     )
 }
 
 @Composable
-private fun ResourceTrendCard(resource: MonitoringResourceSummary, range: ResourceChartRange) {
-    val samples = if (range == ResourceChartRange.FifteenMinutes) {
-        resource.fifteenMinuteSamples
-    } else {
-        resource.oneHourSamples
-    }
-    val cpuColor = MaterialTheme.colorScheme.primary
-    val memoryColor = MaterialTheme.colorScheme.tertiary
-    MonitoringSectionCard(stringResource(R.string.monitor_resource_trend), ResourceContentModifier) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-                LegendLabel(cpuColor, stringResource(R.string.monitor_resource_cpu))
-                LegendLabel(memoryColor, stringResource(R.string.monitor_resource_memory))
-            }
-            ResourceChart(
-                samples = samples,
-                windowMillis = range.windowMillis,
-                expectedIntervalMillis = resource.sampleIntervalMillis ?: 1_000L,
-                cpuColor = cpuColor,
-                memoryColor = memoryColor,
-            )
-            if (samples.isEmpty()) {
-                Text(
-                    stringResource(R.string.monitor_no_samples),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun LegendLabel(color: Color, text: String) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-        Canvas(Modifier.height(3.dp).widthIn(min = 22.dp, max = 22.dp)) {
-            drawLine(color, Offset(0f, center.y), Offset(size.width, center.y), strokeWidth = size.height, cap = StrokeCap.Round)
-        }
-        Text(text, style = MaterialTheme.typography.labelMedium)
-    }
-}
-
-@Composable
-private fun ResourceChart(
-    samples: List<ProcessStatsSample>,
-    windowMillis: Long,
-    expectedIntervalMillis: Long,
-    cpuColor: Color,
-    memoryColor: Color,
+private fun ResourceDetails(
+    resource: MonitoringResourceSummary,
+    todayTrafficBytes: Long,
+    activeConnectionCount: Int?,
 ) {
-    Canvas(modifier = Modifier.fillMaxWidth().height(210.dp)) {
-        val endTime = samples.lastOrNull()?.timestampMillis ?: System.currentTimeMillis()
-        val startTime = endTime - windowMillis
-        val visible = samples.filter { it.timestampMillis >= startTime }
-        var observedCpuMax = 0.0
-        var observedMemoryMax = 0L
-        visible.forEach { sample ->
-            observedCpuMax = maxOf(observedCpuMax, sample.cpuPercent ?: 0.0)
-            observedMemoryMax = maxOf(observedMemoryMax, sample.memoryBytes ?: 0L)
-        }
-        val cpuMax = maxOf(100.0, observedCpuMax)
-        val memoryMax = maxOf(1L, observedMemoryMax).toDouble()
-        val maximumDrawPoints = (size.width / 2.dp.toPx()).roundToInt().coerceAtLeast(MinimumChartDrawPoints)
-        val cpuSamples = visible.downsampleForChart(maximumDrawPoints, ProcessStatsSample::cpuPercent)
-        val memorySamples = visible.downsampleForChart(maximumDrawPoints) { sample ->
-            sample.memoryBytes?.toDouble()
-        }
-        repeat(4) { index ->
-            val y = size.height * index / 3f
-            drawLine(
-                color = Color.Gray.copy(alpha = 0.18f),
-                start = Offset(0f, y),
-                end = Offset(size.width, y),
-                strokeWidth = 1.dp.toPx(),
-            )
-        }
-        drawSampleSeries(
-            samples = cpuSamples,
-            startTime = startTime,
-            windowMillis = windowMillis,
-            gapMillis = (expectedIntervalMillis * 5L) / 2L,
-            color = cpuColor,
-        ) { sample -> sample.cpuPercent?.div(cpuMax) }
-        drawSampleSeries(
-            samples = memorySamples,
-            startTime = startTime,
-            windowMillis = windowMillis,
-            gapMillis = (expectedIntervalMillis * 5L) / 2L,
-            color = memoryColor,
-        ) { sample -> sample.memoryBytes?.toDouble()?.div(memoryMax) }
-    }
-}
-
-private fun List<ProcessStatsSample>.downsampleForChart(
-    maximumPoints: Int,
-    value: (ProcessStatsSample) -> Double?,
-): List<ProcessStatsSample> {
-    if (size <= maximumPoints || size <= 2) return this
-
-    val bucketCount = ((maximumPoints - 2) / ChartPointsPerBucket).coerceAtLeast(1)
-    val interiorSize = size - 2
-    val bucketSize = ceil(interiorSize.toDouble() / bucketCount).toInt().coerceAtLeast(1)
-    val selectedIndices = ArrayList<Int>(maximumPoints + 2)
-    selectedIndices += 0
-
-    var bucketStart = 1
-    while (bucketStart < lastIndex) {
-        val bucketEnd = minOf(lastIndex, bucketStart + bucketSize)
-        var minimumIndex: Int? = null
-        var maximumIndex: Int? = null
-        var minimumValue = Double.POSITIVE_INFINITY
-        var maximumValue = Double.NEGATIVE_INFINITY
-        for (index in bucketStart until bucketEnd) {
-            val current = value(this[index]) ?: continue
-            if (current < minimumValue) {
-                minimumValue = current
-                minimumIndex = index
-            }
-            if (current > maximumValue) {
-                maximumValue = current
-                maximumIndex = index
-            }
-        }
-        listOfNotNull(bucketStart, minimumIndex, maximumIndex, bucketEnd - 1)
-            .distinct()
-            .sorted()
-            .forEach(selectedIndices::add)
-        bucketStart = bucketEnd
-    }
-    selectedIndices += lastIndex
-    return selectedIndices.distinct().map(::get)
-}
-
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawSampleSeries(
-    samples: List<ProcessStatsSample>,
-    startTime: Long,
-    windowMillis: Long,
-    gapMillis: Long,
-    color: Color,
-    value: (ProcessStatsSample) -> Double?,
-) {
-    var previous: Pair<ProcessStatsSample, Offset>? = null
-    samples.forEach { sample ->
-        val normalized = value(sample)?.coerceIn(0.0, 1.0) ?: run {
-            previous = null
-            return@forEach
-        }
-        val point = Offset(
-            x = ((sample.timestampMillis - startTime).toFloat() / windowMillis.toFloat()) * size.width,
-            y = size.height - normalized.toFloat() * size.height,
-        )
-        previous?.takeIf { (old) -> sample.timestampMillis - old.timestampMillis <= gapMillis }
-            ?.let { (_, oldPoint) ->
-                drawLine(color, oldPoint, point, strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
-            }
-        previous = sample to point
-    }
-}
-
-@Composable
-private fun ResourceDetails(resource: MonitoringResourceSummary) {
-    var cpuPeak: Double? = null
-    var memoryPeak: Long? = null
-    resource.oneHourSamples.forEach { sample ->
-        sample.cpuPercent?.let { value -> cpuPeak = maxOf(cpuPeak ?: value, value) }
-        sample.memoryBytes?.let { value -> memoryPeak = maxOf(memoryPeak ?: value, value) }
-    }
+    // Averages and peaks cover the whole recorded history, independent of the chart range above.
+    val stats = remember(resource.oneHourSamples) { buildResourceSampleStats(resource.oneHourSamples) }
     MonitoringSectionCard(stringResource(R.string.monitor_resource_details), ResourceContentModifier) {
         Column {
-            MonitoringValueRow(stringResource(R.string.monitor_resource_cpu_peak), cpuPeak?.let { "%.1f%%".format(it) } ?: "—")
-            MonitoringValueRow(stringResource(R.string.monitor_resource_memory_peak), memoryPeak?.toReadableBytes() ?: "—")
+            MonitoringValueRow(
+                stringResource(R.string.monitor_resource_cpu_average),
+                stats.cpuAverage?.let { "%.1f%%".format(it) } ?: "—",
+            )
+            MonitoringValueRow(
+                stringResource(R.string.monitor_resource_cpu_peak),
+                stats.cpuPeak?.let { "%.1f%%".format(it) } ?: "—",
+            )
+            MonitoringValueRow(
+                stringResource(R.string.monitor_resource_memory_average),
+                stats.memoryAverage?.toReadableBytes() ?: "—",
+            )
+            MonitoringValueRow(
+                stringResource(R.string.monitor_resource_memory_peak),
+                stats.memoryPeak?.toReadableBytes() ?: "—",
+            )
+            MonitoringValueRow(
+                stringResource(R.string.monitor_resource_uptime),
+                resource.uptimeMillis?.let(::formatResourceUptime) ?: "—",
+            )
+            MonitoringValueRow(
+                stringResource(R.string.monitor_resource_today_traffic),
+                todayTrafficBytes.toReadableBytes(),
+            )
+            MonitoringValueRow(
+                stringResource(R.string.monitor_resource_active_connections),
+                activeConnectionCount?.toString() ?: "—",
+            )
             MonitoringValueRow(stringResource(R.string.monitor_resource_pid), resource.processId?.toString() ?: "—")
             MonitoringValueRow(
                 stringResource(R.string.monitor_resource_interval),
@@ -351,6 +428,9 @@ private fun ResourceDetails(resource: MonitoringResourceSummary) {
         }
     }
 }
+
+private fun formatResourceUptime(uptimeMillis: Long): String =
+    DateUtils.formatElapsedTime(uptimeMillis.coerceAtLeast(0L) / 1_000L)
 
 @Composable
 private fun resourceSourceLabel(source: ProcessStatsSourceKind): String = stringResource(
@@ -365,6 +445,11 @@ private enum class ResourceChartRange(val windowMillis: Long) {
     OneHour(60L * 60L * 1_000L),
 }
 
-private const val MinimumChartDrawPoints = 64
-private const val ChartPointsPerBucket = 4
+private const val ResourceChartSlots = 64
+private const val ResourceChartHeadroom = 1.1
+private const val ResourceChartMinBucketIntervals = 2L
+private const val ResourceCpuScaleFloorPercent = 5.0
+
+private val ResourceChartHeight = 160.dp
+private val ResourceChartLineWidth = 2.dp
 private val ResourceContentModifier = Modifier.fillMaxWidth().widthIn(max = 840.dp)

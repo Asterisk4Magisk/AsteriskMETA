@@ -148,13 +148,16 @@
     <!-- Monitoring - Resources -->
     <string name="monitor_resource_15_minutes">15 minutes</string>
     <string name="monitor_resource_1_hour">1 hour</string>
+    <string name="monitor_resource_active_connections">Active connections</string>
+    <string name="monitor_resource_card_cpu">CPU</string>
+    <string name="monitor_resource_card_memory">Memory</string>
     <string name="monitor_resource_cpu">Process CPU</string>
+    <string name="monitor_resource_cpu_average">CPU average</string>
     <string name="monitor_resource_cpu_peak">CPU peak</string>
     <string name="monitor_resource_details">Sampling details</string>
     <string name="monitor_resource_vpn_explanation">CPU, memory, PID, and uptime are sampled from the independent :service process.</string>
-    <string name="monitor_resource_focus_memory">Memory %1$s</string>
     <string name="monitor_resource_interval">Sampling interval</string>
-    <string name="monitor_resource_memory">Process memory</string>
+    <string name="monitor_resource_memory_average">Memory average</string>
     <string name="monitor_resource_memory_peak">Memory peak</string>
     <string name="monitor_resource_pid">Process PID</string>
     <string name="monitor_resource_root_explanation">CPU is sampled from the independent Mihomo process.</string>
@@ -162,7 +165,8 @@
     <string name="monitor_resource_source_info">Process measurements</string>
     <string name="monitor_resource_source_root">Mihomo process · ROOT</string>
     <string name="monitor_resource_title">Resource monitor</string>
-    <string name="monitor_resource_trend">Shared trend</string>
+    <string name="monitor_resource_today_traffic">Today’s traffic</string>
+    <string name="monitor_resource_uptime">Uptime</string>
 
     <!-- Monitoring - Traffic -->
     <string name="monitor_traffic_30_days">Last 30 days</string>
@@ -928,6 +932,8 @@
     <string name="settings_title">Settings</string>
 
     <!-- Appearance and language -->
+    <string name="option_chart_dots">Dots</string>
+    <string name="option_chart_lines">Two lines</string>
     <string name="option_dark">Dark</string>
     <string name="option_english">English</string>
     <string name="option_follow_system">Follow system</string>
@@ -938,6 +944,7 @@
     <string name="settings_language">Language</string>
     <string name="settings_privacy">Privacy</string>
     <string name="settings_theme_color">Accent color</string>
+    <string name="settings_network_activity_style">Network activity chart</string>
     <string name="settings_auto_hide_navigation_bar">Auto-hide navigation bar</string>
     <string name="settings_auto_hide_navigation_bar_summary">Hide the bottom bar when scrolling up</string>
     <string name="theme_color_blue">Default blue</string>

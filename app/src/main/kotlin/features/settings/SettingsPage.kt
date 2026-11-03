@@ -162,6 +162,10 @@ private fun SettingsContent(
         stringResource(R.string.option_light),
         stringResource(R.string.option_dark),
     )
+    val chartStyleOptions = listOf(
+        stringResource(R.string.option_chart_dots),
+        stringResource(R.string.option_chart_lines),
+    )
     val languageOptions = listOf(
         stringResource(R.string.option_follow_system),
         stringResource(R.string.option_english),
@@ -338,6 +342,8 @@ private fun SettingsContent(
         colorMode = appState.colorMode,
         keyColorOptions = keyColorOptions,
         seedIndex = appState.seedIndex,
+        chartStyleOptions = chartStyleOptions,
+        networkActivityStyle = appState.networkActivityStyle,
         languageOptions = languageOptions,
         languageMode = appState.languageMode,
         geodataLoaderOptions = MihomoGeodataLoaderValues,
@@ -640,10 +646,15 @@ private fun SettingsContent(
                     colorMode = appState.colorMode,
                     keyColorOptions = keyColorOptions,
                     seedIndex = appState.seedIndex,
+                    chartStyleOptions = chartStyleOptions,
+                    networkActivityStyle = appState.networkActivityStyle,
                     languageOptions = languageOptions,
                     languageMode = appState.languageMode,
                     onColorModeChange = { index -> updateAppState { state -> state.copy(colorMode = index) } },
                     onSeedIndexChange = { index -> updateAppState { state -> state.copy(seedIndex = index) } },
+                    onNetworkActivityStyleChange = { index ->
+                        updateAppState { state -> state.copy(networkActivityStyle = index) }
+                    },
                     onLanguageModeChange = { index -> updateAppState { state -> state.copy(languageMode = index) } },
                     autoHideNavigationBar = appState.autoHideNavigationBar,
                     onAutoHideNavigationBarChange = { enabled ->
