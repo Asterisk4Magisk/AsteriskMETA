@@ -119,5 +119,6 @@ internal fun RootStartConfig.buildAsteriskdConfig(
         helper = helper,
         serviceControl = serviceControl.toAsteriskdServiceControlConfig(),
         dnsEnhancement = rootDnsEnhancementConfig(enableAppListEnhancement, mode, enableLocalDns, mihomoProfileBytes),
+        runtimeEventReceiver = runtimeEventReceiver,
     )
 }

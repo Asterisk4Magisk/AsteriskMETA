@@ -3,6 +3,7 @@
 
 package engine.root.config
 
+import android.content.ComponentName
 import android.content.Context
 import app.AppState
 import app.effectiveFakeIpEnabled
@@ -18,6 +19,7 @@ import engine.network.toPortOrNull
 import engine.proxy.ProxyEngineStartRequest
 import features.resources.runtime.MihomoResourceFilePaths
 import features.resources.runtime.mihomoResourceFilePaths
+import features.quicksettings.QuickSettingsTileRefreshReceiver
 import java.io.File
 
 internal class RootConfigBuildContext(
@@ -29,6 +31,8 @@ internal class RootConfigBuildContext(
 ) {
     fun buildRootStartConfig(): RootStartConfig {
         return appState.toRootStartConfig(
+            runtimeEventReceiver = ComponentName(androidContext, QuickSettingsTileRefreshReceiver::class.java)
+                .flattenToString(),
             mihomoProfileBytes = preparedMihomoProfileBytes
                 ?: MihomoProfileFactory.buildProfileBytes(androidContext, appState),
             resourceFilePaths = resourceFilePaths,
@@ -53,6 +57,7 @@ internal fun Context.prepareRootConfigBuildContext(request: ProxyEngineStartRequ
 }
 
 private fun AppState.toRootStartConfig(
+    runtimeEventReceiver: String,
     mihomoProfileBytes: ByteArray,
     resourceFilePaths: MihomoResourceFilePaths,
     rawConfig: MihomoRawConfigSnapshot?,
@@ -82,6 +87,7 @@ private fun AppState.toRootStartConfig(
         fakeIpIpv4Pool = rootFakeIpIpv4Pool(),
         enableBoot = enableRootBootScript,
         serviceControl = serviceControl,
+        runtimeEventReceiver = runtimeEventReceiver,
         manageProviders = selectedMihomoProfileOrNull()?.disableOverrides != true,
     )
 }

@@ -36,7 +36,7 @@ internal object RootBootPublicationCommand {
     internal fun buildStartupScript(layout: RootRuntimeLayout): String = buildString {
         appendLine("#!/system/bin/sh")
         appendLine("set -eu")
-        appendLine("exec ${layout.asteriskdPath.shellQuote()} start --config ${layout.asteriskdConfigPath.shellQuote()}")
+        appendLine("exec ${layout.asteriskdPath.shellQuote()} boot --config ${layout.asteriskdConfigPath.shellQuote()}")
     }
 
     internal fun buildServiceScript(layout: RootRuntimeLayout): String = """

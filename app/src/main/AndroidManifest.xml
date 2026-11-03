@@ -164,7 +164,16 @@
             <meta-data
                 android:name="android.service.quicksettings.TOGGLEABLE_TILE"
                 android:value="true" />
+            <meta-data
+                android:name="android.service.quicksettings.ACTIVE_TILE"
+                android:value="true" />
         </service>
+
+        <!-- Receives the runtime events that the ROOT supervisor sends by explicit component, so the
+             tile is current before the panel opens; only root can deliver to it. -->
+        <receiver
+            android:name="features.quicksettings.QuickSettingsTileRefreshReceiver"
+            android:exported="false" />
 
         <!-- Runs in the ":service" process beside the VPN Service, so showing traffic statistics
              never keeps the UI process alive, in VPN and ROOT modes alike. -->
