@@ -17,11 +17,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -48,12 +45,10 @@ import app.R
 import ui.charts.ChartAxisLabelMinWidth
 import ui.charts.ChartAxisLabelSpacing
 import ui.charts.drawSmoothAreaLine
-import ui.components.AsteriskFilterChip
 import ui.components.AsteriskSegmentItem
 import ui.components.AsteriskSegmentedControl
 import ui.layout.rememberPageGutter
 import utils.toReadableBytes
-import ui.icons.AsteriskIcons as Icons
 
 @Composable
 internal fun ResourceMonitorPage(padding: PaddingValues) {
@@ -61,7 +56,6 @@ internal fun ResourceMonitorPage(padding: PaddingValues) {
     val services = LocalAppServices.current
     val monitoring by services.monitoring.state.collectAsState()
     val resource = monitoring.resource
-    var sourceInfo by rememberSaveable { mutableStateOf<ProcessStatsSourceKind?>(null) }
     var range by rememberSaveable { mutableStateOf(ResourceChartRange.FifteenMinutes) }
     val chartWindowSamples = resource.samplesFor(range)
     val chart = remember(chartWindowSamples, range, resource.sampleIntervalMillis) {
@@ -102,31 +96,6 @@ internal fun ResourceMonitorPage(padding: PaddingValues) {
                 }
             }
             if (monitoring.serviceRunning) {
-                item("process") {
-                    Row(
-                        modifier = ResourceContentModifier,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        resource.source?.let { source ->
-                            AsteriskFilterChip(
-                                selected = true,
-                                onClick = { sourceInfo = source },
-                                label = resourceSourceLabel(source),
-                                trailingIcon = {
-                                    Icon(
-                                        Icons.Rounded.Info,
-                                        contentDescription = stringResource(R.string.monitor_resource_source_info),
-                                    )
-                                },
-                            )
-                        } ?: Text(
-                            text = stringResource(R.string.monitor_data_unavailable),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
                 item("range") {
                     AsteriskSegmentedControl(
                         items = ResourceChartRange.entries.map { option ->
@@ -173,25 +142,6 @@ internal fun ResourceMonitorPage(padding: PaddingValues) {
                 }
             }
         }
-    }
-    sourceInfo?.let { source ->
-        AlertDialog(
-            onDismissRequest = { sourceInfo = null },
-            title = { Text(stringResource(R.string.monitor_resource_source_info)) },
-            text = {
-                Text(stringResource(
-                    when (source) {
-                        ProcessStatsSourceKind.CoreProcess -> R.string.monitor_resource_root_explanation
-                        ProcessStatsSourceKind.VpnProcess -> R.string.monitor_resource_vpn_explanation
-                    },
-                ))
-            },
-            confirmButton = {
-                TextButton(onClick = { sourceInfo = null }) {
-                    Text(stringResource(android.R.string.ok))
-                }
-            },
-        )
     }
 }
 
@@ -307,11 +257,47 @@ private fun buildResourceChartData(
     if (samples.isEmpty() || windowMillis <= 0L) {
         return ResourceChartData(FloatArray(0), FloatArray(0), 0.0, 0L)
     }
+    val cpu = buildResourceSeries(samples, windowMillis, intervalMillis) { sample -> sample.cpuPercent }
+    val memory = buildResourceSeries(samples, windowMillis, intervalMillis) { sample ->
+        sample.memoryBytes?.toDouble()
+    }
+    val cpuPeak = cpu.resourceSeriesPeak()
+    val memoryPeak = memory.resourceSeriesPeak().toLong()
+    // 10% headroom keeps a nearly constant series off the top edge. CPU also has a floor, so an idle
+    // core's sub-percent noise stays a low line instead of swinging across the whole plot.
+    val cpuScale = maxOf(cpuPeak * ResourceChartHeadroom, ResourceCpuScaleFloorPercent)
+    val memoryScale = (maxOf(memoryPeak, 1L) * ResourceChartHeadroom).toLong()
+    for (slot in cpu.indices) cpu[slot] = (cpu[slot] / cpuScale).toFloat()
+    for (slot in memory.indices) memory[slot] = memory[slot] / memoryScale
+    return ResourceChartData(
+        cpu = cpu,
+        memory = memory,
+        cpuScalePercent = cpuScale,
+        memoryScaleBytes = memoryScale,
+    )
+}
+
+/**
+ * Bucket peaks of one series, unscaled; `NaN` marks a bucket without any reading, so the line breaks
+ * there instead of dropping to zero.
+ *
+ * The axis starts at the series' own first reading. Samples before it (the CPU read that only sets
+ * the baseline, or memory before its slower collector answers) would otherwise leave an empty margin
+ * on the left that shrinks as the history grows, so the line would seem to creep in from the right.
+ */
+private inline fun buildResourceSeries(
+    samples: List<ProcessStatsSample>,
+    windowMillis: Long,
+    intervalMillis: Long,
+    valueOf: (ProcessStatsSample) -> Double?,
+): FloatArray {
+    val firstIndex = samples.indexOfFirst { sample -> valueOf(sample) != null }
+    if (firstIndex < 0) return FloatArray(0)
     val endTime = samples.last().timestampMillis
     val interval = intervalMillis.coerceAtLeast(1L)
     // While the history is shorter than the range the axis spans only the history, so an early
     // session fills the card instead of being squeezed into its right-hand edge.
-    val visibleWindow = (endTime - samples.first().timestampMillis).coerceIn(interval, windowMillis)
+    val visibleWindow = (endTime - samples[firstIndex].timestampMillis).coerceIn(interval, windowMillis)
     // A bucket covers at least two sampling intervals: the real sampling period runs a little longer
     // than the nominal one (the read itself takes time), and one-interval buckets would then leave
     // empty buckets that break the line.
@@ -320,39 +306,26 @@ private fun buildResourceChartData(
         interval * ResourceChartMinBucketIntervals,
     )
     val slots = (visibleWindow / bucketMillis + 1).toInt().coerceIn(2, ResourceChartSlots)
-    var cpuPeak = 0.0
-    var memoryPeak = 0L
-    // NaN marks a bucket without any sample, so the line breaks there instead of dropping to zero.
-    val cpu = FloatArray(slots) { Float.NaN }
-    val memory = FloatArray(slots) { Float.NaN }
-    for (index in samples.indices.reversed()) {
+    val values = FloatArray(slots) { Float.NaN }
+    for (index in samples.lastIndex downTo firstIndex) {
         val sample = samples[index]
         // Buckets are aligned to the newest sample, which always owns the rightmost one.
         val slot = slots - 1 - ((endTime - sample.timestampMillis) / bucketMillis).toInt()
         if (slot < 0) break
-        sample.cpuPercent?.let { value ->
-            cpuPeak = maxOf(cpuPeak, value)
-            cpu[slot] = if (cpu[slot].isNaN()) value.toFloat() else maxOf(cpu[slot], value.toFloat())
-        }
-        sample.memoryBytes?.let { value ->
-            memoryPeak = maxOf(memoryPeak, value)
-            memory[slot] = if (memory[slot].isNaN()) value.toFloat() else maxOf(memory[slot], value.toFloat())
+        valueOf(sample)?.let { value ->
+            values[slot] = if (values[slot].isNaN()) value.toFloat() else maxOf(values[slot], value.toFloat())
         }
     }
-    // 10% headroom keeps a nearly constant series off the top edge. CPU also has a floor, so an idle
-    // core's sub-percent noise stays a low line instead of swinging across the whole plot.
-    val cpuScale = maxOf(cpuPeak * ResourceChartHeadroom, ResourceCpuScaleFloorPercent)
-    val memoryScale = (maxOf(memoryPeak, 1L) * ResourceChartHeadroom).toLong()
-    for (slot in 0 until slots) {
-        cpu[slot] = (cpu[slot] / cpuScale).toFloat()
-        memory[slot] = memory[slot] / memoryScale
-    }
-    return ResourceChartData(
-        cpu = cpu,
-        memory = memory,
-        cpuScalePercent = cpuScale,
-        memoryScaleBytes = memoryScale,
-    )
+    // A history shorter than one bucket lands entirely in the rightmost slot, which alone would be a
+    // dot at the right edge; the axis spans only that history, so the reading holds across it.
+    if (visibleWindow < bucketMillis) values[0] = values[1]
+    return values
+}
+
+private fun FloatArray.resourceSeriesPeak(): Double {
+    var peak = 0.0
+    for (value in this) if (!value.isNaN()) peak = maxOf(peak, value.toDouble())
+    return peak
 }
 
 private fun buildResourceSampleStats(samples: List<ProcessStatsSample>): ResourceSampleStats {
@@ -431,14 +404,6 @@ private fun ResourceDetails(
 
 private fun formatResourceUptime(uptimeMillis: Long): String =
     DateUtils.formatElapsedTime(uptimeMillis.coerceAtLeast(0L) / 1_000L)
-
-@Composable
-private fun resourceSourceLabel(source: ProcessStatsSourceKind): String = stringResource(
-    when (source) {
-        ProcessStatsSourceKind.CoreProcess -> R.string.monitor_resource_source_root
-        ProcessStatsSourceKind.VpnProcess -> R.string.monitor_resource_source_vpn
-    },
-)
 
 private enum class ResourceChartRange(val windowMillis: Long) {
     FifteenMinutes(15L * 60L * 1_000L),

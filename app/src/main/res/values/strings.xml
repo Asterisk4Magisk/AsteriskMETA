@@ -155,15 +155,10 @@
     <string name="monitor_resource_cpu_average">CPU average</string>
     <string name="monitor_resource_cpu_peak">CPU peak</string>
     <string name="monitor_resource_details">Sampling details</string>
-    <string name="monitor_resource_vpn_explanation">CPU, memory, PID, and uptime are sampled from the independent :service process.</string>
     <string name="monitor_resource_interval">Sampling interval</string>
     <string name="monitor_resource_memory_average">Memory average</string>
     <string name="monitor_resource_memory_peak">Memory peak</string>
     <string name="monitor_resource_pid">Process PID</string>
-    <string name="monitor_resource_root_explanation">CPU is sampled from the independent Mihomo process.</string>
-    <string name="monitor_resource_source_vpn">Mihomo process · VPN</string>
-    <string name="monitor_resource_source_info">Process measurements</string>
-    <string name="monitor_resource_source_root">Mihomo process · ROOT</string>
     <string name="monitor_resource_title">Resource monitor</string>
     <string name="monitor_resource_today_traffic">Today’s traffic</string>
     <string name="monitor_resource_uptime">Uptime</string>

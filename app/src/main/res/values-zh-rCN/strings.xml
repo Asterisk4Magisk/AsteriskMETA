@@ -153,15 +153,10 @@
     <string name="monitor_resource_cpu_average">CPU 平均</string>
     <string name="monitor_resource_cpu_peak">CPU 峰值</string>
     <string name="monitor_resource_details">采样详情</string>
-    <string name="monitor_resource_vpn_explanation">CPU、内存、PID 和运行时长均来自独立运行的 :service 进程。</string>
     <string name="monitor_resource_interval">采样间隔</string>
     <string name="monitor_resource_memory_average">内存平均</string>
     <string name="monitor_resource_memory_peak">内存峰值</string>
     <string name="monitor_resource_pid">进程 PID</string>
-    <string name="monitor_resource_root_explanation">CPU 数据来自独立运行的 Mihomo 进程。</string>
-    <string name="monitor_resource_source_vpn">Mihomo 进程 · VPN</string>
-    <string name="monitor_resource_source_info">进程统计说明</string>
-    <string name="monitor_resource_source_root">Mihomo 进程 · ROOT</string>
     <string name="monitor_resource_title">资源监控</string>
     <string name="monitor_resource_today_traffic">今日流量</string>
     <string name="monitor_resource_uptime">运行时长</string>
