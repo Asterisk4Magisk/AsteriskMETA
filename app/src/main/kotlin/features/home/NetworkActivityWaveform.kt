@@ -25,19 +25,31 @@ internal class NetworkActivityWaveform(
     val sampleCount: Int = download.size
 }
 
-internal fun buildNetworkActivityWaveform(samples: List<MihomoTrafficSample>): NetworkActivityWaveform {
-    if (samples.isEmpty()) return NetworkActivityWaveform(FloatArray(0), FloatArray(0))
+/**
+ * Builds the dotted series on a fixed [slotCount] time axis. Slots before the first sample are
+ * zero instead of NaN, so the base row of dots (the zero line) spans the whole card from the first
+ * sample on, and only the traffic itself scrolls in from the right.
+ */
+internal fun buildNetworkActivityWaveform(
+    samples: List<MihomoTrafficSample>,
+    slotCount: Int,
+): NetworkActivityWaveform {
+    if (samples.isEmpty() || slotCount <= 0) return NetworkActivityWaveform(FloatArray(0), FloatArray(0))
     val downloadBytes = LongArray(samples.size) { index -> samples[index].down.coerceAtLeast(0L) }
     val uploadBytes = LongArray(samples.size) { index -> samples[index].up.coerceAtLeast(0L) }
     // Each direction owns its own reference: a slow upload must not shrink because downloads are fast.
     val downloadReference = networkActivityReferenceBytes(downloadBytes)
     val uploadReference = networkActivityReferenceBytes(uploadBytes)
+    // The newest sample owns the rightmost slot; a slot index maps back to a sample through this shift.
+    val sampleShift = samples.size - slotCount
     return NetworkActivityWaveform(
-        download = FloatArray(samples.size) { index ->
-            networkActivityAmplitude(downloadBytes[index], downloadReference)
+        download = FloatArray(slotCount) { slot ->
+            val index = slot + sampleShift
+            if (index < 0) 0f else networkActivityAmplitude(downloadBytes[index], downloadReference)
         },
-        upload = FloatArray(samples.size) { index ->
-            networkActivityAmplitude(uploadBytes[index], uploadReference)
+        upload = FloatArray(slotCount) { slot ->
+            val index = slot + sampleShift
+            if (index < 0) 0f else networkActivityAmplitude(uploadBytes[index], uploadReference)
         },
         downloadScaleBytes = networkActivityScaleBytes(downloadBytes, downloadReference),
         uploadScaleBytes = networkActivityScaleBytes(uploadBytes, uploadReference),
@@ -59,8 +71,9 @@ internal class NetworkActivityLineBands(
 
 /**
  * Builds the line series on the same fixed [slotCount] time axis as the dotted style: the newest
- * sample owns the rightmost slot and leading slots stay NaN, the painters' "no sample" sentinel, so
- * new data scrolls in instead of stretching a short buffer across the card.
+ * sample owns the rightmost slot, so new data scrolls in instead of stretching a short buffer across
+ * the card. Leading slots are zero rather than NaN, so the zero line spans the whole plot from the
+ * first sample on instead of growing in from the right.
  */
 internal fun buildNetworkActivityLineBands(
     samples: List<MihomoTrafficSample>,
@@ -78,8 +91,8 @@ internal fun buildNetworkActivityLineBands(
     }
     // Both curves share the larger peak (plus headroom), so their heights can be compared directly.
     val reference = maxOf(peak, 1L) * NetworkActivityLineHeadroom
-    val downloadEdge = FloatArray(slotCount) { Float.NaN }
-    val uploadEdge = FloatArray(slotCount) { Float.NaN }
+    val downloadEdge = FloatArray(slotCount)
+    val uploadEdge = FloatArray(slotCount)
     for (offset in 0 until visible) {
         val sample = samples[firstSample + offset]
         downloadEdge[firstSlot + offset] = sample.down.coerceAtLeast(0L) / reference

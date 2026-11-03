@@ -696,7 +696,7 @@ private fun NetworkActivityChart(
     modifier: Modifier = Modifier,
 ) {
     val samples = state.networkSamples
-    val waveform = remember(samples) { buildNetworkActivityWaveform(samples) }
+    val waveform = remember(samples) { buildNetworkActivityWaveform(samples, NetworkActivitySlotCount) }
     val downloadRamp = rememberDottedWaveformRamp(MaterialTheme.colorScheme.primary)
     val uploadRamp = rememberDottedWaveformRamp(MaterialTheme.colorScheme.tertiary)
     Row(modifier = modifier) {
