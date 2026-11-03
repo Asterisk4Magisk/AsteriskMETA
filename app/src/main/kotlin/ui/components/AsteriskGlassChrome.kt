@@ -75,7 +75,7 @@ internal fun chromeStyle(): HazeBlurStyle {
     return HazeBlurStyle {
         backgroundColor(surface)
         colorEffects(listOf(tint))
-        blurRadius(18.dp)
+        blurRadius(14.dp)
         noiseFactor(0f)
         fallbackColorEffect(tint)
     }
