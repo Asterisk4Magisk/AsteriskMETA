@@ -903,11 +903,6 @@ private fun ProxyGroupTabs(
         show = showGroupPicker && hasOverflow,
         onDismissRequest = { showGroupPicker = false },
         title = stringResource(R.string.mihomo_proxies_groups),
-        endAction = {
-            IconButton(onClick = { showGroupPicker = false }) {
-                Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.common_close))
-            }
-        },
     ) {
         FlowRow(
             modifier = Modifier
