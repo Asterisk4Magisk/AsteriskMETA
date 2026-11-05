@@ -2,7 +2,7 @@
 agp = "9.5.0"
 androidx-activity-compose = "1.13.0"
 androidx-lifecycle = "2.11.0"
-androidx-navigation3 = "1.2.0"
+androidx-navigation3 = "1.2.1"
 androidx-navigationevent = "1.1.0"
 androidx-room = "2.8.5"
 androidx-work = "2.12.0"

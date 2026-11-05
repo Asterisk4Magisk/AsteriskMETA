@@ -28,10 +28,10 @@
         },
         {
             "uniqueId": "androidx.navigation3:navigation3-runtime",
-            "artifactVersion": "1.2.0",
+            "artifactVersion": "1.2.1",
             "name": "Androidx Navigation 3 Runtime",
             "description": "Provides the building blocks for a Compose first Navigation solution that easily supports extensions.",
-            "website": "https://developer.android.com/jetpack/androidx/releases/navigation3#1.2.0",
+            "website": "https://developer.android.com/jetpack/androidx/releases/navigation3#1.2.1",
             "scm": {
                 "url": "https://cs.android.com/androidx/platform/frameworks/support"
             },
@@ -41,10 +41,10 @@
         },
         {
             "uniqueId": "androidx.navigation3:navigation3-ui",
-            "artifactVersion": "1.2.0",
+            "artifactVersion": "1.2.1",
             "name": "Androidx Navigation 3 UI",
             "description": "Provides a Navigation3 display that uses the building blocks from runtime to create a higher level solution.",
-            "website": "https://developer.android.com/jetpack/androidx/releases/navigation3#1.2.0",
+            "website": "https://developer.android.com/jetpack/androidx/releases/navigation3#1.2.1",
             "scm": {
                 "url": "https://cs.android.com/androidx/platform/frameworks/support"
             },
