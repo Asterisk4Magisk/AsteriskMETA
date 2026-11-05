@@ -224,6 +224,8 @@
     <string name="mihomo_proxies_delay_failed">失败</string>
     <string name="mihomo_proxies_delay_not_tested">未测试</string>
     <string name="mihomo_proxies_delay_timeout">超时</string>
+    <string name="mihomo_proxies_groups">代理组</string>
+    <string name="mihomo_proxies_expand_groups">展开代理组</string>
     <string name="mihomo_proxies_group_test">整组测试</string>
     <string name="mihomo_proxies_group_expanded">已展开</string>
     <string name="mihomo_proxies_group_collapsed">已折叠</string>

@@ -9,10 +9,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -33,6 +37,7 @@ import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import app.R
 import ui.layout.pageHorizontalPadding
+import ui.layout.rememberPageGutter
 import ui.theme.AsteriskMotion
 import ui.icons.AsteriskIcons as Icons
 
@@ -141,12 +146,21 @@ private fun AsteriskSearchTopBarTransition(
 @Composable
 internal fun AsteriskTopBarControls(
     modifier: Modifier = Modifier,
+    alignEndToAppBarActions: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val horizontalPadding = if (alignEndToAppBarActions) {
+        Modifier
+            .windowInsetsPadding(TopAppBarDefaults.windowInsets.only(WindowInsetsSides.Horizontal))
+            // Match the standard app bar's trailing action inset.
+            .padding(start = rememberPageGutter(), end = 4.dp)
+    } else {
+        Modifier.pageHorizontalPadding()
+    }
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .pageHorizontalPadding()
+            .then(horizontalPadding)
             .padding(bottom = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
         content = content,
