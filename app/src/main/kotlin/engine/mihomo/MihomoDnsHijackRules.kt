@@ -12,7 +12,9 @@ internal fun managedMihomoDnsRules(value: List<Any?>, runMode: Int): List<Any?> 
     val inbound = when (runMode) {
         RunModeTproxy -> "IN-NAME,$MihomoTproxyInboundName"
         RunModeTun -> "IN-NAME,$MihomoTunInboundName"
-        else -> "IN-TYPE,SOCKS"
+        // bpf2socks and hev-socks5-tunnel use SOCKS5. Meow only accepts SOCKS5 here and
+        // skips rules naming SOCKS with just a warning; Mihomo accepts both spellings.
+        else -> "IN-TYPE,SOCKS5"
     }
     val udpRule = "AND,(($inbound),(NETWORK,UDP),(DST-PORT,53)),dns-out"
     val tcpRule = "AND,(($inbound),(NETWORK,TCP),(DST-PORT,53)),dns-out"
