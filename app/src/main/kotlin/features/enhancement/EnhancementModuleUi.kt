@@ -20,7 +20,9 @@ import app.modes.supportsAppListEnhancement
 import features.settings.SwitchPreference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import ui.components.IconAccent
 import ui.components.WarningConfirmDialog
+import ui.icons.AsteriskIcons as Icons
 
 @Composable
 internal fun enhancementModuleSummary(state: EnhancementModuleState): String = state.messageResource()?.let { stringResource(it) }.orEmpty()
@@ -54,6 +56,8 @@ internal fun EnhancementModulePreference() {
     }
     SwitchPreference(
         title = stringResource(R.string.settings_app_list_enhancement),
+        icon = Icons.Rounded.Apps,
+        accent = IconAccent.MaskPurple,
         summary = stringResource(R.string.settings_app_list_enhancement_summary),
         checked = appState.enableAppListEnhancement || moduleState.busy,
         onCheckedChange = { enabled ->

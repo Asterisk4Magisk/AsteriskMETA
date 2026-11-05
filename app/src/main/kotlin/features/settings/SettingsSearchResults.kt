@@ -9,12 +9,14 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import app.R
 import system.AndroidLauncherIcon
+import ui.components.IconAccent
 import ui.icons.AsteriskIcons as Icons
 
 internal data class SettingsSearchEntry(
     val title: String,
     val parent: String,
     val icon: ImageVector,
+    val accent: IconAccent,
     val onClick: () -> Unit,
 )
 
@@ -255,6 +257,7 @@ internal fun SettingsNestedSearchResults(
                 title = entry.title,
                 summary = entry.parent,
                 icon = entry.icon,
+                accent = entry.accent,
                 onClick = entry.onClick,
             )
         }
@@ -364,22 +367,22 @@ internal fun settingsNestedSearchEntries(
     )
 
     return buildList {
-        connectionTestItems.forEach { add(SettingsSearchEntry(it, connectionTest, Icons.Rounded.Speed, onOpenConnectionTest)) }
-        autoSwitchItems.forEach { add(SettingsSearchEntry(it, autoSwitch, Icons.Rounded.Sync, onOpenAutoSwitch)) }
-        dnsItems.forEach { add(SettingsSearchEntry(it, dns, Icons.Rounded.Dns, onOpenDns)) }
-        snifferItems.forEach { add(SettingsSearchEntry(it, sniffer, Icons.Rounded.TravelExplore, onOpenSniffer)) }
-        localProxyItems.forEach { add(SettingsSearchEntry(it, localProxy, Icons.Rounded.Router, onOpenLocalProxy)) }
-        tunItems.forEach { add(SettingsSearchEntry(it, tun, Icons.Rounded.SettingsInputComponent, onOpenTun)) }
+        connectionTestItems.forEach { add(SettingsSearchEntry(it, connectionTest, Icons.Rounded.Speed, IconAccent.MaskBlue, onOpenConnectionTest)) }
+        autoSwitchItems.forEach { add(SettingsSearchEntry(it, autoSwitch, Icons.Rounded.Sync, IconAccent.MaskGreen, onOpenAutoSwitch)) }
+        dnsItems.forEach { add(SettingsSearchEntry(it, dns, Icons.Rounded.Dns, IconAccent.MaskBlueVariant, onOpenDns)) }
+        snifferItems.forEach { add(SettingsSearchEntry(it, sniffer, Icons.Rounded.TravelExplore, IconAccent.MaskGreen, onOpenSniffer)) }
+        localProxyItems.forEach { add(SettingsSearchEntry(it, localProxy, Icons.Rounded.Router, IconAccent.MaskBlue, onOpenLocalProxy)) }
+        tunItems.forEach { add(SettingsSearchEntry(it, tun, Icons.Rounded.SettingsInputComponent, IconAccent.MaskBlueVariant, onOpenTun)) }
         if (runMode == app.modes.RunModeTun) {
-            add(SettingsSearchEntry(stringResource(R.string.settings_tun_shared_network), tun, Icons.Rounded.Cable, onOpenExternalInterfaces))
-            add(SettingsSearchEntry(stringResource(R.string.settings_root_ebpf_bypass_direct_cidrs), tun, Icons.Rounded.Route, onOpenTunBypassRuleSets))
+            add(SettingsSearchEntry(stringResource(R.string.settings_tun_shared_network), tun, Icons.Rounded.Cable, IconAccent.MaskGrey, onOpenExternalInterfaces))
+            add(SettingsSearchEntry(stringResource(R.string.settings_root_ebpf_bypass_direct_cidrs), tun, Icons.Rounded.Route, IconAccent.MaskGreen, onOpenTunBypassRuleSets))
         } else {
-            externalItems.forEach { add(SettingsSearchEntry(it, externalInterfaces, Icons.Rounded.Cable, onOpenExternalInterfaces)) }
+            externalItems.forEach { add(SettingsSearchEntry(it, externalInterfaces, Icons.Rounded.Cable, IconAccent.MaskGrey, onOpenExternalInterfaces)) }
         }
-        add(SettingsSearchEntry(serviceControl, serviceControl, Icons.Rounded.PowerSettingsNew, onOpenServiceControl))
+        add(SettingsSearchEntry(serviceControl, serviceControl, Icons.Rounded.PowerSettingsNew, IconAccent.MaskPink, onOpenServiceControl))
         if (runMode != app.modes.RunModeTun) {
-            add(SettingsSearchEntry(ignoredInterfaces, ignoredInterfaces, Icons.Rounded.Block, onOpenIgnoredInterfaces))
-            add(SettingsSearchEntry(privateAddresses, privateAddresses, Icons.Rounded.HomeWork, onOpenPrivateAddresses))
+            add(SettingsSearchEntry(ignoredInterfaces, ignoredInterfaces, Icons.Rounded.Block, IconAccent.MaskRed, onOpenIgnoredInterfaces))
+            add(SettingsSearchEntry(privateAddresses, privateAddresses, Icons.Rounded.HomeWork, IconAccent.MaskOrange, onOpenPrivateAddresses))
         }
     }
 }
