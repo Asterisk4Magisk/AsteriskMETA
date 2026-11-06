@@ -68,14 +68,16 @@ internal fun AsteriskInfoChip(
         AsteriskChipTone.Tertiary -> MaterialTheme.colorScheme.onTertiaryContainer
         AsteriskChipTone.Error -> MaterialTheme.colorScheme.onErrorContainer
     }
+    // Sized to its 11sp label so a chip next to body text does not push the line apart;
+    // heightIn keeps larger font scales from clipping the label.
     Surface(
-        modifier = modifier.height(28.dp),
+        modifier = modifier.heightIn(min = 24.dp),
         shape = AsteriskShapeTokens.Pill,
         color = containerColor,
         contentColor = contentColor,
     ) {
         Box(
-            modifier = Modifier.padding(horizontal = 10.dp),
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
             contentAlignment = Alignment.Center,
         ) {
             Text(
