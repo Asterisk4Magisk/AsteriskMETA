@@ -64,6 +64,9 @@ internal class MihomoProfileSaveUseCase(
         fetchOptions: AndroidSubscriptionFetchOptions,
         onStage: (MihomoProfileSyncStage) -> Unit = {},
     ): MihomoProfileSavePreparation {
+        // Edited content of a URL profile is validated like a local file; it stays a URL
+        // profile and the next subscription update overwrites the edit.
+        if (draft.localContent != null) return prepareFile(draft, fetchOptions, onStage)
         return when (draft.desiredProfile.type) {
             MihomoProfileType.Url -> prepareUrl(draft, fetchOptions, onStage)
             MihomoProfileType.File -> prepareFile(draft, fetchOptions, onStage)
@@ -79,9 +82,10 @@ internal class MihomoProfileSaveUseCase(
         val failed = preparation is MihomoProfileSavePreparation.Failure
         val preparedContent = preparation.contentOrNull()
         val urlChanged = original != null && desired.url != original.url
-        val clearContent = when (desired.type) {
-            MihomoProfileType.Url -> failed && preparedContent == null && (original == null || urlChanged)
-            MihomoProfileType.File -> preparedContent?.isBlank() == true
+        val editsUrlContent = desired.type == MihomoProfileType.Url && draft.localContent != null
+        val clearContent = when {
+            desired.type == MihomoProfileType.File || editsUrlContent -> preparedContent?.isBlank() == true
+            else -> failed && preparedContent == null && (original == null || urlChanged)
         }
         val contentRef = when {
             clearContent -> {
@@ -108,6 +112,8 @@ internal class MihomoProfileSaveUseCase(
         }
         val lastUpdatedAtMillis = when {
             failed -> original?.lastUpdatedAtMillis ?: 0L
+            // A URL profile's time is its last subscription sync, which a local edit is not.
+            editsUrlContent -> original?.lastUpdatedAtMillis ?: desired.lastUpdatedAtMillis
             preparation.isSynchronized() -> nowMillis()
             desired.type == MihomoProfileType.File && draft.contentChanged -> nowMillis()
             else -> original?.lastUpdatedAtMillis ?: desired.lastUpdatedAtMillis

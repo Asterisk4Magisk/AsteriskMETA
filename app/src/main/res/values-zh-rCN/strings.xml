@@ -291,6 +291,8 @@
     <string name="mihomo_profile_chip_remote_subscription">订阅</string>
     <string name="mihomo_profile_edit_file">编辑文件配置</string>
     <string name="mihomo_profile_edit_url">编辑 URL 配置</string>
+    <string name="mihomo_profile_edit_url_content">编辑配置文件</string>
+    <string name="mihomo_profile_edit_url_content_hint">下次更新订阅时，这里的修改会被覆盖。</string>
     <string name="mihomo_profile_expire_unlimited">不限期</string>
     <string name="mihomo_profile_http_subscription_warning_confirm">仍然保存</string>
     <string name="mihomo_profile_http_subscription_warning_message">当前订阅 URL 使用 HTTP 明文传输，配置内容可能在传输过程中被读取或篡改。仅在你信任该来源时继续保存。</string>

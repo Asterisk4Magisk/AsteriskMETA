@@ -231,11 +231,12 @@ fun AppContent(
                     }
                 }
                 entry<Route.MihomoProfileEdit> { route ->
-                    key(route.profileId, route.type, route.draftId) {
+                    key(route.profileId, route.type, route.draftId, route.editContent) {
                         MihomoProfileEditPage(
                             padding = padding,
                             profileId = route.profileId,
                             type = route.type,
+                            editContent = route.editContent,
                         )
                     }
                 }

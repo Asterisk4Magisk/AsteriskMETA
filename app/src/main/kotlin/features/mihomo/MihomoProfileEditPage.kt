@@ -116,6 +116,7 @@ fun MihomoProfileEditPage(
     padding: PaddingValues,
     profileId: Int,
     type: Int,
+    editContent: Boolean = false,
 ) {
     val stateStore = LocalAppStateStore.current
     val appState by stateStore.collectAppState()
@@ -129,7 +130,12 @@ fun MihomoProfileEditPage(
         appState.mihomoProfiles.firstOrNull { profile -> profile.id == profileId }
     }
     val profileType = targetProfile?.type ?: MihomoProfileType.fromStorageValue(type)
+    // A URL profile's stored configuration can be edited like a local file; the next
+    // subscription update replaces it with the downloaded content.
+    val editsUrlContent = editContent && !isNew && profileType == MihomoProfileType.Url
+    val editsContent = profileType == MihomoProfileType.File || editsUrlContent
     val title = when {
+        editsUrlContent -> stringResource(R.string.mihomo_profile_edit_url_content)
         isNew && profileType == MihomoProfileType.Url -> stringResource(R.string.mihomo_profile_add_url)
         profileType == MihomoProfileType.Url -> stringResource(R.string.mihomo_profile_edit_url)
         else -> stringResource(R.string.mihomo_profile_edit_file)
@@ -218,7 +224,7 @@ fun MihomoProfileEditPage(
             services.mihomoProfileContentStore.readOrEmpty(targetProfile)
         }
         rawContentForCheck = initialContent
-        if (profileType == MihomoProfileType.File) {
+        if (editsContent) {
             contentEditorState.replaceText(initialContent)
         }
     }
@@ -233,10 +239,10 @@ fun MihomoProfileEditPage(
             rawParseResult = null
             return@LaunchedEffect
         }
-        if (profileType == MihomoProfileType.File) {
+        if (editsContent) {
             delay(RawConfigValidationDebounceMillis.milliseconds)
         }
-        val content = if (profileType == MihomoProfileType.File) {
+        val content = if (editsContent) {
             contentEditorState.snapshotText()
         } else {
             rawContentForCheck
@@ -452,7 +458,25 @@ fun MihomoProfileEditPage(
         )
     }
 
+    fun saveUrlContent() {
+        val profile = targetProfile ?: return
+        if (saving) return
+        val contentText = contentEditorState.snapshotText()
+        launchSave(
+            MihomoProfileSaveDraft(
+                desiredProfile = profile,
+                originalProfile = profile,
+                localContent = contentText,
+                contentChanged = profile.contentSha256 != contentText.sha256Hex(),
+            ),
+        )
+    }
+
     fun onSave() {
+        if (editsUrlContent) {
+            saveUrlContent()
+            return
+        }
         if (profileType == MihomoProfileType.Url) {
             saveUrlProfile()
             return
@@ -540,8 +564,8 @@ fun MihomoProfileEditPage(
                 )
             }
         } else {
-            key(targetProfile?.id, profileType) {
-                val scrollModifier = if (profileType == MihomoProfileType.Url) {
+            key(targetProfile?.id, profileType, editsContent) {
+                val scrollModifier = if (!editsContent) {
                     Modifier.verticalScroll(rememberScrollState())
                 } else {
                     Modifier
@@ -553,7 +577,7 @@ fun MihomoProfileEditPage(
                         .padding(contentPadding)
                         .padding(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 12.dp),
                 ) {
-                    if (profileType == MihomoProfileType.Url) {
+                    if (!editsContent) {
                         OutlinedTextField(
                             shape = AsteriskShapeTokens.InnerContainer,
                             state = nameState,
@@ -599,7 +623,12 @@ fun MihomoProfileEditPage(
                             exit = AsteriskMotion.contentExit(),
                         ) {
                             Column {
-                                Surface(
+                                if (editsUrlContent) Text(
+                                    text = stringResource(R.string.mihomo_profile_edit_url_content_hint),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                                ) else Surface(
                                     onClick = { showFileProperties = true },
                                     enabled = !saving,
                                     modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),

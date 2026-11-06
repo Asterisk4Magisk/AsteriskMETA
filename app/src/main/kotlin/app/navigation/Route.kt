@@ -60,5 +60,11 @@ sealed interface Route : NavKey {
     data class MihomoOverrideScriptEdit(val scriptId: Int = 0, val draftId: Long = 0L) : Route
 
     @Serializable
-    data class MihomoProfileEdit(val profileId: Int = 0, val type: Int = 0, val draftId: Long = 0L) : Route
+    data class MihomoProfileEdit(
+        val profileId: Int = 0,
+        val type: Int = 0,
+        val draftId: Long = 0L,
+        // Opens a URL profile's stored configuration in the YAML editor instead of its subscription options.
+        val editContent: Boolean = false,
+    ) : Route
 }

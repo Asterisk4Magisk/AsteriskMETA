@@ -898,6 +898,15 @@ fun MihomoProfileListPage(
                                             ),
                                         )
                                     }
+                                    MihomoProfileAction.EditContent -> {
+                                        navigator.push(
+                                            Route.MihomoProfileEdit(
+                                                profileId = profile.id,
+                                                type = profile.type.storageValue,
+                                                editContent = true,
+                                            ),
+                                        )
+                                    }
                                     MihomoProfileAction.Preview -> previewProfile(profile)
                                     MihomoProfileAction.Sync -> syncProfile(profile)
                                     MihomoProfileAction.SyncProviders -> syncProfileProviders(profile)
@@ -1084,6 +1093,9 @@ internal fun MihomoProfileCard(
                     }
                     DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                         MihomoProfileMenuItem(stringResource(R.string.common_edit), MihomoProfileAction.Edit, onAction) { menuExpanded = false }
+                        if (profile.type == MihomoProfileType.Url && profile.hasContent && !syncing) {
+                            MihomoProfileMenuItem(stringResource(R.string.mihomo_profile_edit_url_content), MihomoProfileAction.EditContent, onAction) { menuExpanded = false }
+                        }
                         MihomoProfileMenuItem(stringResource(R.string.mihomo_profile_preview), MihomoProfileAction.Preview, onAction) { menuExpanded = false }
                         if (displayState.showSync && !syncing) {
                             MihomoProfileMenuItem(stringResource(R.string.mihomo_profile_sync), MihomoProfileAction.Sync, onAction) { menuExpanded = false }
@@ -1158,6 +1170,7 @@ private fun MihomoProfileMenuItem(
 private fun MihomoProfileAction.icon(): ImageVector {
     return when (this) {
         MihomoProfileAction.Edit -> Icons.Rounded.Edit
+        MihomoProfileAction.EditContent -> Icons.Rounded.EditNote
         MihomoProfileAction.Preview -> Icons.Rounded.Visibility
         MihomoProfileAction.Sync -> Icons.Rounded.Sync
         MihomoProfileAction.SyncProviders -> Icons.Rounded.CloudSync
@@ -1167,6 +1180,7 @@ private fun MihomoProfileAction.icon(): ImageVector {
 
 internal enum class MihomoProfileAction {
     Edit,
+    EditContent,
     Preview,
     Sync,
     SyncProviders,
