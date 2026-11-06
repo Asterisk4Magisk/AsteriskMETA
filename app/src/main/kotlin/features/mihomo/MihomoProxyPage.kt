@@ -1257,7 +1257,7 @@ private fun MihomoProxyNodeCard(
         }
     }
     val cardModifier = modifier
-        .height(MihomoProxyNodeCardHeight)
+        .height(if (compact) MihomoProxyNodeCompactCardHeight else MihomoProxyNodeCardHeight)
         .semantics { this.selected = selected }
     AsteriskSelectionCard(
         selected = selected,
@@ -1457,5 +1457,8 @@ private fun delayColor(delay: Int?, status: MihomoDelayStatus?): Color {
 }
 
 private val MihomoProxyNodeCardHeight = 112.dp
+
+// Compact (multi-column) cards fit a two-line title, a 2dp gap and the 28dp protocol/delay line.
+private val MihomoProxyNodeCompactCardHeight = 90.dp
 private val MihomoProxyNodeCardPadding = PaddingValues(start = 10.dp, top = 14.dp, end = 10.dp, bottom = 10.dp)
 private val MihomoProxyNodeGridSpacing = 12.dp
