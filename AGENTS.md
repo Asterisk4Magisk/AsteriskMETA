@@ -57,7 +57,7 @@ The traffic statistics service (`engine.stats.MihomoTrafficStatsNotificationServ
 
 ## Repository Structure and Product Boundaries
 
-- Application ID: `org.asterisk.zcc.ameta`.
+- Application ID: `org.asterisk.zcc.ameta`. Debug builds append `.debug` and take the DEV-badged launcher icon from `app/src/debug/res`, so a debug build installs next to a release build.
 - Core: Mihomo; ROOT owner/core: `asteriskmeta` / `mihomo`.
 - ROOT modes: TPROXY, TUN, TUN2SOCKS, and BPF2SOCKS.
 - `app/`: Android application, Compose UI, data layer, VPN/ROOT orchestration, and core adapters.
