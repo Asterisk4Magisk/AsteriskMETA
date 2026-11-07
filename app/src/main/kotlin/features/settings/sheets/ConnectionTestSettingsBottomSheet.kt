@@ -20,12 +20,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import app.ConnectionTestConcurrentBounds
-import app.ConnectionTestTimeoutBounds
-import app.ConnectionTestTimeoutStepMillis
+import features.settings.ConnectionTestConcurrentBounds
+import features.settings.ConnectionTestTimeoutBounds
+import features.settings.ConnectionTestTimeoutStepMillis
 import app.R
 import features.settings.ConnectionTestSettingsDraft
-import app.isValidConnectionTestUrl
+import features.settings.isValidConnectionTestUrl
 import kotlin.math.roundToInt
 import ui.icons.AsteriskIcons as Icons
 

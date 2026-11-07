@@ -5,15 +5,15 @@ package data
 
 import android.content.Context
 import android.content.SharedPreferences
-import app.withNormalizedConnectionTestSettings
+import features.settings.withNormalizedConnectionTestSettings
 import app.AppState
-import app.AutoSwitchSettings
+import features.settings.AutoSwitchSettings
 import engine.mihomo.normalizeMihomoTunCongestionController
-import app.ServiceControlSchedule
-import app.ServiceControlKeyguard
-import app.ServiceControlSettings
-import app.ServiceControlWifi
-import app.ServiceControlWifiRule
+import features.settings.servicecontrol.ServiceControlSchedule
+import features.settings.servicecontrol.ServiceControlKeyguard
+import features.settings.servicecontrol.ServiceControlSettings
+import features.settings.servicecontrol.ServiceControlWifi
+import features.settings.servicecontrol.ServiceControlWifiRule
 import app.modes.normalizeColorMode
 import app.modes.normalizeNetworkActivityStyle
 import androidx.core.content.edit

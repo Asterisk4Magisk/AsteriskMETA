@@ -1,7 +1,7 @@
 // Copyright 2026, AsteriskMETA contributors
 // SPDX-License-Identifier: GPL-3.0
 
-package app
+package features.settings
 
 const val DefaultAutoSwitchFailureThreshold = 1
 const val DefaultAutoSwitchIntervalSeconds = 30

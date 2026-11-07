@@ -528,7 +528,7 @@ internal class MihomoControlClient(
         url: String = DefaultMihomoDelayTestUrl,
         timeoutMillis: Int = DefaultMihomoDelayTimeoutMillis,
         expectedStatus: String = "",
-        concurrency: Int = app.DefaultConnectionTestConcurrent,
+        concurrency: Int = features.settings.DefaultConnectionTestConcurrent,
         useBridge: Boolean,
     ): MihomoDelayResult {
         val proxyIds = getProxyProvider(

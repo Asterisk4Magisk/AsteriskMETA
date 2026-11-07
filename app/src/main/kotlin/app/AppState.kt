@@ -38,6 +38,12 @@ import engine.mihomo.MihomoDnsModeFakeIp
 import engine.mihomo.MihomoDnsModeRedirHost
 import engine.mihomo.MihomoSnifferProtocolOverrideFollowGlobal
 import features.resources.ResourceFileSourceMetaCubeXGithub
+import features.settings.servicecontrol.ServiceControlSettings
+import features.settings.AutoSwitchSettings
+import features.settings.DefaultConnectionTestConcurrent
+import features.settings.DefaultConnectionTestTimeoutMillis
+import features.settings.DefaultConnectionTestUnifiedDelay
+import features.settings.DefaultConnectionTestUrl
 
 data class AppState(
     val colorMode: Int = ColorModeSystem,

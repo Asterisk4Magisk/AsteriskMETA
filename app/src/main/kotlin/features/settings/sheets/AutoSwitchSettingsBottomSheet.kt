@@ -33,10 +33,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.AppState
-import app.AutoSwitchExpectedDelayMillisRange
-import app.AutoSwitchFailureThresholdRange
-import app.AutoSwitchIntervalSecondsRange
-import app.AutoSwitchSettings
+import features.settings.AutoSwitchExpectedDelayMillisRange
+import features.settings.AutoSwitchFailureThresholdRange
+import features.settings.AutoSwitchIntervalSecondsRange
+import features.settings.AutoSwitchSettings
 import app.LocalAppServices
 import app.R
 import engine.mihomo.runtime.MihomoProxyGroup

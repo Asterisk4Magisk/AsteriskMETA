@@ -7,7 +7,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import app.AppState
-import app.AutoSwitchSettings
 import features.settings.sheets.sanitizeExternalInterfaces
 import features.settings.sheets.sanitizeIgnoredInterfaceSelectors
 import features.settings.sheets.sanitizePrivateAddressCidrs
@@ -60,7 +59,7 @@ internal class SettingsSheetState(
     var ignoredInterfacesDraft by mutableStateOf(emptyList<String>())
 
     var showServiceControl by mutableStateOf(false)
-    var serviceControlDraft by mutableStateOf(app.ServiceControlSettings())
+    var serviceControlDraft by mutableStateOf(features.settings.servicecontrol.ServiceControlSettings())
 
     var showPrivateAddresses by mutableStateOf(false)
     var privateAddressCidrsDraft by mutableStateOf(emptyList<String>())

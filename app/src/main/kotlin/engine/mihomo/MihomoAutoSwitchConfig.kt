@@ -4,7 +4,7 @@
 package engine.mihomo
 
 import app.AppState
-import app.AutoSwitchSettings
+import features.settings.AutoSwitchSettings
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 

@@ -4,12 +4,6 @@
 package features.settings
 
 import app.AppState
-import app.DefaultConnectionTestUrl
-import app.DefaultConnectionTestConcurrent
-import app.DefaultConnectionTestTimeoutMillis
-import app.DefaultConnectionTestUnifiedDelay
-import app.isValidConnectionTestUrl
-import app.withNormalizedConnectionTestSettings
 
 internal data class ConnectionTestSettingsDraft(
     val url: String = DefaultConnectionTestUrl,

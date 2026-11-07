@@ -1,7 +1,9 @@
 // Copyright 2026, AsteriskMETA contributors
 // SPDX-License-Identifier: GPL-3.0
 
-package app
+package features.settings
+
+import app.AppState
 
 const val DefaultConnectionTestUrl = "http://cp.cloudflare.com/"
 const val DefaultConnectionTestConcurrent = 5

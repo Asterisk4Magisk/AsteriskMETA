@@ -17,7 +17,7 @@ import java.io.File
 
 internal const val MihomoControlHost = "127.0.0.1"
 internal const val DefaultMihomoControlPort = 9090
-internal const val DefaultMihomoDelayTestUrl = app.DefaultConnectionTestUrl
+internal const val DefaultMihomoDelayTestUrl = features.settings.DefaultConnectionTestUrl
 internal const val DefaultMihomoDelayTimeoutMillis = 5000
 
 internal data class MihomoControlConfig(
