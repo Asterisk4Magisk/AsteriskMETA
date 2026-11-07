@@ -1,7 +1,7 @@
 // Copyright 2026, AsteriskMETA contributors
 // SPDX-License-Identifier: GPL-3.0
 
-package features.mihomo.qr
+package features.qr
 
 import android.Manifest
 import android.content.Context
