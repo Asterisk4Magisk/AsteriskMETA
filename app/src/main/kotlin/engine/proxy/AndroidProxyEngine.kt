@@ -256,11 +256,13 @@ internal class AndroidProxyEngine(
         }
         // Resolve runtime ports, build, and validate the exact final profile before
         // notifications, engine replacement, VPN permission, Root commands, or routing changes.
+        // A known active engine may still hold the controller port until it is replaced below.
+        val ownRuntimeMayHoldPorts = activeEngine != null
         val resolvedRequest = validatedRequest.prepareNormalMihomoProfile(
             resolveAppState = { appState ->
                 appState
                     .withResolvedDynamicLocalProxyPort()
-                    .withResolvedMihomoControlPort()
+                    .withResolvedMihomoControlPort(verifyAvailability = !ownRuntimeMayHoldPorts)
             },
             buildProfileBytes = { appState ->
                 MihomoProfileFactory.buildProfileBytes(appContext, appState)
