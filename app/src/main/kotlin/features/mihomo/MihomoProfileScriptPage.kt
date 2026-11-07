@@ -8,6 +8,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Card
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.BoxWithConstraints
+import ui.components.AsteriskCancelButton
 import ui.layout.codeEditorShowsSupportingContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedContent
@@ -217,9 +218,7 @@ fun MihomoOverrideScriptListPage(
                     )
                 },
                 dismissButton = {
-                    AsteriskActionButton(
-                        text = stringResource(R.string.common_cancel),
-                        icon = Icons.Rounded.Close,
+                    AsteriskCancelButton(
                         onClick = { pendingDeletion = null },
                     )
                 },

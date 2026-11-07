@@ -33,6 +33,7 @@ import features.settings.servicecontrol.isValidServiceSsid
 import features.settings.servicecontrol.normalizeBssidOrNull
 import features.settings.servicecontrol.parseServiceCron
 import app.R
+import ui.components.AsteriskCancelButton
 import ui.components.StringListEditor
 import ui.icons.AsteriskIcons as Icons
 import ui.theme.AsteriskMotion
@@ -61,9 +62,7 @@ internal fun ServiceControlBottomSheet(
         show = show,
         title = stringResource(R.string.settings_service_control),
         startAction = {
-            TextButton(
-                text = stringResource(R.string.common_cancel),
-                icon = Icons.Rounded.Close,
+            AsteriskCancelButton(
                 enabled = !saving,
                 onClick = onDismissRequest,
             )

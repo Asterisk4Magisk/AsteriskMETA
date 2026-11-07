@@ -46,6 +46,7 @@ import features.settings.AutoSwitchRegionLabels
 import features.settings.SettingsSearchProvider
 import kotlinx.coroutines.ensureActive
 import ui.components.AsteriskActionButton
+import ui.components.AsteriskSaveButton
 import ui.components.StringListEditor
 import ui.icons.AsteriskIcons as Icons
 
@@ -105,9 +106,7 @@ internal fun AutoSwitchSettingsBottomSheet(
                 TextButton(stringResource(R.string.common_cancel), Icons.Rounded.Close, onDismissRequest)
             },
             endAction = {
-                TextButton(
-                    text = stringResource(R.string.common_save),
-                    icon = Icons.Rounded.Save,
+                AsteriskSaveButton(
                     enabled = canSave,
                     onClick = {
                         if (failureCount != null && seconds != null && delayMillis != null) {

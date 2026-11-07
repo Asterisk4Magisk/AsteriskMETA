@@ -3,9 +3,13 @@
 
 package features.mihomo
 
+import app.AppState
 import app.MihomoProfileState
 import app.MihomoProfileType
 import app.MihomoSubscriptionInfo
+import app.hasRuntimeRelevantChanges
+import app.nextAvailableMihomoProfileId
+import app.withMihomoRestartRequired
 import engine.mihomo.MihomoProfileContentRef
 import engine.mihomo.MihomoProfileContentStore
 import features.subscription.runtime.AndroidMihomoProfilePreparer
@@ -282,4 +286,44 @@ private fun MihomoProfileSavePreparation.remoteNameOrNull(): String? {
 
 private fun MihomoProfileSavePreparation.isSynchronized(): Boolean {
     return this is MihomoProfileSavePreparation.Success && synchronized
+}
+
+/**
+ * Store [profile] in the app state and return it as stored. A new profile gets the next free
+ * id and becomes the selection when it is the first one; an edit replaces the profile in place
+ * and marks a restart only when it changes what the running core loaded.
+ */
+internal fun saveMihomoProfileState(
+    updateAppState: ((AppState) -> AppState) -> Unit,
+    profile: MihomoProfileState,
+    isNew: Boolean,
+): MihomoProfileState {
+    var savedProfile = profile
+    updateAppState { state ->
+        if (isNew) {
+            val profileId = state.nextAvailableMihomoProfileId()
+            savedProfile = profile.copy(id = profileId)
+            val shouldSelectProfile = state.mihomoProfiles.isEmpty()
+            state.copy(
+                mihomoProfiles = state.mihomoProfiles + savedProfile,
+                nextMihomoProfileId = profileId + 1,
+                selectedMihomoProfileId = if (shouldSelectProfile) {
+                    savedProfile.id
+                } else {
+                    state.selectedMihomoProfileId
+                },
+            )
+        } else {
+            val previousProfile = state.mihomoProfiles.firstOrNull { it.id == profile.id }
+            state.copy(
+                mihomoProfiles = state.mihomoProfiles.map { item ->
+                    if (item.id == profile.id) profile else item
+                },
+            ).withMihomoRestartRequired(
+                profileId = profile.id,
+                contentChanged = previousProfile?.hasRuntimeRelevantChanges(profile) == true,
+            )
+        }
+    }
+    return savedProfile
 }

@@ -448,25 +448,10 @@ internal fun SettingsProxyModeSections(
                     onCheckedChange = onEnableAutoConnectChange,
                     accent = IconAccent.MaskPink,
                 )
-                if (!rawState.showsReadOnlyYamlValues) {
-                    ArrowPreference(
-                        title = stringResource(R.string.settings_local_proxy),
-                        accent = IconAccent.MaskBlue,
-                        icon = Icons.Rounded.Router,
-                        summary = localProxySettingsSummary,
-                        onClick = onOpenLocalProxySettings,
-                    )
-                } else {
-                    SettingsReadOnlyRow(
-                        title = stringResource(R.string.settings_local_proxy),
-                        accent = IconAccent.MaskBlue,
-                        value = raw?.socksInbound?.value?.port?.toString()
-                            ?: stringResource(R.string.settings_value_not_configured),
-                        source = stringResource(R.string.settings_value_from_yaml),
-                        summary = raw?.socksInbound?.path ?: rawState.unavailableReason.orEmpty(),
-                        icon = Icons.Rounded.Router,
-                    )
-                }
+                LocalProxyPreference(
+                    summary = localProxySettingsSummary,
+                    onClick = onOpenLocalProxySettings,
+                )
                 SwitchPreference(
                     title = stringResource(R.string.settings_traffic_stats_notification),
                     accent = IconAccent.MaskPink,
@@ -603,25 +588,10 @@ internal fun SettingsProxyModeSections(
                     checked = enableTrafficStatsNotification,
                     onCheckedChange = onEnableTrafficStatsNotificationChange,
                 )
-                if (!rawState.showsReadOnlyYamlValues) {
-                    ArrowPreference(
-                        title = stringResource(R.string.settings_local_proxy),
-                        accent = IconAccent.MaskBlue,
-                        icon = Icons.Rounded.Router,
-                        summary = localProxySettingsSummary,
-                        onClick = onOpenLocalProxySettings,
-                    )
-                } else {
-                    SettingsReadOnlyRow(
-                        title = stringResource(R.string.settings_local_proxy),
-                        accent = IconAccent.MaskBlue,
-                        value = raw?.socksInbound?.value?.port?.toString()
-                            ?: stringResource(R.string.settings_value_not_configured),
-                        source = stringResource(R.string.settings_value_from_yaml),
-                        summary = raw?.socksInbound?.path ?: rawState.unavailableReason.orEmpty(),
-                        icon = Icons.Rounded.Router,
-                    )
-                }
+                LocalProxyPreference(
+                    summary = localProxySettingsSummary,
+                    onClick = onOpenLocalProxySettings,
+                )
                 AnimatedVisibility(
                     visible = runMode == RunModeTun || runMode == RunModeTun2Socks,
                     enter = AsteriskMotion.contentEnter(),
@@ -672,6 +642,35 @@ internal fun SettingsProxyModeSections(
                 }
             }
         }
+    }
+}
+
+/** The local proxy entry: editable, or the YAML value when the raw profile owns it. */
+@Composable
+private fun LocalProxyPreference(
+    summary: String,
+    onClick: () -> Unit,
+) {
+    val rawState = LocalRawConfigState.current
+    val raw = rawState.snapshot
+    if (!rawState.showsReadOnlyYamlValues) {
+        ArrowPreference(
+            title = stringResource(R.string.settings_local_proxy),
+            accent = IconAccent.MaskBlue,
+            icon = Icons.Rounded.Router,
+            summary = summary,
+            onClick = onClick,
+        )
+    } else {
+        SettingsReadOnlyRow(
+            title = stringResource(R.string.settings_local_proxy),
+            accent = IconAccent.MaskBlue,
+            value = raw?.socksInbound?.value?.port?.toString()
+                ?: stringResource(R.string.settings_value_not_configured),
+            source = stringResource(R.string.settings_value_from_yaml),
+            summary = raw?.socksInbound?.path ?: rawState.unavailableReason.orEmpty(),
+            icon = Icons.Rounded.Router,
+        )
     }
 }
 

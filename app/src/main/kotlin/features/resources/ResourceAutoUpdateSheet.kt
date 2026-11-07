@@ -28,8 +28,9 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import app.R
-import ui.components.AsteriskActionButton
+import ui.components.AsteriskCancelButton
 import ui.components.AsteriskModalBottomSheet
+import ui.components.AsteriskSaveButton
 import ui.icons.AsteriskIcons as Icons
 import ui.theme.AsteriskShapeTokens
 
@@ -49,16 +50,12 @@ internal fun ResourceAutoUpdateSheet(
         title = stringResource(R.string.settings_title),
         onDismissRequest = onDismissRequest,
         startAction = {
-            AsteriskActionButton(
-                text = stringResource(R.string.common_cancel),
-                icon = Icons.Rounded.Close,
+            AsteriskCancelButton(
                 onClick = onDismissRequest,
             )
         },
         endAction = {
-            AsteriskActionButton(
-                text = stringResource(R.string.common_save),
-                icon = Icons.Rounded.Save,
+            AsteriskSaveButton(
                 enabled = valid,
                 onClick = { onSave(enabledDraft, intervalDraft.trim()) },
             )

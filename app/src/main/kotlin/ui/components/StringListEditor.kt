@@ -419,16 +419,12 @@ private fun StringListBulkEditorSheet(
         onDismissRequest = onDismissRequest,
         title = title,
         startAction = {
-            AsteriskActionButton(
-                text = stringResource(R.string.common_cancel),
-                icon = Icons.Rounded.Close,
+            AsteriskCancelButton(
                 onClick = onDismissRequest,
             )
         },
         endAction = {
-            AsteriskActionButton(
-                text = stringResource(R.string.common_save),
-                icon = Icons.Rounded.Save,
+            AsteriskSaveButton(
                 enabled = error == null,
                 onClick = { result.values?.let(onSave) },
             )

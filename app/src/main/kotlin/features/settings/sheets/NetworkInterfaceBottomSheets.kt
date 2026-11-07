@@ -9,6 +9,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import app.R
+import ui.components.AsteriskCancelButton
+import ui.components.AsteriskSaveButton
 import ui.icons.AsteriskIcons as Icons
 import androidx.compose.ui.res.stringResource
 import androidx.compose.material3.MaterialTheme
@@ -69,16 +71,12 @@ internal fun ExternalInterfacesBottomSheet(
         show = show,
         title = stringResource(R.string.settings_external_interfaces),
         startAction = {
-            TextButton(
-                text = stringResource(R.string.common_cancel),
-                icon = Icons.Rounded.Close,
+            AsteriskCancelButton(
                 onClick = onDismissRequest,
             )
         },
         endAction = {
-            TextButton(
-                text = stringResource(R.string.common_save),
-                icon = Icons.Rounded.Save,
+            AsteriskSaveButton(
                 onClick = { onSave(selectedInterfaces.sanitizeExternalInterfaces()) },
             )
         },

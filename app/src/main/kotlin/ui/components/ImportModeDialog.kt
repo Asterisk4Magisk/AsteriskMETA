@@ -44,9 +44,7 @@ internal fun ImportModeDialog(
             }
         },
         dismissButton = {
-            AsteriskActionButton(
-                text = stringResource(R.string.common_cancel),
-                icon = Icons.Rounded.Close,
+            AsteriskCancelButton(
                 onClick = onDismissRequest,
             )
         },

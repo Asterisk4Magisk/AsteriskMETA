@@ -14,6 +14,8 @@ import androidx.compose.ui.unit.dp
 import app.R
 import app.modes.MihomoTunStackMips
 import engine.mihomo.MihomoTunCongestionControllers
+import ui.components.AsteriskCancelButton
+import ui.components.AsteriskSaveButton
 import ui.icons.AsteriskIcons as Icons
 import engine.network.isCidrAddress
 import engine.network.isIpAddress
@@ -93,16 +95,12 @@ internal fun TunSettingsBottomSheet(
         show = show,
         title = stringResource(R.string.settings_tun),
         startAction = {
-            TextButton(
-                text = stringResource(R.string.common_cancel),
-                icon = Icons.Rounded.Close,
+            AsteriskCancelButton(
                 onClick = onDismissRequest,
             )
         },
         endAction = {
-            TextButton(
-                text = stringResource(R.string.common_save),
-                icon = Icons.Rounded.Save,
+            AsteriskSaveButton(
                 onClick = {
                     if (canSave) {
                         onSave(

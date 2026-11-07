@@ -10,6 +10,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import app.R
+import ui.components.AsteriskCancelButton
+import ui.components.AsteriskSaveButton
 import ui.icons.AsteriskIcons as Icons
 import ui.components.StringListEditor
 import engine.network.isCidrAddress
@@ -48,16 +50,12 @@ internal fun PrivateAddressBottomSheet(
         show = show,
         title = stringResource(R.string.settings_private_addresses),
         startAction = {
-            TextButton(
-                text = stringResource(R.string.common_cancel),
-                icon = Icons.Rounded.Close,
+            AsteriskCancelButton(
                 onClick = onDismissRequest,
             )
         },
         endAction = {
-            TextButton(
-                text = stringResource(R.string.common_save),
-                icon = Icons.Rounded.Save,
+            AsteriskSaveButton(
                 onClick = { onSave(sanitizedCidrs) },
             )
         },

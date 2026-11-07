@@ -30,6 +30,8 @@ import engine.mihomo.MihomoProviderType
 import features.mihomo.provider.ProviderDeclarationsState
 import features.mihomo.provider.loadProviderDeclarationsByType
 import features.mihomo.provider.mihomoProviderDataDir
+import ui.components.AsteriskCancelButton
+import ui.components.AsteriskSaveButton
 import ui.components.AsteriskSearchField
 import ui.icons.AsteriskIcons as Icons
 import utils.toTrimmedNonEmptyDistinctList
@@ -67,16 +69,12 @@ internal fun TunBypassRuleSetBottomSheet(
         show = show,
         title = stringResource(R.string.settings_root_ebpf_bypass_direct_cidrs),
         startAction = {
-            TextButton(
-                text = stringResource(R.string.common_cancel),
-                icon = Icons.Rounded.Close,
+            AsteriskCancelButton(
                 onClick = onDismissRequest,
             )
         },
         endAction = {
-            TextButton(
-                text = stringResource(R.string.common_save),
-                icon = Icons.Rounded.Save,
+            AsteriskSaveButton(
                 onClick = { onSave(selected) },
                 enabled = !state.loading && state.error.isBlank(),
             )

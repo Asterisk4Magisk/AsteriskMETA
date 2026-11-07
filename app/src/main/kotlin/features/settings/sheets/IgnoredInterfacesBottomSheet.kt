@@ -10,6 +10,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
 import app.R
+import ui.components.AsteriskCancelButton
+import ui.components.AsteriskSaveButton
 import ui.components.StringListEditor
 import ui.icons.AsteriskIcons as Icons
 
@@ -28,16 +30,12 @@ internal fun IgnoredInterfacesBottomSheet(
         show = show,
         title = stringResource(R.string.settings_ignored_interfaces),
         startAction = {
-            TextButton(
-                text = stringResource(R.string.common_cancel),
-                icon = Icons.Rounded.Close,
+            AsteriskCancelButton(
                 onClick = onDismissRequest,
             )
         },
         endAction = {
-            TextButton(
-                text = stringResource(R.string.common_save),
-                icon = Icons.Rounded.Save,
+            AsteriskSaveButton(
                 onClick = { onSave(selectedInterfaces.sanitizeIgnoredInterfaceSelectors()) },
                 enabled = !editorPending,
             )

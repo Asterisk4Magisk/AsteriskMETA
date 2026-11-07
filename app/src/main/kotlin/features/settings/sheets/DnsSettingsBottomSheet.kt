@@ -6,17 +6,15 @@ package features.settings.sheets
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import app.R
+import ui.components.AsteriskCancelButton
+import ui.components.AsteriskSaveButton
 import ui.icons.AsteriskIcons as Icons
 import engine.mihomo.DefaultMihomoDnsFakeIpRange
 import engine.mihomo.MihomoDnsModeFakeIp
@@ -25,8 +23,6 @@ import engine.network.isCidrAddress
 import engine.network.isValidFakeIpIpv4Pool
 import engine.network.isIpAddress
 import features.settings.DnsSettingsDraft
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import ui.components.StringListEditor
 import ui.theme.AsteriskMotion
 import utils.toTrimmedNonEmptyDistinctList
@@ -94,16 +90,12 @@ internal fun DnsSettingsBottomSheet(
         show = show,
         title = stringResource(R.string.settings_dns),
         startAction = {
-            TextButton(
-                text = stringResource(R.string.common_cancel),
-                icon = Icons.Rounded.Close,
+            AsteriskCancelButton(
                 onClick = onDismissRequest,
             )
         },
         endAction = {
-            TextButton(
-                text = stringResource(R.string.common_save),
-                icon = Icons.Rounded.Save,
+            AsteriskSaveButton(
                 enabled = canSave,
                 onClick = {
                     if (canSave) {
@@ -116,7 +108,7 @@ internal fun DnsSettingsBottomSheet(
     ) {
         key(show) {
             SettingsSheetContent {
-                DnsSheetSection(title = stringResource(R.string.common_basic)) {
+                SettingsSheetSection(title = stringResource(R.string.common_basic)) {
                     SwitchPreference(
                         title = stringResource(R.string.settings_vpn_local_dns),
                         icon = Icons.Rounded.Dns,
@@ -157,7 +149,7 @@ internal fun DnsSettingsBottomSheet(
                     enter = AsteriskMotion.contentEnter(),
                     exit = AsteriskMotion.contentExit(),
                 ) {
-                    DnsSheetSection(title = stringResource(R.string.settings_dns_section_fake_ip)) {
+                    SettingsSheetSection(title = stringResource(R.string.settings_dns_section_fake_ip)) {
                         DnsInlineTextField(
                             value = draft.dnsFakeIpRange,
                             onValueChange = { onDraftChange(draft.copy(dnsFakeIpRange = it)) },
@@ -175,7 +167,7 @@ internal fun DnsSettingsBottomSheet(
                     }
                 }
 
-                DnsSheetSection(title = stringResource(R.string.settings_dns_section_nameserver)) {
+                SettingsSheetSection(title = stringResource(R.string.settings_dns_section_nameserver)) {
                     StringListEditor(
                         editorKey = "dns-default-nameserver:$show",
                         title = stringResource(R.string.settings_dns_default_nameserver),
@@ -217,7 +209,7 @@ internal fun DnsSettingsBottomSheet(
                     )
                 }
 
-                DnsSheetSection(title = stringResource(R.string.settings_dns_section_policy)) {
+                SettingsSheetSection(title = stringResource(R.string.settings_dns_section_policy)) {
                     StringListEditor(
                         editorKey = "dns-nameserver-policy:$show",
                         title = stringResource(R.string.settings_dns_nameserver_policy),
@@ -231,7 +223,7 @@ internal fun DnsSettingsBottomSheet(
                     )
                 }
 
-                DnsSheetSection(title = stringResource(R.string.settings_dns_section_fallback_filter)) {
+                SettingsSheetSection(title = stringResource(R.string.settings_dns_section_fallback_filter)) {
                     SwitchPreference(
                         title = stringResource(R.string.settings_dns_geoip_filter),
                         icon = Icons.Rounded.Public,
@@ -284,7 +276,7 @@ internal fun DnsSettingsBottomSheet(
                     )
                 }
 
-                DnsSheetSection(title = stringResource(R.string.settings_dns_section_hosts)) {
+                SettingsSheetSection(title = stringResource(R.string.settings_dns_section_hosts)) {
                     SwitchPreference(
                         title = stringResource(R.string.settings_dns_use_hosts),
                         icon = Icons.Rounded.Storage,
@@ -317,26 +309,6 @@ internal fun DnsSettingsBottomSheet(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun DnsSheetSection(
-    title: String,
-    content: @Composable () -> Unit,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth(),
-    ) {
-        Text(
-            text = title,
-            color = MaterialTheme.colorScheme.primary,
-            fontSize = 15.sp,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-        )
-        content()
     }
 }
 

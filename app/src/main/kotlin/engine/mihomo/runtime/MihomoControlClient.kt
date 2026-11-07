@@ -418,7 +418,7 @@ internal class MihomoControlClient(
         }
         if (useBridge) {
             proxyId.providerName?.takeIf(String::isNotBlank)?.let { providerName ->
-                return runCatching {
+                return bridgeNodeDelayResult(proxyId, timeoutMillis) {
                     bridgeProviderProxyDelay(
                         providerName,
                         proxyId.name,
@@ -426,35 +426,11 @@ internal class MihomoControlClient(
                         timeoutMillis,
                         expectedStatus,
                     )
-                }.fold(
-                    onSuccess = { delay ->
-                        mihomoBridgeNodeDelayResult(proxyId, delay, timeoutMillis)
-                    },
-                    onFailure = { error ->
-                        if (error is CancellationException) throw error
-                        mihomoDelayFailureResult(
-                            ids = listOf(proxyId),
-                            status = MihomoDelayStatus.Timeout,
-                            error = error.message.orEmpty(),
-                        )
-                    },
-                )
+                }
             }
-            return runCatching {
+            return bridgeNodeDelayResult(proxyId, timeoutMillis) {
                 Clash.queryProxyDelay(proxyId.name, url, timeoutMillis, expectedStatus)
-            }.fold(
-                onSuccess = { delay ->
-                    mihomoBridgeNodeDelayResult(proxyId, delay, timeoutMillis)
-                },
-                onFailure = { error ->
-                    if (error is CancellationException) throw error
-                    mihomoDelayFailureResult(
-                        ids = listOf(proxyId),
-                        status = MihomoDelayStatus.Timeout,
-                        error = error.message.orEmpty(),
-                    )
-                },
-            )
+            }
         }
         val basePath = proxyId.providerName?.takeIf(String::isNotBlank)?.let { provider ->
             "/providers/proxies/${provider.urlEncode()}/${proxyId.name.urlEncode()}/healthcheck"
@@ -1031,4 +1007,23 @@ private val ExpectedStreamCloseMessages = listOf(
     "stream was reset",
     "connection reset",
     "socket closed",
+)
+
+/** A bridge node delay query; any failure other than cancellation reads as a timeout. */
+private inline fun bridgeNodeDelayResult(
+    proxyId: MihomoProxyNodeId,
+    timeoutMillis: Int,
+    query: () -> Int,
+): MihomoDelayResult = runCatching(query).fold(
+    onSuccess = { delay ->
+        mihomoBridgeNodeDelayResult(proxyId, delay, timeoutMillis)
+    },
+    onFailure = { error ->
+        if (error is CancellationException) throw error
+        mihomoDelayFailureResult(
+            ids = listOf(proxyId),
+            status = MihomoDelayStatus.Timeout,
+            error = error.message.orEmpty(),
+        )
+    },
 )

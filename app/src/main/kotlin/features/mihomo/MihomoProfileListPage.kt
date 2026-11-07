@@ -79,9 +79,6 @@ import app.R
 import app.collectAppState
 import ui.clipboard.setPlainText
 import app.navigation.Route
-import app.nextAvailableMihomoProfileId
-import app.hasRuntimeRelevantChanges
-import app.withMihomoRestartRequired
 import features.home.HomeServiceOperation
 import java.util.concurrent.atomic.AtomicBoolean
 import engine.mihomo.MihomoProviderMetadataCache
@@ -148,18 +145,7 @@ fun MihomoProfileListPage(
     val services = LocalAppServices.current
     val scope = rememberCoroutineScope()
     val activeSubscriptionUpdateRequests by subscriptionUpdateRequestCount.collectAsState()
-    val duplicateNameFormat = stringResource(R.string.mihomo_profile_name_duplicate)
-    val profileSaveUseCase = remember(
-        services.mihomoProfilePreparer,
-        services.mihomoProfileContentStore,
-        duplicateNameFormat,
-    ) {
-        MihomoProfileSaveUseCase.create(
-            profilePreparer = services.mihomoProfilePreparer,
-            contentStore = services.mihomoProfileContentStore,
-            formatDuplicateName = { name, ordinal -> duplicateNameFormat.format(name, ordinal) },
-        )
-    }
+    val profileSaveUseCase = rememberMihomoProfileSaveUseCase()
     var showImportDialog by remember { mutableStateOf(false) }
     var previewProfileName by remember { mutableStateOf("") }
     var previewProfileContent by remember { mutableStateOf<String?>(null) }
@@ -250,36 +236,8 @@ fun MihomoProfileListPage(
             providerUsageProfileStopFailed = false
         }
     }
-    fun saveProfile(profile: MihomoProfileState, isNew: Boolean): MihomoProfileState {
-        var savedProfile = profile
-        updateAppState { state ->
-            if (isNew) {
-                val profileId = state.nextAvailableMihomoProfileId()
-                savedProfile = profile.copy(id = profileId)
-                val shouldSelectProfile = state.mihomoProfiles.isEmpty()
-                state.copy(
-                    mihomoProfiles = state.mihomoProfiles + savedProfile,
-                    nextMihomoProfileId = profileId + 1,
-                    selectedMihomoProfileId = if (shouldSelectProfile) {
-                        savedProfile.id
-                    } else {
-                        state.selectedMihomoProfileId
-                    },
-                )
-            } else {
-                val previousProfile = state.mihomoProfiles.firstOrNull { it.id == profile.id }
-                state.copy(
-                    mihomoProfiles = state.mihomoProfiles.map { item ->
-                        if (item.id == profile.id) profile else item
-                    },
-                ).withMihomoRestartRequired(
-                    profileId = profile.id,
-                    contentChanged = previousProfile?.hasRuntimeRelevantChanges(profile) == true,
-                )
-            }
-        }
-        return savedProfile
-    }
+    fun saveProfile(profile: MihomoProfileState, isNew: Boolean): MihomoProfileState =
+        saveMihomoProfileState(updateAppState, profile, isNew)
 
     fun observeProviderUsageProfileStop(stopJob: Job) {
         scope.launch {

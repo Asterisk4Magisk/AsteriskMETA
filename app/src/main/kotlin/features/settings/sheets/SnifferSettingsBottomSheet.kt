@@ -3,20 +3,17 @@
 
 package features.settings.sheets
 
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import app.R
+import ui.components.AsteriskCancelButton
+import ui.components.AsteriskSaveButton
 import ui.icons.AsteriskIcons as Icons
 import engine.mihomo.DefaultMihomoSnifferHttpPorts
 import engine.mihomo.DefaultMihomoSnifferQuicPorts
@@ -31,8 +28,6 @@ import engine.mihomo.sanitizedSnifferDomainRules
 import engine.mihomo.sanitizedSnifferPorts
 import engine.network.isCidrAddress
 import features.settings.SnifferSettingsDraft
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import ui.components.StringListEditor
 import utils.toTrimmedNonEmptyDistinctList
 
@@ -85,16 +80,12 @@ internal fun SnifferSettingsBottomSheet(
         show = show,
         title = stringResource(R.string.settings_sniffer),
         startAction = {
-            TextButton(
-                text = stringResource(R.string.common_cancel),
-                icon = Icons.Rounded.Close,
+            AsteriskCancelButton(
                 onClick = onDismissRequest,
             )
         },
         endAction = {
-            TextButton(
-                text = stringResource(R.string.common_save),
-                icon = Icons.Rounded.Save,
+            AsteriskSaveButton(
                 onClick = { onSave(sanitizedDraft) },
             )
         },
@@ -102,7 +93,7 @@ internal fun SnifferSettingsBottomSheet(
     ) {
         key(show) {
             SettingsSheetContent {
-                SnifferSheetSection(title = stringResource(R.string.common_basic)) {
+                SettingsSheetSection(title = stringResource(R.string.common_basic)) {
                     SwitchPreference(
                         title = stringResource(R.string.settings_sniffer_enable),
                         icon = Icons.Rounded.TravelExplore,
@@ -135,7 +126,7 @@ internal fun SnifferSettingsBottomSheet(
                     )
                 }
 
-                SnifferSheetSection(title = stringResource(R.string.settings_sniffer_section_protocols)) {
+                SettingsSheetSection(title = stringResource(R.string.settings_sniffer_section_protocols)) {
                     SnifferProtocolFields(
                         show = show,
                         editorKey = "sniffer-http-ports",
@@ -185,7 +176,7 @@ internal fun SnifferSettingsBottomSheet(
                     )
                 }
 
-                SnifferSheetSection(title = stringResource(R.string.settings_sniffer_section_domain_rules)) {
+                SettingsSheetSection(title = stringResource(R.string.settings_sniffer_section_domain_rules)) {
                     StringListEditor(
                         editorKey = "sniffer-force-domain:$show",
                         title = stringResource(R.string.settings_sniffer_force_domain),
@@ -209,7 +200,7 @@ internal fun SnifferSettingsBottomSheet(
                     )
                 }
 
-                SnifferSheetSection(title = stringResource(R.string.settings_sniffer_section_address_skips)) {
+                SettingsSheetSection(title = stringResource(R.string.settings_sniffer_section_address_skips)) {
                     StringListEditor(
                         editorKey = "sniffer-skip-src-address:$show",
                         title = stringResource(R.string.settings_sniffer_skip_src_address),
@@ -244,26 +235,6 @@ private fun snifferProtocolOverrideOptions(): List<String> {
         stringResource(R.string.settings_sniffer_protocol_override_enabled),
         stringResource(R.string.settings_sniffer_protocol_override_disabled),
     )
-}
-
-@Composable
-private fun SnifferSheetSection(
-    title: String,
-    content: @Composable () -> Unit,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth(),
-    ) {
-        Text(
-            text = title,
-            color = MaterialTheme.colorScheme.primary,
-            fontSize = 15.sp,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-        )
-        content()
-    }
 }
 
 @Composable

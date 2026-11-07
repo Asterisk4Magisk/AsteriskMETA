@@ -27,6 +27,8 @@ import app.R
 import features.settings.ConnectionTestSettingsDraft
 import features.settings.isValidConnectionTestUrl
 import kotlin.math.roundToInt
+import ui.components.AsteriskCancelButton
+import ui.components.AsteriskSaveButton
 import ui.icons.AsteriskIcons as Icons
 
 /** Edits a draft; only the explicit save action publishes settings. */
@@ -49,16 +51,12 @@ internal fun ConnectionTestSettingsBottomSheet(
         onDismissRequest = onDismissRequest,
         title = stringResource(R.string.connection_test_settings_title),
         startAction = {
-            TextButton(
-                text = stringResource(R.string.common_cancel),
-                icon = Icons.Rounded.Close,
+            AsteriskCancelButton(
                 onClick = onDismissRequest,
             )
         },
         endAction = {
-            TextButton(
-                text = stringResource(R.string.common_save),
-                icon = Icons.Rounded.Save,
+            AsteriskSaveButton(
                 enabled = urlError == null,
                 onClick = { if (urlError == null) onSave(draft.copy(url = draft.url.trim())) },
             )

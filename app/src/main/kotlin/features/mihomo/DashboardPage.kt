@@ -86,6 +86,7 @@ import features.home.HomeNetworkSampleLimit
 import features.home.HomePrimaryRowKind
 import features.home.HomeServiceStatus
 import features.home.HomeSubscriptionSummary
+import features.home.HomeUnavailableValue
 import features.home.buildHomeControllerRuntimeState
 import features.home.buildHomeControllerState
 import features.home.buildHomeModeChange
@@ -133,11 +134,10 @@ import ui.theme.AsteriskShapeTokens
 import ui.theme.ExpressiveShapeRole
 import ui.theme.FocusDensity
 import utils.toReadableBytes
-import java.text.DateFormat
-import java.util.Date
 import kotlin.time.Duration.Companion.milliseconds
 import app.navigation.Route as AppRoute
 import ui.icons.AsteriskIcons as Icons
+import utils.toReadableDateOrDash
 
 private data class HomeTrafficPresentation(
     val traffic: MihomoTrafficState,
@@ -1064,10 +1064,10 @@ private fun homeResourceSummary(monitoringState: HomeMonitoringOverviewState): S
 private fun homeNetworkSummary(homeState: HomeMonitoringOverviewState): String {
     val ipv4 = homeState.networkRows
         .firstOrNull { row -> row.kind == HomeNetworkRowKind.Ipv4 }
-        ?.value ?: "—"
+        ?.value ?: HomeUnavailableValue
     val ipv6 = homeState.networkRows
         .firstOrNull { row -> row.kind == HomeNetworkRowKind.Ipv6 }
-        ?.value ?: "—"
+        ?.value ?: HomeUnavailableValue
     return "IPv4 · $ipv4\nIPv6 · $ipv6"
 }
 
@@ -1076,8 +1076,8 @@ private fun formatHomeSpeed(bytes: Long?): String {
 }
 
 private fun formatExpiry(expireAtSeconds: Long): String {
-    if (expireAtSeconds <= 0L) return "—"
-    return DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(expireAtSeconds * 1_000L))
+    if (expireAtSeconds <= 0L) return HomeUnavailableValue
+    return (expireAtSeconds * 1_000L).toReadableDateOrDash()
 }
 
 private data class HomeModeOption(

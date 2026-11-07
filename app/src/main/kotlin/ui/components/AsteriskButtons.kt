@@ -20,7 +20,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import app.R
+import ui.icons.AsteriskIcons as Icons
 import ui.theme.AsteriskMotion
 import ui.theme.AsteriskShapeTokens
 
@@ -95,5 +98,41 @@ internal fun AsteriskExtendedFab(
         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
         icon = { Icon(icon, contentDescription = null) },
         text = { Text(text) },
+    )
+}
+
+/** The Cancel action of a sheet or dialog. */
+@Composable
+internal fun AsteriskCancelButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    loading: Boolean = false,
+) {
+    AsteriskActionButton(
+        text = stringResource(R.string.common_cancel),
+        icon = Icons.Rounded.Close,
+        onClick = onClick,
+        modifier = modifier,
+        enabled = enabled,
+        loading = loading,
+    )
+}
+
+/** The Save action of a sheet or editor. */
+@Composable
+internal fun AsteriskSaveButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    loading: Boolean = false,
+) {
+    AsteriskActionButton(
+        text = stringResource(R.string.common_save),
+        icon = Icons.Rounded.Save,
+        onClick = onClick,
+        modifier = modifier,
+        enabled = enabled,
+        loading = loading,
     )
 }

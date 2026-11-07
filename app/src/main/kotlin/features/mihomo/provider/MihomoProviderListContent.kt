@@ -332,7 +332,6 @@ private fun MihomoProxyProviderCard(
     onAction: (MihomoProviderAction) -> Unit,
 ) {
     val vehicleText = runtimeDetail?.vehicleType?.ifBlank { null } ?: provider.vehicleType
-    var menuExpanded by remember { mutableStateOf(false) }
     AsteriskExpressiveCard(
         onClick = onClick,
         modifier = modifier.fillMaxWidth(),
@@ -396,44 +395,11 @@ private fun MihomoProxyProviderCard(
                     AsteriskInfoChip(text = vehicleText)
                 }
             }
-            Spacer(modifier = Modifier.width(4.dp))
-            if (refreshing) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
-                    strokeWidth = 2.dp,
-                )
-            }
-            Box {
-                IconButton(onClick = { menuExpanded = true }) {
-                    Icon(
-                        imageVector = Icons.Rounded.MoreVert,
-                        contentDescription = stringResource(R.string.mihomo_profile_actions),
-                    )
-                }
-                DropdownMenu(
-                    expanded = menuExpanded,
-                    onDismissRequest = { menuExpanded = false },
-                ) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.mihomo_profile_preview)) },
-                        onClick = {
-                            menuExpanded = false
-                            onAction(MihomoProviderAction.Preview)
-                        },
-                        leadingIcon = { Icon(Icons.Rounded.Visibility, contentDescription = null) },
-                    )
-                    if (refreshEnabled && !refreshing) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.mihomo_profile_sync)) },
-                            onClick = {
-                                menuExpanded = false
-                                onAction(MihomoProviderAction.Sync)
-                            },
-                            leadingIcon = { Icon(Icons.Rounded.Sync, contentDescription = null) },
-                        )
-                    }
-                }
-            }
+            ProviderCardActions(
+                refreshing = refreshing,
+                refreshEnabled = refreshEnabled,
+                onAction = onAction,
+            )
         }
     }
 }
@@ -448,7 +414,6 @@ private fun MihomoRuleProviderCard(
     onClick: () -> Unit,
     onAction: (MihomoProviderAction) -> Unit,
 ) {
-    var menuExpanded by remember { mutableStateOf(false) }
     val metadata = provider.ruleMetadata
     val vehicleText = runtimeSummary?.vehicleType?.ifBlank { null } ?: provider.vehicleType
     val behaviorText = runtimeSummary?.behavior?.ifBlank { null } ?: metadata?.behavior.orEmpty()
@@ -536,44 +501,11 @@ private fun MihomoRuleProviderCard(
                     }
                 }
             }
-            Spacer(modifier = Modifier.width(4.dp))
-            if (refreshing) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
-                    strokeWidth = 2.dp,
-                )
-            }
-            Box {
-                IconButton(onClick = { menuExpanded = true }) {
-                    Icon(
-                        imageVector = Icons.Rounded.MoreVert,
-                        contentDescription = stringResource(R.string.mihomo_profile_actions),
-                    )
-                }
-                DropdownMenu(
-                    expanded = menuExpanded,
-                    onDismissRequest = { menuExpanded = false },
-                ) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.mihomo_profile_preview)) },
-                        onClick = {
-                            menuExpanded = false
-                            onAction(MihomoProviderAction.Preview)
-                        },
-                        leadingIcon = { Icon(Icons.Rounded.Visibility, contentDescription = null) },
-                    )
-                    if (refreshEnabled && !refreshing) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.mihomo_profile_sync)) },
-                            onClick = {
-                                menuExpanded = false
-                                onAction(MihomoProviderAction.Sync)
-                            },
-                            leadingIcon = { Icon(Icons.Rounded.Sync, contentDescription = null) },
-                        )
-                    }
-                }
-            }
+            ProviderCardActions(
+                refreshing = refreshing,
+                refreshEnabled = refreshEnabled,
+                onAction = onAction,
+            )
         }
     }
 }
@@ -581,6 +513,54 @@ private fun MihomoRuleProviderCard(
 private enum class MihomoProviderAction {
     Preview,
     Sync,
+}
+
+/** Refresh progress and the Preview/Sync overflow menu shared by proxy and rule provider cards. */
+@Composable
+private fun ProviderCardActions(
+    refreshing: Boolean,
+    refreshEnabled: Boolean,
+    onAction: (MihomoProviderAction) -> Unit,
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    Spacer(modifier = Modifier.width(4.dp))
+    if (refreshing) {
+        CircularProgressIndicator(
+            modifier = Modifier.size(20.dp),
+            strokeWidth = 2.dp,
+        )
+    }
+    Box {
+        IconButton(onClick = { menuExpanded = true }) {
+            Icon(
+                imageVector = Icons.Rounded.MoreVert,
+                contentDescription = stringResource(R.string.mihomo_profile_actions),
+            )
+        }
+        DropdownMenu(
+            expanded = menuExpanded,
+            onDismissRequest = { menuExpanded = false },
+        ) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.mihomo_profile_preview)) },
+                onClick = {
+                    menuExpanded = false
+                    onAction(MihomoProviderAction.Preview)
+                },
+                leadingIcon = { Icon(Icons.Rounded.Visibility, contentDescription = null) },
+            )
+            if (refreshEnabled && !refreshing) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.mihomo_profile_sync)) },
+                    onClick = {
+                        menuExpanded = false
+                        onAction(MihomoProviderAction.Sync)
+                    },
+                    leadingIcon = { Icon(Icons.Rounded.Sync, contentDescription = null) },
+                )
+            }
+        }
+    }
 }
 
 @Composable

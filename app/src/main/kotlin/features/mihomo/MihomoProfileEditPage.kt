@@ -3,6 +3,7 @@
 
 package features.mihomo
 
+import ui.components.AsteriskCancelButton
 import ui.layout.codeEditorShowsSupportingContent
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -70,13 +71,10 @@ import app.MihomoProfileState
 import app.MihomoProfileType
 import app.R
 import app.collectAppState
-import app.hasRuntimeRelevantChanges
 import app.modes.RunModeBpf2Socks
 import app.modes.RunModeTproxy
 import app.modes.RunModeTun
 import app.modes.RunModeTun2Socks
-import app.nextAvailableMihomoProfileId
-import app.withMihomoRestartRequired
 import features.home.HomeServiceOperation
 import java.util.concurrent.atomic.AtomicBoolean
 import engine.mihomo.binding.MihomoBridge as Clash
@@ -145,18 +143,7 @@ fun MihomoProfileEditPage(
     val saveFailedMessage = stringResource(R.string.mihomo_profile_save_failed)
     val restartFailedMessage = stringResource(R.string.mihomo_profile_restart_failed)
     val profileAppliedMessage = stringResource(R.string.mihomo_profile_applied)
-    val duplicateNameFormat = stringResource(R.string.mihomo_profile_name_duplicate)
-    val profileSaveUseCase = remember(
-        services.mihomoProfilePreparer,
-        services.mihomoProfileContentStore,
-        duplicateNameFormat,
-    ) {
-        MihomoProfileSaveUseCase.create(
-            profilePreparer = services.mihomoProfilePreparer,
-            contentStore = services.mihomoProfileContentStore,
-            formatDuplicateName = { name, ordinal -> duplicateNameFormat.format(name, ordinal) },
-        )
-    }
+    val profileSaveUseCase = rememberMihomoProfileSaveUseCase()
 
     var saving by remember { mutableStateOf(false) }
     var syncStage by remember { mutableStateOf<MihomoProfileSyncStage?>(null) }
@@ -259,36 +246,8 @@ fun MihomoProfileEditPage(
         )
     }
 
-    fun saveProfile(profile: MihomoProfileState, isNewProfile: Boolean): MihomoProfileState {
-        var savedProfile = profile
-        updateAppState { state ->
-            if (isNewProfile) {
-                val profileId = state.nextAvailableMihomoProfileId()
-                savedProfile = profile.copy(id = profileId)
-                val shouldSelectProfile = state.mihomoProfiles.isEmpty()
-                state.copy(
-                    mihomoProfiles = state.mihomoProfiles + savedProfile,
-                    nextMihomoProfileId = profileId + 1,
-                    selectedMihomoProfileId = if (shouldSelectProfile) {
-                        savedProfile.id
-                    } else {
-                        state.selectedMihomoProfileId
-                    },
-                )
-            } else {
-                val previousProfile = state.mihomoProfiles.firstOrNull { it.id == profile.id }
-                state.copy(
-                    mihomoProfiles = state.mihomoProfiles.map { item ->
-                        if (item.id == profile.id) profile else item
-                    },
-                ).withMihomoRestartRequired(
-                    profileId = profile.id,
-                    contentChanged = previousProfile?.hasRuntimeRelevantChanges(profile) == true,
-                )
-            }
-        }
-        return savedProfile
-    }
+    fun saveProfile(profile: MihomoProfileState, isNewProfile: Boolean): MihomoProfileState =
+        saveMihomoProfileState(updateAppState, profile, isNewProfile)
 
     fun selectedOverrideScriptId(): Int {
         return if (
@@ -800,9 +759,7 @@ internal fun MihomoProfileSyncProgressDialog(
             }
         },
         confirmButton = {
-            AsteriskActionButton(
-                text = stringResource(R.string.common_cancel),
-                icon = Icons.Rounded.Close,
+            AsteriskCancelButton(
                 onClick = onCancel,
             )
         },
@@ -836,9 +793,7 @@ internal fun MihomoProfileSyncFailureDialog(
         },
         dismissButton = {
             Row {
-                AsteriskActionButton(
-                    text = stringResource(R.string.common_cancel),
-                    icon = Icons.Rounded.Close,
+                AsteriskCancelButton(
                     onClick = onCancel,
                 )
                 AsteriskActionButton(
@@ -905,9 +860,7 @@ private fun HttpSubscriptionWarningDialog(
         title = { Text(stringResource(R.string.mihomo_profile_http_subscription_warning_title)) },
         text = { Text(stringResource(R.string.mihomo_profile_http_subscription_warning_message)) },
         dismissButton = {
-            AsteriskActionButton(
-                text = stringResource(R.string.common_cancel),
-                icon = Icons.Rounded.Close,
+            AsteriskCancelButton(
                 onClick = onDismissRequest,
             )
         },
@@ -1270,9 +1223,7 @@ private fun RawModeConfirmationDialog(
         title = { Text(stringResource(R.string.mihomo_profile_raw_mode_confirm_title)) },
         text = { Text(stringResource(R.string.mihomo_profile_raw_mode_confirm_message)) },
         dismissButton = {
-            AsteriskActionButton(
-                text = stringResource(R.string.common_cancel),
-                icon = Icons.Rounded.Close,
+            AsteriskCancelButton(
                 onClick = onDismissRequest,
             )
         },
@@ -1292,3 +1243,21 @@ private fun String.isValidAgeSecretKey(stored: String?): Boolean {
 }
 
 private const val RawConfigValidationDebounceMillis = 350L
+
+/** The profile save use case, rebuilt when its services or the duplicate-name format change. */
+@Composable
+internal fun rememberMihomoProfileSaveUseCase(): MihomoProfileSaveUseCase {
+    val services = LocalAppServices.current
+    val duplicateNameFormat = stringResource(R.string.mihomo_profile_name_duplicate)
+    return remember(
+        services.mihomoProfilePreparer,
+        services.mihomoProfileContentStore,
+        duplicateNameFormat,
+    ) {
+        MihomoProfileSaveUseCase.create(
+            profilePreparer = services.mihomoProfilePreparer,
+            contentStore = services.mihomoProfileContentStore,
+            formatDuplicateName = { name, ordinal -> duplicateNameFormat.format(name, ordinal) },
+        )
+    }
+}

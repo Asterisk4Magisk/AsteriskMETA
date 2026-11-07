@@ -687,12 +687,7 @@ internal class MihomoRuntimeRepository(
         testUrl: String,
         expectedStatus: String,
     ): MihomoDelayResult {
-        val control = resolveMihomoControlConfig(appState)
-        val backend = resolveInteractiveBackend(appState, control)
-        val generation = currentRuntimeGeneration()
-        val configKey = appState.mihomoRuntimeConfigKey(appState.mihomoRuntimeBackend(appContext))
-        return withContext(Dispatchers.IO) {
-            ensureInteractiveRuntime(appState, backend)
+        return runInteractiveDelayTest(appState) { control, useBridge ->
             val groupFallbackName = state.value.proxies.groupFallbackFor(proxyId)
             client.testProxyDelay(
                 config = control,
@@ -701,11 +696,8 @@ internal class MihomoRuntimeRepository(
                 timeoutMillis = appState.connectionTestTimeoutMillis,
                 expectedStatus = expectedStatus,
                 groupFallbackName = groupFallbackName,
-                useBridge = backend.useBridge(),
-            ).also { result ->
-                applyDelays(result, generation, configKey)
-                refreshProxySnapshot(control, backend.useBridge(), generation, configKey, coalesce = false)
-            }
+                useBridge = useBridge,
+            )
         }
     }
 
@@ -714,12 +706,7 @@ internal class MihomoRuntimeRepository(
         groupName: String,
         testUrl: String,
     ): MihomoDelayResult {
-        val control = resolveMihomoControlConfig(appState)
-        val backend = resolveInteractiveBackend(appState, control)
-        val generation = currentRuntimeGeneration()
-        val configKey = appState.mihomoRuntimeConfigKey(appState.mihomoRuntimeBackend(appContext))
-        return withContext(Dispatchers.IO) {
-            ensureInteractiveRuntime(appState, backend)
+        return runInteractiveDelayTest(appState) { control, useBridge ->
             val expectedProxyIds = state.value.proxies.groups
                 .firstOrNull { group -> group.name == groupName }
                 ?.all
@@ -730,11 +717,8 @@ internal class MihomoRuntimeRepository(
                 url = testUrl.ifBlank { appState.connectionTestUrl },
                 timeoutMillis = appState.connectionTestTimeoutMillis,
                 expectedProxyIds = expectedProxyIds,
-                useBridge = backend.useBridge(),
-            ).also { result ->
-                applyDelays(result, generation, configKey)
-                refreshProxySnapshot(control, backend.useBridge(), generation, configKey, coalesce = false)
-            }
+                useBridge = useBridge,
+            )
         }
     }
 
@@ -831,12 +815,7 @@ internal class MihomoRuntimeRepository(
         testUrl: String,
         expectedStatus: String,
     ): MihomoDelayResult {
-        val control = resolveMihomoControlConfig(appState)
-        val backend = resolveInteractiveBackend(appState, control)
-        val generation = currentRuntimeGeneration()
-        val configKey = appState.mihomoRuntimeConfigKey(appState.mihomoRuntimeBackend(appContext))
-        return withContext(Dispatchers.IO) {
-            ensureInteractiveRuntime(appState, backend)
+        return runInteractiveDelayTest(appState) { control, useBridge ->
             client.testProviderDelay(
                 config = control,
                 providerName = providerName,
@@ -844,8 +823,26 @@ internal class MihomoRuntimeRepository(
                 url = testUrl.ifBlank { appState.connectionTestUrl },
                 timeoutMillis = appState.connectionTestTimeoutMillis,
                 expectedStatus = expectedStatus,
-                useBridge = backend.useBridge(),
-            ).also { result ->
+                useBridge = useBridge,
+            )
+        }
+    }
+
+    /**
+     * Run one delay test against the interactive runtime, then publish its delays and refresh
+     * the proxy snapshot for the generation and configuration it was started under.
+     */
+    private suspend fun runInteractiveDelayTest(
+        appState: AppState,
+        test: suspend (control: MihomoControlConfig, useBridge: Boolean) -> MihomoDelayResult,
+    ): MihomoDelayResult {
+        val control = resolveMihomoControlConfig(appState)
+        val backend = resolveInteractiveBackend(appState, control)
+        val generation = currentRuntimeGeneration()
+        val configKey = appState.mihomoRuntimeConfigKey(appState.mihomoRuntimeBackend(appContext))
+        return withContext(Dispatchers.IO) {
+            ensureInteractiveRuntime(appState, backend)
+            test(control, backend.useBridge()).also { result ->
                 applyDelays(result, generation, configKey)
                 refreshProxySnapshot(control, backend.useBridge(), generation, configKey, coalesce = false)
             }
