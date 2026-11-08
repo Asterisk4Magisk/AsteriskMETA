@@ -495,7 +495,7 @@ private fun rememberHomeServiceControl(): HomeServiceControl {
                         proxyRunning = result.proxyRunning,
                         localProxyPort = result.appState?.localProxyPort ?: state.localProxyPort,
                         mihomoControlPort = result.appState?.mihomoControlPort ?: state.mihomoControlPort,
-                    ).withMihomoRestartApplied()
+                    )
                 }
                 services.tipNotifier.show(if (result.proxyRunning) serviceStartedMessage else serviceStoppedMessage)
             }

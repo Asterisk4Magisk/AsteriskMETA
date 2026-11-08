@@ -20,6 +20,18 @@ import engine.proxy.LocalProxyRuntime
 import engine.vpn.AsteriskVpnService
 import engine.vpn.VpnSession
 import app.effects.synchronizeProxyStatus
+import app.effects.RunningConfigurationApplier
+import androidx.compose.runtime.snapshotFlow
+import engine.mihomo.selectedMihomoProfileOrNull
+import engine.proxy.ProxyServiceResult
+import engine.proxy.ProxyServiceUseCase
+import features.home.HomeServiceOperation
+import features.logs.AndroidAppLogger
+import features.resources.ResourceFileUpdateResult
+import features.resources.isBusy
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
+import ui.feedback.AndroidToastTipNotifier
 import features.logs.AndroidCoreLogRepository
 import features.logs.AndroidAsteriskdLogRepository
 import features.logs.AndroidLogcatRepository
@@ -115,6 +127,96 @@ class AsteriskApplication : Application(), SingletonImageLoader.Factory {
         )
     }
 
+    /** Applies successful resource updates and selected-profile changes to a running core. */
+    private val runningConfigurationApplier by lazy {
+        RunningConfigurationApplier(
+            scope = appScope,
+            updatesBusy = resourceFileUpdateCoordinator.state.map { state -> state.isBusy },
+            apply = ::applyConfigurationToRunningCore,
+            reportFailure = { error ->
+                AndroidAppLogger.error(RunningConfigurationLogTag, "Automatic configuration apply failed", error)
+            },
+        )
+    }
+
+    /**
+     * Requests an apply whenever the selected profile changes in a way the core would see:
+     * a subscription update or a save from any entry point. Selecting another profile is not
+     * an edit, and stops the service on its own.
+     */
+    private fun applySelectedProfileChanges() {
+        appScope.launch {
+            var previous: Pair<Int, MihomoProfileState?>? = null
+            stateStore.state
+                .map { state -> state.selectedMihomoProfileId to state.selectedMihomoProfileOrNull() }
+                .distinctUntilChanged()
+                .collect { current ->
+                    val prior = previous
+                    previous = current
+                    if (prior == null || prior.first != current.first) return@collect
+                    val before = prior.second ?: return@collect
+                    val after = current.second ?: return@collect
+                    // Every sync writes a new content file; identical content is not a change.
+                    val comparable = if (before.contentSha256 == after.contentSha256) {
+                        after.copy(contentPath = before.contentPath)
+                    } else {
+                        after
+                    }
+                    if (before.hasRuntimeRelevantChanges(comparable)) runningConfigurationApplier.request()
+                }
+        }
+    }
+
+    /**
+     * An in-place reload in VPN mode, a supervised restart in ROOT modes. It claims the home
+     * screen's service operation state, so the power button and this apply exclude each other,
+     * and a stopped core is left alone.
+     */
+    private suspend fun applyConfigurationToRunningCore() {
+        while (true) {
+            snapshotFlow { homeServiceOperationState.isIdle() }.first { idle -> idle }
+            val claimed = withContext(Dispatchers.Main.immediate) {
+                homeServiceOperationState.isIdle().also { idle ->
+                    if (idle) homeServiceOperationState.operation = HomeServiceOperation.Applying
+                }
+            }
+            if (claimed) break
+        }
+        try {
+            val useCase = ProxyServiceUseCase(proxyEngine)
+            val current = stateStore.state.value
+            if (useCase.isRunning(current) != true) return
+            // `proxyRunning` may lag behind in a process the UI never opened; the probe is live.
+            val snapshot = current.copy(proxyRunning = true)
+            when (val result = useCase.applyConfiguration(snapshot)) {
+                is ProxyServiceResult.Success -> {
+                    AndroidAppLogger.info(RunningConfigurationLogTag, "Applied updated configuration")
+                    stateStore.update { state ->
+                        state.copy(
+                            proxyRunning = result.proxyRunning,
+                            localProxyPort = result.appState?.localProxyPort ?: state.localProxyPort,
+                            mihomoControlPort = result.appState?.mihomoControlPort ?: state.mihomoControlPort,
+                        )
+                    }
+                }
+                is ProxyServiceResult.Failed -> {
+                    // A failed restart may already have stopped the core, so read back what runs.
+                    useCase.isRunning(snapshot)?.let { running ->
+                        stateStore.update { state -> state.copy(proxyRunning = running) }
+                    }
+                    AndroidToastTipNotifier(applicationContext).showError(
+                        result.error,
+                        getString(R.string.proxy_service_auto_apply_failed),
+                    )
+                }
+            }
+        } finally {
+            withContext(Dispatchers.Main.immediate) {
+                homeServiceOperationState.operation = HomeServiceOperation.Idle
+            }
+        }
+    }
+
     /**
      * Brings the app state in line when a tunnel ends in the service process, whether it was
      * stopped, revoked or its process died. The session watch reports the end, so this costs
@@ -168,6 +270,12 @@ class AsteriskApplication : Application(), SingletonImageLoader.Factory {
         // HTTP fetches here go through the tunnel's local proxy, which the service publishes.
         LocalProxyRuntime.attachExternalSource { VpnSession.runningLocalProxyOptions(applicationContext) }
         synchronizeOnVpnSessionEnd()
+        applySelectedProfileChanges()
+        appScope.launch {
+            resourceFileUpdateCoordinator.results.collect { result ->
+                if (result is ResourceFileUpdateResult.Success) runningConfigurationApplier.request()
+            }
+        }
         refreshQuickSettingsTileOnProxyStateChange()
         appScope.launch {
             val scheduler = ResourceAutoUpdateScheduler(applicationContext)
@@ -237,3 +345,8 @@ class AsteriskApplication : Application(), SingletonImageLoader.Factory {
         val enabled: Boolean,
     )
 }
+
+private fun HomeServiceOperationState.isIdle(): Boolean =
+    operation == HomeServiceOperation.Idle && !modeOperationInProgress
+
+private const val RunningConfigurationLogTag = "RunningConfiguration"

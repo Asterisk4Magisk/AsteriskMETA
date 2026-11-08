@@ -38,7 +38,9 @@ internal class ProxyServiceUseCase(
         }
     }
 
-    suspend fun restart(state: AppState): ProxyServiceResult {
+    suspend fun restart(state: AppState): ProxyServiceResult = restart(state, onlyIfRunning = false)
+
+    private suspend fun restart(state: AppState, onlyIfRunning: Boolean): ProxyServiceResult {
         val live = try {
             proxyEngine.status(state.runMode, state)
         } catch (error: Throwable) {
@@ -50,7 +52,12 @@ internal class ProxyServiceUseCase(
         )?.let { conflict -> return conflict.toProxyServiceFailure(RootRequestedAction.RestartSameOwner) }
         return runCatching {
             state.requireUsableMihomoProfile()
-            proxyEngine.restart(ProxyEngineStartRequest(state), requestVpnPermission)
+            val request = ProxyEngineStartRequest(state)
+            if (onlyIfRunning) {
+                proxyEngine.restartIfRunning(request, requestVpnPermission)
+            } else {
+                proxyEngine.restart(request, requestVpnPermission)
+            }
         }.fold(
             onSuccess = { status -> ProxyServiceResult.Success(proxyRunning = status.running, appState = status.appState) },
             onFailure = { error -> error.toProxyServiceFailure(RootRequestedAction.RestartSameOwner) },
@@ -63,10 +70,11 @@ internal class ProxyServiceUseCase(
      * supervised [restart] for now: the profile reaches the ROOT runtime only through the
      * supervised start's publication (there is no republish-then-`PUT /configs` path yet), and a
      * raw profile also feeds the asteriskd configuration, so reloading the old published file
-     * through the Clash API would not apply the change.
+     * through the Clash API would not apply the change. The restart is skipped when the core
+     * stopped in the meantime.
      */
     suspend fun applyConfiguration(state: AppState): ProxyServiceResult {
-        if (state.runMode != RunModeVpnService) return restart(state)
+        if (state.runMode != RunModeVpnService) return restart(state, onlyIfRunning = true)
         return runCatching {
             state.requireUsableMihomoProfile()
             proxyEngine.reloadVpnOrRestart(ProxyEngineStartRequest(state), requestVpnPermission)

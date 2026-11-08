@@ -16,7 +16,6 @@ import app.AppState
 import app.AsteriskApplication
 import app.MainActivity
 import app.R
-import app.withMihomoRestartApplied
 import app.modes.RunModeVpnService
 import data.AndroidAppStateStore
 import engine.proxy.ProxyServiceResult
@@ -142,7 +141,7 @@ class ProxyQuickSettingsTileService : TileService() {
                         proxyRunning = result.proxyRunning,
                         localProxyPort = result.appState?.localProxyPort ?: currentState.localProxyPort,
                         mihomoControlPort = result.appState?.mihomoControlPort ?: currentState.mihomoControlPort,
-                    ).withMihomoRestartApplied()
+                    )
                 }
                 showToast(
                     if (result.proxyRunning) {

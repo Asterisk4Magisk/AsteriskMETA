@@ -58,7 +58,6 @@ data class AppState(
     val mihomoProfiles: List<MihomoProfileState> = DefaultMihomoProfiles,
     val nextMihomoProfileId: Int = 1,
     val selectedMihomoProfileId: Int = DefaultMihomoProfileId,
-    val pendingMihomoRestartProfileId: Int = DefaultMihomoProfileId,
     val mihomoOverrideScripts: List<MihomoOverrideScriptState> = emptyList(),
     val nextMihomoOverrideScriptId: Int = 1,
 
@@ -197,14 +196,3 @@ internal fun AppState.withCompatibleProxyAppListMode(): AppState {
     }
 }
 
-fun AppState.withMihomoRestartRequired(
-    profileId: Int,
-    contentChanged: Boolean = true,
-): AppState {
-    if (!contentChanged || !proxyRunning || selectedMihomoProfileId != profileId) return this
-    return copy(pendingMihomoRestartProfileId = profileId)
-}
-
-fun AppState.withMihomoRestartApplied(): AppState =
-    if (pendingMihomoRestartProfileId == DefaultMihomoProfileId) this
-    else copy(pendingMihomoRestartProfileId = DefaultMihomoProfileId)

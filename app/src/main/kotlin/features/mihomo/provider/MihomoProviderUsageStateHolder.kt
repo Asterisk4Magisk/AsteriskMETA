@@ -71,13 +71,7 @@ internal class MihomoProviderUsageStateHolder(
 
     private fun isSafeToLoadLocked(appState: AppState): Boolean {
         if (!appState.proxyRunning) return true
-        if (appState.selectedMihomoProfileId != acceptedProfileId) return false
-
-        val selectedProfileId = appState.selectedMihomoProfileId
-        val restartPending = selectedProfileId != DefaultMihomoProfileId &&
-            appState.pendingMihomoRestartProfileId == selectedProfileId
-        val requestedKey = appState.selectedMihomoProviderUsageLoadKeyOrNull()
-        return !restartPending || requestedKey == mutableState.value.loadKey
+        return appState.selectedMihomoProfileId == acceptedProfileId
     }
 
     private fun startLoadLocked(appState: AppState, force: Boolean) {

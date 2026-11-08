@@ -7,9 +7,7 @@ import app.AppState
 import app.MihomoProfileState
 import app.MihomoProfileType
 import app.MihomoSubscriptionInfo
-import app.hasRuntimeRelevantChanges
 import app.nextAvailableMihomoProfileId
-import app.withMihomoRestartRequired
 import engine.mihomo.MihomoProfileContentRef
 import engine.mihomo.MihomoProfileContentStore
 import features.subscription.runtime.AndroidMihomoProfilePreparer
@@ -314,14 +312,10 @@ internal fun saveMihomoProfileState(
                 },
             )
         } else {
-            val previousProfile = state.mihomoProfiles.firstOrNull { it.id == profile.id }
             state.copy(
                 mihomoProfiles = state.mihomoProfiles.map { item ->
                     if (item.id == profile.id) profile else item
                 },
-            ).withMihomoRestartRequired(
-                profileId = profile.id,
-                contentChanged = previousProfile?.hasRuntimeRelevantChanges(profile) == true,
             )
         }
     }

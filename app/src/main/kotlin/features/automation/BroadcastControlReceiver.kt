@@ -7,7 +7,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import app.AsteriskApplication
-import app.withMihomoRestartApplied
 import data.AndroidAppStateStore
 import engine.proxy.ProxyServiceResult
 import engine.proxy.ProxyServiceUseCase
@@ -132,7 +131,7 @@ private class BroadcastControlHandler(
                         proxyRunning = result.proxyRunning,
                         localProxyPort = result.appState?.localProxyPort ?: state.localProxyPort,
                         mihomoControlPort = result.appState?.mihomoControlPort ?: state.mihomoControlPort,
-                    ).withMihomoRestartApplied()
+                    )
                 }
                 AndroidAppLogger.info(LogTag, "Broadcast control ${command.actionName} completed: running=${result.proxyRunning}")
             }

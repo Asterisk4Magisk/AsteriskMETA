@@ -43,7 +43,6 @@ import app.modes.RunModeTun2Socks
 import app.modes.RunModeVpnService
 import app.modes.isRootRunMode
 import app.navigation.Route
-import app.withMihomoRestartApplied
 import data.backup.AppBackupRestorePreview
 import engine.mihomo.CoreCapabilitiesStore
 import engine.mihomo.MihomoGeodataLoaderValues
@@ -464,7 +463,7 @@ private fun SettingsContent(
                                                 runMode = result.runMode,
                                                 proxyRunning = result.proxyRunning,
                                                 enableRootBootScript = state.enableRootBootScript && result.runMode.isRootRunMode(),
-                                            ).withMihomoRestartApplied()
+                                            )
                                         }
                                     }
 

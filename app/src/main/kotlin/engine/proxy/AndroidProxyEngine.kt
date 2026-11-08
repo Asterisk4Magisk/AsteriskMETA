@@ -117,6 +117,26 @@ internal class AndroidProxyEngine(
     }
 
     /**
+     * An explicit [restart] that only runs when the core is still running once the lifecycle
+     * lock is held, so a stop from the tile or a broadcast that lands first is not undone by
+     * applying a configuration change.
+     */
+    suspend fun restartIfRunning(
+        request: ProxyEngineStartRequest,
+        requestVpnPermission: VpnPermissionRequester = DenyVpnPermission,
+    ): ProxyEngineStatus {
+        val status = operationMutex.withLock {
+            val live = statusUnlocked(request.appState.runMode, request.appState)
+            if (!live.running) return@withLock live
+            withVpnPermissionRequester(requestVpnPermission) {
+                startUnlocked(request, explicitRestart = true)
+            }
+        }
+        mutableRootStatusWatchGeneration.update { generation -> generation + 1L }
+        return status
+    }
+
+    /**
      * Applies a changed profile to a running VPN core in place: the profile is rebuilt with
      * the ports the core is already running on and reloaded through its control API,
      * keeping the TUN and the VpnService. A raw profile can change what the VpnService itself

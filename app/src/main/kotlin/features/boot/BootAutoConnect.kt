@@ -12,7 +12,6 @@ import androidx.core.content.ContextCompat
 import app.AsteriskApplication
 import app.MainActivity
 import app.modes.RunModeVpnService
-import app.withMihomoRestartApplied
 import engine.mihomo.requireUsableMihomoProfile
 import engine.proxy.DenyVpnPermission
 import engine.proxy.ProxyEngineStartRequest
@@ -102,7 +101,7 @@ internal object BootAutoConnect {
                     proxyRunning = status.running,
                     localProxyPort = status.appState?.localProxyPort ?: current.localProxyPort,
                     mihomoControlPort = status.appState?.mihomoControlPort ?: current.mihomoControlPort,
-                ).withMihomoRestartApplied()
+                )
             }
         }.onFailure { error ->
             if (error is CancellationException) throw error

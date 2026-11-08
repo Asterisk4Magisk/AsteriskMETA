@@ -8,8 +8,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.calculateEndPadding
-import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -42,7 +40,6 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import ui.components.AsteriskTopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -54,7 +51,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.selected
@@ -79,8 +75,6 @@ import app.R
 import app.collectAppState
 import ui.clipboard.setPlainText
 import app.navigation.Route
-import features.home.HomeServiceOperation
-import java.util.concurrent.atomic.AtomicBoolean
 import engine.mihomo.MihomoProviderMetadataCache
 import engine.mihomo.MihomoProfileFactory
 import engine.mihomo.parseMihomoProxyProviderNames
@@ -114,7 +108,6 @@ import ui.layout.pageListPadding
 import ui.components.AsteriskInfoChip
 import ui.components.AsteriskChipTone
 import ui.components.AsteriskExtendedFab
-import ui.components.AsteriskConfigApplyBanner
 import ui.components.AsteriskSelectionCard
 import ui.theme.AsteriskShapeTokens
 import ui.text.formatTemplate
@@ -156,11 +149,6 @@ fun MihomoProfileListPage(
     var providerUsageExpandedProfileId by remember { mutableStateOf<Int?>(null) }
     var providerUsageWaitingForProfileStop by remember { mutableStateOf(false) }
     var providerUsageProfileStopFailed by remember { mutableStateOf(false) }
-    var showRestartRequired by remember { mutableStateOf(false) }
-    val applyingProfile = services.homeServiceOperationState.operation == HomeServiceOperation.Applying
-    // Lets an apply that finishes after this page was left skip its page-only follow-up.
-    val pageActive = remember { AtomicBoolean(true) }
-    DisposableEffect(Unit) { onDispose { pageActive.set(false) } }
     var importSyncStage by remember { mutableStateOf<MihomoProfileSyncStage?>(null) }
     var importSaveJob by remember { mutableStateOf<Job?>(null) }
     var batchSyncJob by remember { mutableStateOf<Job?>(null) }
@@ -188,8 +176,6 @@ fun MihomoProfileListPage(
     val invalidQrMessage = stringResource(R.string.mihomo_profile_invalid_qr_content)
     val serviceStoppedMessage = stringResource(R.string.proxy_service_stopped)
     val stopFailedMessage = stringResource(R.string.mihomo_dashboard_stop_failed)
-    val restartFailedMessage = stringResource(R.string.mihomo_profile_restart_failed)
-    val profileAppliedMessage = stringResource(R.string.mihomo_profile_applied)
 
     val profileContentSignatures = appState.mihomoProfiles.map { profile ->
         MihomoProfileContentSignature(
@@ -385,9 +371,6 @@ fun MihomoProfileListPage(
         scope.launch {
             try {
                 syncJob.join()
-                if (stateStore.state.value.pendingMihomoRestartProfileId == profile.id) {
-                    showRestartRequired = true
-                }
             } finally {
                 syncingProfileIds = syncingProfileIds - profile.id
             }
@@ -409,7 +392,6 @@ fun MihomoProfileListPage(
         var failedCount = 0
         var processedCount = 0
         var reserved = false
-        val updatedProfileIds = mutableSetOf<Int>()
         lateinit var job: Job
         job = scope.launch(start = CoroutineStart.LAZY) {
             try {
@@ -448,7 +430,6 @@ fun MihomoProfileListPage(
                                     // "Update all" is user-initiated: unscheduled profiles count too.
                                     requireScheduled = false,
                                 )
-                                updatedProfileIds += acceptedProfileIds
                                 updatedCount += acceptedProfileIds.size
                             }
                             .onFailure { failedCount += 1 }
@@ -492,24 +473,10 @@ fun MihomoProfileListPage(
                 batchSyncProgress = null
                 if (reserved) syncingProfileIds = syncingProfileIds - ownedProfileIds
                 if (batchSyncJob === job) batchSyncJob = null
-                if (stateStore.state.value.pendingMihomoRestartProfileId in updatedProfileIds) {
-                    showRestartRequired = true
-                }
             }
         }
         batchSyncJob = job
         job.start()
-    }
-
-    fun restartWithUpdatedSubscription() {
-        services.launchPendingProfileApply(
-            currentState = { stateStore.state.value },
-            updateAppState = updateAppState,
-            appliedMessage = profileAppliedMessage,
-            failedMessage = restartFailedMessage,
-            isPageActive = pageActive::get,
-            onApplied = { showRestartRequired = false },
-        )
     }
 
     fun syncProfileProviders(profile: MihomoProfileState) {
@@ -770,41 +737,10 @@ fun MihomoProfileListPage(
             isWideScreen = isWideScreen,
         )
         val listPadding = pageListPadding(contentPadding, bottomExtra = 88.dp)
-        val layoutDirection = LocalLayoutDirection.current
-        val showApplyBanner = appState.proxyRunning &&
-            appState.selectedMihomoProfileId != DefaultMihomoProfileId &&
-            appState.pendingMihomoRestartProfileId == appState.selectedMihomoProfileId
-        val profileListPadding = if (showApplyBanner) {
-            // The pinned banner owns the top bar inset; retain the list's card gap and FAB space.
-            PaddingValues(
-                start = listPadding.calculateStartPadding(layoutDirection),
-                end = listPadding.calculateEndPadding(layoutDirection),
-                top = 12.dp,
-                bottom = listPadding.calculateBottomPadding(),
-            )
-        } else {
-            listPadding
-        }
-
         Column(modifier = Modifier.fillMaxSize()) {
-            if (showApplyBanner) {
-                AsteriskConfigApplyBanner(
-                    title = stringResource(R.string.mihomo_profile_restart_required),
-                    summary = stringResource(R.string.mihomo_profile_config_apply_summary),
-                    actionLabel = stringResource(R.string.mihomo_profile_restart_now),
-                    applying = applyingProfile,
-                    enabled = services.profileApplyAvailable,
-                    onApply = ::restartWithUpdatedSubscription,
-                    modifier = Modifier.padding(
-                        start = listPadding.calculateStartPadding(layoutDirection),
-                        end = listPadding.calculateEndPadding(layoutDirection),
-                        top = listPadding.calculateTopPadding(),
-                    ),
-                )
-            }
             LazyColumn(
                 modifier = Modifier.weight(1f),
-                contentPadding = profileListPadding,
+                contentPadding = listPadding,
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 if (appState.mihomoProfiles.isEmpty()) {
@@ -821,7 +757,6 @@ fun MihomoProfileListPage(
                             profile = profile,
                             overrideScripts = appState.mihomoOverrideScripts,
                             selected = selected,
-                            restartRequired = profile.id == appState.pendingMihomoRestartProfileId,
                             syncing = profile.id in syncingProfileIds,
                             hasProxyProviders = proxyProviderNamesByProfileId[profile.id]
                                 ?.takeIf { metadata ->
@@ -926,13 +861,6 @@ fun MihomoProfileListPage(
             content = previewProfileContent.orEmpty(),
             onDismissRequest = { previewProfileContent = null },
         )
-        RestartRequiredDialog(
-            show = showRestartRequired,
-            restarting = applyingProfile,
-            enabled = services.profileApplyAvailable,
-            onRestartNow = ::restartWithUpdatedSubscription,
-            onLater = { showRestartRequired = false },
-        )
     }
 }
 
@@ -988,7 +916,6 @@ internal fun MihomoProfileCard(
     profile: MihomoProfileState,
     overrideScripts: List<MihomoOverrideScriptState>,
     selected: Boolean,
-    restartRequired: Boolean,
     syncing: Boolean,
     hasProxyProviders: Boolean,
     providerUsageState: MihomoProviderUsageLoadState,
@@ -1090,19 +1017,15 @@ internal fun MihomoProfileCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 8.dp, end = 8.dp),
             )
-            if (displayState.syncFailed || restartRequired) {
+            if (displayState.syncFailed) {
                 FlowRow(
                     modifier = Modifier.padding(top = 8.dp, end = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    if (displayState.syncFailed) AsteriskInfoChip(
+                    AsteriskInfoChip(
                         text = stringResource(R.string.mihomo_profile_sync_failed_chip),
                         tone = AsteriskChipTone.Error,
-                    )
-                    if (restartRequired) AsteriskInfoChip(
-                        text = stringResource(R.string.mihomo_profile_restart_required),
-                        emphasized = selected,
                     )
                 }
             }

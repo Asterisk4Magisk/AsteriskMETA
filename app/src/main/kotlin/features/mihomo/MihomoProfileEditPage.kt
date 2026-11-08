@@ -43,7 +43,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import ui.components.AsteriskTopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -75,8 +74,6 @@ import app.modes.RunModeBpf2Socks
 import app.modes.RunModeTproxy
 import app.modes.RunModeTun
 import app.modes.RunModeTun2Socks
-import features.home.HomeServiceOperation
-import java.util.concurrent.atomic.AtomicBoolean
 import engine.mihomo.binding.MihomoBridge as Clash
 import engine.mihomo.raw.MihomoRawConfigParseResult
 import engine.mihomo.raw.MihomoRawConfigParser
@@ -141,20 +138,12 @@ fun MihomoProfileEditPage(
     val syncSuccessMessage = stringResource(R.string.mihomo_profile_save_sync_success)
     val syncFailedSavedMessage = stringResource(R.string.mihomo_profile_save_sync_failed_saved)
     val saveFailedMessage = stringResource(R.string.mihomo_profile_save_failed)
-    val restartFailedMessage = stringResource(R.string.mihomo_profile_restart_failed)
-    val profileAppliedMessage = stringResource(R.string.mihomo_profile_applied)
     val profileSaveUseCase = rememberMihomoProfileSaveUseCase()
 
     var saving by remember { mutableStateOf(false) }
     var syncStage by remember { mutableStateOf<MihomoProfileSyncStage?>(null) }
     var saveJob by remember { mutableStateOf<Job?>(null) }
     var failedSave by remember { mutableStateOf<FailedMihomoProfileSave?>(null) }
-    var showRestartRequired by remember { mutableStateOf(false) }
-    val applyingProfile = services.homeServiceOperationState.operation == HomeServiceOperation.Applying
-    // Lets an apply that finishes after this page was left skip navigator.pop(), which would
-    // otherwise pop whatever screen is on top by then.
-    val pageActive = remember { AtomicBoolean(true) }
-    DisposableEffect(Unit) { onDispose { pageActive.set(false) } }
     val nameState = rememberTextFieldState(initialText = targetProfile?.name.orEmpty())
     val urlState = rememberTextFieldState(initialText = targetProfile?.url ?: "")
     val userAgentState = rememberTextFieldState(
@@ -260,20 +249,6 @@ fun MihomoProfileEditPage(
         }
     }
 
-    fun restartWithSavedConfiguration() {
-        services.launchPendingProfileApply(
-            currentState = { stateStore.state.value },
-            updateAppState = updateAppState,
-            appliedMessage = profileAppliedMessage,
-            failedMessage = restartFailedMessage,
-            isPageActive = pageActive::get,
-            onApplied = {
-                showRestartRequired = false
-                navigator.pop()
-            },
-        )
-    }
-
     fun launchSave(draft: MihomoProfileSaveDraft) {
         if (saving) return
         failedSave = null
@@ -290,15 +265,13 @@ fun MihomoProfileEditPage(
                     is MihomoProfileSavePreparation.Success -> {
                         syncStage = null
                         val committed = profileSaveUseCase.commit(draft, preparation)
-                        val saved = saveProfile(committed, draft.originalProfile == null)
+                        saveProfile(committed, draft.originalProfile == null)
                         if (preparation.synchronized) {
                             services.tipNotifier.show(syncSuccessMessage)
                         }
-                        if (stateStore.state.value.pendingMihomoRestartProfileId == saved.id) {
-                            showRestartRequired = true
-                        } else {
-                            navigator.pop()
-                        }
+                        // A running core picks the saved content up through the application's
+                        // automatic apply; there is nothing left to ask here.
+                        navigator.pop()
                     }
 
                     is MihomoProfileSavePreparation.Failure -> {
@@ -685,16 +658,6 @@ fun MihomoProfileEditPage(
                 showRawModeConfirmation = false
             },
         )
-        RestartRequiredDialog(
-            show = showRestartRequired,
-            restarting = applyingProfile,
-            enabled = services.profileApplyAvailable,
-            onRestartNow = ::restartWithSavedConfiguration,
-            onLater = {
-                showRestartRequired = false
-                navigator.pop()
-            },
-        )
     }
 }
 
@@ -808,41 +771,6 @@ internal fun MihomoProfileSyncFailureDialog(
                 text = stringResource(R.string.common_retry),
                 icon = Icons.Rounded.Refresh,
                 onClick = onRetry,
-            )
-        },
-    )
-}
-
-@Composable
-internal fun RestartRequiredDialog(
-    show: Boolean,
-    restarting: Boolean,
-    // False while another service operation (home power button, mode switch) is running.
-    enabled: Boolean = true,
-    onRestartNow: () -> Unit,
-    onLater: () -> Unit,
-) {
-    if (!show) return
-    AlertDialog(
-        onDismissRequest = { if (!restarting) onLater() },
-        icon = { Icon(Icons.Rounded.Tune, contentDescription = null) },
-        title = { Text(stringResource(R.string.mihomo_profile_restart_required)) },
-        text = { Text(stringResource(R.string.mihomo_profile_restart_required_message)) },
-        dismissButton = {
-            AsteriskActionButton(
-                text = stringResource(R.string.mihomo_profile_restart_later),
-                icon = Icons.Rounded.History,
-                onClick = onLater,
-                enabled = !restarting,
-            )
-        },
-        confirmButton = {
-            AsteriskActionButton(
-                text = stringResource(R.string.mihomo_profile_restart_now),
-                icon = Icons.Rounded.Refresh,
-                onClick = onRestartNow,
-                enabled = enabled && !restarting,
-                loading = restarting,
             )
         },
     )

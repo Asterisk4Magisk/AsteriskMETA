@@ -6,7 +6,6 @@ package features.subscription.usecase
 import app.AppState
 import app.MihomoProfileState
 import app.MihomoProfileType
-import app.withMihomoRestartRequired
 import engine.mihomo.MihomoProfileContentRef
 import engine.mihomo.MihomoProfileContentStore
 import engine.mihomo.selectedMihomoProfileOrNull
@@ -374,10 +373,6 @@ internal fun AppState.withUpdatedMihomoProfiles(
         }
         .associateBy { update -> update.profileId }
     if (updatesById.isEmpty()) return this
-    val changedSelectedProfile = updatesById[selectedMihomoProfileId]?.let { update ->
-        mihomoProfiles.firstOrNull { profile -> profile.id == selectedMihomoProfileId }
-            ?.contentSha256 != update.contentRef.sha256
-    } == true
     return copy(
         mihomoProfiles = mihomoProfiles.map { profile ->
             val update = updatesById[profile.id] ?: return@map profile
@@ -390,7 +385,7 @@ internal fun AppState.withUpdatedMihomoProfiles(
                 syncFailed = false,
             )
         },
-    ).withMihomoRestartRequired(selectedMihomoProfileId, changedSelectedProfile)
+    )
 }
 
 internal fun commitMihomoProfileSubscriptionUpdates(

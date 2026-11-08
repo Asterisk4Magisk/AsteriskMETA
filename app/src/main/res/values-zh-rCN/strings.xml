@@ -362,13 +362,6 @@
     <string name="mihomo_profile_raw_mode_unchecked">内容可用后将执行配置检查</string>
     <string name="mihomo_profile_raw_run_mode">当前运行方式</string>
     <string name="mihomo_profile_raw_unavailable">不可用</string>
-    <string name="mihomo_profile_restart_failed">无法应用已保存的配置。</string>
-    <string name="mihomo_profile_applied">配置已应用</string>
-    <string name="mihomo_profile_restart_later">稍后</string>
-    <string name="mihomo_profile_restart_now">立即应用</string>
-    <string name="mihomo_profile_restart_required">更改尚未生效</string>
-    <string name="mihomo_profile_config_apply_summary">配置已更改，运行中的服务仍在使用先前配置，应用后生效。</string>
-    <string name="mihomo_profile_restart_required_message">当前服务仍在使用先前配置。是否立即将已保存的配置应用到运行中的服务？</string>
     <string name="mihomo_profile_save_anyway">仍然保存</string>
     <string name="mihomo_profile_save_failed">保存配置失败</string>
     <string name="mihomo_profile_save_sync_decrypting">正在解密配置…</string>
@@ -537,6 +530,7 @@
     <string name="proxy_error_dialog_occurred_at">时间：%1$s</string>
     <string name="proxy_error_dialog_service_log">启动日志</string>
     <string name="proxy_error_dialog_title">代理启动失败</string>
+    <string name="proxy_service_auto_apply_failed">更新内容未能应用到运行中的服务</string>
     <string name="proxy_service_started">代理服务已启动</string>
     <string name="proxy_service_stopped">代理服务已停止</string>
     <string name="settings_proxy_bpf2socks">代理设置（BPF2SOCKS）</string>

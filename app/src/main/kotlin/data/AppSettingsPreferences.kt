@@ -67,10 +67,6 @@ internal class AppSettingsPreferences(
                 KeySelectedMihomoProfileId,
                 defaults.selectedMihomoProfileId,
             ),
-            pendingMihomoRestartProfileId = preferences.getInt(
-                KeyPendingMihomoRestartProfileId,
-                defaults.pendingMihomoRestartProfileId,
-            ),
             runMode = preferences.getInt(KeyRunMode, defaults.runMode),
             mihomoMode = preferences.getInt(KeyMihomoMode, defaults.mihomoMode),
             mihomoProxyInterruptConnections = preferences.getBoolean(
@@ -322,7 +318,6 @@ internal class AppSettingsPreferences(
             .putInt(KeyNextMihomoProfileId, state.nextMihomoProfileId)
             .putInt(KeyNextMihomoOverrideScriptId, state.nextMihomoOverrideScriptId)
             .putInt(KeySelectedMihomoProfileId, state.selectedMihomoProfileId)
-            .putInt(KeyPendingMihomoRestartProfileId, state.pendingMihomoRestartProfileId)
             .putInt(KeyRunMode, state.runMode)
             .putInt(KeyMihomoMode, state.mihomoMode)
             .putBoolean(KeyMihomoProxyInterruptConnections, state.mihomoProxyInterruptConnections)
@@ -560,7 +555,6 @@ private const val KeyAutoHideNavigationBar = "auto_hide_navigation_bar"
 private const val KeyNextMihomoProfileId = "next_mihomo_profile_id"
 private const val KeyNextMihomoOverrideScriptId = "next_mihomo_override_script_id"
 private const val KeySelectedMihomoProfileId = "selected_mihomo_profile_id"
-private const val KeyPendingMihomoRestartProfileId = "pending_mihomo_restart_profile_id"
 private const val KeyRunMode = "run_mode"
 private const val KeyMihomoMode = "mihomo_mode"
 private const val KeyMihomoProxyInterruptConnections = "mihomo_proxy_interrupt_connections"

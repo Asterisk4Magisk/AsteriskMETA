@@ -17,7 +17,6 @@ import androidx.lifecycle.repeatOnLifecycle
 import app.AppState
 import features.settings.servicecontrol.ServiceControlSettings
 import app.modes.isRootRunMode
-import app.withMihomoRestartApplied
 import data.AndroidAppStateStore
 import engine.proxy.AndroidProxyEngine
 import engine.proxy.ProxyEngineStatus
@@ -109,7 +108,7 @@ internal suspend fun observeProxyStatus(
 ) {
     states
         .distinctUntilChangedBy { state ->
-            Triple(state.runMode, state.proxyRunning, state.pendingMihomoRestartProfileId)
+            state.runMode to state.proxyRunning
         }
         .collect { snapshot ->
             if (snapshot.rootStatusWatchTarget() != null) return@collect
@@ -133,8 +132,7 @@ internal suspend fun synchronizeProxyStatus(
     updateAppState { state ->
         if (
             state.runMode != snapshot.runMode ||
-            state.proxyRunning != snapshot.proxyRunning ||
-            state.pendingMihomoRestartProfileId != snapshot.pendingMihomoRestartProfileId
+            state.proxyRunning != snapshot.proxyRunning
         ) {
             return@updateAppState state
         }
@@ -174,7 +172,7 @@ private fun AppState.withSynchronizedProxyStatus(status: ProxyEngineStatus): App
     val synchronizedRunMode = status.runMode
         ?.takeIf { status.running && it.isRootRunMode() }
         ?: runMode
-    val updated = if (proxyRunning == status.running && runMode == synchronizedRunMode) {
+    return if (proxyRunning == status.running && runMode == synchronizedRunMode) {
         this
     } else {
         copy(
@@ -182,7 +180,6 @@ private fun AppState.withSynchronizedProxyStatus(status: ProxyEngineStatus): App
             proxyRunning = status.running,
         )
     }
-    return if (status.running) updated else updated.withMihomoRestartApplied()
 }
 
 private const val ProxyStatusWatchLogTag = "ProxyStatusSynchronizer"
