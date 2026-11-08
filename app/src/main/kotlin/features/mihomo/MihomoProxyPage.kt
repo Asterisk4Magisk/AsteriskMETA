@@ -1291,14 +1291,14 @@ private fun ProtocolDelayLine(
     val viewConfiguration = LocalViewConfiguration.current
     val chipTouchTargetViewConfiguration = remember(viewConfiguration) {
         object : ViewConfiguration by viewConfiguration {
-            override val minimumTouchTargetSize = DpSize(28.dp, 28.dp)
+            override val minimumTouchTargetSize = DpSize(24.dp, 24.dp)
         }
     }
     CompositionLocalProvider(LocalViewConfiguration provides chipTouchTargetViewConfiguration) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(28.dp)
+                .height(24.dp)
                 .clip(ui.theme.AsteriskShapeTokens.Pill)
                 .clickable(enabled = enabled, onClick = onClick),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -1333,7 +1333,7 @@ private fun ProtocolDelayLine(
                 }
             }
             Box(
-                modifier = Modifier.padding(end = 8.dp).height(28.dp),
+                modifier = Modifier.padding(end = 8.dp).height(24.dp),
                 contentAlignment = Alignment.CenterEnd,
             ) {
                 if (testing) {
