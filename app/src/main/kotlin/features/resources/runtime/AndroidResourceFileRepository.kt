@@ -121,13 +121,13 @@ internal class AndroidResourceFileRepository(
             store.currentStatus()
         }
         result.onSuccess {
-            runCatching { notifier.showComplete() }
+            runCatching { notifier.dismiss() }
         }.onFailure { error ->
             if (error is CancellationException) {
                 throw error
             } else if (error is AndroidResourceFileDownloadCancelledException) {
                 AndroidResourceFileLogger.info("Resource file update cancelled")
-                runCatching { notifier.showCancelled() }
+                runCatching { notifier.dismiss() }
             } else {
                 AndroidResourceFileLogger.error("Failed to update resource files", error)
                 runCatching { notifier.showFailed(error.message ?: error::class.simpleName.orEmpty()) }
