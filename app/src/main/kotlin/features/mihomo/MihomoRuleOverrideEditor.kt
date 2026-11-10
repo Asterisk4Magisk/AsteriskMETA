@@ -17,7 +17,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -40,7 +39,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -66,8 +64,15 @@ import sh.calvin.reorderable.ReorderableItem
 import ui.components.AsteriskActionButton
 import ui.components.AsteriskCancelButton
 import ui.components.AsteriskScaffold
-import ui.components.AsteriskSearchField
 import ui.components.AsteriskTopAppBar
+import ui.components.SectionCardColor
+import ui.components.SectionCardEntry
+import ui.components.SectionCardFooter
+import ui.components.SectionCardHeaderAction
+import ui.components.SectionCardHeader
+import ui.components.SectionCardItem
+import ui.components.SectionCardPart
+import ui.components.lazySectionCards
 import ui.components.AsteriskInfoChip
 import ui.components.AsteriskChipTone
 import ui.components.animateDraggedCardLift
@@ -105,10 +110,6 @@ internal fun MihomoRuleOverrideEditorDialog(
     var showSourceRules by remember { mutableStateOf(false) }
     var showPreview by remember { mutableStateOf(false) }
     var confirmDiscard by remember { mutableStateOf(false) }
-    var query by remember { mutableStateOf("") }
-    var selecting by remember { mutableStateOf(false) }
-    var selectedIds by remember { mutableStateOf(emptySet<Int>()) }
-    var pendingDeleteIds by remember { mutableStateOf<Set<Int>?>(null) }
     val source by produceState(RuleSource(RuleSourceStatus.Loading), sourceContent) {
         value = withContext(Dispatchers.Default) { sourceContent.toRuleSource() }
     }
@@ -119,25 +120,16 @@ internal fun MihomoRuleOverrideEditorDialog(
     }
 
     fun requestDismiss() {
-        if (selecting) {
-            selecting = false
-            selectedIds = emptySet()
-        } else if (draft == initial) onDismissRequest() else confirmDiscard = true
+        if (draft == initial) onDismissRequest() else confirmDiscard = true
     }
 
-    fun toggleSelection(id: Int) {
-        selectedIds = if (id in selectedIds) selectedIds - id else selectedIds + id
-    }
-
-    val rows = remember(draft, query, selecting) { draft.toEditorRows(query.trim(), selecting) }
-    val visibleIds = remember(rows) { rows.mapNotNull(EditorRow::entryId).toSet() }
-    val visibleSelectedIds = selectedIds.intersect(visibleIds)
+    val rows = remember(draft) { draft.toEditorRows() }
+    val cardParts = remember(rows) { rows.mapNotNull { row -> row.cardPart?.let { part -> row.key to part } }.toMap() }
     val listState = rememberLazyListState()
     val reorderState = rememberAsteriskReorderableLazyListState(
         lazyListState = listState,
         itemCount = rows.size,
     ) { fromIndex, toIndex ->
-        if (selecting || query.isNotBlank()) return@rememberAsteriskReorderableLazyListState
         val from = rows[fromIndex] as? EditorRow.Rule ?: return@rememberAsteriskReorderableLazyListState
         val to = rows[toIndex] as? EditorRow.Rule ?: return@rememberAsteriskReorderableLazyListState
         // A rule is only reordered inside its own section.
@@ -158,114 +150,75 @@ internal fun MihomoRuleOverrideEditorDialog(
                 AsteriskTopAppBar(
                     title = {
                         Text(
-                            if (selecting) stringResource(R.string.mihomo_rule_override_selected, visibleSelectedIds.size)
-                            else stringResource(R.string.mihomo_rule_override),
+                            stringResource(R.string.mihomo_rule_override),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
                     },
                     navigationIcon = {
                         IconButton(onClick = ::requestDismiss) {
-                            Icon(
-                                if (selecting) Icons.Rounded.Close else Icons.AutoMirrored.Rounded.ArrowBack,
-                                stringResource(if (selecting) R.string.common_cancel else R.string.common_back),
-                            )
+                            Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.common_back))
                         }
                     },
                     actions = {
-                        if (selecting) {
-                            val allSelected = visibleIds.isNotEmpty() && visibleIds.all(selectedIds::contains)
-                            AsteriskActionButton(
-                                text = stringResource(
-                                    if (allSelected) R.string.mihomo_rule_override_clear_selection
-                                    else R.string.mihomo_rule_override_select_all,
-                                ),
-                                icon = Icons.Rounded.CheckCircle,
-                                enabled = visibleIds.isNotEmpty(),
-                                onClick = {
-                                    selectedIds = if (allSelected) selectedIds - visibleIds else selectedIds + visibleIds
-                                },
-                            )
-                            AsteriskActionButton(
-                                text = stringResource(R.string.common_delete),
-                                icon = Icons.Rounded.Delete,
-                                enabled = visibleSelectedIds.isNotEmpty(),
-                                onClick = { pendingDeleteIds = visibleSelectedIds },
-                            )
-                        } else {
-                            AsteriskActionButton(
-                                text = stringResource(R.string.mihomo_rule_override_preview),
-                                icon = Icons.Rounded.Visibility,
-                                onClick = { showPreview = true },
-                                enabled = source.status == RuleSourceStatus.Ready,
-                            )
-                            AsteriskActionButton(
-                                text = stringResource(R.string.common_complete),
-                                icon = Icons.Rounded.Check,
-                                onClick = { onConfirm(draft.normalized()) },
-                            )
-                        }
+                        AsteriskActionButton(
+                            text = stringResource(R.string.mihomo_rule_override_preview),
+                            icon = Icons.Rounded.Visibility,
+                            onClick = { showPreview = true },
+                            enabled = source.status == RuleSourceStatus.Ready,
+                        )
+                        AsteriskActionButton(
+                            text = stringResource(R.string.common_complete),
+                            icon = Icons.Rounded.Check,
+                            onClick = { onConfirm(draft.normalized()) },
+                        )
                     },
                 )
             },
         ) { innerPadding ->
+            val contentPadding = pageListPadding(
+                pageContentPaddingWithCutout(
+                    innerPadding = innerPadding,
+                    outerPadding = PaddingValues(),
+                    isWideScreen = isWideScreen,
+                ),
+            )
             LazyColumn(
                 state = listState,
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = pageListPadding(
-                    pageContentPaddingWithCutout(
-                        innerPadding = innerPadding,
-                        outerPadding = PaddingValues(),
-                        isWideScreen = isWideScreen,
-                    ),
-                ),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .lazySectionCards(listState, contentPadding, SectionCardColor) { key -> cardParts[key] },
+                contentPadding = contentPadding,
             ) {
+                // No spacing between items: the segments of one section card must touch. The list
+                // paints the cards, so the segments below do not paint their own background.
                 items(rows, key = EditorRow::key) { row ->
                     when (row) {
-                        EditorRow.Search -> Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            AsteriskSearchField(
-                                query = query,
-                                onQueryChange = { query = it },
-                                placeholder = stringResource(R.string.mihomo_rule_override_source_search),
-                                clearContentDescription = stringResource(R.string.common_clear),
-                                modifier = Modifier.weight(1f),
-                            )
-                            if (!selecting) {
-                                AsteriskActionButton(
-                                    text = stringResource(R.string.mihomo_rule_override_select),
-                                    icon = Icons.Rounded.CheckCircle,
-                                    onClick = { selecting = true },
-                                    enabled = visibleIds.isNotEmpty(),
-                                )
-                            }
-                        }
                         EditorRow.Master -> MasterSwitchCard(
                             enabled = draft.enabled,
                             ruleModeActive = ruleModeActive,
                             onEnabledChange = { enabled -> draft = draft.copy(enabled = enabled) },
                         )
 
-                        is EditorRow.RegionHeader -> SectionHeader(
-                            title = stringResource(row.region.titleRes),
-                            summary = if (row.region == RuleRegion.Prepend && draft.hasEarlyMatch()) {
-                                stringResource(R.string.mihomo_rule_override_early_match)
-                            } else {
-                                stringResource(row.region.summaryRes)
-                            },
-                        ) {
-                            if (!selecting) {
-                                AsteriskActionButton(
-                                    text = stringResource(R.string.mihomo_rule_import_short),
+                        is EditorRow.RegionHeader -> {
+                            val earlyMatch = row.region == RuleRegion.Prepend && draft.hasEarlyMatch()
+                            SectionCardHeader(
+                                title = stringResource(row.region.titleRes),
+                                count = draft.rulesOf(row.region).size,
+                                description = stringResource(
+                                    if (earlyMatch) R.string.mihomo_rule_override_early_match else row.region.summaryRes,
+                                ),
+                                descriptionIsWarning = earlyMatch,
+                                paintBackground = false,
+                            ) {
+                                SectionCardHeaderAction(
                                     icon = Icons.Rounded.EditNote,
+                                    contentDescription = stringResource(R.string.mihomo_rule_import_short),
                                     onClick = { importRegion = row.region },
                                 )
-                                AsteriskActionButton(
-                                    text = stringResource(R.string.common_add),
+                                SectionCardHeaderAction(
                                     icon = Icons.Rounded.Add,
+                                    contentDescription = stringResource(R.string.common_add),
                                     onClick = { edit(RuleEditTarget.New(row.region)) },
                                 )
                             }
@@ -273,65 +226,62 @@ internal fun MihomoRuleOverrideEditorDialog(
 
                         is EditorRow.Rule -> ReorderableItem(reorderState.reorderableState, key = row.key) { dragging ->
                             val lift = animateDraggedCardLift(dragging, label = "rule-override")
-                            RuleCard(
-                                rule = row.rule,
-                                selecting = selecting,
-                                selected = row.rule.id in selectedIds,
-                                canMoveUp = !selecting && query.isBlank() && row.index > 0,
-                                canMoveDown = !selecting && query.isBlank() && row.index < row.count - 1,
-                                onClick = {
-                                    if (selecting) toggleSelection(row.rule.id)
-                                    else edit(RuleEditTarget.Existing(row.region, row.rule))
-                                },
-                                onEnabledChange = { enabled ->
-                                    draft = draft.updateRule(row.region, row.rule.copy(enabled = enabled))
-                                },
-                                onMove = { delta -> draft = draft.shiftRule(row.region, row.rule.id, delta) },
-                                onDelete = { draft = draft.deleteRule(row.region, row.rule.id) },
-                                modifier = Modifier
-                                    .draggedCardLift(lift, AsteriskShapeTokens.ListCardRadius)
-                                    .longPressReorderDragHandle(
-                                        this,
-                                        enabled = !selecting && query.isBlank() && row.count > 1,
-                                        state = reorderState,
-                                    ),
-                            )
-                        }
-
-                        is EditorRow.Empty -> EmptyHint(stringResource(row.textRes))
-
-                        EditorRow.SourceHeader -> SectionHeader(
-                            title = stringResource(R.string.mihomo_rule_override_source_edits),
-                            summary = source.statusText(sourceIsCachedSubscription),
-                        ) {
-                            if (!selecting) {
-                                AsteriskActionButton(
-                                    text = stringResource(R.string.mihomo_rule_override_pick_source),
-                                    icon = Icons.Rounded.Search,
-                                    onClick = { showSourceRules = true },
-                                    enabled = source.status == RuleSourceStatus.Ready && source.info.rules.isNotEmpty(),
+                            SectionCardItem(paintBackground = false) {
+                                RuleCard(
+                                    rule = row.rule,
+                                    canMoveUp = row.index > 0,
+                                    canMoveDown = row.index < row.count - 1,
+                                    onClick = { edit(RuleEditTarget.Existing(row.region, row.rule)) },
+                                    onEnabledChange = { enabled ->
+                                        draft = draft.updateRule(row.region, row.rule.copy(enabled = enabled))
+                                    },
+                                    onMove = { delta -> draft = draft.shiftRule(row.region, row.rule.id, delta) },
+                                    onDelete = { draft = draft.deleteRule(row.region, row.rule.id) },
+                                    modifier = Modifier
+                                        .draggedCardLift(lift, AsteriskShapeTokens.InnerContainerRadius)
+                                        .longPressReorderDragHandle(
+                                            this,
+                                            enabled = row.count > 1,
+                                            state = reorderState,
+                                        ),
                                 )
                             }
                         }
 
-                        is EditorRow.SourceEdit -> SourceEditCard(
-                            edit = row.edit,
-                            selecting = selecting,
-                            selected = row.edit.id in selectedIds,
-                            matchCount = source.matchCountOf(row.edit),
-                            onClick = {
-                                if (selecting) toggleSelection(row.edit.id)
-                                else edit(RuleEditTarget.Replace(row.edit.sourceRule, row.edit))
-                            },
-                            onEnabledChange = { enabled ->
-                                draft = draft.copy(
-                                    sourceEdits = draft.sourceEdits.map { edit ->
-                                        if (edit.id == row.edit.id) edit.copy(enabled = enabled) else edit
-                                    },
-                                )
-                            },
-                            onRestore = { draft = draft.restoreSourceRule(row.edit.sourceRule) },
+                        is EditorRow.Footer -> SectionCardFooter(
+                            text = row.emptyRes?.let { stringResource(it) },
+                            paintBackground = false,
                         )
+
+                        EditorRow.SourceHeader -> SectionCardHeader(
+                            title = stringResource(R.string.mihomo_rule_override_source_edits),
+                            count = draft.sourceEdits.size,
+                            description = source.statusText(sourceIsCachedSubscription),
+                            paintBackground = false,
+                        ) {
+                            SectionCardHeaderAction(
+                                icon = Icons.Rounded.Search,
+                                contentDescription = stringResource(R.string.mihomo_rule_override_source_rules),
+                                onClick = { showSourceRules = true },
+                                enabled = source.status == RuleSourceStatus.Ready && source.info.rules.isNotEmpty(),
+                            )
+                        }
+
+                        is EditorRow.SourceEdit -> SectionCardItem(paintBackground = false) {
+                            SourceEditCard(
+                                edit = row.edit,
+                                matchCount = source.matchCountOf(row.edit),
+                                onClick = { edit(RuleEditTarget.Replace(row.edit.sourceRule, row.edit)) },
+                                onEnabledChange = { enabled ->
+                                    draft = draft.copy(
+                                        sourceEdits = draft.sourceEdits.map { edit ->
+                                            if (edit.id == row.edit.id) edit.copy(enabled = enabled) else edit
+                                        },
+                                    )
+                                },
+                                onRestore = { draft = draft.restoreSourceRule(row.edit.sourceRule) },
+                            )
+                        }
 
                         EditorRow.Fallback -> FallbackSection(
                             matchTarget = draft.matchTarget.orEmpty(),
@@ -385,36 +335,6 @@ internal fun MihomoRuleOverrideEditorDialog(
                 compile = { compilePreview(draft.normalized()) },
                 sourceIsCachedSubscription = sourceIsCachedSubscription,
                 onDismissRequest = { showPreview = false },
-            )
-        }
-        pendingDeleteIds?.let { ids ->
-            AlertDialog(
-                onDismissRequest = { pendingDeleteIds = null },
-                title = { Text(stringResource(R.string.common_delete)) },
-                text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(stringResource(R.string.mihomo_rule_override_delete_message, ids.size))
-                        if (draft.sourceEdits.any { it.id in ids }) {
-                            Text(stringResource(R.string.mihomo_rule_override_delete_source_hint))
-                        }
-                    }
-                },
-                dismissButton = { AsteriskCancelButton(onClick = { pendingDeleteIds = null }) },
-                confirmButton = {
-                    AsteriskActionButton(
-                        text = stringResource(R.string.common_delete),
-                        icon = Icons.Rounded.Delete,
-                        onClick = {
-                            draft = draft.copy(
-                                prependRules = draft.prependRules.filterNot { it.id in ids },
-                                beforeMatchRules = draft.beforeMatchRules.filterNot { it.id in ids },
-                                sourceEdits = draft.sourceEdits.filterNot { it.id in ids },
-                            )
-                            selectedIds = selectedIds - ids
-                            pendingDeleteIds = null
-                        },
-                    )
-                },
             )
         }
         if (confirmDiscard) {
@@ -481,49 +401,8 @@ private fun MasterSwitchCard(
 }
 
 @Composable
-private fun SectionHeader(
-    title: String,
-    summary: String,
-    actions: @Composable () -> Unit,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(start = 8.dp, top = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.SemiBold,
-            )
-            if (summary.isNotBlank()) {
-                Text(
-                    text = summary,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-        actions()
-    }
-}
-
-@Composable
-private fun EmptyHint(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
-    )
-}
-
-@Composable
 private fun RuleCard(
     rule: MihomoOverrideRuleState,
-    selecting: Boolean,
-    selected: Boolean,
     canMoveUp: Boolean,
     canMoveDown: Boolean,
     onClick: () -> Unit,
@@ -536,60 +415,43 @@ private fun RuleCard(
     val moveUpLabel = stringResource(R.string.mihomo_rule_move_up)
     val moveDownLabel = stringResource(R.string.mihomo_rule_move_down)
     val deleteLabel = stringResource(R.string.common_delete)
-    Card(
+    SectionCardEntry(
         onClick = onClick,
-        modifier = modifier.fillMaxWidth().semantics {
-            if (selecting) this.selected = selected
+        modifier = modifier.semantics {
             // Dragging is a gesture only; the same reordering is offered as actions.
             customActions = buildList {
-                if (!selecting) {
-                    if (canMoveUp) add(CustomAccessibilityAction(moveUpLabel) { onMove(-1); true })
-                    if (canMoveDown) add(CustomAccessibilityAction(moveDownLabel) { onMove(1); true })
-                    add(CustomAccessibilityAction(deleteLabel) { onDelete(); true })
-                }
+                if (canMoveUp) add(CustomAccessibilityAction(moveUpLabel) { onMove(-1); true })
+                if (canMoveDown) add(CustomAccessibilityAction(moveDownLabel) { onMove(1); true })
+                add(CustomAccessibilityAction(deleteLabel) { onDelete(); true })
             }
         },
-        shape = AsteriskShapeTokens.ListCard,
-        colors = CardDefaults.cardColors(
-            containerColor = if (selecting && selected) MaterialTheme.colorScheme.surfaceContainerHighest
-            else MaterialTheme.colorScheme.surfaceContainerHigh,
-        ),
     ) {
-        Row(
-            modifier = Modifier.padding(start = 16.dp, top = 6.dp, bottom = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            RuleText(
-                rule = rule.rawRule,
-                remark = rule.remark,
-                modifier = Modifier.weight(1f).alpha(if (rule.enabled) 1f else DisabledRuleAlpha),
-            )
-            if (selecting) {
-                Checkbox(checked = selected, onCheckedChange = { onClick() })
-            } else {
-                Switch(
-                    checked = rule.enabled,
-                    onCheckedChange = onEnabledChange,
-                    modifier = Modifier.padding(start = 8.dp),
-                )
-                Box {
-                    IconButton(onClick = { menuExpanded = true }) {
-                        Icon(Icons.Rounded.MoreVert, stringResource(R.string.mihomo_rule_actions))
-                    }
-                    DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
-                        RuleMenuItem(moveUpLabel, Icons.Rounded.ArrowUpward, enabled = canMoveUp) {
-                            menuExpanded = false
-                            onMove(-1)
-                        }
-                        RuleMenuItem(moveDownLabel, Icons.Rounded.ArrowDownward, enabled = canMoveDown) {
-                            menuExpanded = false
-                            onMove(1)
-                        }
-                        RuleMenuItem(deleteLabel, Icons.Rounded.Delete) {
-                            menuExpanded = false
-                            onDelete()
-                        }
-                    }
+        RuleText(
+            rule = rule.rawRule,
+            remark = rule.remark,
+            modifier = Modifier.weight(1f).alpha(if (rule.enabled) 1f else DisabledRuleAlpha),
+        )
+        Switch(
+            checked = rule.enabled,
+            onCheckedChange = onEnabledChange,
+            modifier = Modifier.padding(start = 8.dp),
+        )
+        Box {
+            IconButton(onClick = { menuExpanded = true }) {
+                Icon(Icons.Rounded.MoreVert, stringResource(R.string.mihomo_rule_actions))
+            }
+            DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                RuleMenuItem(moveUpLabel, Icons.Rounded.ArrowUpward, enabled = canMoveUp) {
+                    menuExpanded = false
+                    onMove(-1)
+                }
+                RuleMenuItem(moveDownLabel, Icons.Rounded.ArrowDownward, enabled = canMoveDown) {
+                    menuExpanded = false
+                    onMove(1)
+                }
+                RuleMenuItem(deleteLabel, Icons.Rounded.Delete) {
+                    menuExpanded = false
+                    onDelete()
                 }
             }
         }
@@ -639,59 +501,43 @@ private fun RuleText(
 @Composable
 private fun SourceEditCard(
     edit: MihomoSourceRuleEditState,
-    selecting: Boolean,
-    selected: Boolean,
     matchCount: Int?,
     onClick: () -> Unit,
     onEnabledChange: (Boolean) -> Unit,
     onRestore: () -> Unit,
 ) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth().semantics { if (selecting) this.selected = selected },
-        shape = AsteriskShapeTokens.ListCard,
-        colors = CardDefaults.cardColors(
-            containerColor = if (selecting && selected) MaterialTheme.colorScheme.surfaceContainerHighest
-            else MaterialTheme.colorScheme.surfaceContainerHigh,
-        ),
-    ) {
-        Row(
-            modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
+    SectionCardEntry(onClick = onClick) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(vertical = 6.dp)
+                .alpha(if (edit.enabled) 1f else DisabledRuleAlpha),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Column(
-                modifier = Modifier.weight(1f).alpha(if (edit.enabled) 1f else DisabledRuleAlpha),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    SourceEditChip(edit.action)
-                    when (matchCount) {
-                        null -> Unit
-                        0 -> AsteriskInfoChip(
-                            text = stringResource(R.string.mihomo_rule_override_edit_unmatched),
-                            tone = AsteriskChipTone.Error,
-                        )
-                        1 -> Unit
-                        else -> AsteriskInfoChip(stringResource(R.string.mihomo_rule_override_edit_affects, matchCount))
-                    }
-                }
-                RuleText(rule = edit.sourceRule, remark = "")
-                if (edit.action == MihomoSourceRuleEditAction.Replace) {
-                    RuleText(rule = "→ ${edit.replacementRule}", remark = edit.remark)
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                SourceEditChip(edit.action)
+                when (matchCount) {
+                    null -> Unit
+                    0 -> AsteriskInfoChip(
+                        text = stringResource(R.string.mihomo_rule_override_edit_unmatched),
+                        tone = AsteriskChipTone.Error,
+                    )
+                    1 -> Unit
+                    else -> AsteriskInfoChip(stringResource(R.string.mihomo_rule_override_edit_affects, matchCount))
                 }
             }
-            if (selecting) {
-                Checkbox(checked = selected, onCheckedChange = { onClick() })
-            } else {
-                Switch(
-                    checked = edit.enabled,
-                    onCheckedChange = onEnabledChange,
-                    modifier = Modifier.padding(start = 8.dp),
-                )
-                IconButton(onClick = onRestore) {
-                    Icon(Icons.Rounded.Refresh, stringResource(R.string.mihomo_rule_override_restore))
-                }
+            RuleText(rule = edit.sourceRule, remark = "")
+            if (edit.action == MihomoSourceRuleEditAction.Replace) {
+                RuleText(rule = "→ ${edit.replacementRule}", remark = edit.remark)
             }
+        }
+        Switch(
+            checked = edit.enabled,
+            onCheckedChange = onEnabledChange,
+            modifier = Modifier.padding(start = 8.dp),
+        )
+        IconButton(onClick = onRestore) {
+            Icon(Icons.Rounded.Refresh, stringResource(R.string.mihomo_rule_override_restore))
         }
     }
 }
@@ -710,6 +556,7 @@ internal fun SourceEditChip(action: MihomoSourceRuleEditAction) {
     }
 }
 
+/** A section card of its own: it is never long, so it is one list item. */
 @Composable
 private fun FallbackSection(
     matchTarget: String,
@@ -717,20 +564,23 @@ private fun FallbackSection(
     onMatchTargetChange: (String) -> Unit,
 ) {
     Column {
-        SectionHeader(
+        SectionCardHeader(
             title = stringResource(R.string.mihomo_rule_override_fallback),
-            summary = stringResource(R.string.mihomo_rule_override_fallback_summary),
-        ) {}
-        SuggestionTextField(
-            value = matchTarget,
-            onValueChange = onMatchTargetChange,
-            label = stringResource(R.string.mihomo_rule_override_fallback_target),
-            suggestions = source.targets,
-            supportingText = source.matchTarget
-                ?.let { target -> stringResource(R.string.mihomo_rule_override_fallback_keep, target) }
-                ?: stringResource(R.string.mihomo_rule_override_fallback_none),
-            modifier = Modifier.padding(top = 8.dp, bottom = 8.dp),
+            description = stringResource(R.string.mihomo_rule_override_fallback_summary),
         )
+        SectionCardItem {
+            SuggestionTextField(
+                value = matchTarget,
+                onValueChange = onMatchTargetChange,
+                label = stringResource(R.string.mihomo_rule_override_fallback_target),
+                suggestions = source.targets,
+                supportingText = source.matchTarget
+                    ?.let { target -> stringResource(R.string.mihomo_rule_override_fallback_keep, target) }
+                    ?: stringResource(R.string.mihomo_rule_override_fallback_none),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        SectionCardFooter()
     }
 }
 
@@ -774,11 +624,9 @@ private sealed interface RuleEditTarget {
 
 private sealed interface EditorRow {
     val key: String
-    val entryId: Int? get() = null
 
-    data object Search : EditorRow {
-        override val key = "search"
-    }
+    /** The section card this row is part of, painted by the list; `null` outside the cards. */
+    val cardPart: Pair<String, SectionCardPart>? get() = null
 
     data object Master : EditorRow {
         override val key = "master"
@@ -786,24 +634,28 @@ private sealed interface EditorRow {
 
     data class RegionHeader(val region: RuleRegion) : EditorRow {
         override val key = "header:${region.name}"
+        override val cardPart = region.name to SectionCardPart.Header
     }
 
     data class Rule(val region: RuleRegion, val rule: MihomoOverrideRuleState, val index: Int, val count: Int) : EditorRow {
         override val key = "rule:${rule.id}"
-        override val entryId = rule.id
+        override val cardPart = region.name to SectionCardPart.Item
     }
 
-    data class Empty(val owner: String, val textRes: Int) : EditorRow {
-        override val key = "empty:$owner"
+    /** The bottom of a section card; [emptyRes] is shown when the section has no entries. */
+    data class Footer(val owner: String, val emptyRes: Int?) : EditorRow {
+        override val key = "footer:$owner"
+        override val cardPart = owner to SectionCardPart.Footer
     }
 
     data object SourceHeader : EditorRow {
         override val key = "header:source"
+        override val cardPart = SourceCard to SectionCardPart.Header
     }
 
     data class SourceEdit(val edit: MihomoSourceRuleEditState) : EditorRow {
         override val key = "edit:${edit.id}"
-        override val entryId = edit.id
+        override val cardPart = SourceCard to SectionCardPart.Item
     }
 
     data object Fallback : EditorRow {
@@ -812,35 +664,20 @@ private sealed interface EditorRow {
 }
 
 /** The editor follows the order the rules take in the compiled configuration. */
-private fun MihomoRuleOverrideState.toEditorRows(query: String, selecting: Boolean): List<EditorRow> = buildList {
-    add(EditorRow.Search)
-    if (!selecting && query.isEmpty()) add(EditorRow.Master)
-    addRegion(RuleRegion.Prepend, prependRules, query)
+private fun MihomoRuleOverrideState.toEditorRows(): List<EditorRow> = buildList {
+    add(EditorRow.Master)
+    addRegion(RuleRegion.Prepend, prependRules)
     add(EditorRow.SourceHeader)
-    val visibleEdits = sourceEdits.filter { edit ->
-        query.isEmpty() || listOf(edit.sourceRule, edit.replacementRule, edit.remark).any { it.contains(query, ignoreCase = true) }
-    }
-    if (visibleEdits.isEmpty()) {
-        val emptyText = if (query.isEmpty()) R.string.mihomo_rule_override_source_edits_empty
-        else R.string.mihomo_rule_override_source_no_match
-        add(EditorRow.Empty("source", emptyText))
-    } else {
-        visibleEdits.forEach { edit -> add(EditorRow.SourceEdit(edit)) }
-    }
-    addRegion(RuleRegion.BeforeMatch, beforeMatchRules, query)
-    if (!selecting && query.isEmpty()) add(EditorRow.Fallback)
+    sourceEdits.forEach { edit -> add(EditorRow.SourceEdit(edit)) }
+    add(EditorRow.Footer(SourceCard, R.string.mihomo_rule_override_source_edits_empty.takeIf { sourceEdits.isEmpty() }))
+    addRegion(RuleRegion.BeforeMatch, beforeMatchRules)
+    add(EditorRow.Fallback)
 }
 
-private fun MutableList<EditorRow>.addRegion(region: RuleRegion, rules: List<MihomoOverrideRuleState>, query: String) {
+private fun MutableList<EditorRow>.addRegion(region: RuleRegion, rules: List<MihomoOverrideRuleState>) {
     add(EditorRow.RegionHeader(region))
-    val visible = rules.withIndex().filter { (_, rule) ->
-        query.isEmpty() || rule.rawRule.contains(query, ignoreCase = true) || rule.remark.contains(query, ignoreCase = true)
-    }
-    if (visible.isEmpty()) {
-        val emptyText = if (query.isEmpty()) region.emptyRes else R.string.mihomo_rule_override_source_no_match
-        add(EditorRow.Empty(region.name, emptyText))
-    }
-    visible.forEach { (index, rule) -> add(EditorRow.Rule(region, rule, index, rules.size)) }
+    rules.forEachIndexed { index, rule -> add(EditorRow.Rule(region, rule, index, rules.size)) }
+    add(EditorRow.Footer(region.name, region.emptyRes.takeIf { rules.isEmpty() }))
 }
 
 internal enum class RuleSourceStatus { Loading, Missing, Invalid, Ready }
@@ -976,3 +813,5 @@ internal fun MihomoRuleOverrideState.hasEarlyMatch(): Boolean =
     prependRules.any { rule -> rule.enabled && rule.rawRule.isMihomoMatchRule() }
 
 private const val DisabledRuleAlpha = 0.5f
+
+private const val SourceCard = "source"

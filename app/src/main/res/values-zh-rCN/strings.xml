@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Keep Common first; group other resources by feature, with names sorted within each section.
          Keep section and resource order aligned across translations and sibling apps. -->
 
@@ -456,9 +456,12 @@
     <string name="mihomo_rule_error_multiple_lines">只能填写一条规则</string>
     <string name="mihomo_rule_error_network">请填写 TCP 或 UDP</string>
     <string name="mihomo_rule_error_payload_required">请填写匹配内容</string>
-    <string name="mihomo_rule_error_port">请填写 0 至 65535 之间的端口，如 80/443/8000-8080</string>
+    <!-- The examples use "-" because it is the range syntax the rule expects. -->
+    <string name="mihomo_rule_error_port"
+        tools:ignore="TypographyDashes">请填写 0 至 65535 之间的端口，如 80/443/8000-8080</string>
     <string name="mihomo_rule_error_target_required">请填写目标策略</string>
-    <string name="mihomo_rule_error_uid">请填写 0 至 4294967295 之间的 UID，如 1000/10000-19999</string>
+    <string name="mihomo_rule_error_uid"
+        tools:ignore="TypographyDashes">请填写 0 至 4294967295 之间的 UID，如 1000/10000-19999</string>
     <string name="mihomo_rule_error_yaml">请填写裸规则，而不是 YAML</string>
     <string name="mihomo_rule_form_unavailable">此规则只能以原文编辑。</string>
     <string name="mihomo_rule_import">批量导入规则</string>
@@ -479,9 +482,6 @@
     <string name="mihomo_rule_override_before_match_summary">插入到首条 MATCH 之前</string>
     <string name="mihomo_rule_override_block">屏蔽</string>
     <string name="mihomo_rule_override_blocked">已屏蔽</string>
-    <string name="mihomo_rule_override_clear_selection">取消全选</string>
-    <string name="mihomo_rule_override_delete_message">删除当前列表中选中的 %1$d 项？</string>
-    <string name="mihomo_rule_override_delete_source_hint">删除源规则修改记录后，将恢复对应原规则。</string>
     <string name="mihomo_rule_override_discard_confirm">放弃</string>
     <string name="mihomo_rule_override_discard_message">对规则覆写的修改将不会保留。</string>
     <string name="mihomo_rule_override_discard_title">放弃修改？</string>
@@ -499,7 +499,6 @@
     <string name="mihomo_rule_override_modify">修改</string>
     <string name="mihomo_rule_override_modify_source">修改源规则</string>
     <string name="mihomo_rule_override_order_hint">规则覆写在覆写脚本之前执行，脚本仍可继续修改这些规则。</string>
-    <string name="mihomo_rule_override_pick_source">选择</string>
     <string name="mihomo_rule_override_prepend">前置规则</string>
     <string name="mihomo_rule_override_prepend_empty">暂无前置规则</string>
     <string name="mihomo_rule_override_prepend_summary">优先于配置中的所有规则</string>
@@ -510,12 +509,13 @@
     <string name="mihomo_rule_override_preview_final">最终配置</string>
     <string name="mihomo_rule_override_preview_missing_provider">未找到规则使用的规则集“%1$s”：%2$s</string>
     <string name="mihomo_rule_override_preview_missing_target">未找到规则使用的代理或策略组“%1$s”：%2$s</string>
-    <string name="mihomo_rule_override_preview_unmatched">有 %1$d 项规则修改未找到对应的原规则。</string>
-    <string name="mihomo_rule_override_preview_unreachable">有 %1$d 条规则位于兜底规则之后，不会生效。</string>
+    <plurals name="mihomo_rule_override_preview_unmatched">
+        <item quantity="other">有 %1$d 项规则修改未找到对应的原规则。</item>
+    </plurals>
+    <plurals name="mihomo_rule_override_preview_unreachable">
+        <item quantity="other">有 %1$d 条规则位于兜底规则之后，不会生效。</item>
+    </plurals>
     <string name="mihomo_rule_override_restore">恢复</string>
-    <string name="mihomo_rule_override_select">多选</string>
-    <string name="mihomo_rule_override_select_all">全选</string>
-    <string name="mihomo_rule_override_selected">已选 %1$d 项</string>
     <string name="mihomo_rule_override_source_count">配置中共 %1$d 条规则</string>
     <string name="mihomo_rule_override_source_count_cached">已缓存的订阅内容中共 %1$d 条规则</string>
     <string name="mihomo_rule_override_source_edits">源规则修改</string>

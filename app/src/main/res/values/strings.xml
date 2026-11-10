@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Keep Common first; group other resources by feature, with names sorted within each section.
          Keep section and resource order aligned across translations and sibling apps. -->
 
@@ -464,9 +464,12 @@
     <string name="mihomo_rule_error_multiple_lines">Enter a single rule</string>
     <string name="mihomo_rule_error_network">Enter TCP or UDP</string>
     <string name="mihomo_rule_error_payload_required">Enter the match content</string>
-    <string name="mihomo_rule_error_port">Enter ports between 0 and 65535, such as 80/443/8000-8080</string>
+    <!-- The examples use "-" because it is the range syntax the rule expects. -->
+    <string name="mihomo_rule_error_port"
+        tools:ignore="TypographyDashes">Enter ports between 0 and 65535, such as 80/443/8000-8080</string>
     <string name="mihomo_rule_error_target_required">Enter the policy</string>
-    <string name="mihomo_rule_error_uid">Enter UIDs between 0 and 4294967295, such as 1000/10000-19999</string>
+    <string name="mihomo_rule_error_uid"
+        tools:ignore="TypographyDashes">Enter UIDs between 0 and 4294967295, such as 1000/10000-19999</string>
     <string name="mihomo_rule_error_yaml">Enter the bare rule, not YAML</string>
     <string name="mihomo_rule_form_unavailable">This rule can only be edited as raw text.</string>
     <string name="mihomo_rule_import">Import rules</string>
@@ -487,9 +490,6 @@
     <string name="mihomo_rule_override_before_match_summary">Inserted right before the first MATCH</string>
     <string name="mihomo_rule_override_block">Block</string>
     <string name="mihomo_rule_override_blocked">Blocked</string>
-    <string name="mihomo_rule_override_clear_selection">Deselect all</string>
-    <string name="mihomo_rule_override_delete_message">Delete %1$d selected entries from the current results?</string>
-    <string name="mihomo_rule_override_delete_source_hint">Deleting a profile rule edit restores the original rule.</string>
     <string name="mihomo_rule_override_discard_confirm">Discard</string>
     <string name="mihomo_rule_override_discard_message">The changes made to the rule override will be lost.</string>
     <string name="mihomo_rule_override_discard_title">Discard changes?</string>
@@ -507,7 +507,6 @@
     <string name="mihomo_rule_override_modify">Modify</string>
     <string name="mihomo_rule_override_modify_source">Modify profile rule</string>
     <string name="mihomo_rule_override_order_hint">Runs before the override script, which can still change these rules.</string>
-    <string name="mihomo_rule_override_pick_source">Browse</string>
     <string name="mihomo_rule_override_prepend">Prepended rules</string>
     <string name="mihomo_rule_override_prepend_empty">No prepended rules</string>
     <string name="mihomo_rule_override_prepend_summary">Matched before every rule of the profile</string>
@@ -518,12 +517,15 @@
     <string name="mihomo_rule_override_preview_final">Final configuration</string>
     <string name="mihomo_rule_override_preview_missing_provider">Rule provider “%1$s” used by this rule was not found: %2$s</string>
     <string name="mihomo_rule_override_preview_missing_target">Proxy or proxy group “%1$s” used by this rule was not found: %2$s</string>
-    <string name="mihomo_rule_override_preview_unmatched">%1$d rule changes have no matching rule in the original profile.</string>
-    <string name="mihomo_rule_override_preview_unreachable">%1$d rules follow the fallback rule and will not take effect.</string>
+    <plurals name="mihomo_rule_override_preview_unmatched">
+        <item quantity="one">%1$d rule change has no matching rule in the original profile.</item>
+        <item quantity="other">%1$d rule changes have no matching rule in the original profile.</item>
+    </plurals>
+    <plurals name="mihomo_rule_override_preview_unreachable">
+        <item quantity="one">%1$d rule follows the fallback rule and will not take effect.</item>
+        <item quantity="other">%1$d rules follow the fallback rule and will not take effect.</item>
+    </plurals>
     <string name="mihomo_rule_override_restore">Restore</string>
-    <string name="mihomo_rule_override_select">Select</string>
-    <string name="mihomo_rule_override_select_all">Select all</string>
-    <string name="mihomo_rule_override_selected">Selected: %1$d</string>
     <string name="mihomo_rule_override_source_count">Rules in the profile: %1$d</string>
     <string name="mihomo_rule_override_source_count_cached">Rules in the cached subscription: %1$d</string>
     <string name="mihomo_rule_override_source_edits">Profile rule edits</string>
