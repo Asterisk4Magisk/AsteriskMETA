@@ -378,6 +378,19 @@
             ]
         },
         {
+            "uniqueId": "sh.calvin.reorderable:reorderable",
+            "artifactVersion": "3.1.0",
+            "name": "Reorderable",
+            "description": "A library for reordering items in lazy lists and grids in Compose",
+            "website": "https://github.com/Calvin-LL/Reorderable",
+            "scm": {
+                "url": "https://github.com/Calvin-LL/Reorderable"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ]
+        },
+        {
             "uniqueId": "androidx.room:room-runtime",
             "artifactVersion": "2.8.5",
             "name": "Room-Runtime",

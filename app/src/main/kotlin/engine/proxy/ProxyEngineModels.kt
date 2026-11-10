@@ -37,6 +37,30 @@ internal fun ProxyEngineStartRequest.prepareNormalMihomoProfile(
     )
 }
 
+/** Why a changed profile did not reach the running core the ordinary way. */
+internal enum class ProfileApplyFailure {
+    /** Compiling, publishing or reaching the core failed before it was asked; it runs what it ran. */
+    NotPrepared,
+
+    /** The core parsed the new configuration and refused it; it runs what it ran. */
+    Rejected,
+
+    /** The request was sent and no answer arrived, so either configuration may be running. */
+    Unconfirmed,
+
+    /** The core runs the new configuration, but the runtime file still holds the old one. */
+    RuntimeFileNotSaved,
+}
+
+/**
+ * A hot reload that did not complete. The service is never restarted because of it: [failure]
+ * tells what the core is running now.
+ */
+internal class ProfileApplyException(
+    val failure: ProfileApplyFailure,
+    cause: Throwable,
+) : IllegalStateException(cause.message, cause)
+
 data class ProxyEngineStatus(
     val running: Boolean,
     val runMode: Int? = null,

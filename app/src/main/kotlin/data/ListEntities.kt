@@ -42,6 +42,8 @@ internal data class MihomoProfileEntity(
     val disableOverrides: Boolean,
     @ColumnInfo(defaultValue = "0")
     val syncFailed: Boolean,
+    @ColumnInfo(defaultValue = "'{}'")
+    val ruleOverrideJson: String,
 ) {
     fun toState(): MihomoProfileState {
         return MihomoProfileState(
@@ -69,6 +71,7 @@ internal data class MihomoProfileEntity(
             overrideScriptId = overrideScriptId,
             disableOverrides = disableOverrides,
             syncFailed = syncFailed,
+            ruleOverride = MihomoRuleOverrideJson.decode(profileId = id, payload = ruleOverrideJson),
         )
     }
 
@@ -98,6 +101,7 @@ internal data class MihomoProfileEntity(
                 overrideScriptId = profile.overrideScriptId,
                 disableOverrides = profile.disableOverrides,
                 syncFailed = profile.syncFailed,
+                ruleOverrideJson = MihomoRuleOverrideJson.encode(profile.ruleOverride),
             )
         }
     }

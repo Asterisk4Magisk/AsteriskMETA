@@ -48,6 +48,8 @@ import engine.mihomo.MihomoProfileContentStore
 import engine.mihomo.runtime.MihomoRuntimeRepository
 import data.AndroidAppStateStore
 import engine.proxy.AndroidProxyEngine
+import engine.proxy.ProfileApplyException
+import engine.proxy.ProfileApplyFailure
 import engine.proxy.ProxyEngineStartRequest
 import system.AndroidRootShellGateway
 import features.mihomo.provider.MihomoProviderUsageStateHolder
@@ -168,9 +170,9 @@ class AsteriskApplication : Application(), SingletonImageLoader.Factory {
     }
 
     /**
-     * An in-place reload in VPN mode, a supervised restart in ROOT modes. It claims the home
-     * screen's service operation state, so the power button and this apply exclude each other,
-     * and a stopped core is left alone.
+     * An in-place reload through the core's control API in VPN and ROOT modes. It claims the
+     * home screen's service operation state, so the power button and this apply exclude each
+     * other, and a stopped core is left alone. What was saved stays saved when the apply fails.
      */
     private suspend fun applyConfigurationToRunningCore() {
         while (true) {
@@ -191,6 +193,11 @@ class AsteriskApplication : Application(), SingletonImageLoader.Factory {
             when (val result = useCase.applyConfiguration(snapshot)) {
                 is ProxyServiceResult.Success -> {
                     AndroidAppLogger.info(RunningConfigurationLogTag, "Applied updated configuration")
+                    // The proxy pages keep a snapshot per configuration; the core changed under it.
+                    if (result.proxyRunning && mihomoRuntime.state.value.running) {
+                        mihomoRuntime.refreshProxies(stateStore.state.value)
+                        mihomoProviderUsage.refresh(stateStore.state.value)
+                    }
                     stateStore.update { state ->
                         state.copy(
                             proxyRunning = result.proxyRunning,
@@ -204,10 +211,13 @@ class AsteriskApplication : Application(), SingletonImageLoader.Factory {
                     useCase.isRunning(snapshot)?.let { running ->
                         stateStore.update { state -> state.copy(proxyRunning = running) }
                     }
-                    AndroidToastTipNotifier(applicationContext).showError(
-                        result.error,
-                        getString(R.string.proxy_service_auto_apply_failed),
-                    )
+                    val notifier = AndroidToastTipNotifier(applicationContext)
+                    val applyFailure = result.error as? ProfileApplyException
+                    if (applyFailure == null) {
+                        notifier.showError(result.error, getString(R.string.proxy_service_auto_apply_failed))
+                    } else {
+                        notifier.show(applyFailure.tipMessage())
+                    }
                 }
             }
         } finally {
@@ -254,6 +264,16 @@ class AsteriskApplication : Application(), SingletonImageLoader.Factory {
                 .map { state -> state.quickSettingsTileState() }
                 .distinctUntilChanged()
                 .collect { tileState -> refreshQuickSettingsTileUnlessShowing(applicationContext, tileState) }
+        }
+    }
+
+    private fun ProfileApplyException.tipMessage(): String {
+        val detail = cause?.message.orEmpty().ifBlank { cause?.javaClass?.simpleName.orEmpty() }
+        return when (failure) {
+            ProfileApplyFailure.NotPrepared -> getString(R.string.proxy_service_apply_not_prepared, detail)
+            ProfileApplyFailure.Rejected -> getString(R.string.proxy_service_apply_rejected, detail)
+            ProfileApplyFailure.Unconfirmed -> getString(R.string.proxy_service_apply_unconfirmed)
+            ProfileApplyFailure.RuntimeFileNotSaved -> getString(R.string.proxy_service_apply_file_not_saved)
         }
     }
 

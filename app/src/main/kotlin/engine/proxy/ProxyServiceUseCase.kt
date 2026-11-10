@@ -38,9 +38,7 @@ internal class ProxyServiceUseCase(
         }
     }
 
-    suspend fun restart(state: AppState): ProxyServiceResult = restart(state, onlyIfRunning = false)
-
-    private suspend fun restart(state: AppState, onlyIfRunning: Boolean): ProxyServiceResult {
+    suspend fun restart(state: AppState): ProxyServiceResult {
         val live = try {
             proxyEngine.status(state.runMode, state)
         } catch (error: Throwable) {
@@ -52,12 +50,7 @@ internal class ProxyServiceUseCase(
         )?.let { conflict -> return conflict.toProxyServiceFailure(RootRequestedAction.RestartSameOwner) }
         return runCatching {
             state.requireUsableMihomoProfile()
-            val request = ProxyEngineStartRequest(state)
-            if (onlyIfRunning) {
-                proxyEngine.restartIfRunning(request, requestVpnPermission)
-            } else {
-                proxyEngine.restart(request, requestVpnPermission)
-            }
+            proxyEngine.restart(ProxyEngineStartRequest(state), requestVpnPermission)
         }.fold(
             onSuccess = { status -> ProxyServiceResult.Success(proxyRunning = status.running, appState = status.appState) },
             onFailure = { error -> error.toProxyServiceFailure(RootRequestedAction.RestartSameOwner) },
@@ -65,24 +58,42 @@ internal class ProxyServiceUseCase(
     }
 
     /**
-     * Applies a changed profile to the running core. VPN reloads it in place through the
-     * embedded Clash bridge (see [AndroidProxyEngine.reloadVpnOrRestart]). ROOT keeps the
-     * supervised [restart] for now: the profile reaches the ROOT runtime only through the
-     * supervised start's publication (there is no republish-then-`PUT /configs` path yet), and a
-     * raw profile also feeds the asteriskd configuration, so reloading the old published file
-     * through the Clash API would not apply the change. The restart is skipped when the core
-     * stopped in the meantime.
+     * Applies a changed profile to the running core in place, in VPN and ROOT modes alike (see
+     * [AndroidProxyEngine.applyProfile]); a stopped core is left stopped. A profile the core
+     * cannot take fails with a [ProfileApplyException] and never restarts the service.
+     *
+     * The VPN branch reads no ROOT status: the foreign-owner check belongs to ROOT modes only.
      */
     suspend fun applyConfiguration(state: AppState): ProxyServiceResult {
-        if (state.runMode != RunModeVpnService) return restart(state, onlyIfRunning = true)
+        if (state.runMode != RunModeVpnService) {
+            val live = try {
+                proxyEngine.status(state.runMode, state)
+            } catch (error: Throwable) {
+                return error.toProxyServiceFailure(RootRequestedAction.RestartSameOwner)
+            }
+            classifyForeignRootConflict(LocalRootOwner, live)?.let { conflict ->
+                return conflict.toProxyServiceFailure(RootRequestedAction.RestartSameOwner)
+            }
+        }
         return runCatching {
             state.requireUsableMihomoProfile()
-            proxyEngine.reloadVpnOrRestart(ProxyEngineStartRequest(state), requestVpnPermission)
+            proxyEngine.applyProfile(ProxyEngineStartRequest(state), requestVpnPermission)
         }.fold(
             onSuccess = { status -> ProxyServiceResult.Success(proxyRunning = status.running, appState = status.appState) },
             onFailure = { error ->
-                if (error is CancellationException) throw error
-                ProxyServiceResult.Failed(error)
+                when {
+                    error is CancellationException -> throw error
+                    error is ProfileApplyException -> {
+                        // The cause may quote the configuration, so only its kind is logged.
+                        AndroidAppLogger.error(
+                            LogTag,
+                            "Profile apply failed: ${error.failure} (${error.cause?.javaClass?.simpleName})",
+                        )
+                        ProxyServiceResult.Failed(error)
+                    }
+                    state.runMode == RunModeVpnService -> ProxyServiceResult.Failed(error)
+                    else -> error.toProxyServiceFailure(RootRequestedAction.RestartSameOwner)
+                }
             },
         )
     }

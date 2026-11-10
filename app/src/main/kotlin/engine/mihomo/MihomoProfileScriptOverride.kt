@@ -6,6 +6,7 @@ package engine.mihomo
 import app.DefaultMihomoOverrideScriptId
 import app.MihomoOverrideScriptState
 import app.MihomoProfileState
+import app.MihomoRuleOverrideState
 import com.dokar.quickjs.quickJs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
@@ -23,7 +24,6 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 import org.snakeyaml.engine.v2.api.Dump
 import org.snakeyaml.engine.v2.api.DumpSettings
-import org.snakeyaml.engine.v2.api.Load
 import org.snakeyaml.engine.v2.common.FlowStyle
 
 private val OverrideJson = Json {
@@ -65,7 +65,7 @@ internal data class MihomoProfileScriptDebugSummary(
 internal fun Map<String, Any?>.applyMihomoProfileScriptOverride(
     profile: MihomoProfileState?,
     scripts: List<MihomoOverrideScriptState>,
-    engine: MihomoProfileScriptEngine = QuickJsMihomoProfileScriptEngine,
+    engine: MihomoProfileScriptEngine = DefaultMihomoProfileScriptEngine,
 ): Map<String, Any?> {
     if (profile == null || profile.overrideScriptId == DefaultMihomoOverrideScriptId) {
         return this
@@ -88,12 +88,12 @@ internal fun Map<String, Any?>.applyMihomoProfileScriptOverride(
           if (typeof main !== 'function') {
             throw new Error('Override script must define main(config)')
           }
-          var config = JSON.parse(${JsonPrimitive(configJson)})
+          var config = JSON.parse(${configJson.toAsciiJsStringLiteral()})
           var result = main(config)
           if (result === undefined || result === null) {
             result = config
           }
-          return JSON.stringify(result)
+          return $AsciiJsonStringify(result)
         })()
     """.trimIndent()
 
@@ -107,29 +107,25 @@ internal fun Map<String, Any?>.applyMihomoProfileScriptOverride(
     return jsonToYamlValue(element) as Map<String, Any?>
 }
 
+/**
+ * Runs [scriptContent] against the configuration a real compile would hand it: the source
+ * profile after [ruleOverride], the profile's GUI rule override.
+ */
 internal fun debugMihomoProfileScriptOverride(
     rawProfileContent: String,
     scriptContent: String,
+    ruleOverride: MihomoRuleOverrideState = MihomoRuleOverrideState(),
     engine: MihomoProfileScriptDebugEngine = QuickJsMihomoProfileScriptDebugEngine,
 ): MihomoProfileScriptDebugResult {
     if (scriptContent.isBlank()) {
         return MihomoProfileScriptDebugResult(error = "Override script is blank")
     }
 
-    val escaped = rawProfileContent.escapeSupplementaryYamlCodePoints()
-    val root = runCatching {
-        Load(MihomoYamlLoadSettings).loadFromString(escaped.value) as? Map<*, *>
-    }.getOrElse { error ->
+    val source = runCatching { rawProfileContent.loadMihomoProfileObject() }.getOrElse { error ->
         return MihomoProfileScriptDebugResult(error = error.message ?: error.toString())
-    }
-    if (root == null) {
-        return MihomoProfileScriptDebugResult(error = "Override script requires a YAML object profile")
-    }
-
-    val input = linkedMapOf<String, Any?>()
-    root.forEach { (key, value) ->
-        val name = key as? String ?: return@forEach
-        input[name] = normalizeYamlValue(value)
+    } ?: return MihomoProfileScriptDebugResult(error = "Override script requires a YAML object profile")
+    val input = runCatching { LinkedHashMap(source.applyMihomoRuleOverride(ruleOverride).config) }.getOrElse { error ->
+        return MihomoProfileScriptDebugResult(error = error.message ?: error.toString())
     }
     if (input["proxy-providers"] == null) {
         input["proxy-providers"] = linkedMapOf<String, Any?>()
@@ -137,10 +133,7 @@ internal fun debugMihomoProfileScriptOverride(
 
     val configJson = yamlValueToJson(input).toString()
     return runCatching {
-        val rawResult = engine.evaluate(scriptContent, configJson)
-        rawResult.toDebugResult(input).let { result ->
-            result.copy(outputYaml = result.outputYaml?.let(escaped::restore))
-        }
+        engine.evaluate(scriptContent, configJson).toDebugResult(input)
     }.getOrElse { error ->
         MihomoProfileScriptDebugResult(error = error.message ?: error.toString())
     }
@@ -163,7 +156,7 @@ private object QuickJsMihomoProfileScriptDebugEngine : MihomoProfileScriptDebugE
     }
 }
 
-private object QuickJsMihomoProfileScriptEngine : MihomoProfileScriptEngine {
+internal object DefaultMihomoProfileScriptEngine : MihomoProfileScriptEngine {
     override fun evaluate(script: String): String {
         return runBlocking(Dispatchers.Default) {
             quickJs {
@@ -186,18 +179,37 @@ private fun buildDebugOverrideScript(
           if (typeof main !== 'function') {
             throw new Error('Override script must define main(config)')
           }
-          var config = JSON.parse(${JsonPrimitive(configJson)})
+          var config = JSON.parse(${configJson.toAsciiJsStringLiteral()})
           var result = main(config)
           if (result === undefined || result === null) {
             result = config
           }
-          return JSON.stringify({
+          return $AsciiJsonStringify({
             logs: globalThis.__asteriskMetaScriptDebugLogs || [],
             config: result
           })
         })(globalThis)
     """.trimIndent()
 }
+
+/**
+ * The configuration now carries real non-BMP characters (flag emoji in policy group names), and
+ * JNI strings are modified UTF-8. Both directions of the exchange are therefore pure ASCII:
+ * the input is an escaped string literal and the output escapes everything above ASCII.
+ */
+internal fun String.toAsciiJsStringLiteral(): String {
+    val literal = JsonPrimitive(this).toString()
+    if (literal.all { char -> char.code < 0x7f }) return literal
+    return buildString(literal.length + 16) {
+        literal.forEach { char ->
+            if (char.code < 0x7f) append(char) else append("\\u").append(char.code.toString(16).padStart(4, '0'))
+        }
+    }
+}
+
+private const val AsciiJsonStringify =
+    "(function(value) { return JSON.stringify(value).replace(/[\\u007f-\\uffff]/g, function(c) { " +
+        "return '\\\\u' +('0000' + c.charCodeAt(0).toString(16)).slice(-4) }) })"
 
 private val DebugConsolePrelude = """
     ;(function(globalThis) {

@@ -6,6 +6,8 @@ package features.mihomo
 import app.DefaultMihomoOverrideScriptId
 import app.MihomoProfileState
 import app.MihomoProfileType
+import app.effectiveEntryCount
+import app.ruleOverrideRuntimeProjection
 
 internal enum class MihomoProfileDisplayKind {
     RemoteSubscription,
@@ -16,6 +18,8 @@ internal data class MihomoProfileDisplayState(
     val kind: MihomoProfileDisplayKind,
     val showSync: Boolean,
     val hasOverrideScript: Boolean,
+    /** Rule override entries that change the compiled rules; zero in raw configuration mode. */
+    val ruleOverrideEntryCount: Int,
     val rawConfiguration: Boolean,
     val syncFailed: Boolean,
 )
@@ -30,6 +34,7 @@ internal fun reduceMihomoProfileDisplay(profile: MihomoProfileState): MihomoProf
         },
         showSync = isRemote && profile.url.isNotBlank(),
         hasOverrideScript = profile.overrideScriptId != DefaultMihomoOverrideScriptId,
+        ruleOverrideEntryCount = profile.ruleOverrideRuntimeProjection().effectiveEntryCount,
         rawConfiguration = profile.disableOverrides,
         syncFailed = profile.syncFailed,
     )

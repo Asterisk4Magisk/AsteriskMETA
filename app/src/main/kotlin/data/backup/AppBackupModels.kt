@@ -10,6 +10,7 @@ import app.DefaultMihomoProfileId
 import app.DefaultMihomoProfileUpdateInterval
 import app.DefaultMihomoProfileUserAgent
 import app.MihomoProfileType
+import app.MihomoRuleOverrideState
 import kotlinx.serialization.Serializable
 
 internal const val AppBackupFormat = "asteriskmeta-backup"
@@ -217,6 +218,8 @@ internal data class AppBackupMihomoProfile(
     val overrideScriptId: Int = DefaultMihomoOverrideScriptId,
     val disableOverrides: Boolean = false,
     val syncFailed: Boolean = false,
+    /** Optional in version 1; older apps ignore it. [content] remains the source YAML. */
+    val ruleOverride: MihomoRuleOverrideState = MihomoRuleOverrideState(),
     val content: String = "",
 )
 

@@ -308,7 +308,17 @@ internal class MihomoControlClient(
         val body = buildJsonObject {
             put("path", profilePath)
         }
-        request(config, "/configs?force=true", method = "PUT", body = body.toString())
+        try {
+            request(config, "/configs?force=true", method = "PUT", body = body.toString())
+        } catch (error: MihomoApiException) {
+            // Both bundled controllers answer 400 only while reading and parsing the file, before
+            // anything is applied: Mihomo's handler returns before `executor.ApplyConfig`, Meow's
+            // before it forwards the request.
+            if (error.status == HttpURLConnection.HTTP_BAD_REQUEST) {
+                throw MihomoConfigRejectedException(error.response.apiErrorMessage(), error)
+            }
+            throw error
+        }
     }
 
     suspend fun patchMode(
@@ -980,11 +990,27 @@ private fun String.toCoreRestartRequiredOrNull(): CoreRestartRequiredException? 
     return CoreRestartRequiredException(fields, message)
 }
 
+/**
+ * The core read the configuration it was asked to load and refused it. The configuration it was
+ * running is still in effect.
+ */
+internal class MihomoConfigRejectedException(
+    message: String,
+    cause: Throwable,
+) : IllegalStateException(message, cause)
+
+private fun String.apiErrorMessage(): String {
+    val root = runCatching { Json.parseToJsonElement(this) }.getOrNull()?.jsonObjectOrNull()
+    return root?.stringValue("message")?.takeIf(String::isNotBlank)
+        ?: root?.errorMessageOrNull()
+        ?: ifBlank { "The core rejected the configuration" }
+}
+
 private class MihomoApiException(
     method: String,
     path: String,
     val status: Int,
-    response: String,
+    val response: String,
 ) : IllegalStateException("Mihomo API $method $path failed with HTTP $status: $response")
 
 private fun Throwable.mihomoDelayFailureStatus(): MihomoDelayStatus {

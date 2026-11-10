@@ -68,6 +68,13 @@ import app.LocalNavigator
 import app.LocalUpdateAppState
 import app.MihomoProfileState
 import app.MihomoProfileType
+import app.MihomoRuleOverrideState
+import app.effectiveEntryCount
+import app.modes.MihomoModeDirect
+import app.modes.MihomoModeGlobal
+import app.runtimeProjection
+import engine.mihomo.MihomoProfileFactory
+import androidx.compose.ui.platform.LocalContext
 import app.R
 import app.collectAppState
 import app.modes.RunModeBpf2Socks
@@ -81,6 +88,7 @@ import engine.mihomo.raw.MihomoRawConfigSnapshot
 import engine.mihomo.raw.RawConfigReadiness
 import engine.mihomo.raw.check
 import engine.mihomo.sha256Hex
+import features.settings.SettingsActionRow
 import features.settings.SettingsDropdownRow
 import features.subscription.isValidSubscriptionHwid
 import features.subscription.isPlainHttpSubscriptionUrl
@@ -97,7 +105,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import ui.components.AsteriskActionButton
 import ui.components.AsteriskExpansionIndicator
-import ui.components.AsteriskListRow
 import ui.components.AsteriskModalBottomSheet
 import ui.layout.pageContentPaddingWithCutout
 import ui.theme.AsteriskMotion
@@ -168,6 +175,13 @@ fun MihomoProfileEditPage(
     var disableOverrides by remember(targetProfile?.id, isNew) {
         mutableStateOf(targetProfile?.disableOverrides ?: false)
     }
+    // The rule override is edited on a copy and only stored by this page's Save.
+    var ruleOverrideDraft by remember(targetProfile?.id, isNew) {
+        mutableStateOf(targetProfile?.ruleOverride ?: MihomoRuleOverrideState())
+    }
+    // The source configuration the open rule override editor works on; `null` while it is closed.
+    var ruleOverrideEditorSource by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
     var showRawModeConfirmation by remember { mutableStateOf(false) }
     var rawContentForCheck by remember(targetProfile?.id, isNew) { mutableStateOf("") }
     val selectedOverrideScript = appState.mihomoOverrideScripts.firstOrNull { script ->
@@ -249,9 +263,20 @@ fun MihomoProfileEditPage(
         }
     }
 
+    fun openRuleOverrideEditor() {
+        // A local profile is previewed from the text being edited, a URL profile from the
+        // content of its last sync.
+        ruleOverrideEditorSource = if (editsContent) contentEditorState.snapshotText() else rawContentForCheck
+    }
+
     fun launchSave(draft: MihomoProfileSaveDraft) {
         if (saving) return
         failedSave = null
+        if (draft.changesOnlyRuleOverride()) {
+            saveMihomoProfileRuleOverride(updateAppState, draft.desiredProfile.id, draft.desiredProfile.ruleOverride)
+            navigator.pop()
+            return
+        }
         saving = true
         lateinit var job: Job
         job = scope.launch(start = CoroutineStart.LAZY) {
@@ -364,6 +389,7 @@ fun MihomoProfileEditPage(
             ageSecretKey = cleanAgeSecretKey,
             overrideScriptId = cleanOverrideScriptId,
             disableOverrides = disableOverrides,
+            ruleOverride = ruleOverrideDraft,
         )
             ?: MihomoProfileState(
                 id = DefaultMihomoProfileId,
@@ -377,6 +403,7 @@ fun MihomoProfileEditPage(
                 ageSecretKey = cleanAgeSecretKey,
                 overrideScriptId = cleanOverrideScriptId,
                 disableOverrides = disableOverrides,
+                ruleOverride = ruleOverrideDraft,
             )
         launchSave(
             MihomoProfileSaveDraft(
@@ -429,12 +456,14 @@ fun MihomoProfileEditPage(
             url = "",
             overrideScriptId = cleanOverrideScriptId,
             disableOverrides = disableOverrides,
+            ruleOverride = ruleOverrideDraft,
         ) ?: MihomoProfileState(
             id = DefaultMihomoProfileId,
             name = cleanName,
             type = MihomoProfileType.File,
             overrideScriptId = cleanOverrideScriptId,
             disableOverrides = disableOverrides,
+            ruleOverride = ruleOverrideDraft,
         )
         showFileProperties = false
         launchSave(
@@ -540,6 +569,8 @@ fun MihomoProfileEditPage(
                             },
                             advancedExpanded = showAdvancedOptions,
                             onAdvancedExpandedChange = { showAdvancedOptions = it },
+                            ruleOverride = ruleOverrideDraft,
+                            onOpenRuleOverride = ::openRuleOverrideEditor,
                             disableOverrides = disableOverrides,
                             rawReadiness = rawCheck?.readiness,
                             rawSnapshot = rawParseResult?.snapshot,
@@ -616,6 +647,8 @@ fun MihomoProfileEditPage(
             nameState = nameState,
             overrideScriptOptions = overrideScriptOptions,
             selectedOverrideScriptIndex = selectedOverrideScriptIndex,
+            ruleOverride = ruleOverrideDraft,
+            onOpenRuleOverride = ::openRuleOverrideEditor,
             disableOverrides = disableOverrides,
             rawReadiness = rawCheck?.readiness,
             rawSnapshot = rawParseResult?.snapshot,
@@ -648,6 +681,28 @@ fun MihomoProfileEditPage(
                 onRetry = { launchSave(failed.draft) },
                 onSaveAnyway = ::saveFailedDraft,
                 onCancel = { failedSave = null },
+            )
+        }
+        ruleOverrideEditorSource?.let { sourceContent ->
+            MihomoRuleOverrideEditorDialog(
+                initial = ruleOverrideDraft,
+                sourceContent = sourceContent,
+                sourceIsCachedSubscription = !editsContent,
+                ruleModeActive = appState.mihomoMode != MihomoModeGlobal && appState.mihomoMode != MihomoModeDirect,
+                compilePreview = { draft ->
+                    // Everything the compile reads is captured here; nothing is written back.
+                    val profile = (targetProfile ?: MihomoProfileState(id = DefaultMihomoProfileId, name = "")).copy(
+                        overrideScriptId = selectedOverrideScriptId(),
+                        disableOverrides = false,
+                        ruleOverride = draft,
+                    )
+                    MihomoProfileFactory.compilePreview(context.applicationContext, stateStore.state.value, profile, sourceContent)
+                },
+                onConfirm = { edited ->
+                    ruleOverrideDraft = edited
+                    ruleOverrideEditorSource = null
+                },
+                onDismissRequest = { ruleOverrideEditorSource = null },
             )
         }
         RawModeConfirmationDialog(
@@ -817,6 +872,8 @@ private fun ColumnScope.UrlProfileFields(
     onSelectedOverrideScriptIndexChange: (Int) -> Unit,
     advancedExpanded: Boolean,
     onAdvancedExpandedChange: (Boolean) -> Unit,
+    ruleOverride: MihomoRuleOverrideState,
+    onOpenRuleOverride: () -> Unit,
     disableOverrides: Boolean,
     rawReadiness: RawConfigReadiness?,
     rawSnapshot: MihomoRawConfigSnapshot?,
@@ -906,6 +963,12 @@ private fun ColumnScope.UrlProfileFields(
                 lineLimits = TextFieldLineLimits.SingleLine,
                 modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
             )
+            ProfileRuleOverrideRow(
+                ruleOverride = ruleOverride,
+                rawMode = disableOverrides,
+                enabled = enabled,
+                onClick = onOpenRuleOverride,
+            )
             ProfileOverrideScriptSelector(
                 options = overrideScriptOptions,
                 selectedIndex = selectedOverrideScriptIndex,
@@ -929,6 +992,8 @@ private fun FileProfilePropertiesSheet(
     nameState: TextFieldState,
     overrideScriptOptions: List<String>,
     selectedOverrideScriptIndex: Int,
+    ruleOverride: MihomoRuleOverrideState,
+    onOpenRuleOverride: () -> Unit,
     disableOverrides: Boolean,
     rawReadiness: RawConfigReadiness?,
     rawSnapshot: MihomoRawConfigSnapshot?,
@@ -977,6 +1042,12 @@ private fun FileProfilePropertiesSheet(
                 exit = AsteriskMotion.contentExit(),
             ) {
                 Column {
+                    ProfileRuleOverrideRow(
+                        ruleOverride = ruleOverride,
+                        rawMode = disableOverrides,
+                        enabled = true,
+                        onClick = onOpenRuleOverride,
+                    )
                     ProfileOverrideScriptSelector(
                         options = overrideScriptOptions,
                         selectedIndex = selectedOverrideScriptIndex,
@@ -996,6 +1067,31 @@ private fun FileProfilePropertiesSheet(
     }
 }
 
+/** Opens the rule override editor; the override runs before the override script below it. */
+@Composable
+private fun ProfileRuleOverrideRow(
+    ruleOverride: MihomoRuleOverrideState,
+    rawMode: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    val effectiveCount = ruleOverride.runtimeProjection().effectiveEntryCount
+    SettingsActionRow(
+        title = stringResource(R.string.mihomo_rule_override),
+        horizontalPadding = 0.dp,
+        summary = when {
+            // The stored override is kept; raw mode just does not apply it.
+            rawMode -> stringResource(R.string.mihomo_rule_override_summary_raw)
+            !ruleOverride.enabled -> stringResource(R.string.mihomo_rule_override_summary_off)
+            else -> stringResource(R.string.mihomo_rule_override_summary_on, effectiveCount)
+        },
+        icon = if (rawMode) Icons.Rounded.Lock else Icons.Rounded.Route,
+        enabled = enabled && !rawMode,
+        onClick = onClick,
+        showNavigationIcon = !rawMode,
+    )
+}
+
 @Composable
 private fun ProfileOverrideScriptSelector(
     options: List<String>,
@@ -1004,12 +1100,14 @@ private fun ProfileOverrideScriptSelector(
     readOnly: Boolean = false,
 ) {
     if (readOnly) {
-        AsteriskListRow(
+        SettingsActionRow(
             title = stringResource(R.string.mihomo_profile_override_script),
             horizontalPadding = 0.dp,
             summary = stringResource(R.string.mihomo_profile_override_script_stopped),
-            leadingIcon = Icons.Rounded.Lock,
+            icon = Icons.Rounded.Lock,
             enabled = false,
+            onClick = {},
+            showNavigationIcon = false,
         )
         return
     }

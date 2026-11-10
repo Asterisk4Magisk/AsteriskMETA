@@ -149,6 +149,7 @@ dependencies {
     implementation(libs.libsu.core)
     implementation(libs.material.kolor)
     implementation(libs.quickjs.kt.android)
+    implementation(libs.reorderable)
     implementation(libs.snakeyaml.engine) {
         exclude(group = "org.junit.jupiter", module = "junit-jupiter-api")
     }

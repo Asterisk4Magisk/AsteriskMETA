@@ -8,6 +8,8 @@ import app.AppState
 import app.withCompatibleProxyAppListMode
 import app.DefaultMihomoOverrideScriptId
 import app.MihomoProfileState
+import app.MihomoRuleOverrideState
+import app.ruleOverrideRuntimeProjection
 import app.effectiveLocalDnsEnabled
 import app.modes.MihomoModeDirect
 import app.modes.MihomoModeGlobal
@@ -94,6 +96,28 @@ internal object MihomoProfileFactory {
         return buildProfileBytes(context, appState, runMode, exposePorts, useRootProviderPaths).toString(Charsets.UTF_8)
     }
 
+    /**
+     * Compiles [profile] from [sourceContent] without touching any runtime: nothing is written,
+     * no core is loaded and no port is allocated. [profile] and [sourceContent] may be unsaved
+     * drafts. The result has not been parsed by a core.
+     */
+    fun compilePreview(
+        context: Context,
+        appState: AppState,
+        profile: MihomoProfileState,
+        sourceContent: String,
+        runMode: Int = appState.runMode,
+    ): MihomoProfileCompilation {
+        val source = sourceContent.trim().loadMihomoProfileObject()
+            ?: error(MihomoProfileObjectRequiredErrorMessage)
+        return source.compileMihomoProfile(
+            appState, profile, runMode, exposePorts = true,
+            if (runMode == RunModeTun) context.resolveRootProxyApplicationUids(appState.proxyAppListSelectedApps) else emptyList(),
+            useRootProviderPaths = runMode.isRootRunMode(),
+            context.mihomoControllerSocket().absolutePath,
+        )
+    }
+
     fun tunStack(appState: AppState): String {
         return when (appState.mihomoTunStack) {
             MihomoTunStackGvisor -> "gvisor"
@@ -114,32 +138,96 @@ private fun String.withAsteriskRuntimeOverrides(
     useRootProviderPaths: Boolean,
     controllerSocketPath: String,
 ): String {
-    val escaped = escapeSupplementaryYamlCodePoints()
-    val root = runCatching {
-        Load(MihomoYamlLoadSettings).loadFromString(escaped.value) as? Map<*, *>
-    }.getOrNull()
+    val source = runCatching { parseMihomoYaml() }.getOrNull()?.toMihomoProfileObject()
 
-    if (root == null) {
+    if (source == null) {
         if (selectedProfile?.overrideScriptId != DefaultMihomoOverrideScriptId) {
             error("Override script requires a YAML object profile")
         }
+        // The fallback below only appends text, so it cannot rewrite the rules.
+        if (!selectedProfile.ruleOverrideRuntimeProjection().isEmpty) {
+            error("Rule override requires a YAML object profile")
+        }
         return appendRuntimeOverrides(appState, runMode, exposePorts, tunApplicationUids, controllerSocketPath)
     }
+    return source.compileMihomoProfile(
+        appState, selectedProfile, runMode, exposePorts, tunApplicationUids,
+        useRootProviderPaths, controllerSocketPath,
+    ).finalYaml
+}
 
-    val rawProfile = linkedMapOf<String, Any?>()
-    root.forEach { (key, value) ->
-        val name = key as? String ?: return@forEach
-        rawProfile[name] = normalizeYamlValue(value)
-    }
-    return escaped.restore(
-        rawProfile
-            .applyMihomoProfileScriptOverride(selectedProfile, appState.mihomoOverrideScripts)
-            .toAsteriskRuntimeProfileYaml(
-                appState, runMode, exposePorts = exposePorts, tunApplicationUids = tunApplicationUids,
-                useRootProviderPaths = useRootProviderPaths, controllerSocketPath = controllerSocketPath,
-            ),
+/** Every stage of one compile, so a preview can show them without running the script again. */
+internal class MihomoProfileCompilation(
+    /** The source configuration after the GUI rule override: what the script receives. */
+    val scriptInput: Map<String, Any?>,
+    val ruleDiagnostics: MihomoRuleOverrideDiagnostics,
+    val finalYaml: String,
+) {
+    val scriptInputYaml: String by lazy { dumpYaml(normalizeYamlValue(scriptInput)) }
+}
+
+/**
+ * The managed pipeline of a parsed source configuration: GUI rule override, then the override
+ * script, then the settings AsteriskMETA owns. The start, the hot reload and the preview all
+ * compile through here.
+ */
+internal fun Map<String, Any?>.compileMihomoProfile(
+    appState: AppState,
+    profile: MihomoProfileState?,
+    runMode: Int,
+    exposePorts: Boolean,
+    tunApplicationUids: List<Int>,
+    useRootProviderPaths: Boolean,
+    controllerSocketPath: String?,
+    scriptEngine: MihomoProfileScriptEngine = DefaultMihomoProfileScriptEngine,
+): MihomoProfileCompilation {
+    val ruled = applyMihomoRuleOverride(profile.effectiveRuleOverride())
+    val scripted = ruled.config.applyMihomoProfileScriptOverride(profile, appState.mihomoOverrideScripts, scriptEngine)
+    return MihomoProfileCompilation(
+        scriptInput = ruled.config,
+        ruleDiagnostics = ruled.diagnostics,
+        finalYaml = scripted.toAsteriskRuntimeProfileYaml(
+            appState, runMode, exposePorts = exposePorts, tunApplicationUids = tunApplicationUids,
+            useRootProviderPaths = useRootProviderPaths, controllerSocketPath = controllerSocketPath,
+        ),
     )
 }
+
+/** The rule override a compile applies; raw configuration mode keeps the stored one unused. */
+internal fun MihomoProfileState?.effectiveRuleOverride(): MihomoRuleOverrideState =
+    this?.takeUnless(MihomoProfileState::disableOverrides)?.ruleOverride ?: MihomoRuleOverrideState()
+
+/** A parsed YAML document whose non-BMP characters are still escaped; see [toMihomoProfileObject]. */
+internal class ParsedMihomoYaml(
+    private val escaped: EscapedYamlContent,
+    private val root: Any?,
+) {
+    /**
+     * The configuration object with real Unicode names, or `null` when the document is not a
+     * mapping. Rule overrides and scripts work on this object, so a rule that names a policy
+     * group with a flag emoji matches what the user typed and nothing downstream sees the
+     * escape tokens.
+     */
+    fun toMihomoProfileObject(): Map<String, Any?>? {
+        val mapping = root as? Map<*, *> ?: return null
+        val profile = linkedMapOf<String, Any?>()
+        mapping.forEach { (key, value) ->
+            val name = key as? String ?: return@forEach
+            // Normalizing first rejects self-referencing anchors before the restore recurses.
+            profile[escaped.restore(name)] = escaped.restoreParsedValue(normalizeYamlValue(value))
+        }
+        return profile
+    }
+}
+
+/** Parses a YAML document; throws on a syntax error. */
+internal fun String.parseMihomoYaml(): ParsedMihomoYaml {
+    val escaped = escapeSupplementaryYamlCodePoints()
+    return ParsedMihomoYaml(escaped, Load(MihomoYamlLoadSettings).loadFromString(escaped.value))
+}
+
+/** [parseMihomoYaml] as a configuration object, or `null` when the document is not a mapping. */
+internal fun String.loadMihomoProfileObject(): Map<String, Any?>? = parseMihomoYaml().toMihomoProfileObject()
 
 internal fun Map<String, Any?>.toAsteriskRuntimeProfileYaml(
     appState: AppState,
@@ -623,6 +711,7 @@ private const val NameserverPolicySeparator = "=>"
 private const val SystemDnsServer = "system://"
 internal const val MihomoProfileMissingErrorMessage = "No Mihomo configuration selected"
 internal const val MihomoProfileEmptyErrorMessage = "Selected Mihomo configuration has no YAML content"
+internal const val MihomoProfileObjectRequiredErrorMessage = "Configuration is not a YAML object"
 
 private val LocalProxySkipAuthPrefixes = listOf("127.0.0.1/8", "::1/128")
 private val YamlDumpSettings = DumpSettings.builder()

@@ -1005,6 +1005,9 @@ internal fun MihomoProfileCard(
             )
             val modeSummary = buildList {
                 if (displayState.rawConfiguration) add(stringResource(R.string.mihomo_profile_raw_chip))
+                if (displayState.ruleOverrideEntryCount > 0) add(
+                    stringResource(R.string.mihomo_rule_override_applied, displayState.ruleOverrideEntryCount),
+                )
                 if (overrideScriptName != null) add(
                     if (displayState.rawConfiguration) stringResource(R.string.mihomo_profile_override_script_stopped)
                     else stringResource(R.string.mihomo_profile_override_script_applied)

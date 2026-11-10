@@ -44,6 +44,7 @@ data class MihomoProfileState(
     val overrideScriptId: Int = DefaultMihomoOverrideScriptId,
     val disableOverrides: Boolean = false,
     val syncFailed: Boolean = false,
+    val ruleOverride: MihomoRuleOverrideState = MihomoRuleOverrideState(),
 ) {
     val hasContent: Boolean
         get() = contentPath.isNotBlank() && contentSizeBytes > 0L
@@ -198,7 +199,9 @@ fun MihomoProfileState.hasRuntimeRelevantChanges(next: MihomoProfileState): Bool
         contentSha256 != next.contentSha256 ||
         contentSizeBytes != next.contentSizeBytes ||
         overrideScriptId != next.overrideScriptId ||
-        disableOverrides != next.disableOverrides
+        disableOverrides != next.disableOverrides ||
+        // Remarks, IDs and disabled entries never reach the core.
+        ruleOverrideRuntimeProjection() != next.ruleOverrideRuntimeProjection()
 
 fun ResourceFileUpdateSource.urlFor(kind: ResourceFileKind): String? {
     return when (kind) {

@@ -6,6 +6,7 @@ package engine.mihomo.runtime
 import engine.root.dns.withRootDnsMutation
 import android.content.Context
 import app.AppState
+import app.ruleOverrideRuntimeProjection
 import app.modes.RunModeVpnService
 import app.modes.isRootRunMode
 import engine.mihomo.hasUsableMihomoProfile
@@ -1216,6 +1217,8 @@ private fun AppState.mihomoRuntimeConfigKey(backend: MihomoRuntimeBackend): Int 
             selectedMihomoProfileId,
             selectedMihomoProfileOrNull()?.contentSha256,
             selectedMihomoProfileOrNull()?.disableOverrides,
+            selectedMihomoProfileOrNull()?.overrideScriptId,
+            selectedMihomoProfileOrNull()?.ruleOverrideRuntimeProjection(),
             proxyRunning,
             mihomoMode,
         )

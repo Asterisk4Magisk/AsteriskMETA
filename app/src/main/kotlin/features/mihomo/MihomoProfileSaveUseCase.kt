@@ -6,6 +6,7 @@ package features.mihomo
 import app.AppState
 import app.MihomoProfileState
 import app.MihomoProfileType
+import app.MihomoRuleOverrideState
 import app.MihomoSubscriptionInfo
 import app.nextAvailableMihomoProfileId
 import engine.mihomo.MihomoProfileContentRef
@@ -29,6 +30,36 @@ internal data class MihomoProfileSaveDraft(
     // Names of the other profiles, used to disambiguate an auto-assigned name.
     val otherProfileNames: Collection<String> = emptyList(),
 )
+
+/**
+ * Whether the edit changed nothing but the rule override. Such a save must not prepare, fetch
+ * or rewrite the configuration: see [saveMihomoProfileRuleOverride].
+ */
+internal fun MihomoProfileSaveDraft.changesOnlyRuleOverride(): Boolean {
+    val original = originalProfile ?: return false
+    return !contentChanged && !remoteOptionsChanged &&
+        desiredProfile.ruleOverride != original.ruleOverride &&
+        desiredProfile.copy(ruleOverride = original.ruleOverride) == original
+}
+
+/**
+ * Stores [ruleOverride] on the profile as it is in the state right now. A subscription update
+ * that finished while the editor was open keeps its content reference, traffic and sync time,
+ * which replacing the whole profile with the editor's copy would undo.
+ */
+internal fun saveMihomoProfileRuleOverride(
+    updateAppState: ((AppState) -> AppState) -> Unit,
+    profileId: Int,
+    ruleOverride: MihomoRuleOverrideState,
+) {
+    updateAppState { state ->
+        state.copy(
+            mihomoProfiles = state.mihomoProfiles.map { item ->
+                if (item.id == profileId) item.copy(ruleOverride = ruleOverride) else item
+            },
+        )
+    }
+}
 
 internal sealed interface MihomoProfileSavePreparation {
     data class Success(

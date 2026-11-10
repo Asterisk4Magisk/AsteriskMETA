@@ -82,6 +82,7 @@ import engine.mihomo.MihomoProfileEmptyErrorMessage
 import engine.mihomo.MihomoProfileMissingErrorMessage
 import engine.mihomo.MihomoProfileScriptDebugResult
 import engine.mihomo.debugMihomoProfileScriptOverride
+import engine.mihomo.effectiveRuleOverride
 import features.settings.SettingsDropdownRow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -447,6 +448,7 @@ fun MihomoOverrideScriptEditPage(
         }
         navigator.pop()
     }
+    val rawDebugProfileMessage = stringResource(R.string.mihomo_override_script_debug_raw_profile)
     fun runScriptDebug() {
         if (debugRunning) return
         val profile = appState.mihomoProfiles.firstOrNull { item -> item.id == debugProfileId }
@@ -456,6 +458,11 @@ fun MihomoOverrideScriptEditPage(
         }
         if (!profile.hasContent) {
             debugResult = MihomoProfileScriptDebugResult(error = MihomoProfileEmptyErrorMessage)
+            return
+        }
+        if (profile.disableOverrides) {
+            // A raw profile never runs a script, so a result here would describe nothing real.
+            debugResult = MihomoProfileScriptDebugResult(error = rawDebugProfileMessage)
             return
         }
         scope.launch {
@@ -468,6 +475,8 @@ fun MihomoOverrideScriptEditPage(
                     debugMihomoProfileScriptOverride(
                         rawProfileContent = rawProfile,
                         scriptContent = scriptContent,
+                        // The script runs after the profile's saved rule override, as in a real compile.
+                        ruleOverride = profile.effectiveRuleOverride(),
                     )
                 }
             } finally {
@@ -611,11 +620,14 @@ private fun DebugProfileSelector(
         return
     }
     val selectedIndex = profiles.indexOfFirst { profile -> profile.id == selectedProfileId }.coerceAtLeast(0)
+    val rawProfileLabel = stringResource(R.string.mihomo_profile_raw_chip)
     SettingsDropdownRow(
         title = stringResource(R.string.mihomo_override_script_debug_profile),
         horizontalPadding = 0.dp,
         icon = Icons.Rounded.Description,
-        items = profiles.map(MihomoProfileState::name),
+        items = profiles.map { profile ->
+            if (profile.disableOverrides) "${profile.name} · $rawProfileLabel" else profile.name
+        },
         selectedIndex = selectedIndex,
         onSelectedIndexChange = { index -> onSelectedProfileIdChange(profiles[index].id) },
         modifier = modifier,

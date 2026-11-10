@@ -38,7 +38,12 @@ internal fun RootBootScriptSynchronizer(
                 if (!state.enableRootBootScript || !state.runMode.isRootRunMode()) {
                     return@collect
                 }
-                when (val result = rootBootScriptUseCase.refresh(state)) {
+                // This refresh rewrites the runtime `config.yaml` and may have queued behind a
+                // hot reload of a newer state; that state gets its own refresh.
+                val result = rootBootScriptUseCase.refresh(state) {
+                    stateStore.state.value.toRootBootScriptRefresh().signature == refresh.signature
+                }
+                when (result) {
                     RootBootScriptResult.Success -> Unit
                     RootBootScriptResult.RootUnavailable -> AndroidAppLogger.warn(
                         LogTag,

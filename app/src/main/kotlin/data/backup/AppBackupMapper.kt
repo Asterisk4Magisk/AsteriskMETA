@@ -13,6 +13,7 @@ import app.MihomoOverrideScriptState
 import app.MihomoProfileState
 import app.MihomoProfileType
 import app.MihomoSubscriptionInfo
+import app.normalized
 import features.settings.servicecontrol.ServiceControlKeyguard
 import features.settings.servicecontrol.ServiceControlSchedule
 import features.settings.servicecontrol.ServiceControlSettings
@@ -267,6 +268,7 @@ private fun MihomoProfileState.toBackup(content: String): AppBackupMihomoProfile
         overrideScriptId = overrideScriptId,
         disableOverrides = disableOverrides,
         syncFailed = syncFailed,
+        ruleOverride = ruleOverride,
         content = content,
     )
 
@@ -424,6 +426,7 @@ private fun AppBackupMihomoProfile.toState(): MihomoProfileState =
         overrideScriptId = overrideScriptId,
         disableOverrides = disableOverrides,
         syncFailed = syncFailed,
+        ruleOverride = ruleOverride.normalized(),
     )
 
 private fun AppBackupMihomoOverrideScript.toState(): MihomoOverrideScriptState =

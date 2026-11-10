@@ -4,6 +4,7 @@
 package data.backup
 
 import app.MihomoProfileType
+import app.structuralError
 
 internal fun AppBackupData.validateForRestore() {
     requireValidIds("Mihomo profile", mihomoProfiles, AppBackupMihomoProfile::id)
@@ -11,6 +12,11 @@ internal fun AppBackupData.validateForRestore() {
     mihomoProfiles.forEach { profile ->
         require(MihomoProfileType.entries.any { type -> type.storageValue == profile.type }) {
             "Unknown Mihomo profile type: ${profile.type}"
+        }
+        // A damaged override is refused: restoring the profile without it would silently
+        // change how the profile routes.
+        profile.ruleOverride.structuralError()?.let { reason ->
+            throw IllegalArgumentException("Invalid rule override in Mihomo profile ${profile.id}: $reason")
         }
     }
 }

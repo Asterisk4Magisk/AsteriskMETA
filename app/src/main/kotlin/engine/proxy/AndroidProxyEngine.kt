@@ -15,10 +15,13 @@ import engine.mihomo.withResolvedMihomoControlPort
 import engine.mihomo.MihomoProfileFactory
 import engine.mihomo.mihomoControlConfig
 import engine.mihomo.selectedMihomoProfileOrNull
+import engine.mihomo.runtime.CoreRestartRequiredException
+import engine.mihomo.runtime.MihomoConfigRejectedException
 import engine.mihomo.runtime.MihomoControlClient
 import engine.mihomo.raw.requireStartableRawConfig
 import engine.mihomo.raw.usesRawMihomoConfig
 import engine.root.dns.withRootDnsMutation
+import engine.root.publication.publishRootProviderUpdates
 import engine.vpn.AndroidMihomoRuntime
 import engine.vpn.AsteriskVpnService
 import engine.vpn.VpnMihomoEngine
@@ -117,71 +120,134 @@ internal class AndroidProxyEngine(
     }
 
     /**
-     * An explicit [restart] that only runs when the core is still running once the lifecycle
-     * lock is held, so a stop from the tile or a broadcast that lands first is not undone by
-     * applying a configuration change.
+     * Applies a changed profile to the running core without restarting anything: the profile is
+     * compiled with the ports the core already runs on, written to a candidate file next to the
+     * runtime `config.yaml` and loaded through the core's control API. Only after the core
+     * accepted it does the same content become the runtime file, so a refused profile leaves both
+     * the core and the file as they were. The TUN, the VpnService, the supervisor, the routing
+     * and the firewall are not touched.
+     *
+     * Everything runs under [operationMutex] against the live status, so a stop from the tile or
+     * a broadcast is never undone. A failure surfaces as a [ProfileApplyException] and does not
+     * restart the service; the one exception is a core that names startup-only settings it cannot
+     * change in place, which takes the supervised restart.
+     *
+     * A raw profile also configures the VpnService and the supervisor, so it keeps the restart.
+     *
+     * In VPN mode only the VPN engine and the unix controller are used: no ROOT status probe,
+     * shell, daemon request or publication.
      */
-    suspend fun restartIfRunning(
+    suspend fun applyProfile(
         request: ProxyEngineStartRequest,
         requestVpnPermission: VpnPermissionRequester = DenyVpnPermission,
+    ): ProxyEngineStatus = operationMutex.withLock {
+        val appState = request.appState
+        val isVpn = appState.runMode == RunModeVpnService
+        val status = if (isVpn) vpnMihomoEngine.status() else statusUnlocked(appState.runMode, appState)
+        // Stopped since the caller looked, or owned by another app: there is nothing of ours to
+        // apply to, and starting here would override the stop.
+        if (!status.running) return@withLock status
+        // A run mode change restarts with its own configuration; the profile compiled for the
+        // requested mode would not fit the listeners of the mode that is still running.
+        if (!isVpn && status.runMode != appState.runMode) return@withLock status
+        if (appState.usesRawMihomoConfig()) {
+            return@withLock restartForProfileUnlocked(request, requestVpnPermission)
+        }
+        try {
+            hotReloadManagedProfile(appState, isVpn)
+        } catch (error: CoreRestartRequiredException) {
+            AndroidAppLogger.info(
+                LogTag,
+                "Profile reload needs a restart for startup-only settings: ${error.fields.joinToString(",")}",
+            )
+            return@withLock restartForProfileUnlocked(request, requestVpnPermission)
+        }
+        refreshProviderUsageAfterActivation(appState)
+        status.copy(appState = appState)
+    }
+
+    private suspend fun restartForProfileUnlocked(
+        request: ProxyEngineStartRequest,
+        requestVpnPermission: VpnPermissionRequester,
     ): ProxyEngineStatus {
-        val status = operationMutex.withLock {
-            val live = statusUnlocked(request.appState.runMode, request.appState)
-            if (!live.running) return@withLock live
-            withVpnPermissionRequester(requestVpnPermission) {
-                startUnlocked(request, explicitRestart = true)
-            }
+        val status = withVpnPermissionRequester(requestVpnPermission) {
+            startUnlocked(request, explicitRestart = true)
         }
         mutableRootStatusWatchGeneration.update { generation -> generation + 1L }
         return status
     }
 
-    /**
-     * Applies a changed profile to a running VPN core in place: the profile is rebuilt with
-     * the ports the core is already running on and reloaded through its control API,
-     * keeping the TUN and the VpnService. A raw profile can change what the VpnService itself
-     * was configured with (TUN stack, DNS hijack, IPv6, local proxy port), so it takes the
-     * explicit restart, as does any reload failure. Both steps run under [operationMutex], so a
-     * stop from the tile or a broadcast cannot slip in between and then be undone.
-     *
-     * Only the VPN engine is consulted, so this path performs no ROOT operation.
-     */
-    suspend fun reloadVpnOrRestart(
-        request: ProxyEngineStartRequest,
-        requestVpnPermission: VpnPermissionRequester = DenyVpnPermission,
-    ): ProxyEngineStatus = operationMutex.withLock {
-        val status = vpnMihomoEngine.status()
-        // Stopped since the caller looked: there is nothing to apply, and starting it here
-        // would override the stop.
-        if (!status.running) return@withLock status
-        if (!request.appState.usesRawMihomoConfig()) {
-            try {
-                withContext(Dispatchers.IO) {
-                    val profileBytes = MihomoProfileFactory.buildProfileBytes(
-                        appContext, request.appState, runMode = RunModeVpnService, useRootProviderPaths = false,
-                    )
-                    val profileFile = File(appContext.mihomoResourceFilePaths().dataDir, "config.yaml")
-                    writeAtomically(profileFile) { output -> output.write(profileBytes) }
-                    AsteriskVpnService.updateAgeSecretKey(
-                        appContext,
-                        request.appState.selectedMihomoProfileOrNull()?.ageSecretKey,
-                    )
-                    MihomoControlClient().reloadProfile(
-                        config = request.appState.mihomoControlConfig(appContext, RunModeVpnService),
-                        profilePath = profileFile.absolutePath,
-                        reloadLocally = false,
-                    )
-                }
-                refreshProviderUsageAfterActivation(request.appState)
-                return@withLock status.copy(appState = request.appState)
+    private suspend fun hotReloadManagedProfile(appState: app.AppState, isVpn: Boolean) = withContext(Dispatchers.IO) {
+        val runMode = if (isVpn) RunModeVpnService else appState.runMode
+        val dataDir = File(appContext.mihomoResourceFilePaths().dataDir)
+        // The candidate stays in the data directory so relative provider paths resolve as they
+        // do for `config.yaml`, and the core's safe-path check accepts it.
+        val candidate = File(dataDir, "$ProfileCandidatePrefix${java.util.UUID.randomUUID()}$ProfileCandidateSuffix")
+        try {
+            val profileBytes = try {
+                dataDir.deleteStaleProfileCandidates()
+                val bytes = MihomoProfileFactory.buildProfileBytes(
+                    appContext, appState, runMode = runMode, useRootProviderPaths = !isVpn,
+                )
+                writeAtomically(candidate) { output -> output.write(bytes) }
+                // Publication only adds provider files the new profile may name; it never
+                // replaces the directory the running core reads.
+                if (!isVpn) appContext.publishRootProviderUpdates()
+                bytes
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {
-                AndroidAppLogger.warn(LogTag, "VPN profile reload failed; restarting the service", error)
+                throw ProfileApplyException(ProfileApplyFailure.NotPrepared, error)
             }
-        }
-        withVpnPermissionRequester(requestVpnPermission) {
-            startUnlocked(request, explicitRestart = true)
+
+            val control = appState.mihomoControlConfig(appContext, runMode)
+            var requestSent = false
+            val reload: suspend () -> Throwable? = {
+                // A core that answered without applying is a result, not a failure of the
+                // mutation around it: ROOT DNS enhancement must be resumed for it, not aborted.
+                try {
+                    requestSent = true
+                    MihomoControlClient().reloadProfile(control, candidate.absolutePath, reloadLocally = false)
+                    null
+                } catch (error: MihomoConfigRejectedException) {
+                    error
+                } catch (error: CoreRestartRequiredException) {
+                    error
+                }
+            }
+            val refused = try {
+                if (isVpn) {
+                    AsteriskVpnService.updateAgeSecretKey(appContext, appState.selectedMihomoProfileOrNull()?.ageSecretKey)
+                    reload()
+                } else {
+                    appContext.withRootDnsMutation(appState.copy(proxyRunning = true)) { reload() }
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                // Once sent, the request may have been applied before the answer was lost. Sending
+                // it again or restarting would apply a second time, so the outcome is left to the
+                // status. A core that could not be reached at all was not asked.
+                val asked = requestSent && generateSequence(error) { it.cause }.none { it is java.net.ConnectException }
+                throw ProfileApplyException(
+                    if (asked) ProfileApplyFailure.Unconfirmed else ProfileApplyFailure.NotPrepared,
+                    error,
+                )
+            }
+            when (refused) {
+                null -> Unit
+                is CoreRestartRequiredException -> throw refused
+                else -> throw ProfileApplyException(ProfileApplyFailure.Rejected, refused)
+            }
+
+            try {
+                // The bytes the core accepted, not a second compile: a script may not be pure.
+                writeAtomically(File(dataDir, "config.yaml")) { output -> output.write(profileBytes) }
+            } catch (error: Throwable) {
+                throw ProfileApplyException(ProfileApplyFailure.RuntimeFileNotSaved, error)
+            }
+        } finally {
+            candidate.delete()
         }
     }
 
@@ -521,3 +587,12 @@ internal fun shouldUsePreResolvedRootStart(
 ): Boolean = !explicitRestart && resumeChecked && nextEngineIsRoot
 
 private const val LogTag = "AndroidProxyEngine"
+private const val ProfileCandidatePrefix = "config.apply-"
+private const val ProfileCandidateSuffix = ".yaml"
+
+/** Candidates are deleted when their reload ends; these are from a process that died first. */
+private fun File.deleteStaleProfileCandidates() {
+    listFiles { file ->
+        file.isFile && file.name.startsWith(ProfileCandidatePrefix) && file.name.endsWith(ProfileCandidateSuffix)
+    }?.forEach(File::delete)
+}
