@@ -18,7 +18,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Switch
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -29,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
@@ -50,8 +53,7 @@ import ui.components.AsteriskCancelButton
 import ui.components.AsteriskDropdownAnchor
 import ui.components.AsteriskDropdownMenuItem
 import ui.components.AsteriskModalBottomSheet
-import ui.components.AsteriskSegmentItem
-import ui.components.AsteriskSegmentedControl
+import ui.components.AsteriskNoWrapTextField
 import ui.icons.AsteriskIcons as Icons
 import ui.theme.AsteriskShapeTokens
 import ui.theme.AsteriskMotion
@@ -150,14 +152,18 @@ internal fun MihomoRuleEditSheet(
                     .padding(bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                AsteriskSegmentedControl(
-                    items = listOf(
-                        AsteriskSegmentItem(false, stringResource(R.string.mihomo_rule_mode_form)),
-                        AsteriskSegmentItem(true, stringResource(R.string.mihomo_rule_mode_raw)),
-                    ),
-                    selectedValue = rawMode,
-                    onSelected = ::selectMode,
-                )
+                PrimaryTabRow(selectedTabIndex = if (rawMode) 1 else 0, containerColor = Color.Transparent) {
+                    Tab(
+                        selected = !rawMode,
+                        onClick = { selectMode(false) },
+                        text = { Text(stringResource(R.string.mihomo_rule_mode_form)) },
+                    )
+                    Tab(
+                        selected = rawMode,
+                        onClick = { selectMode(true) },
+                        text = { Text(stringResource(R.string.mihomo_rule_mode_raw)) },
+                    )
+                }
                 AnimatedVisibility(
                     visible = formUnavailable,
                     enter = AsteriskMotion.contentEnter(),
@@ -175,8 +181,7 @@ internal fun MihomoRuleEditSheet(
                         enter = AsteriskMotion.contentEnter(),
                         exit = AsteriskMotion.contentExit(),
                     ) {
-                        OutlinedTextField(
-                            shape = AsteriskShapeTokens.InnerContainer,
+                        AsteriskNoWrapTextField(
                             value = rawText,
                             onValueChange = { value ->
                                 rawText = value
@@ -407,8 +412,7 @@ internal fun MihomoRuleImportSheet(
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            OutlinedTextField(
-                shape = AsteriskShapeTokens.InnerContainer,
+            AsteriskNoWrapTextField(
                 value = text,
                 onValueChange = { text = it },
                 label = { Text(stringResource(R.string.mihomo_rule_import_label)) },

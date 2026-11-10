@@ -431,14 +431,13 @@ private fun StringListBulkEditorSheet(
         },
     ) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 24.dp)) {
-            OutlinedTextField(
+            AsteriskNoWrapTextField(
                 value = value,
                 onValueChange = onValueChange,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 220.dp).padding(top = 12.dp),
                 minLines = 8,
                 isError = error != null,
                 supportingText = error?.let { message -> ({ Text(message) }) },
-                shape = AsteriskShapeTokens.InnerContainer,
             )
         }
     }
