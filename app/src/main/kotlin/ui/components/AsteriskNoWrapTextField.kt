@@ -8,6 +8,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
@@ -122,7 +123,9 @@ internal fun AsteriskNoWrapTextField(
 
     BasicTextField(
         state = state,
-        modifier = modifier,
+        // Like OutlinedTextField, reserve room for the label that floats above the outline, so a
+        // clipping parent such as a scrolling column does not cut it off.
+        modifier = if (label != null) modifier.padding(top = NoWrapLabelTopPadding) else modifier,
         textStyle = textStyle.merge(
             TextStyle(
                 color = when {
@@ -174,3 +177,6 @@ private fun scrollToVisible(
 }
 
 private val NoWrapCursorScrollPadding = 24.dp
+
+/** Half the floating label's height, the space OutlinedTextField keeps above its outline. */
+private val NoWrapLabelTopPadding = 8.dp
