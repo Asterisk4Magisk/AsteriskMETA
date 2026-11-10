@@ -470,6 +470,7 @@
     <string name="mihomo_rule_import_hint">共 %1$d 条规则，空行和以 # 开头的行会被忽略。</string>
     <string name="mihomo_rule_import_label">每行一条规则</string>
     <string name="mihomo_rule_import_short">导入</string>
+    <string name="mihomo_rule_mode">编辑方式</string>
     <string name="mihomo_rule_mode_form">表单</string>
     <string name="mihomo_rule_mode_raw">原文</string>
     <string name="mihomo_rule_move_down">下移</string>

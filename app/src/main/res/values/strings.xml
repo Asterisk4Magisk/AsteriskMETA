@@ -478,6 +478,7 @@
     <string name="mihomo_rule_import_hint">Rules: %1$d. Blank lines and lines starting with # are skipped.</string>
     <string name="mihomo_rule_import_label">One rule per line</string>
     <string name="mihomo_rule_import_short">Import</string>
+    <string name="mihomo_rule_mode">Edit mode</string>
     <string name="mihomo_rule_mode_form">Form</string>
     <string name="mihomo_rule_mode_raw">Raw text</string>
     <string name="mihomo_rule_move_down">Move down</string>

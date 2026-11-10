@@ -18,9 +18,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Switch
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -31,7 +29,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
@@ -152,18 +149,17 @@ internal fun MihomoRuleEditSheet(
                     .padding(bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                PrimaryTabRow(selectedTabIndex = if (rawMode) 1 else 0, containerColor = Color.Transparent) {
-                    Tab(
-                        selected = !rawMode,
-                        onClick = { selectMode(false) },
-                        text = { Text(stringResource(R.string.mihomo_rule_mode_form)) },
-                    )
-                    Tab(
-                        selected = rawMode,
-                        onClick = { selectMode(true) },
-                        text = { Text(stringResource(R.string.mihomo_rule_mode_raw)) },
-                    )
-                }
+                SettingsDropdownRow(
+                    title = stringResource(R.string.mihomo_rule_mode),
+                    icon = Icons.Rounded.EditNote,
+                    items = listOf(
+                        stringResource(R.string.mihomo_rule_mode_form),
+                        stringResource(R.string.mihomo_rule_mode_raw),
+                    ),
+                    selectedIndex = if (rawMode) 1 else 0,
+                    onSelectedIndexChange = { index -> selectMode(index == 1) },
+                    horizontalPadding = 0.dp,
+                )
                 AnimatedVisibility(
                     visible = formUnavailable,
                     enter = AsteriskMotion.contentEnter(),
