@@ -33,11 +33,15 @@ import utils.toTrimmedNonEmptyDistinctList
 
 @Composable
 internal fun snifferSettingsSummary(
+    overrideSniffer: Boolean,
     enableSniffer: Boolean,
     snifferHttpPorts: List<String>,
     snifferTlsPorts: List<String>,
     snifferQuicPorts: List<String>,
 ): String {
+    if (!overrideSniffer) {
+        return stringResource(R.string.settings_sniffer_summary_follow_profile)
+    }
     if (!enableSniffer) {
         return stringResource(R.string.settings_sniffer_summary_disabled)
     }
@@ -94,6 +98,13 @@ internal fun SnifferSettingsBottomSheet(
         key(show) {
             SettingsSheetContent {
                 SettingsSheetSection(title = stringResource(R.string.common_basic)) {
+                    SwitchPreference(
+                        title = stringResource(R.string.settings_sniffer_override),
+                        icon = Icons.Rounded.Tune,
+                        summary = stringResource(R.string.settings_sniffer_override_summary),
+                        checked = draft.overrideSniffer,
+                        onCheckedChange = { onDraftChange(draft.copy(overrideSniffer = it)) },
+                    )
                     SwitchPreference(
                         title = stringResource(R.string.settings_sniffer_enable),
                         icon = Icons.Rounded.TravelExplore,

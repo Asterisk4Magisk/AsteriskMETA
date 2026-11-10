@@ -65,6 +65,13 @@ internal fun AppState.mihomoControlConfig(context: Context, runMode: Int = this.
 internal fun AppState.withResolvedMihomoControlPort(verifyAvailability: Boolean): AppState {
     val configuredPort = mihomoControlPort.toPortOrNull()
     val excludedPorts = mihomoControlExcludedPorts()
+    if (mihomoControlPortFixed) {
+        // An external panel is pointed at this port, so moving it silently would only hide the failure.
+        val port = configuredPort ?: error("Controller port is invalid")
+        check(port !in excludedPorts) { "Controller port $port conflicts with another configured port" }
+        check(!verifyAvailability || isTcpPortAvailable(MihomoControlHost, port)) { "Controller port $port is in use" }
+        return this
+    }
     val resolvedPort = when {
         configuredPort != null &&
             configuredPort !in excludedPorts &&
@@ -76,7 +83,7 @@ internal fun AppState.withResolvedMihomoControlPort(verifyAvailability: Boolean)
     return if (mihomoControlPort == resolvedPortText) this else copy(mihomoControlPort = resolvedPortText)
 }
 
-private fun AppState.mihomoControlExcludedPorts(): Set<Int> {
+internal fun AppState.mihomoControlExcludedPorts(): Set<Int> {
     return buildSet {
         add(localProxyPort.toPortOrNull() ?: VpnDefaults.LOCAL_PROXY_PORT)
         add(transparentProxyPort.toPortOrNull() ?: RootModeEngine.DefaultTproxyPort)

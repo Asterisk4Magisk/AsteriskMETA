@@ -43,8 +43,7 @@ internal fun settingsTopLevelSearchItems(
     networkActivityStyle: Int,
     languageOptions: List<String>,
     languageMode: Int,
-    geodataLoaderOptions: List<String>,
-    geodataLoader: Int,
+    rawConfigEnabled: Boolean,
     coreLogLevel: Int,
     runModeOptions: List<String>,
     selectedRunModeIndex: Int,
@@ -132,18 +131,29 @@ internal fun settingsTopLevelSearchItems(
         SettingsSearchItem(SettingsSectionId.Core, stringResource(R.string.settings_sniffer), snifferSummary),
         SettingsSearchItem(SettingsSectionId.Core, stringResource(R.string.connection_test_settings_title), stringResource(R.string.connection_test_settings_summary)),
         SettingsSearchItem(SettingsSectionId.Core, stringResource(R.string.settings_auto_switch), stringResource(R.string.settings_auto_switch_summary)),
-        SettingsSearchItem(
-            SettingsSectionId.Core,
-            stringResource(R.string.settings_geodata_mode),
-            stringResource(R.string.settings_geodata_mode_summary),
-        ),
-        SettingsSearchItem(
-            SettingsSectionId.Core,
-            stringResource(R.string.settings_geodata_loader),
-            stringResource(R.string.settings_geodata_loader_summary),
-            optionValue(geodataLoaderOptions, geodataLoader),
-            geodataLoaderOptions,
-        ),
+        // Raw configuration shows Geodata as read-only rows; otherwise it lives in the Other sheet.
+        if (rawConfigEnabled) {
+            SettingsSearchItem(
+                SettingsSectionId.Core,
+                stringResource(R.string.settings_geodata_mode),
+                stringResource(R.string.settings_geodata_mode_summary),
+            )
+        } else {
+            null
+        },
+        if (rawConfigEnabled) {
+            SettingsSearchItem(
+                SettingsSectionId.Core,
+                stringResource(R.string.settings_geodata_loader),
+                stringResource(R.string.settings_geodata_loader_summary),
+            )
+        } else {
+            SettingsSearchItem(
+                SettingsSectionId.Core,
+                stringResource(R.string.settings_other),
+                stringResource(R.string.settings_other_summary),
+            )
+        },
         SettingsSearchItem(
             SettingsSectionId.Core,
             stringResource(R.string.settings_log_level),
@@ -271,6 +281,7 @@ internal fun settingsNestedSearchEntries(
     onOpenTunBypassRuleSets: () -> Unit,
     onOpenDns: () -> Unit,
     onOpenSniffer: () -> Unit,
+    onOpenOther: () -> Unit,
     onOpenConnectionTest: () -> Unit,
     onOpenAutoSwitch: () -> Unit,
     onOpenLocalProxy: () -> Unit,
@@ -282,6 +293,24 @@ internal fun settingsNestedSearchEntries(
 ): List<SettingsSearchEntry> {
     val dns = stringResource(R.string.settings_dns)
     val sniffer = stringResource(R.string.settings_sniffer)
+    val other = stringResource(R.string.settings_other)
+    val otherItems = listOf(
+        stringResource(R.string.settings_geodata_mode),
+        stringResource(R.string.settings_geodata_loader),
+        stringResource(R.string.settings_other_find_process_mode),
+    )
+    val otherExternalControlItems = listOf(
+        stringResource(R.string.settings_other_controller_port_fixed),
+        stringResource(R.string.settings_other_controller_port),
+        stringResource(R.string.settings_other_controller_secret),
+        stringResource(R.string.settings_other_controller_listen_all_interfaces),
+        stringResource(R.string.settings_other_controller_cors_allow_private_network),
+        stringResource(R.string.settings_other_controller_cors_allow_origins),
+        stringResource(R.string.settings_other_external_ui_override),
+        stringResource(R.string.settings_other_external_ui),
+        stringResource(R.string.settings_other_external_ui_url),
+        stringResource(R.string.settings_other_external_ui_name),
+    )
     val connectionTest = stringResource(R.string.connection_test_settings_title)
     val connectionTestItems = listOf(
         stringResource(R.string.connection_test_url),
@@ -327,6 +356,7 @@ internal fun settingsNestedSearchEntries(
         stringResource(R.string.settings_dns_hosts),
     )
     val snifferItems = listOf(
+        stringResource(R.string.settings_sniffer_override),
         stringResource(R.string.settings_sniffer_enable),
         stringResource(R.string.settings_sniffer_override_destination),
         stringResource(R.string.settings_sniffer_force_dns_mapping),
@@ -371,6 +401,10 @@ internal fun settingsNestedSearchEntries(
         autoSwitchItems.forEach { add(SettingsSearchEntry(it, autoSwitch, Icons.Rounded.Sync, IconAccent.MaskGreen, onOpenAutoSwitch)) }
         dnsItems.forEach { add(SettingsSearchEntry(it, dns, Icons.Rounded.Dns, IconAccent.MaskBlueVariant, onOpenDns)) }
         snifferItems.forEach { add(SettingsSearchEntry(it, sniffer, Icons.Rounded.TravelExplore, IconAccent.MaskGreen, onOpenSniffer)) }
+        otherItems.forEach { add(SettingsSearchEntry(it, other, Icons.Rounded.Widgets, IconAccent.MaskGrey, onOpenOther)) }
+        if (runMode != app.modes.RunModeVpnService) {
+            otherExternalControlItems.forEach { add(SettingsSearchEntry(it, other, Icons.Rounded.Widgets, IconAccent.MaskGrey, onOpenOther)) }
+        }
         localProxyItems.forEach { add(SettingsSearchEntry(it, localProxy, Icons.Rounded.Router, IconAccent.MaskBlue, onOpenLocalProxy)) }
         tunItems.forEach { add(SettingsSearchEntry(it, tun, Icons.Rounded.SettingsInputComponent, IconAccent.MaskBlueVariant, onOpenTun)) }
         if (runMode == app.modes.RunModeTun) {

@@ -45,7 +45,6 @@ import app.modes.isRootRunMode
 import app.navigation.Route
 import data.backup.AppBackupRestorePreview
 import engine.mihomo.CoreCapabilitiesStore
-import engine.mihomo.MihomoGeodataLoaderValues
 import engine.mihomo.raw.MihomoRawConfigParser
 import engine.proxy.ProxyServiceResult
 import engine.proxy.withResolvedDynamicLocalProxyPort
@@ -272,6 +271,7 @@ private fun SettingsContent(
     val ignoredInterfacesSummary = ignoredInterfacesSummary(appState.ignoredInterfaces)
     val privateAddressCidrsSummary = privateAddressCidrsSummary(appState.privateAddressCidrs)
     val snifferSummary = snifferSettingsSummary(
+        overrideSniffer = appState.overrideSniffer,
         enableSniffer = appState.enableSniffer,
         snifferHttpPorts = appState.snifferHttpPorts,
         snifferTlsPorts = appState.snifferTlsPorts,
@@ -325,6 +325,7 @@ private fun SettingsContent(
         onOpenConnectionTest = { sheetState.openConnectionTestSettings(appState) },
         onOpenAutoSwitch = { sheetState.openAutoSwitch(appState) },
         onOpenSniffer = { sheetState.openSnifferSettings(appState) },
+        onOpenOther = { sheetState.openOtherSettings(appState) },
         onOpenLocalProxy = { sheetState.openLocalProxySettings(appState) },
         onOpenTun = { sheetState.openTunSettings(appState) },
         onOpenExternalInterfaces = {
@@ -345,8 +346,7 @@ private fun SettingsContent(
         networkActivityStyle = appState.networkActivityStyle,
         languageOptions = languageOptions,
         languageMode = appState.languageMode,
-        geodataLoaderOptions = MihomoGeodataLoaderValues,
-        geodataLoader = appState.mihomoGeodataLoader,
+        rawConfigEnabled = rawConfigState.enabled,
         coreLogLevel = appState.coreLogLevel,
         runModeOptions = runModeOptions,
         selectedRunModeIndex = selectedRunModeIndex,
@@ -398,9 +398,6 @@ private fun SettingsContent(
             item(key = "settings_core") {
                 SettingsCoreSection(
                     snifferSettingsSummary = snifferSummary,
-                    enableGeodataMode = appState.enableGeodataMode,
-                    geodataLoaderOptions = MihomoGeodataLoaderValues,
-                    geodataLoader = appState.mihomoGeodataLoader,
                     coreLogLevel = appState.coreLogLevel,
                     enableLocalDns = appState.enableLocalDns,
                     onOpenDnsSettings = { sheetState.openDnsSettings(appState) },
@@ -409,12 +406,7 @@ private fun SettingsContent(
                     onOpenSnifferSettings = { sheetState.openSnifferSettings(appState) },
                     onOpenApps = { navigator.push(Route.ProxyAppList) },
                     onOpenResourceManagement = { navigator.push(Route.ResourceManagement) },
-                    onEnableGeodataModeChange = { enabled ->
-                        updateAppState { state -> state.copy(enableGeodataMode = enabled) }
-                    },
-                    onGeodataLoaderChange = { index ->
-                        updateAppState { state -> state.copy(mihomoGeodataLoader = index) }
-                    },
+                    onOpenOtherSettings = { sheetState.openOtherSettings(appState) },
                     onCoreLogLevelChange = { index ->
                         if (index != appState.coreLogLevel) {
                             val nextState = appState.copy(coreLogLevel = index)

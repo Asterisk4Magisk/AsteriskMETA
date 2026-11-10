@@ -546,8 +546,8 @@
     <string name="mihomo_override_script_debug_failed">失败</string>
     <string name="mihomo_override_script_debug_logs">Console</string>
     <string name="mihomo_override_script_debug_no_logs">没有 console 输出</string>
-    <string name="mihomo_override_script_debug_no_output">没有输出 YAML</string>
-    <string name="mihomo_override_script_debug_output">输出 YAML</string>
+    <string name="mihomo_override_script_debug_no_output">没有最终 YAML</string>
+    <string name="mihomo_override_script_debug_output">最终 YAML</string>
     <string name="mihomo_override_script_debug_profile">临时测试配置</string>
     <string name="mihomo_override_script_debug_profile_none">没有可用配置</string>
     <string name="mihomo_override_script_debug_raw_profile">该配置已完全关闭覆写，不会执行脚本</string>
@@ -805,6 +805,8 @@
     <string name="settings_sniffer_http_override_destination">HTTP 覆写目标地址</string>
     <string name="settings_sniffer_http_ports">HTTP 端口</string>
     <string name="settings_sniffer_list_empty">还没有添加条目</string>
+    <string name="settings_sniffer_override">覆写域名嗅探</string>
+    <string name="settings_sniffer_override_summary">替换当前 Mihomo 配置中的 sniffer 配置块</string>
     <string name="settings_sniffer_override_destination">覆写目标地址</string>
     <string name="settings_sniffer_override_destination_summary">使用嗅探到的域名替换实际连接目标</string>
     <string name="settings_sniffer_parse_pure_ip">解析纯 IP 连接</string>
@@ -825,9 +827,39 @@
     <string name="settings_sniffer_summary_disabled">已关闭</string>
     <string name="settings_sniffer_summary_enabled">已启用</string>
     <string name="settings_sniffer_summary_enabled_with_options">已启用，%1$s</string>
+    <string name="settings_sniffer_summary_follow_profile">跟随配置</string>
     <string name="settings_sniffer_summary_option_separator">、</string>
     <string name="settings_sniffer_tls_override_destination">TLS 覆写目标地址</string>
     <string name="settings_sniffer_tls_ports">TLS 端口</string>
+
+    <!-- Other settings -->
+    <string name="settings_other">其他</string>
+    <string name="settings_other_controller_cors_allow_origins">允许的来源 (CORS)</string>
+    <string name="settings_other_controller_cors_allow_origins_description">留空则允许所有来源</string>
+    <string name="settings_other_controller_cors_allow_private_network">允许私有网络访问</string>
+    <string name="settings_other_controller_cors_allow_private_network_summary">响应浏览器的私有网络访问预检请求</string>
+    <string name="settings_other_controller_cors_origin_invalid">请输入 * 或 http(s) 来源</string>
+    <string name="settings_other_controller_listen_all_interfaces">监听所有接口</string>
+    <string name="settings_other_controller_listen_all_interfaces_summary">允许局域网内的面板访问控制器</string>
+    <string name="settings_other_controller_port">控制器端口</string>
+    <string name="settings_other_controller_port_conflict">与其他已配置的端口冲突</string>
+    <string name="settings_other_controller_port_fixed">固定控制器端口</string>
+    <string name="settings_other_controller_port_fixed_summary">供外部面板使用；端口冲突时启动失败，不再自动更换端口</string>
+    <string name="settings_other_controller_secret">密钥</string>
+    <string name="settings_other_controller_secret_regenerate">重新生成密钥</string>
+    <string name="settings_other_controller_secret_required">密钥不能为空</string>
+    <string name="settings_other_external_ui">面板目录 (external-ui)</string>
+    <string name="settings_other_external_ui_name">面板名称 (external-ui-name)</string>
+    <string name="settings_other_external_ui_override">覆写外部面板</string>
+    <string name="settings_other_external_ui_override_summary">替换当前 Mihomo 配置中的 external-ui 相关项</string>
+    <string name="settings_other_external_ui_url">面板下载地址 (external-ui-url)</string>
+    <string name="settings_other_find_process_mode">进程查找模式</string>
+    <string name="settings_other_find_process_mode_summary">规则查找连接所属应用的方式</string>
+    <string name="settings_other_follow_profile">跟随配置</string>
+    <string name="settings_other_section_external_control">外部控制</string>
+    <string name="settings_other_section_geodata">地理数据</string>
+    <string name="settings_other_section_process">进程匹配</string>
+    <string name="settings_other_summary">地理数据、进程匹配与外部控制</string>
 
     <!-- Service control -->
     <string name="settings_service_control">服务控制</string>

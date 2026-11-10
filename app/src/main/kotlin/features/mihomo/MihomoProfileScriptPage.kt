@@ -57,6 +57,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -80,6 +81,7 @@ import app.navigation.Route
 import app.nextAvailableMihomoOverrideScriptId
 import engine.mihomo.MihomoProfileEmptyErrorMessage
 import engine.mihomo.MihomoProfileMissingErrorMessage
+import engine.mihomo.MihomoProfileFactory
 import engine.mihomo.MihomoProfileScriptDebugResult
 import engine.mihomo.debugMihomoProfileScriptOverride
 import engine.mihomo.effectiveRuleOverride
@@ -382,6 +384,7 @@ fun MihomoOverrideScriptEditPage(
     val updateAppState = LocalUpdateAppState.current
     val services = LocalAppServices.current
     val clipboard = LocalClipboard.current
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val isNew = scriptId <= DefaultMihomoOverrideScriptId
     val targetScript = remember(appState.mihomoOverrideScripts, scriptId) {
@@ -469,6 +472,7 @@ fun MihomoOverrideScriptEditPage(
             debugRunning = true
             debugResult = null
             val scriptContent = scriptEditorState.snapshotText()
+            val debugAppState = appState
             try {
                 debugResult = withContext(Dispatchers.Default) {
                     val rawProfile = services.mihomoProfileContentStore.read(profile)
@@ -477,6 +481,8 @@ fun MihomoOverrideScriptEditPage(
                         scriptContent = scriptContent,
                         // The script runs after the profile's saved rule override, as in a real compile.
                         ruleOverride = profile.effectiveRuleOverride(),
+                        // The output shows what the core would receive in the current run mode.
+                        managedStage = MihomoProfileFactory.managedStage(context.applicationContext, debugAppState),
                     )
                 }
             } finally {
@@ -858,7 +864,7 @@ private fun MihomoProfileScriptDebugResult.toClipboardReport(): String {
         }
         outputYaml?.takeIf(String::isNotBlank)?.let { output ->
             appendLine()
-            appendLine("Output YAML:")
+            appendLine("Final YAML:")
             appendLine(output)
         }
     }

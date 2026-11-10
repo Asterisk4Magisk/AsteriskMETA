@@ -6,10 +6,8 @@ package engine.mihomo
 import android.content.Context
 import app.AppState
 import app.withCompatibleProxyAppListMode
-import app.DefaultMihomoOverrideScriptId
 import app.MihomoProfileState
 import app.MihomoRuleOverrideState
-import app.ruleOverrideRuntimeProjection
 import app.effectiveLocalDnsEnabled
 import app.modes.MihomoModeDirect
 import app.modes.MihomoModeGlobal
@@ -118,6 +116,26 @@ internal object MihomoProfileFactory {
         )
     }
 
+    /**
+     * The settings a compile applies over the override script's output, so a script debug run
+     * shows what the core would receive. Nothing is written and no core is loaded.
+     */
+    fun managedStage(
+        context: Context,
+        appState: AppState,
+        runMode: Int = appState.runMode,
+    ): (Map<String, Any?>) -> Map<String, Any?> {
+        val tunApplicationUids =
+            if (runMode == RunModeTun) context.resolveRootProxyApplicationUids(appState.proxyAppListSelectedApps) else emptyList()
+        val controllerSocketPath = context.mihomoControllerSocket().absolutePath
+        return { scripted ->
+            scripted.toAsteriskRuntimeProfileObject(
+                appState, runMode, exposePorts = true, tunApplicationUids = tunApplicationUids,
+                useRootProviderPaths = runMode.isRootRunMode(), controllerSocketPath = controllerSocketPath,
+            )
+        }
+    }
+
     fun tunStack(appState: AppState): String {
         return when (appState.mihomoTunStack) {
             MihomoTunStackGvisor -> "gvisor"
@@ -138,18 +156,9 @@ private fun String.withAsteriskRuntimeOverrides(
     useRootProviderPaths: Boolean,
     controllerSocketPath: String,
 ): String {
-    val source = runCatching { parseMihomoYaml() }.getOrNull()?.toMihomoProfileObject()
-
-    if (source == null) {
-        if (selectedProfile?.overrideScriptId != DefaultMihomoOverrideScriptId) {
-            error("Override script requires a YAML object profile")
-        }
-        // The fallback below only appends text, so it cannot rewrite the rules.
-        if (!selectedProfile.ruleOverrideRuntimeProjection().isEmpty) {
-            error("Rule override requires a YAML object profile")
-        }
-        return appendRuntimeOverrides(appState, runMode, exposePorts, tunApplicationUids, controllerSocketPath)
-    }
+    // The managed settings replace keys of a parsed object; only raw configuration mode passes
+    // other documents through.
+    val source = loadMihomoProfileObject() ?: error(MihomoProfileObjectRequiredErrorMessage)
     return source.compileMihomoProfile(
         appState, selectedProfile, runMode, exposePorts, tunApplicationUids,
         useRootProviderPaths, controllerSocketPath,
@@ -237,7 +246,22 @@ internal fun Map<String, Any?>.toAsteriskRuntimeProfileYaml(
     tunApplicationUids: List<Int>,
     useRootProviderPaths: Boolean = runMode.isRootRunMode(),
     controllerSocketPath: String? = null,
-): String {
+): String = dumpMihomoProfileYaml(
+    toAsteriskRuntimeProfileObject(
+        appState, runMode, forceDns, exposePorts, tunApplicationUids, useRootProviderPaths, controllerSocketPath,
+    ),
+)
+
+/** The settings AsteriskMETA owns, applied over a script's output; [toAsteriskRuntimeProfileYaml] dumps it. */
+internal fun Map<String, Any?>.toAsteriskRuntimeProfileObject(
+    appState: AppState,
+    runMode: Int,
+    forceDns: Boolean = false,
+    exposePorts: Boolean = true,
+    tunApplicationUids: List<Int>,
+    useRootProviderPaths: Boolean = runMode.isRootRunMode(),
+    controllerSocketPath: String? = null,
+): Map<String, Any?> {
     val updated = linkedMapOf<String, Any?>()
     val managedKeys = AsteriskManagedTopLevelKeys
     forEach { (name, value) ->
@@ -249,21 +273,12 @@ internal fun Map<String, Any?>.toAsteriskRuntimeProfileYaml(
         updated.putCmfaRootProviderPaths()
     }
     updated.putAsteriskRuntimeOverrides(appState, runMode, forceDns = forceDns, exposePorts = exposePorts, tunApplicationUids = tunApplicationUids, controllerSocketPath = controllerSocketPath)
-    return dumpYaml(normalizeYamlValue(updated))
+    @Suppress("UNCHECKED_CAST")
+    return normalizeYamlValue(updated) as Map<String, Any?>
 }
 
-private fun String.appendRuntimeOverrides(
-    appState: AppState,
-    runMode: Int,
-    exposePorts: Boolean,
-    tunApplicationUids: List<Int>,
-    controllerSocketPath: String,
-): String {
-    val managed = linkedMapOf<String, Any?>()
-    managed.putAsteriskRuntimeOverrides(appState, runMode, exposePorts = exposePorts, tunApplicationUids = tunApplicationUids, controllerSocketPath = controllerSocketPath)
-    val overrideYaml = dumpYaml(normalizeYamlValue(managed))
-    return trimEnd() + "\n\n# AsteriskMETA runtime overrides\n" + overrideYaml
-}
+/** Dumps a compiled configuration exactly as the core receives it. */
+internal fun dumpMihomoProfileYaml(profile: Map<String, Any?>): String = dumpYaml(normalizeYamlValue(profile))
 
 private fun MutableMap<String, Any?>.putAsteriskRuntimeOverrides(
     appState: AppState,
@@ -305,8 +320,10 @@ private fun MutableMap<String, Any?>.putAsteriskRuntimeOverrides(
         if (runMode == RunModeVpnService) {
             put("external-controller-unix", requireNotNull(controllerSocketPath))
         }
-        put("external-controller", control.address)
+        // The app's own client always reaches the controller through loopback.
+        put("external-controller", appState.mihomoControlListenAddress(control))
         put("secret", control.secret)
+        appState.toMihomoControlCorsYamlMap()?.let { cors -> put("external-controller-cors", cors) }
         put("allow-lan", allowLan)
         put("bind-address", bindAddress)
     } else {
@@ -324,7 +341,13 @@ private fun MutableMap<String, Any?>.putAsteriskRuntimeOverrides(
     put("ipv6", appState.enableIpv6)
     put("geox-url", appState.toMihomoGeoXUrlYamlMap())
     put("profile", normalizedProfileStoreSelected(this["profile"]))
-    put("sniffer", appState.toMihomoSnifferYamlMap())
+    if (appState.overrideSniffer) {
+        put("sniffer", appState.toMihomoSnifferYamlMap())
+    }
+    appState.mihomoFindProcessModeName()?.let { mode -> put("find-process-mode", mode) }
+    if (appState.overrideMihomoExternalUi) {
+        putMihomoExternalUiOverrides(appState)
+    }
     // Standby cores only serve the UI and must never change a selection. The key is omitted while
     // disabled, so an uploaded official core receives exactly the configuration it would without it.
     appState.toMihomoAutoSwitchOptions(active = exposePorts).takeIf { it.enable }?.let { options ->
@@ -365,6 +388,33 @@ private fun MutableMap<String, Any?>.putDisabledInboundOverrides(disableMixed: B
     put("listeners", emptyList<Any>())
     put("tun", linkedMapOf<String, Any?>("enable" to false))
 }
+
+private fun AppState.mihomoControlListenAddress(control: MihomoControlConfig): String =
+    if (mihomoControlListenAllInterfaces) "0.0.0.0:${control.port}" else control.address
+
+/** `null` keeps Mihomo's default, which allows every origin and private network access. */
+private fun AppState.toMihomoControlCorsYamlMap(): Map<String, Any?>? {
+    val origins = mihomoControlCorsAllowOrigins.toTrimmedNonEmptyDistinctList()
+    if (origins.isEmpty() && mihomoControlCorsAllowPrivateNetwork) return null
+    return linkedMapOf(
+        "allow-origins" to origins.ifEmpty { listOf("*") },
+        "allow-private-network" to mihomoControlCorsAllowPrivateNetwork,
+    )
+}
+
+private fun MutableMap<String, Any?>.putMihomoExternalUiOverrides(appState: AppState) {
+    listOf(
+        "external-ui" to appState.mihomoExternalUi,
+        "external-ui-url" to appState.mihomoExternalUiUrl,
+        "external-ui-name" to appState.mihomoExternalUiName,
+    ).forEach { (key, value) ->
+        val trimmed = value.trim()
+        if (trimmed.isEmpty()) remove(key) else put(key, trimmed)
+    }
+}
+
+private fun AppState.mihomoFindProcessModeName(): String? =
+    MihomoFindProcessModeValues.getOrNull(mihomoFindProcessMode)?.takeIf(String::isNotEmpty)
 
 private fun AppState.localProxyAuthentication(): List<String> {
     val username = localProxyUsername.trim()
@@ -703,7 +753,6 @@ private val AsteriskManagedTopLevelKeys = setOf(
     MihomoTunRuntimeMarkerKey,
     Bpf2SocksRuntimeMarkerKey,
     "geox-url",
-    "sniffer",
     MihomoAutoSwitchConfigKey,
 )
 

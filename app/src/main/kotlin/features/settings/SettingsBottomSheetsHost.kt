@@ -15,6 +15,7 @@ import app.modes.RunModeBpf2Socks
 import app.modes.RunModeTproxy
 import app.modes.RunModeTun2Socks
 import app.modes.RunModeVpnService
+import engine.mihomo.mihomoControlExcludedPorts
 import engine.mihomo.raw.usesRawMihomoConfig
 import features.logs.AndroidAppLogger
 import features.settings.servicecontrol.ServiceControlOperationState
@@ -24,6 +25,7 @@ import features.settings.sheets.DnsSettingsBottomSheet
 import features.settings.sheets.ExternalInterfacesBottomSheet
 import features.settings.sheets.IgnoredInterfacesBottomSheet
 import features.settings.sheets.LocalProxySettingsBottomSheet
+import features.settings.sheets.OtherSettingsBottomSheet
 import features.settings.sheets.PrivateAddressBottomSheet
 import features.settings.sheets.ServiceControlBottomSheet
 import features.settings.sheets.SnifferSettingsBottomSheet
@@ -237,6 +239,18 @@ internal fun SettingsBottomSheetsHost(
             sheetState.showDnsSettings = false
         },
     )
+    OtherSettingsBottomSheet(
+        show = sheetState.showOtherSettings,
+        draft = sheetState.otherSettingsDraft,
+        reservedPorts = appState.mihomoControlExcludedPorts(),
+        showExternalControl = appState.runMode != RunModeVpnService,
+        onDraftChange = { sheetState.otherSettingsDraft = it },
+        onDismissRequest = { sheetState.showOtherSettings = false },
+        onSave = { draft ->
+            updateAppState { state -> state.withOtherSettings(draft) }
+            sheetState.showOtherSettings = false
+        },
+    )
     SnifferSettingsBottomSheet(
         show = sheetState.showSnifferSettings,
         draft = sheetState.snifferSettingsDraft,
@@ -245,6 +259,7 @@ internal fun SettingsBottomSheetsHost(
         onSave = { draft ->
             updateAppState { state ->
                 state.copy(
+                    overrideSniffer = draft.overrideSniffer,
                     enableSniffer = draft.enableSniffer,
                     enableSnifferOverrideDestination = draft.enableSnifferOverrideDestination,
                     snifferForceDnsMapping = draft.snifferForceDnsMapping,

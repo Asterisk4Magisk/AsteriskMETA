@@ -22,9 +22,6 @@ import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
-import org.snakeyaml.engine.v2.api.Dump
-import org.snakeyaml.engine.v2.api.DumpSettings
-import org.snakeyaml.engine.v2.common.FlowStyle
 
 private val OverrideJson = Json {
     ignoreUnknownKeys = true
@@ -109,12 +106,14 @@ internal fun Map<String, Any?>.applyMihomoProfileScriptOverride(
 
 /**
  * Runs [scriptContent] against the configuration a real compile would hand it: the source
- * profile after [ruleOverride], the profile's GUI rule override.
+ * profile after [ruleOverride], the profile's GUI rule override. The output then passes through
+ * [managedStage], the settings AsteriskMETA owns, so it shows what the core would receive.
  */
 internal fun debugMihomoProfileScriptOverride(
     rawProfileContent: String,
     scriptContent: String,
     ruleOverride: MihomoRuleOverrideState = MihomoRuleOverrideState(),
+    managedStage: (Map<String, Any?>) -> Map<String, Any?>,
     engine: MihomoProfileScriptDebugEngine = QuickJsMihomoProfileScriptDebugEngine,
 ): MihomoProfileScriptDebugResult {
     if (scriptContent.isBlank()) {
@@ -133,7 +132,7 @@ internal fun debugMihomoProfileScriptOverride(
 
     val configJson = yamlValueToJson(input).toString()
     return runCatching {
-        engine.evaluate(scriptContent, configJson).toDebugResult(input)
+        engine.evaluate(scriptContent, configJson).toDebugResult(input, managedStage)
     }.getOrElse { error ->
         MihomoProfileScriptDebugResult(error = error.message ?: error.toString())
     }
@@ -243,7 +242,10 @@ private val DebugConsolePrelude = """
     })(globalThis)
 """.trimIndent()
 
-private fun String.toDebugResult(input: Map<String, Any?>): MihomoProfileScriptDebugResult {
+private fun String.toDebugResult(
+    input: Map<String, Any?>,
+    managedStage: (Map<String, Any?>) -> Map<String, Any?>,
+): MihomoProfileScriptDebugResult {
     val element = OverrideJson.parseToJsonElement(this)
     if (element !is JsonObject) {
         return MihomoProfileScriptDebugResult(error = "Script debug result is not an object")
@@ -264,10 +266,13 @@ private fun String.toDebugResult(input: Map<String, Any?>): MihomoProfileScriptD
     }
 
     @Suppress("UNCHECKED_CAST")
-    val output = jsonToYamlValue(config) as Map<String, Any?>
+    val scripted = jsonToYamlValue(config) as Map<String, Any?>
+    val output = runCatching { managedStage(scripted) }.getOrElse { error ->
+        return MihomoProfileScriptDebugResult(logs = logs, error = error.message ?: error.toString())
+    }
     return MihomoProfileScriptDebugResult(
         logs = logs,
-        outputYaml = dumpDebugYaml(normalizeYamlValue(output)),
+        outputYaml = dumpMihomoProfileYaml(output),
         summary = input.toDebugSummary(output),
     )
 }
@@ -320,12 +325,4 @@ private fun jsonToYamlValue(value: JsonElement): Any? {
             else -> value.content
         }
     }
-}
-
-private val DebugYamlDumpSettings = DumpSettings.builder()
-    .setDefaultFlowStyle(FlowStyle.BLOCK)
-    .build()
-
-private fun dumpDebugYaml(value: Any?): String {
-    return Dump(DebugYamlDumpSettings).dumpToString(value)
 }

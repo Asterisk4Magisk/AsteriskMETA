@@ -12,6 +12,8 @@ import engine.mihomo.DefaultMihomoSnifferHttpPorts
 import engine.mihomo.DefaultMihomoSnifferQuicPorts
 import engine.mihomo.DefaultMihomoSnifferTlsPorts
 import engine.mihomo.MihomoDnsModeRedirHost
+import engine.mihomo.MihomoFindProcessModeFollowProfile
+import engine.mihomo.MihomoGeodataLoaderStandard
 import engine.mihomo.MihomoSnifferProtocolOverrideFollowGlobal
 
 internal val AppState.showMihomoTunStackSettings: Boolean
@@ -110,6 +112,7 @@ internal fun AppState.toDnsSettingsDraft(): DnsSettingsDraft {
 }
 
 internal data class SnifferSettingsDraft(
+    val overrideSniffer: Boolean = true,
     val enableSniffer: Boolean = true,
     val enableSnifferOverrideDestination: Boolean = true,
     val snifferForceDnsMapping: Boolean = true,
@@ -128,6 +131,7 @@ internal data class SnifferSettingsDraft(
 
 internal fun AppState.toSnifferSettingsDraft(): SnifferSettingsDraft {
     return SnifferSettingsDraft(
+        overrideSniffer = overrideSniffer,
         enableSniffer = enableSniffer,
         enableSnifferOverrideDestination = enableSnifferOverrideDestination,
         snifferForceDnsMapping = snifferForceDnsMapping,
@@ -142,6 +146,59 @@ internal fun AppState.toSnifferSettingsDraft(): SnifferSettingsDraft {
         snifferSkipDomain = snifferSkipDomain,
         snifferSkipSrcAddress = snifferSkipSrcAddress,
         snifferSkipDstAddress = snifferSkipDstAddress,
+    )
+}
+
+internal data class OtherSettingsDraft(
+    val enableGeodataMode: Boolean = false,
+    val mihomoGeodataLoader: Int = MihomoGeodataLoaderStandard,
+    val mihomoFindProcessMode: Int = MihomoFindProcessModeFollowProfile,
+    val mihomoControlPort: String = "",
+    val mihomoControlPortFixed: Boolean = false,
+    val mihomoControlSecret: String = "",
+    val mihomoControlListenAllInterfaces: Boolean = false,
+    val mihomoControlCorsAllowOrigins: List<String> = emptyList(),
+    val mihomoControlCorsAllowPrivateNetwork: Boolean = true,
+    val overrideMihomoExternalUi: Boolean = false,
+    val mihomoExternalUi: String = "",
+    val mihomoExternalUiUrl: String = "",
+    val mihomoExternalUiName: String = "",
+)
+
+internal fun AppState.toOtherSettingsDraft(): OtherSettingsDraft {
+    return OtherSettingsDraft(
+        enableGeodataMode = enableGeodataMode,
+        mihomoGeodataLoader = mihomoGeodataLoader,
+        mihomoFindProcessMode = mihomoFindProcessMode,
+        mihomoControlPort = mihomoControlPort,
+        mihomoControlPortFixed = mihomoControlPortFixed,
+        mihomoControlSecret = mihomoControlSecret,
+        mihomoControlListenAllInterfaces = mihomoControlListenAllInterfaces,
+        mihomoControlCorsAllowOrigins = mihomoControlCorsAllowOrigins,
+        mihomoControlCorsAllowPrivateNetwork = mihomoControlCorsAllowPrivateNetwork,
+        overrideMihomoExternalUi = overrideMihomoExternalUi,
+        mihomoExternalUi = mihomoExternalUi,
+        mihomoExternalUiUrl = mihomoExternalUiUrl,
+        mihomoExternalUiName = mihomoExternalUiName,
+    )
+}
+
+/** An unfixed port stays as resolved: the sheet only shows it. */
+internal fun AppState.withOtherSettings(draft: OtherSettingsDraft): AppState {
+    return copy(
+        enableGeodataMode = draft.enableGeodataMode,
+        mihomoGeodataLoader = draft.mihomoGeodataLoader,
+        mihomoFindProcessMode = draft.mihomoFindProcessMode,
+        mihomoControlPort = if (draft.mihomoControlPortFixed) draft.mihomoControlPort else mihomoControlPort,
+        mihomoControlPortFixed = draft.mihomoControlPortFixed,
+        mihomoControlSecret = draft.mihomoControlSecret,
+        mihomoControlListenAllInterfaces = draft.mihomoControlListenAllInterfaces,
+        mihomoControlCorsAllowOrigins = draft.mihomoControlCorsAllowOrigins,
+        mihomoControlCorsAllowPrivateNetwork = draft.mihomoControlCorsAllowPrivateNetwork,
+        overrideMihomoExternalUi = draft.overrideMihomoExternalUi,
+        mihomoExternalUi = draft.mihomoExternalUi,
+        mihomoExternalUiUrl = draft.mihomoExternalUiUrl,
+        mihomoExternalUiName = draft.mihomoExternalUiName,
     )
 }
 

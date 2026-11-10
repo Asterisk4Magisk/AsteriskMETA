@@ -556,8 +556,8 @@
     <string name="mihomo_override_script_debug_failed">Failed</string>
     <string name="mihomo_override_script_debug_logs">Console</string>
     <string name="mihomo_override_script_debug_no_logs">No console output</string>
-    <string name="mihomo_override_script_debug_no_output">No output YAML</string>
-    <string name="mihomo_override_script_debug_output">Output YAML</string>
+    <string name="mihomo_override_script_debug_no_output">No final YAML</string>
+    <string name="mihomo_override_script_debug_output">Final YAML</string>
     <string name="mihomo_override_script_debug_profile">Temporary test profile</string>
     <string name="mihomo_override_script_debug_profile_none">No profile available</string>
     <string name="mihomo_override_script_debug_raw_profile">This profile disables all overrides, so no script runs for it</string>
@@ -818,6 +818,8 @@
     <string name="settings_sniffer_http_override_destination">HTTP override destination</string>
     <string name="settings_sniffer_http_ports">HTTP ports</string>
     <string name="settings_sniffer_list_empty">No entries added</string>
+    <string name="settings_sniffer_override">Override sniffer</string>
+    <string name="settings_sniffer_override_summary">Replace the sniffer block in the selected Mihomo profile</string>
     <string name="settings_sniffer_override_destination">Override destination</string>
     <string name="settings_sniffer_override_destination_summary">Replace the connection destination with the sniffed domain</string>
     <string name="settings_sniffer_parse_pure_ip">Parse pure IP connections</string>
@@ -838,9 +840,39 @@
     <string name="settings_sniffer_summary_disabled">Disabled</string>
     <string name="settings_sniffer_summary_enabled">Enabled</string>
     <string name="settings_sniffer_summary_enabled_with_options">Enabled, %1$s</string>
+    <string name="settings_sniffer_summary_follow_profile">Follows the profile</string>
     <string name="settings_sniffer_summary_option_separator">, </string>
     <string name="settings_sniffer_tls_override_destination">TLS override destination</string>
     <string name="settings_sniffer_tls_ports">TLS ports</string>
+
+    <!-- Other settings -->
+    <string name="settings_other">Other</string>
+    <string name="settings_other_controller_cors_allow_origins">Allowed origins (CORS)</string>
+    <string name="settings_other_controller_cors_allow_origins_description">Leave empty to allow every origin</string>
+    <string name="settings_other_controller_cors_allow_private_network">Allow private network access</string>
+    <string name="settings_other_controller_cors_allow_private_network_summary">Answer browser Private Network Access preflights</string>
+    <string name="settings_other_controller_cors_origin_invalid">Enter * or an http(s) origin</string>
+    <string name="settings_other_controller_listen_all_interfaces">Listen on all interfaces</string>
+    <string name="settings_other_controller_listen_all_interfaces_summary">Let panels on the local network reach the controller</string>
+    <string name="settings_other_controller_port">Controller port</string>
+    <string name="settings_other_controller_port_conflict">Conflicts with another configured port</string>
+    <string name="settings_other_controller_port_fixed">Fixed controller port</string>
+    <string name="settings_other_controller_port_fixed_summary">Keep this port for external panels; a conflict fails the start instead of switching ports</string>
+    <string name="settings_other_controller_secret">Secret</string>
+    <string name="settings_other_controller_secret_regenerate">Regenerate secret</string>
+    <string name="settings_other_controller_secret_required">Secret cannot be empty</string>
+    <string name="settings_other_external_ui">Panel directory (external-ui)</string>
+    <string name="settings_other_external_ui_name">Panel name (external-ui-name)</string>
+    <string name="settings_other_external_ui_override">Override external UI</string>
+    <string name="settings_other_external_ui_override_summary">Replace the external-ui keys in the selected Mihomo profile</string>
+    <string name="settings_other_external_ui_url">Panel download URL (external-ui-url)</string>
+    <string name="settings_other_find_process_mode">Find process mode</string>
+    <string name="settings_other_find_process_mode_summary">How rules look up the app behind a connection</string>
+    <string name="settings_other_follow_profile">Follow profile</string>
+    <string name="settings_other_section_external_control">External control</string>
+    <string name="settings_other_section_geodata">Geodata</string>
+    <string name="settings_other_section_process">Process matching</string>
+    <string name="settings_other_summary">Geodata, process matching and external control</string>
 
     <!-- Service control -->
     <string name="settings_service_control">Service control</string>

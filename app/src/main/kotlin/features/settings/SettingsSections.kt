@@ -172,9 +172,6 @@ private fun HideLauncherIconPreference(
 @Composable
 internal fun SettingsCoreSection(
     snifferSettingsSummary: String,
-    enableGeodataMode: Boolean,
-    geodataLoaderOptions: List<String>,
-    geodataLoader: Int,
     coreLogLevel: Int,
     enableLocalDns: Boolean,
     onOpenDnsSettings: () -> Unit,
@@ -183,8 +180,7 @@ internal fun SettingsCoreSection(
     onOpenAutoSwitch: () -> Unit,
     onOpenApps: () -> Unit,
     onOpenResourceManagement: () -> Unit,
-    onEnableGeodataModeChange: (Boolean) -> Unit,
-    onGeodataLoaderChange: (Int) -> Unit,
+    onOpenOtherSettings: () -> Unit,
     onCoreLogLevelChange: (Int) -> Unit,
     onEnableLocalDnsChange: (Boolean) -> Unit,
 ) {
@@ -216,23 +212,6 @@ internal fun SettingsCoreSection(
                 icon = Icons.Rounded.TravelExplore,
                 summary = snifferSettingsSummary,
                 onClick = onOpenSnifferSettings,
-            )
-            SwitchPreference(
-                title = stringResource(R.string.settings_geodata_mode),
-                accent = IconAccent.MaskBlue,
-                icon = Icons.Rounded.Public,
-                summary = stringResource(R.string.settings_geodata_mode_summary),
-                checked = enableGeodataMode,
-                onCheckedChange = onEnableGeodataModeChange,
-            )
-            OverlayDropdownPreference(
-                title = stringResource(R.string.settings_geodata_loader),
-                accent = IconAccent.MaskGrey,
-                icon = Icons.Rounded.Storage,
-                summary = stringResource(R.string.settings_geodata_loader_summary),
-                items = geodataLoaderOptions,
-                selectedIndex = geodataLoader.coerceIn(geodataLoaderOptions.indices),
-                onSelectedIndexChange = onGeodataLoaderChange,
             )
         } else {
             SwitchPreference(
@@ -291,6 +270,13 @@ internal fun SettingsCoreSection(
             onClick = onOpenAutoSwitch,
         )
         if (!rawEnabled) {
+            ArrowPreference(
+                title = stringResource(R.string.settings_other),
+                accent = IconAccent.MaskGrey,
+                icon = Icons.Rounded.Widgets,
+                summary = stringResource(R.string.settings_other_summary),
+                onClick = onOpenOtherSettings,
+            )
             OverlayDropdownPreference(
                 title = stringResource(R.string.settings_log_level),
                 accent = IconAccent.MaskRed,

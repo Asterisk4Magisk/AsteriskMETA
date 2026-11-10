@@ -33,6 +33,7 @@ import engine.mihomo.DefaultMihomoControlPort
 import engine.mihomo.DefaultMihomoSnifferHttpPorts
 import engine.mihomo.DefaultMihomoSnifferQuicPorts
 import engine.mihomo.DefaultMihomoSnifferTlsPorts
+import engine.mihomo.MihomoFindProcessModeFollowProfile
 import engine.mihomo.MihomoGeodataLoaderStandard
 import engine.mihomo.MihomoDnsModeFakeIp
 import engine.mihomo.MihomoDnsModeRedirHost
@@ -73,6 +74,17 @@ data class AppState(
     val mihomoTunCongestionController: String = DefaultMihomoTunCongestionController,
     val mihomoControlPort: String = DefaultMihomoControlPort.toString(),
     val mihomoControlSecret: String = "",
+    /** Keeps [mihomoControlPort] as typed: a conflict fails the start instead of picking another port. */
+    val mihomoControlPortFixed: Boolean = false,
+    val mihomoControlListenAllInterfaces: Boolean = false,
+    /** Empty keeps Mihomo's default, which allows every origin. */
+    val mihomoControlCorsAllowOrigins: List<String> = emptyList(),
+    val mihomoControlCorsAllowPrivateNetwork: Boolean = true,
+    /** Off keeps the profile's external-ui keys. */
+    val overrideMihomoExternalUi: Boolean = false,
+    val mihomoExternalUi: String = "",
+    val mihomoExternalUiUrl: String = "",
+    val mihomoExternalUiName: String = "",
     val enableLocalDns: Boolean = true,
 
     val localProxyPort: String = VpnDefaults.LOCAL_PROXY_PORT.toString(),
@@ -104,6 +116,7 @@ data class AppState(
     val enableTrafficStatsNotification: Boolean = false,
     val enableBroadcastControl: Boolean = false,
     val mihomoGeodataLoader: Int = MihomoGeodataLoaderStandard,
+    val mihomoFindProcessMode: Int = MihomoFindProcessModeFollowProfile,
     val enableResourceAutoUpdate: Boolean = false,
     val resourceAutoUpdateInterval: String = "24",
     val resourceFileSource: Int = ResourceFileSourceMetaCubeXGithub,
@@ -114,6 +127,8 @@ data class AppState(
     val customResourceFileAsnUrl: String = "",
     val customResourceFileDirectCidrIpv4Url: String = "",
     val customResourceFileDirectCidrIpv6Url: String = "",
+    /** Off keeps the profile's sniffer block. */
+    val overrideSniffer: Boolean = true,
     val enableSniffer: Boolean = true,
     val enableSnifferOverrideDestination: Boolean = true,
     val snifferForceDnsMapping: Boolean = true,

@@ -52,6 +52,9 @@ internal class SettingsSheetState(
     var showSnifferSettings by mutableStateOf(false)
     var snifferSettingsDraft by mutableStateOf(SnifferSettingsDraft())
 
+    var showOtherSettings by mutableStateOf(false)
+    var otherSettingsDraft by mutableStateOf(OtherSettingsDraft())
+
     var showExternalInterfaces by mutableStateOf(false)
     var externalInterfacesDraft by mutableStateOf(emptyList<String>())
 
@@ -92,6 +95,11 @@ internal class SettingsSheetState(
     fun openSnifferSettings(appState: AppState) {
         snifferSettingsDraft = appState.toSnifferSettingsDraft()
         showSnifferSettings = true
+    }
+
+    fun openOtherSettings(appState: AppState) {
+        otherSettingsDraft = appState.toOtherSettingsDraft()
+        showOtherSettings = true
     }
 
     fun openExternalInterfaces(appState: AppState) {

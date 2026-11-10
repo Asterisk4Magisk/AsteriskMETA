@@ -101,6 +101,26 @@ internal class AppSettingsPreferences(
                 defaults.mihomoControlPort,
             ) ?: defaults.mihomoControlPort,
             mihomoControlSecret = mihomoControlSecret,
+            mihomoControlPortFixed = preferences.getBoolean(KeyMihomoControlPortFixed, defaults.mihomoControlPortFixed),
+            mihomoControlListenAllInterfaces = preferences.getBoolean(
+                KeyMihomoControlListenAllInterfaces,
+                defaults.mihomoControlListenAllInterfaces,
+            ),
+            mihomoControlCorsAllowOrigins = preferences.getStringList(
+                KeyMihomoControlCorsAllowOrigins,
+                defaults.mihomoControlCorsAllowOrigins,
+            ),
+            mihomoControlCorsAllowPrivateNetwork = preferences.getBoolean(
+                KeyMihomoControlCorsAllowPrivateNetwork,
+                defaults.mihomoControlCorsAllowPrivateNetwork,
+            ),
+            overrideMihomoExternalUi = preferences.getBoolean(KeyOverrideMihomoExternalUi, defaults.overrideMihomoExternalUi),
+            mihomoExternalUi = preferences.getString(KeyMihomoExternalUi, defaults.mihomoExternalUi)
+                ?: defaults.mihomoExternalUi,
+            mihomoExternalUiUrl = preferences.getString(KeyMihomoExternalUiUrl, defaults.mihomoExternalUiUrl)
+                ?: defaults.mihomoExternalUiUrl,
+            mihomoExternalUiName = preferences.getString(KeyMihomoExternalUiName, defaults.mihomoExternalUiName)
+                ?: defaults.mihomoExternalUiName,
             enableLocalDns = preferences.getBoolean(KeyEnableLocalDns, defaults.enableLocalDns),
             localProxyPort = preferences.getString(KeyLocalProxyPort, defaults.localProxyPort) ?: defaults.localProxyPort,
             enableDynamicLocalProxyPort = preferences.getBoolean(
@@ -150,6 +170,7 @@ internal class AppSettingsPreferences(
                 defaults.enableBroadcastControl,
             ),
             mihomoGeodataLoader = preferences.getInt(KeyMihomoGeodataLoader, defaults.mihomoGeodataLoader),
+            mihomoFindProcessMode = preferences.getInt(KeyMihomoFindProcessMode, defaults.mihomoFindProcessMode),
             enableResourceAutoUpdate = preferences.getBoolean(KeyEnableResourceAutoUpdate, defaults.enableResourceAutoUpdate),
             resourceAutoUpdateInterval = preferences.getString(KeyResourceAutoUpdateInterval, defaults.resourceAutoUpdateInterval)
                 ?: defaults.resourceAutoUpdateInterval,
@@ -182,6 +203,7 @@ internal class AppSettingsPreferences(
                 KeyCustomResourceFileDirectCidrIpv6Url,
                 defaults.customResourceFileDirectCidrIpv6Url,
             ) ?: defaults.customResourceFileDirectCidrIpv6Url,
+            overrideSniffer = preferences.getBoolean(KeyOverrideSniffer, defaults.overrideSniffer),
             enableSniffer = preferences.getBoolean(KeyEnableSniffer, defaults.enableSniffer),
             enableSnifferOverrideDestination = preferences.getBoolean(
                 KeyEnableSnifferOverrideDestination,
@@ -338,6 +360,14 @@ internal class AppSettingsPreferences(
             .putString(KeyMihomoTunCongestionController, state.mihomoTunCongestionController)
             .putString(KeyMihomoControlPort, state.mihomoControlPort)
             .putString(KeyMihomoControlSecret, state.mihomoControlSecret)
+            .putBoolean(KeyMihomoControlPortFixed, state.mihomoControlPortFixed)
+            .putBoolean(KeyMihomoControlListenAllInterfaces, state.mihomoControlListenAllInterfaces)
+            .putStringList(KeyMihomoControlCorsAllowOrigins, state.mihomoControlCorsAllowOrigins)
+            .putBoolean(KeyMihomoControlCorsAllowPrivateNetwork, state.mihomoControlCorsAllowPrivateNetwork)
+            .putBoolean(KeyOverrideMihomoExternalUi, state.overrideMihomoExternalUi)
+            .putString(KeyMihomoExternalUi, state.mihomoExternalUi)
+            .putString(KeyMihomoExternalUiUrl, state.mihomoExternalUiUrl)
+            .putString(KeyMihomoExternalUiName, state.mihomoExternalUiName)
             .putBoolean(KeyEnableLocalDns, state.enableLocalDns)
             .putString(KeyLocalProxyPort, state.localProxyPort)
             .putBoolean(KeyEnableDynamicLocalProxyPort, state.enableDynamicLocalProxyPort)
@@ -360,6 +390,7 @@ internal class AppSettingsPreferences(
             .putBoolean(KeyEnableTrafficStatsNotification, state.enableTrafficStatsNotification)
             .putBoolean(KeyEnableBroadcastControl, state.enableBroadcastControl)
             .putInt(KeyMihomoGeodataLoader, state.mihomoGeodataLoader)
+            .putInt(KeyMihomoFindProcessMode, state.mihomoFindProcessMode)
             .putBoolean(KeyEnableResourceAutoUpdate, state.enableResourceAutoUpdate)
             .putString(KeyResourceAutoUpdateInterval, state.resourceAutoUpdateInterval)
             .putInt(KeyResourceFileSource, state.resourceFileSource)
@@ -370,6 +401,7 @@ internal class AppSettingsPreferences(
             .putString(KeyCustomResourceFileAsnUrl, state.customResourceFileAsnUrl)
             .putString(KeyCustomResourceFileDirectCidrIpv4Url, state.customResourceFileDirectCidrIpv4Url)
             .putString(KeyCustomResourceFileDirectCidrIpv6Url, state.customResourceFileDirectCidrIpv6Url)
+            .putBoolean(KeyOverrideSniffer, state.overrideSniffer)
             .putBoolean(KeyEnableSniffer, state.enableSniffer)
             .putBoolean(KeyEnableSnifferOverrideDestination, state.enableSnifferOverrideDestination)
             .putBoolean(KeySnifferForceDnsMapping, state.snifferForceDnsMapping)
@@ -575,6 +607,14 @@ private const val KeyMihomoTunStack = "mihomo_tun_stack"
 private const val KeyMihomoTunCongestionController = "mihomo_tun_congestion_controller"
 private const val KeyMihomoControlPort = "mihomo_control_port"
 private const val KeyMihomoControlSecret = "mihomo_control_secret"
+private const val KeyMihomoControlPortFixed = "mihomo_control_port_fixed"
+private const val KeyMihomoControlListenAllInterfaces = "mihomo_control_listen_all_interfaces"
+private const val KeyMihomoControlCorsAllowOrigins = "mihomo_control_cors_allow_origins"
+private const val KeyMihomoControlCorsAllowPrivateNetwork = "mihomo_control_cors_allow_private_network"
+private const val KeyOverrideMihomoExternalUi = "override_mihomo_external_ui"
+private const val KeyMihomoExternalUi = "mihomo_external_ui"
+private const val KeyMihomoExternalUiUrl = "mihomo_external_ui_url"
+private const val KeyMihomoExternalUiName = "mihomo_external_ui_name"
 private const val KeyEnableLocalDns = "enable_local_dns"
 private const val KeyLocalProxyPort = "local_proxy_port"
 private const val KeyEnableDynamicLocalProxyPort = "enable_dynamic_local_proxy_port"
@@ -593,6 +633,7 @@ private const val KeyEnableGeodataMode = "enable_geodata_mode"
 private const val KeyEnableTrafficStatsNotification = "enable_traffic_stats_notification"
 private const val KeyEnableBroadcastControl = "enable_broadcast_control"
 private const val KeyMihomoGeodataLoader = "mihomo_geodata_loader"
+private const val KeyMihomoFindProcessMode = "mihomo_find_process_mode"
 private const val KeyEnableResourceAutoUpdate = "enable_resource_auto_update"
 private const val KeyResourceAutoUpdateInterval = "resource_auto_update_interval"
 private const val KeyResourceFileSource = "resource_file_source"
@@ -603,6 +644,7 @@ private const val KeyCustomResourceFileCountryMmdbUrl = "custom_resource_file_co
 private const val KeyCustomResourceFileAsnUrl = "custom_resource_file_asn_url"
 private const val KeyCustomResourceFileDirectCidrIpv4Url = "custom_resource_file_direct_cidr_ipv4_url"
 private const val KeyCustomResourceFileDirectCidrIpv6Url = "custom_resource_file_direct_cidr_ipv6_url"
+private const val KeyOverrideSniffer = "override_sniffer"
 private const val KeyEnableSniffer = "enable_sniffer"
 private const val KeyEnableSnifferOverrideDestination = "enable_sniffer_override_destination"
 private const val KeySnifferForceDnsMapping = "sniffer_force_dns_mapping"
