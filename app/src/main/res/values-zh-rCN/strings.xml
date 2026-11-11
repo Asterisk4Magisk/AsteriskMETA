@@ -256,7 +256,7 @@
 
     <!-- Connection test -->
     <string name="connection_test_concurrent">测试并发</string>
-    <string name="connection_test_scope_summary">策略组未指定测试链接时使用此链接</string>
+    <string name="connection_test_scope_summary">用于应用内手动测速及自动切换检测</string>
     <string name="connection_test_settings_summary">调整 Mihomo URL 延迟测试行为</string>
     <string name="connection_test_settings_title">连接测试</string>
     <string name="connection_test_timeout">测试超时（ms）</string>

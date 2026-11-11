@@ -175,7 +175,7 @@ fun MihomoProxyProviderDetailPage(
             services.mihomoRuntime.testProxyDelay(
                 appState = appState,
                 proxyId = MihomoProxyNodeId(node.name, detail.name),
-                testUrl = detail.testUrl,
+                testUrl = appState.connectionTestUrl,
                 expectedStatus = detail.expectedStatus,
             ).onSuccess { result ->
                 val mergedResult = mergeMihomoProviderDelayResults(latestDelayResult, result)
@@ -196,7 +196,7 @@ fun MihomoProxyProviderDetailPage(
             services.mihomoRuntime.testProviderDelay(
                 appState = appState,
                 providerName = detail.name,
-                testUrl = detail.testUrl,
+                testUrl = appState.connectionTestUrl,
                 expectedStatus = detail.expectedStatus,
             ).onSuccess { result ->
                 val mergedResult = mergeMihomoProviderDelayResults(latestDelayResult, result)

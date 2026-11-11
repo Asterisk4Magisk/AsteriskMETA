@@ -258,7 +258,7 @@
 
     <!-- Connection test -->
     <string name="connection_test_concurrent">Test concurrency</string>
-    <string name="connection_test_scope_summary">Use this URL when the proxy group has no test URL specified</string>
+    <string name="connection_test_scope_summary">Used for in-app manual delay tests and auto-switch checks</string>
     <string name="connection_test_settings_summary">Tune how the Mihomo URL test measures delay</string>
     <string name="connection_test_settings_title">Connection test</string>
     <string name="connection_test_timeout">Test timeout (ms)</string>

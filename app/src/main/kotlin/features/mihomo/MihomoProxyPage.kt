@@ -389,7 +389,7 @@ fun MihomoProxyPage(
     fun testGroup(group: MihomoProxyGroup) {
         if (!requireRuntime() || testingTarget != null) return
         scope.launch {
-            services.mihomoRuntime.testGroupDelay(appState, group.name, group.testUrl)
+            services.mihomoRuntime.testGroupDelay(appState, group.name, appState.connectionTestUrl)
                 .onSuccess { tipNotifier.show(delayDoneMessage) }
                 .onFailure { error -> tipNotifier.showError(error, delayFailedMessage) }
         }
