@@ -55,6 +55,9 @@ private fun HevSocks5TunnelConfig.buildHevSocks5TunnelConfigYaml(): String {
         appendLine("  port: $socksPort")
         appendLine("  address: ${socksAddress.toYamlSingleQuotedString()}")
         appendLine("  udp: 'udp'")
+        // Keeps the source port of the tunneled flow on the connection to the core, so the core
+        // can attribute the connection to a package. Ignored by tunnel releases without it.
+        appendLine("  source-port: true")
         if (socksUsername.isNotBlank()) {
             appendLine("  username: ${socksUsername.toYamlSingleQuotedString()}")
             appendLine("  password: ${socksPassword.toYamlSingleQuotedString()}")
