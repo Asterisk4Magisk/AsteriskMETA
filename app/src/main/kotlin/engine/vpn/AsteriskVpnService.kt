@@ -42,6 +42,7 @@ import system.getInstalledApplicationsCompat
 import utils.toTrimmedNonEmptyDistinctList
 import java.io.Closeable
 import java.io.File
+import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -51,6 +52,14 @@ import kotlin.system.exitProcess
 class AsteriskVpnService : VpnService() {
     private var tunFileDescriptor: ParcelFileDescriptor? = null
     private var hevTunRuntime: HevTunRuntime? = null
+
+    /**
+     * Tunnel addresses of the running Hev TUN session. Its core connections arrive over
+     * loopback but keep the source port of the app flow, so these addresses restore the app
+     * side of the tuple for [querySocketUid]. Empty in native TUN mode, where the core already
+     * knows the app addresses.
+     */
+    private var hevTunSourceAddresses: List<InetAddress> = emptyList()
     private val serviceJob = SupervisorJob()
     private val serviceScope = CoroutineScope(serviceJob + Dispatchers.IO)
     private val operationMutex = Mutex()
@@ -338,6 +347,11 @@ class AsteriskVpnService : VpnService() {
     private fun startVpn(config: VpnServiceStartConfig) {
         // Keep the foreground promotion from resumeVpn() while clearing a previous session.
         stopVpn(removeForeground = false)
+        val hevConfig = config.hevSocks5TunnelConfig
+        hevTunSourceAddresses = listOfNotNull(
+            hevConfig?.ipv4Address?.toInetAddressOrNull(),
+            hevConfig?.ipv6Address?.toInetAddressOrNull(),
+        )
         session = runCatching {
             VpnSession.open(this, config.localProxyOptions)
         }.getOrElse { error ->
@@ -352,7 +366,6 @@ class AsteriskVpnService : VpnService() {
         )
         val tunDescriptor = establishTun(config)
         tunFileDescriptor = tunDescriptor
-        val hevConfig = config.hevSocks5TunnelConfig
         if (hevConfig == null) {
             AndroidMihomoRuntime.startNativeTun(
                 config = config,
@@ -545,11 +558,22 @@ class AsteriskVpnService : VpnService() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
             return InvalidUid
         }
-        return runCatching {
-            connectivityManager.getConnectionOwnerUid(protocol, source, target)
-        }.getOrElse {
-            InvalidUid
+        fun connectionOwnerUid(local: InetSocketAddress): Int? {
+            return runCatching {
+                connectivityManager.getConnectionOwnerUid(protocol, local, target)
+            }.getOrNull()?.takeIf { uid -> uid >= 0 }
         }
+
+        connectionOwnerUid(source)?.let { return it }
+
+        // Only a Hev TUN flow needs the second attempt: it reaches the core from a loopback
+        // socket that keeps the source port of the app flow, so replacing the loopback address
+        // with the tunnel address restores the tuple the app socket itself has. A native TUN
+        // flow hands over the real app addresses and stops at the lookup above.
+        if (!source.address.isLoopbackAddress) return InvalidUid
+        return hevTunSourceAddresses.firstNotNullOfOrNull { address ->
+            connectionOwnerUid(InetSocketAddress(address, source.port))
+        } ?: InvalidUid
     }
 
     companion object {
@@ -632,4 +656,9 @@ class AsteriskVpnService : VpnService() {
             return application.packageName
         }
     }
+}
+
+/** Parses a tunnel address; the tunnel addresses are literals, so resolution cannot block. */
+private fun String.toInetAddressOrNull(): InetAddress? {
+    return runCatching { InetAddress.getByName(this) }.getOrNull()
 }
