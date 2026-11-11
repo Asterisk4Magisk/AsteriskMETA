@@ -15,7 +15,7 @@
     <string name="common_cancel">取消</string>
     <string name="common_clear">清除</string>
     <string name="common_clipboard_empty">剪贴板为空</string>
-    <string name="common_clipboard_unsupported_format">剪贴板格式不支持</string>
+    <string name="common_clipboard_unsupported_format">不支持的剪贴板格式</string>
     <string name="common_close">关闭</string>
     <string name="common_complete">完成</string>
     <string name="common_copied">已复制</string>
@@ -99,7 +99,7 @@
     <string name="monitor_filter_proxy">代理</string>
     <string name="monitor_loading">正在读取实时数据…</string>
     <string name="monitor_milliseconds">%1$d ms</string>
-    <string name="monitor_no_samples">暂无采样；暂停期间会保留断点。</string>
+    <string name="monitor_no_samples">暂无采样；暂停期间留空。</string>
     <string name="monitor_refresh">刷新</string>
     <string name="monitor_service_not_enabled">服务未启用</string>
     <string name="monitor_sort_rate">实时速率</string>
@@ -188,7 +188,7 @@
     <string name="monitor_network_colo_lax">洛杉矶</string>
     <string name="monitor_network_colo_lhr">伦敦</string>
     <string name="monitor_network_colo_mel">墨尔本</string>
-    <string name="monitor_network_colo_named">%1$s (%2$s)</string>
+    <string name="monitor_network_colo_named">%1$s（%2$s）</string>
     <string name="monitor_network_colo_nrt">东京</string>
     <string name="monitor_network_colo_ord">芝加哥</string>
     <string name="monitor_network_colo_sea">西雅图</string>
@@ -224,8 +224,8 @@
     <string name="mihomo_proxies_delay_failed">失败</string>
     <string name="mihomo_proxies_delay_not_tested">未测试</string>
     <string name="mihomo_proxies_delay_timeout">超时</string>
-    <string name="mihomo_proxies_groups">代理组</string>
-    <string name="mihomo_proxies_expand_groups">展开代理组</string>
+    <string name="mihomo_proxies_groups">策略组</string>
+    <string name="mihomo_proxies_expand_groups">展开策略组</string>
     <string name="mihomo_proxies_group_test">整组测试</string>
     <string name="mihomo_proxies_group_expanded">已展开</string>
     <string name="mihomo_proxies_group_collapsed">已折叠</string>
@@ -236,7 +236,7 @@
     <string name="mihomo_proxies_option_interrupt_connections">中断连接</string>
     <string name="mihomo_proxies_interrupt_connections_failed">无法断开经过此策略组的部分连接</string>
     <string name="mihomo_proxies_option_filter_not_selectable">不可选择</string>
-    <string name="mihomo_proxies_option_group_layout">代理组布局</string>
+    <string name="mihomo_proxies_option_group_layout">策略组布局</string>
     <string name="mihomo_proxies_option_group_layout_expandable">展开列表</string>
     <string name="mihomo_proxies_option_group_layout_tabs">顶栏标签页</string>
     <string name="mihomo_proxies_option_layout">代理布局</string>
@@ -257,12 +257,12 @@
     <!-- Connection test -->
     <string name="connection_test_concurrent">测试并发</string>
     <string name="connection_test_scope_summary">策略组未指定测试链接时使用此链接</string>
-    <string name="connection_test_settings_summary">调整 Mihomo URL 测试的测量行为</string>
+    <string name="connection_test_settings_summary">调整 Mihomo URL 延迟测试行为</string>
     <string name="connection_test_settings_title">连接测试</string>
-    <string name="connection_test_timeout">测试超时(ms)</string>
+    <string name="connection_test_timeout">测试超时（ms）</string>
     <string name="connection_test_unified_delay">统一延迟</string>
     <string name="connection_test_unified_delay_raw_summary">当前配置已禁用覆写，统一延迟以其 YAML 配置为准</string>
-    <string name="connection_test_unified_delay_summary">在已建立会话上测第二次请求,剔除一次性握手成本</string>
+    <string name="connection_test_unified_delay_summary">计算 RTT，消除连接握手等带来的不同类型节点延迟差异</string>
     <string name="connection_test_url">测试链接</string>
     <string name="connection_test_url_invalid">请输入合法的 HTTP 或 HTTPS 链接</string>
 
@@ -313,7 +313,7 @@
     <string name="mihomo_profile_override_script">覆写脚本</string>
     <string name="mihomo_profile_override_script_applied">脚本：{name}</string>
     <string name="mihomo_profile_override_script_none">不应用</string>
-    <string name="mihomo_profile_override_script_stopped">已由原始配置模式停用</string>
+    <string name="mihomo_profile_override_script_stopped">原始配置模式下已停用</string>
     <string name="mihomo_profile_preview">预览</string>
     <string name="mihomo_profile_preview_failed">预览配置失败</string>
     <string name="mihomo_profile_preview_title">预览 {name}</string>
@@ -359,14 +359,14 @@
     <string name="mihomo_profile_raw_mode_degraded">配置检查：部分 API 或 DNS 功能不可用</string>
     <string name="mihomo_profile_raw_mode_ready">配置检查：可以启动</string>
     <string name="mihomo_profile_raw_mode_summary">仅原样加载 YAML；应用设置与覆写脚本不生效</string>
-    <string name="mihomo_profile_raw_mode_unchecked">内容可用后将执行配置检查</string>
+    <string name="mihomo_profile_raw_mode_unchecked">内容就绪后检查配置</string>
     <string name="mihomo_profile_raw_run_mode">当前运行方式</string>
     <string name="mihomo_profile_raw_unavailable">不可用</string>
     <string name="mihomo_profile_save_anyway">仍然保存</string>
     <string name="mihomo_profile_save_failed">保存配置失败</string>
     <string name="mihomo_profile_save_sync_decrypting">正在解密配置…</string>
     <string name="mihomo_profile_save_sync_downloading">正在下载配置…</string>
-    <string name="mihomo_profile_save_sync_failed_message">在“%1$s”阶段同步失败：%2$s\n\n你可以重试、仍然保存这个暂时不可用的配置，或取消并继续编辑。</string>
+    <string name="mihomo_profile_save_sync_failed_message">在「%1$s」阶段同步失败：%2$s\n\n你可以重试、仍然保存这个暂时不可用的配置，或取消并继续编辑。</string>
     <string name="mihomo_profile_save_sync_failed_saved">配置已保存，但同步失败</string>
     <string name="mihomo_profile_save_sync_failed_title">配置同步失败</string>
     <string name="mihomo_profile_save_sync_in_progress_title">正在同步配置</string>
@@ -413,7 +413,7 @@
     </plurals>
     <string name="mihomo_provider_focus_ready">Provider 已就绪</string>
     <string name="mihomo_provider_focus_updated">更新于 %1$s</string>
-    <string name="mihomo_provider_management_refresh_current">刷新当前 Tab</string>
+    <string name="mihomo_provider_management_refresh_current">刷新当前标签页</string>
     <string name="mihomo_provider_management_title">Providers</string>
     <string name="mihomo_provider_missing">当前配置中不存在该 Provider</string>
     <string name="mihomo_provider_proxies_count">{count} 个节点</string>
@@ -426,7 +426,7 @@
     <string name="mihomo_provider_runtime_unavailable">运行时 Provider 数据不可用</string>
     <string name="mihomo_provider_traffic_unlimited">不限量</string>
     <string name="mihomo_proxy_providers_empty">当前配置不包含 proxy-providers</string>
-    <string name="mihomo_proxy_providers_refresh_all_done">Proxy Provider 刷新完成：成功 %1$d；失败 %2$d</string>
+    <string name="mihomo_proxy_providers_refresh_all_done">Proxy Provider 刷新完成：成功 %1$d，失败 %2$d</string>
     <string name="mihomo_proxy_providers_refresh_done">Proxy Provider 已刷新</string>
     <string name="mihomo_proxy_providers_refresh_failed">刷新 Proxy Provider 失败</string>
     <string name="mihomo_proxy_providers_tab">Proxy Providers</string>
@@ -438,7 +438,7 @@
     <string name="mihomo_rule_provider_runtime_unavailable">运行时元数据不可用</string>
     <string name="mihomo_rule_provider_updated">更新于：%1$s</string>
     <string name="mihomo_rule_providers_empty">当前配置不包含 rule-providers</string>
-    <string name="mihomo_rule_providers_refresh_all_done">Rule Provider 刷新完成：成功 %1$d；失败 %2$d</string>
+    <string name="mihomo_rule_providers_refresh_all_done">Rule Provider 刷新完成：成功 %1$d，失败 %2$d</string>
     <string name="mihomo_rule_providers_refresh_done">Rule Provider 已刷新</string>
     <string name="mihomo_rule_providers_refresh_failed">刷新 Rule Provider 失败</string>
     <string name="mihomo_rule_providers_tab">Rule Providers</string>
@@ -475,7 +475,7 @@
     <string name="mihomo_rule_mode_raw">原文</string>
     <string name="mihomo_rule_move_down">下移</string>
     <string name="mihomo_rule_move_up">上移</string>
-    <string name="mihomo_rule_no_resolve_summary">不为匹配此规则解析域名</string>
+    <string name="mihomo_rule_no_resolve_summary">匹配此规则时不解析域名</string>
     <string name="mihomo_rule_override">规则覆写</string>
     <string name="mihomo_rule_override_applied">规则覆写 %1$d 项</string>
     <string name="mihomo_rule_override_before_match">兜底前规则</string>
@@ -592,12 +592,12 @@
     <string name="settings_dns_geoip_filter">GeoIP 过滤</string>
     <string name="settings_dns_hosts">DNS hosts</string>
     <string name="settings_dns_hosts_empty">还没有添加 DNS hosts</string>
-    <string name="settings_dns_hosts_format">格式：域名:地址1,地址2,…</string>
+    <string name="settings_dns_hosts_format">格式：「域名:地址1,地址2,…」</string>
     <string name="settings_dns_hosts_invalid">无效 DNS hosts 条目</string>
     <string name="settings_dns_list_empty">还没有添加条目</string>
     <string name="settings_dns_nameserver">域名服务器</string>
     <string name="settings_dns_nameserver_policy">Nameserver Policy</string>
-    <string name="settings_dns_nameserver_policy_format">格式：rule=&gt;server1,server2</string>
+    <string name="settings_dns_nameserver_policy_format">格式：「rule=&gt;server1,server2」</string>
     <string name="settings_dns_nameserver_summary">实际使用的 DNS 服务器</string>
     <string name="settings_dns_override">覆写 DNS</string>
     <string name="settings_dns_override_summary">替换当前 Mihomo 配置中的 DNS 配置块</string>
@@ -679,12 +679,12 @@
     <string name="settings_root_boot_script_failed">开机自启设置失败</string>
     <string name="settings_root_boot_script_summary">生成 service.d 启动脚本</string>
     <string name="settings_root_ebpf_bypass_direct_cidrs">绕过直连地址</string>
-    <string name="settings_root_ebpf_bypass_direct_cidrs_summary">默认为中国地址列表，可在资源管理中调整</string>
+    <string name="settings_root_ebpf_bypass_direct_cidrs_summary">默认为中国地址列表，可在「资源管理」中调整</string>
     <string name="settings_root_ebpf_matcher">使用 eBPF 匹配器</string>
     <string name="settings_root_ebpf_matcher_summary">提升大应用清单性能，支持地址过滤</string>
     <string name="settings_root_ipv6_disabler">禁用系统 IPv6</string>
     <string name="settings_root_ipv6_disabler_summary">防止 WebRTC 泄露 IPv6 地址</string>
-    <string name="settings_root_required">获取ROOT权限失败！</string>
+    <string name="settings_root_required">获取 ROOT 权限失败</string>
 
     <!-- Enhancement module -->
     <string name="enhancement_module_acknowledge">知道了</string>
@@ -755,15 +755,15 @@
     <string name="settings_tun2socks_socks5_port">TUN2SOCKS SOCKS5 端口</string>
 
     <!-- Tethering -->
-    <string name="settings_external_interfaces">热点共享设置</string>
-    <string name="settings_external_interfaces_bluetooth">蓝牙热点共享</string>
-    <string name="settings_external_interfaces_ethernet">以太网热点共享</string>
+    <string name="settings_external_interfaces">网络共享设置</string>
+    <string name="settings_external_interfaces_bluetooth">蓝牙网络共享</string>
+    <string name="settings_external_interfaces_ethernet">以太网网络共享</string>
     <string name="settings_external_interfaces_none">未启用</string>
     <string name="settings_external_interfaces_selected">已启用：{interfaces}</string>
-    <string name="settings_external_interfaces_summary">选择允许外部入站流量进入的热点共享类型</string>
-    <string name="settings_external_interfaces_usb">USB 热点共享</string>
-    <string name="settings_external_interfaces_wifi">Wi-Fi 热点共享</string>
-    <string name="settings_tun_shared_network">热点共享设置</string>
+    <string name="settings_external_interfaces_summary">选择允许外部入站流量的网络共享类型</string>
+    <string name="settings_external_interfaces_usb">USB 网络共享</string>
+    <string name="settings_external_interfaces_wifi">Wi-Fi 热点</string>
+    <string name="settings_tun_shared_network">网络共享设置</string>
     <string name="settings_tun_shared_network_description">每项填写一个实际的下游接口名（如 ap0、rndis0、rmnet0 或 ppp0）。不支持通配符和 loopback。</string>
     <string name="settings_tun_shared_network_empty">尚未配置下游接口</string>
     <string name="settings_tun_shared_network_input">下游接口名称</string>
@@ -774,7 +774,7 @@
     <!-- Interface exclusions -->
     <string name="settings_ignored_interfaces">忽略接口设置</string>
     <string name="settings_ignored_interfaces_empty">尚未配置忽略接口</string>
-    <string name="settings_ignored_interfaces_input">接口选择器</string>
+    <string name="settings_ignored_interfaces_input">接口名称</string>
     <string name="settings_ignored_interfaces_invalid">请使用 1–15 个字母、数字、_、. 或 -。+ 仅可出现一次且必须位于末尾。</string>
     <string name="settings_ignored_interfaces_none">未选择</string>
     <string name="settings_ignored_interfaces_selected">已选择：{interfaces}</string>
@@ -817,7 +817,7 @@
     <string name="settings_sniffer_protocol_override_follow_global">跟随全局</string>
     <string name="settings_sniffer_quic_override_destination">QUIC 覆写目标地址</string>
     <string name="settings_sniffer_quic_ports">QUIC 端口</string>
-    <string name="settings_sniffer_section_address_skips">地址跳过</string>
+    <string name="settings_sniffer_section_address_skips">跳过地址</string>
     <string name="settings_sniffer_section_domain_rules">域名规则</string>
     <string name="settings_sniffer_section_protocols">协议</string>
     <string name="settings_sniffer_skip_domain">跳过嗅探域名</string>
@@ -834,13 +834,13 @@
 
     <!-- Other settings -->
     <string name="settings_other">其他</string>
-    <string name="settings_other_controller_cors_allow_origins">允许的来源 (CORS)</string>
+    <string name="settings_other_controller_cors_allow_origins">允许的来源（CORS）</string>
     <string name="settings_other_controller_cors_allow_origins_description">留空则允许所有来源</string>
     <string name="settings_other_controller_cors_allow_private_network">允许私有网络访问</string>
     <string name="settings_other_controller_cors_allow_private_network_summary">响应浏览器的私有网络访问预检请求</string>
     <string name="settings_other_controller_cors_origin_invalid">请输入 * 或 http(s) 来源</string>
     <string name="settings_other_controller_listen_all_interfaces">监听所有接口</string>
-    <string name="settings_other_controller_listen_all_interfaces_summary">允许局域网内的面板访问控制器</string>
+    <string name="settings_other_controller_listen_all_interfaces_summary">允许局域网访问面板控制器</string>
     <string name="settings_other_controller_port">控制器端口</string>
     <string name="settings_other_controller_port_conflict">与其他已配置的端口冲突</string>
     <string name="settings_other_controller_port_fixed">固定控制器端口</string>
@@ -848,38 +848,38 @@
     <string name="settings_other_controller_secret">密钥</string>
     <string name="settings_other_controller_secret_regenerate">重新生成密钥</string>
     <string name="settings_other_controller_secret_required">密钥不能为空</string>
-    <string name="settings_other_external_ui">面板目录 (external-ui)</string>
-    <string name="settings_other_external_ui_name">面板名称 (external-ui-name)</string>
+    <string name="settings_other_external_ui">面板目录（external-ui）</string>
+    <string name="settings_other_external_ui_name">面板名称（external-ui-name）</string>
     <string name="settings_other_external_ui_override">覆写外部面板</string>
     <string name="settings_other_external_ui_override_summary">替换当前 Mihomo 配置中的 external-ui 相关项</string>
-    <string name="settings_other_external_ui_url">面板下载地址 (external-ui-url)</string>
+    <string name="settings_other_external_ui_url">面板下载地址（external-ui-url）</string>
     <string name="settings_other_find_process_mode">进程查找模式</string>
-    <string name="settings_other_find_process_mode_summary">规则查找连接所属应用的方式</string>
+    <string name="settings_other_find_process_mode_summary">查找连接所属应用的方式</string>
     <string name="settings_other_follow_profile">跟随配置</string>
     <string name="settings_other_section_external_control">外部控制</string>
-    <string name="settings_other_section_geodata">地理数据</string>
+    <string name="settings_other_section_geodata">GEO 数据</string>
     <string name="settings_other_section_process">进程匹配</string>
-    <string name="settings_other_summary">地理数据、进程匹配与外部控制</string>
+    <string name="settings_other_summary">GEO 数据、进程匹配与外部控制</string>
 
     <!-- Service control -->
     <string name="settings_service_control">服务控制</string>
     <string name="settings_service_control_bssid_invalid">请输入形如 00:11:22:33:44:55 的 BSSID</string>
     <string name="settings_service_control_bssids">BSSID 列表</string>
     <string name="settings_service_control_bssids_empty">留空表示任意 BSSID</string>
-    <string name="settings_service_control_connect_start">连接 WiFi 时启动</string>
-    <string name="settings_service_control_connect_stop">连接 WiFi 时停止</string>
+    <string name="settings_service_control_connect_start">连接 Wi-Fi 时启动</string>
+    <string name="settings_service_control_connect_stop">连接 Wi-Fi 时停止</string>
     <string name="settings_service_control_cron_hint">五段数字 Linux cron：分 时 日 月 周；支持 *、逗号、范围和步进。</string>
     <string name="settings_service_control_cron_invalid">请输入有效的五段数字 cron 表达式</string>
-    <string name="settings_service_control_disconnect_start">断开 WiFi 时启动</string>
-    <string name="settings_service_control_disconnect_stop">断开 WiFi 时停止</string>
-    <string name="settings_service_control_doze_note">定时器不会唤醒设备。Android 挂起进程时，将在恢复后补偿最近一次错过的动作；同时到期时停止优先。</string>
+    <string name="settings_service_control_disconnect_start">断开 Wi-Fi 时启动</string>
+    <string name="settings_service_control_disconnect_stop">断开 Wi-Fi 时停止</string>
+    <string name="settings_service_control_doze_note">定时器不会唤醒设备。若 Android 挂起进程，恢复后会补执行最近一次错过的操作；启停同时到期时以停止为准。</string>
     <string name="settings_service_control_enable">启用服务控制</string>
     <string name="settings_service_control_enable_summary">代理服务停止后保持 asteriskd 常驻</string>
     <string name="settings_service_control_keyguard">锁屏控制</string>
     <string name="settings_service_control_keyguard_enable">启用锁屏控制</string>
     <string name="settings_service_control_lock_start">锁屏时启动</string>
     <string name="settings_service_control_lock_stop">锁屏时停止</string>
-    <string name="settings_service_control_match_note">SSID 与 BSSID 使用“或”匹配；两个列表均为空时匹配任意 WiFi。</string>
+    <string name="settings_service_control_match_note">SSID 与 BSSID 使用「或」匹配；两个列表均为空时匹配任意 Wi-Fi。</string>
     <string name="settings_service_control_save_failed">服务控制应用失败，编辑内容已保留。</string>
     <string name="settings_service_control_saving">正在重启…</string>
     <string name="settings_service_control_schedule">定时控制</string>
@@ -892,8 +892,8 @@
     <string name="settings_service_control_summary">根据条件自动启停代理服务</string>
     <string name="settings_service_control_unlock_start">解锁时启动</string>
     <string name="settings_service_control_unlock_stop">解锁时停止</string>
-    <string name="settings_service_control_wifi">WiFi 控制</string>
-    <string name="settings_service_control_wifi_enable">启用 WiFi 控制</string>
+    <string name="settings_service_control_wifi">Wi-Fi 控制</string>
+    <string name="settings_service_control_wifi_enable">启用 Wi-Fi 控制</string>
 
     <!-- Broadcast control -->
     <string name="broadcast_update_notification_title">正在更新订阅和资源</string>
@@ -930,7 +930,7 @@
     <string name="proxy_app_list_import_invalid_entry">应用名单条目无效</string>
     <string name="proxy_app_list_import_invalid_user">应用用户 ID 无效</string>
     <string name="proxy_app_list_import_no_valid_apps">未发现有效应用</string>
-    <string name="proxy_app_list_import_unsupported_mode">应用名单模式不支持</string>
+    <string name="proxy_app_list_import_unsupported_mode">不支持的应用名单模式</string>
     <string name="proxy_app_list_imported">已导入 {count} 个应用</string>
     <string name="proxy_app_list_invert_done">已反选</string>
     <string name="proxy_app_list_invert_selection">反选</string>
@@ -990,7 +990,7 @@
     <string name="settings_resource_files_updated">资源文件已更新</string>
     <string name="settings_resource_files_updated_at">更新时间 {time}</string>
     <string name="settings_resource_management">资源管理</string>
-    <string name="settings_resource_management_summary">管理核心文件与GEO资源文件</string>
+    <string name="settings_resource_management_summary">管理核心文件与 GEO 资源文件</string>
 
     <!-- Backup and restore -->
     <string name="error_backup_file_creator_missing">备份文件创建请求器未注册</string>
@@ -1000,7 +1000,7 @@
     <string name="settings_backup_exported">用户数据已备份</string>
     <string name="settings_backup_exporting">正在准备备份…</string>
     <string name="settings_backup_reading">正在读取备份…</string>
-    <string name="settings_backup_restore">备份还原</string>
+    <string name="settings_backup_restore">备份与还原</string>
     <string name="settings_backup_restoring">正在还原用户数据…</string>
     <string name="settings_backup_user_data">备份用户数据</string>
     <string name="settings_backup_user_data_summary">导出当前用户数据到备份文件</string>
@@ -1024,7 +1024,7 @@
     <string name="shared_core_migration_message">VPN 和 ROOT 现已共用内置 Core。是否移除自定义 Core 以节省空间？之后仍可上传自定义 Core。</string>
     <string name="shared_core_migration_remove">移除</string>
     <string name="shared_core_migration_stop_root">移除前将停止 ROOT 服务。</string>
-    <string name="shared_core_migration_title">软件已更新</string>
+    <string name="shared_core_migration_title">应用已更新</string>
 
     <!-- QR scanner -->
     <string name="error_qr_camera_permission_denied">相机权限未授予，无法扫描二维码</string>
@@ -1080,7 +1080,7 @@
     <!-- Hide launcher icon -->
     <string name="settings_hide_launcher_icon">隐藏桌面图标</string>
     <string name="settings_hide_launcher_icon_summary">拨号 %1$s 或长按快捷设置磁贴打开应用</string>
-    <string name="settings_hide_launcher_icon_confirm">应用将从桌面消失。在拨号界面输入 %1$s 可打开应用，部分 OEM 系统需要 允许自启动/后台运行 权限。</string>
+    <string name="settings_hide_launcher_icon_confirm">应用将从桌面消失。在拨号界面输入 %1$s 可打开应用，部分 OEM 系统需要「允许自启动/后台运行」权限。</string>
 
     <!-- Logs -->
     <string name="core_logs_title">核心日志</string>
@@ -1088,7 +1088,7 @@
     <string name="logcat_logs_title">Logcat</string>
     <string name="logs_clear_message">此操作会永久移除当前日志中的全部条目。</string>
     <string name="logs_clear_title">清除日志？</string>
-    <string name="logs_copied_to_clipboard">已复制到剪切板</string>
+    <string name="logs_copied_to_clipboard">已复制到剪贴板</string>
     <string name="logs_export">导出日志</string>
     <string name="logs_export_failed">日志导出失败</string>
     <string name="logs_exported">日志已导出</string>
@@ -1121,7 +1121,7 @@
     <string name="settings_auto_switch">自动切换</string>
     <string name="settings_auto_switch_summary">偏好地区、连续失败次数与检测间隔</string>
     <string name="auto_switch_enabled">开启自动切换</string>
-    <string name="auto_switch_restore">恢复切回</string>
+    <string name="auto_switch_restore">自动切回</string>
     <string name="auto_switch_restore_summary">原节点连续 3 次检测成功后切回</string>
     <string name="auto_switch_log_title">切换日志</string>
     <string name="auto_switch_log_summary">查看下次检测、策略组状态与核心最近事件</string>
@@ -1129,7 +1129,7 @@
     <string name="auto_switch_log_stopped">自动检测未运行</string>
     <string name="auto_switch_log_not_running">自动检测仅在代理服务运行时进行</string>
     <string name="auto_switch_log_unavailable">无法从核心读取自动切换状态</string>
-    <string name="auto_switch_log_unsupported_core">当前运行的核心不支持自动切换。请在资源管理中移除上传的自定义核心以使用内置核心。</string>
+    <string name="auto_switch_log_unsupported_core">当前运行的核心不支持自动切换。请在「资源管理」中移除上传的自定义核心以使用内置核心。</string>
     <string name="auto_switch_log_groups">监测的策略组</string>
     <string name="auto_switch_log_events">最近事件</string>
     <string name="auto_switch_progress_preparing">正在读取策略组…</string>
@@ -1154,7 +1154,7 @@
     <string name="auto_switch_event_restored">已从 %1$s 切回此前选择的节点 %2$s · %3$d ms</string>
     <string name="auto_switch_info">说明</string>
     <string name="auto_switch_policy_title">自动切换的工作方式</string>
-    <string name="auto_switch_policy">代理服务运行期间由核心执行检测，App 无需常驻后台。\n\n检测使用「连接测试」中的测试地址、超时与并发数。\n\n达到连续失败次数后，优先检测偏好节点，并按以往测速结果从快到慢检测。期望延迟不为 0 时，找到第一个低于该延迟的可用节点即切换，不再检测其余节点；为 0 或没有节点达标时，选择延迟最低的可用节点。偏好节点全部不可用时才检测其他节点。\n\n当前节点正常或已被手动更改时不切换；全部不可用时保留原选择，并逐步拉长后续扫描间隔。\n\n开启「恢复切回」后，每个检测间隔都会检测首次自动切换前选择的节点，连续成功 3 次后切回该节点；期间手动更改选择则取消切回。\n\n需要使用内置核心，上传的自定义核心不支持此功能。</string>
+    <string name="auto_switch_policy">代理服务运行期间由核心执行检测，App 无需常驻后台。\n\n检测使用「连接测试」中的测试地址、超时与并发数。\n\n达到连续失败次数后，优先检测偏好节点，并按以往测速结果从快到慢检测。期望延迟不为 0 时，找到第一个低于该延迟的可用节点即切换，不再检测其余节点；为 0 或没有节点达标时，选择延迟最低的可用节点。偏好节点全部不可用时才检测其他节点。\n\n当前节点正常或已被手动更改时不切换；全部不可用时保留原选择，并逐步拉长后续扫描间隔。\n\n开启「自动切回」后，每个检测间隔都会检测首次自动切换前选择的节点，连续成功 3 次后切回该节点；期间手动更改选择则取消切回。\n\n需要使用内置核心，上传的自定义核心不支持此功能。</string>
     <string name="auto_switch_policy_raw">当前配置使用原始配置文件，核心遵循其中的 asterisk-auto-switch 字段；这里的设置会保存但不会生效。</string>
     <string name="auto_switch_groups">监测的策略组</string>
     <string name="auto_switch_groups_summary">至少选择当前配置中的一个手动选择组。\n\n仅监测直接选中的节点；直连、拒绝、嵌套策略组及核心管理的自动策略组保持原行为。\n\n切换配置后需重新选择策略组。</string>

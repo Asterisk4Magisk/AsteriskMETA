@@ -222,8 +222,8 @@
     <string name="monitor_network_title">Network status</string>
 
     <!-- Proxy selection -->
-    <string name="mihomo_proxies_delay_done">complete</string>
-    <string name="mihomo_proxies_delay_failed">failed</string>
+    <string name="mihomo_proxies_delay_done">Complete</string>
+    <string name="mihomo_proxies_delay_failed">Failed</string>
     <string name="mihomo_proxies_delay_not_tested">Not tested</string>
     <string name="mihomo_proxies_delay_timeout">Timeout</string>
     <string name="mihomo_proxies_groups">Proxy groups</string>
