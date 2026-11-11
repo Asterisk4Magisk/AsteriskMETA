@@ -101,6 +101,25 @@ internal data class MihomoProxiesState(
     }
 }
 
+/**
+ * The node carrying traffic: the first visible group (GLOBAL in Global mode, the profile's main
+ * group in Rule mode, as the snapshot orders them) followed down nested groups. The id keeps the
+ * provider of the member it was selected from. Nesting is shallow, so a linear lookup per level
+ * beats building a map on every snapshot; the hop limit stops a selection cycle.
+ */
+internal fun MihomoProxiesState.activeNodeId(): MihomoProxyNodeId? {
+    var group = groups.firstOrNull { candidate -> candidate.now.isNotBlank() } ?: return null
+    repeat(groups.size) {
+        val name = group.now
+        val id = group.all.firstOrNull { member -> member.name == name } ?: MihomoProxyNodeId(name)
+        val next = groups.firstOrNull { candidate -> candidate.name == name }
+            ?.takeIf { nested -> nested.now.isNotBlank() && nested.now != name }
+            ?: return id
+        group = next
+    }
+    return MihomoProxyNodeId(group.now)
+}
+
 internal data class MihomoProxyProviderNode(
     val name: String,
     val title: String = "",
@@ -150,8 +169,15 @@ internal data class MihomoRuntimeState(
     val proxies: MihomoProxiesState = MihomoProxiesState(),
     val proxiesRefreshing: Boolean = false,
     val delayTestingTarget: MihomoDelayTarget? = null,
+    // The running test is a background probe a user test may preempt; only meaningful while
+    // [delayTestingTarget] is set, so the resets that clear the target need not clear it.
+    val delayTestingAutomatic: Boolean = false,
     val lastError: String = "",
 )
+
+/** True when a user-started delay test may begin now (nothing runs, or only a background probe). */
+internal val MihomoRuntimeState.canStartUserDelayTest: Boolean
+    get() = delayTestingTarget == null || delayTestingAutomatic
 
 internal data class MihomoDelayResult(
     val measurements: Map<MihomoProxyNodeId, MihomoDelayMeasurement> = emptyMap(),

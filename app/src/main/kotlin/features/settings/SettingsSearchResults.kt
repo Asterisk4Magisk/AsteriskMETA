@@ -32,15 +32,32 @@ internal fun filterSettingsSearchEntries(
     }
 }
 
+/**
+ * Terms the 个性化 entry must match in settings search. Shared by the entry row
+ * and the search index so the two lists can never drift apart.
+ */
+@Composable
+internal fun personalizationSearchTerms(
+    colorModeOptions: List<String>,
+    keyColorOptions: List<String>,
+    chartStyleOptions: List<String>,
+): List<String> = listOf(
+    stringResource(R.string.settings_color_mode),
+    stringResource(R.string.settings_theme_color),
+    stringResource(R.string.settings_network_activity_style),
+    stringResource(R.string.settings_navigation_bar_style),
+    stringResource(R.string.option_nav_bar_classic),
+    stringResource(R.string.option_nav_bar_compact),
+    stringResource(R.string.settings_auto_hide_navigation_bar),
+    stringResource(R.string.settings_auto_hide_navigation_bar_summary),
+) + colorModeOptions + keyColorOptions + chartStyleOptions
+
 @Composable
 internal fun settingsTopLevelSearchItems(
     runMode: Int,
     colorModeOptions: List<String>,
-    colorMode: Int,
     keyColorOptions: List<String>,
-    seedIndex: Int,
     chartStyleOptions: List<String>,
-    networkActivityStyle: Int,
     languageOptions: List<String>,
     languageMode: Int,
     rawConfigEnabled: Boolean,
@@ -86,26 +103,15 @@ internal fun settingsTopLevelSearchItems(
         },
         SettingsSearchItem(
             SettingsSectionId.Apps,
-            stringResource(R.string.settings_color_mode),
-            value = optionValue(colorModeOptions, colorMode),
-            optionText = colorModeOptions,
-        ),
-        SettingsSearchItem(
-            SettingsSectionId.Apps,
-            stringResource(R.string.settings_theme_color),
-            value = optionValue(keyColorOptions, seedIndex),
-            optionText = keyColorOptions,
-        ),
-        SettingsSearchItem(
-            SettingsSectionId.Apps,
-            stringResource(R.string.settings_network_activity_style),
-            value = optionValue(chartStyleOptions, networkActivityStyle),
-            optionText = chartStyleOptions,
-        ),
-        SettingsSearchItem(
-            SettingsSectionId.Apps,
-            stringResource(R.string.settings_auto_hide_navigation_bar),
-            stringResource(R.string.settings_auto_hide_navigation_bar_summary),
+            stringResource(R.string.settings_personalization),
+            stringResource(R.string.settings_personalization_summary),
+            // The four personalization controls live in a popup; expose their
+            // labels and choices so search still finds them.
+            optionText = personalizationSearchTerms(
+                colorModeOptions = colorModeOptions,
+                keyColorOptions = keyColorOptions,
+                chartStyleOptions = chartStyleOptions,
+            ),
         ),
         SettingsSearchItem(
             SettingsSectionId.Apps,

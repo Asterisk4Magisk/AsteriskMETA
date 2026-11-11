@@ -120,7 +120,7 @@ fun AppTheme(
         } else {
             lerp(baseScheme.background, Color.White, 0.3f)
         },
-    )
+    ).let { scheme -> if (resolution.isDark) scheme.withExpandedContainerRamp() else scheme }
     var displayedScheme by remember { mutableStateOf(materialScheme) }
     var displayedIsDark by remember { mutableStateOf(resolution.isDark) }
     var systemBarIsDark by remember { mutableStateOf(resolution.isDark) }
@@ -202,6 +202,24 @@ private fun SynchronizeSplashTheme(colorMode: Int) {
 }
 
 private fun systemAnimationsEnabled(): Boolean = ValueAnimator.areAnimatorsEnabled()
+
+/**
+ * Dark schemes generated from a dark wallpaper compress the neutral ramp:
+ * `surfaceContainer` .. `surfaceContainerHighest` can land within a few RGB
+ * steps of each other, so a floating bar and the cards behind it end up the
+ * same tone. Rebuild the ramp as fixed steps from `surface` toward
+ * `onSurface`, close to the Material 3 baseline dark tones (roughly
+ * 26 / 33 / 43 / 54), while keeping the scheme's tint.
+ */
+private fun ColorScheme.withExpandedContainerRamp(): ColorScheme = copy(
+    // Lowest must stay below `surface`, otherwise M3's inverted dark hierarchy
+    // would put a recessed backdrop above the page.
+    surfaceContainerLowest = lerp(surface, Color.Black, 0.10f),
+    surfaceContainerLow = lerp(surface, onSurface, 0.06f),
+    surfaceContainer = lerp(surface, onSurface, 0.11f),
+    surfaceContainerHigh = lerp(surface, onSurface, 0.17f),
+    surfaceContainerHighest = lerp(surface, onSurface, 0.23f),
+)
 
 @Composable
 private fun AsteriskMaterialTheme(

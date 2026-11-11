@@ -7,6 +7,10 @@ import android.content.ComponentName
 import android.content.Context
 import android.service.quicksettings.TileService
 import app.AppState
+import app.modes.MihomoModeDirect
+import engine.mihomo.runtime.MihomoRuntimeState
+import engine.mihomo.runtime.activeNodeId
+import features.home.toMihomoModeOrNull
 import features.logs.AndroidAppLogger
 import java.util.concurrent.atomic.AtomicReference
 
@@ -17,10 +21,27 @@ internal data class QuickSettingsTileState(
     val runMode: Int,
     val proxyRunning: Boolean,
     val languageMode: Int,
+    val activeNodeName: String?,
 )
 
-internal fun AppState.quickSettingsTileState(): QuickSettingsTileState =
-    QuickSettingsTileState(runMode = runMode, proxyRunning = proxyRunning, languageMode = languageMode)
+internal fun AppState.quickSettingsTileState(runtime: MihomoRuntimeState): QuickSettingsTileState =
+    QuickSettingsTileState(
+        runMode = runMode,
+        proxyRunning = proxyRunning,
+        languageMode = languageMode,
+        activeNodeName = quickSettingsActiveNodeName(this, runtime),
+    )
+
+/**
+ * The node the tile names while the proxy runs: the live selection followed down nested groups.
+ * Nothing is cached, so a stopped core or Direct mode falls back to the app label.
+ */
+internal fun quickSettingsActiveNodeName(state: AppState, runtime: MihomoRuntimeState): String? {
+    if (!runtime.running) return null
+    val mode = runtime.configs.mode.toMihomoModeOrNull() ?: state.mihomoMode
+    if (mode == MihomoModeDirect) return null
+    return runtime.proxies.activeNodeId()?.name?.takeIf { name -> name.isNotBlank() }
+}
 
 private val tileShownState = AtomicReference<QuickSettingsTileState?>(null)
 

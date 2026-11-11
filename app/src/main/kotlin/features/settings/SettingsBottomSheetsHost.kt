@@ -26,6 +26,7 @@ import features.settings.sheets.ExternalInterfacesBottomSheet
 import features.settings.sheets.IgnoredInterfacesBottomSheet
 import features.settings.sheets.LocalProxySettingsBottomSheet
 import features.settings.sheets.OtherSettingsBottomSheet
+import features.settings.sheets.PersonalizationSettingsBottomSheet
 import features.settings.sheets.PrivateAddressBottomSheet
 import features.settings.sheets.ServiceControlBottomSheet
 import features.settings.sheets.SnifferSettingsBottomSheet
@@ -42,6 +43,9 @@ internal fun SettingsBottomSheetsHost(
     appState: AppState,
     sheetState: SettingsSheetState,
     tunStackOptions: List<String>,
+    colorModeOptions: List<String>,
+    keyColorOptions: List<String>,
+    chartStyleOptions: List<String>,
     updateAppState: ((AppState) -> AppState) -> Unit,
 ) {
     val services = LocalAppServices.current
@@ -377,5 +381,35 @@ internal fun SettingsBottomSheetsHost(
             updateAppState { state -> state.copy(privateAddressCidrs = cidrs.sanitizePrivateAddressCidrs()) }
             sheetState.showPrivateAddresses = false
         },
+    )
+
+    // Appearance > 个性化 — apply-immediately popup for theme, accent colour,
+    // network activity chart style and the auto-hide navigation bar switch.
+    PersonalizationSettingsBottomSheet(
+        show = sheetState.showPersonalizationSettings,
+        colorModeOptions = colorModeOptions,
+        colorMode = appState.colorMode,
+        keyColorOptions = keyColorOptions,
+        seedIndex = appState.seedIndex,
+        chartStyleOptions = chartStyleOptions,
+        networkActivityStyle = appState.networkActivityStyle,
+        navigationBarStyle = appState.navigationBarStyle,
+        autoHideNavigationBar = appState.autoHideNavigationBar,
+        onColorModeChange = { index ->
+            updateAppState { state -> state.copy(colorMode = index) }
+        },
+        onSeedIndexChange = { index ->
+            updateAppState { state -> state.copy(seedIndex = index) }
+        },
+        onNetworkActivityStyleChange = { index ->
+            updateAppState { state -> state.copy(networkActivityStyle = index) }
+        },
+        onNavigationBarStyleChange = { style ->
+            updateAppState { state -> state.copy(navigationBarStyle = style) }
+        },
+        onAutoHideNavigationBarChange = { enabled ->
+            updateAppState { state -> state.copy(autoHideNavigationBar = enabled) }
+        },
+        onDismissRequest = { sheetState.showPersonalizationSettings = false },
     )
 }

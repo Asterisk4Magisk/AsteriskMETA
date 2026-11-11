@@ -64,7 +64,7 @@ internal fun AsteriskPageCard(
         modifier = modifier,
         selected = selected,
         onClick = onClick,
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
         selectedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
         border = border,
         content = content,

@@ -65,11 +65,13 @@ import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.MyLocation
 import androidx.compose.material.icons.rounded.Notifications
+import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Policy
 import androidx.compose.material.icons.rounded.PowerSettingsNew
 import androidx.compose.material.icons.rounded.Public
+import androidx.compose.material.icons.rounded.PublicOff
 import androidx.compose.material.icons.rounded.QrCodeScanner
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Remove
@@ -156,11 +158,13 @@ internal object AsteriskIcons {
         val MoreVert: ImageVector = MaterialIcons.Rounded.MoreVert
         val MyLocation: ImageVector = MaterialIcons.Rounded.MyLocation
         val Notifications: ImageVector = MaterialIcons.Rounded.Notifications
+        val Palette: ImageVector = MaterialIcons.Rounded.Palette
         val Pause: ImageVector = MaterialIcons.Rounded.Pause
         val PlayArrow: ImageVector = MaterialIcons.Rounded.PlayArrow
         val Policy: ImageVector = MaterialIcons.Rounded.Policy
         val PowerSettingsNew: ImageVector = MaterialIcons.Rounded.PowerSettingsNew
         val Public: ImageVector = MaterialIcons.Rounded.Public
+        val PublicOff: ImageVector = MaterialIcons.Rounded.PublicOff
         val QrCodeScanner: ImageVector = MaterialIcons.Rounded.QrCodeScanner
         val Refresh: ImageVector = MaterialIcons.Rounded.Refresh
         val Route: ImageVector = MaterialIcons.Rounded.Route

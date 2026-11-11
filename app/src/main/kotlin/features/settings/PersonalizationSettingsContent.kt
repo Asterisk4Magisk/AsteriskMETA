@@ -19,9 +19,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -35,80 +32,81 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.R
+import app.modes.NavigationBarStyleClassic
+import app.modes.NavigationBarStyleCompact
 import ui.KeyColors
+import ui.components.AsteriskSegmentItem
+import ui.components.AsteriskSegmentedControl
+import ui.components.IconAccent
+import ui.icons.AsteriskIcons as Icons
 
 /**
- * Inline theme configuration block used inside Settings > Appearance.
+ * Personalization controls hosted by the Appearance section's popup.
  *
  * Renders the light/system/dark theme selector (a Material 3 single-choice
- * segmented button row) and the accent colour picker (a single-row strip of
- * solid colour circles with a sweep-gradient dot for the dynamic option).
+ * segmented button row), the accent colour picker (a single-row strip of
+ * solid colour circles with a sweep-gradient dot for the dynamic option),
+ * the network activity chart style and the auto-hide navigation bar switch.
  *
- * This composable is the in-page replacement for the previous
- * theme popup: the colour and theme state callbacks are preserved verbatim so the existing `updateAppState { ... .copy(colorMode
- * = ..., seedIndex = ...) }` path keeps driving persistence and the live
- * theme resolution.
+ * The callbacks are passed straight through to the host's
+ * `updateAppState { ... .copy(...) }` path so persistence and the live theme
+ * resolution keep working exactly as they did when these controls were inline.
  */
 @Composable
-internal fun ThemeSettingsContent(
+internal fun PersonalizationSettingsContent(
     colorModeOptions: List<String>,
     colorMode: Int,
     keyColorOptions: List<String>,
     seedIndex: Int,
     chartStyleOptions: List<String>,
     networkActivityStyle: Int,
+    navigationBarStyle: Int,
+    autoHideNavigationBar: Boolean,
     onColorModeChange: (Int) -> Unit,
     onSeedIndexChange: (Int) -> Unit,
     onNetworkActivityStyleChange: (Int) -> Unit,
+    onNavigationBarStyleChange: (Int) -> Unit,
+    onAutoHideNavigationBarChange: (Boolean) -> Unit,
 ) {
-    val showColorMode = settingsRowMatchesQuery(
+    SettingsSegmentedRow(
         title = stringResource(R.string.settings_color_mode),
-        summary = "",
-        value = colorModeOptions.getOrNull(colorMode).orEmpty(),
-        optionText = colorModeOptions,
+        options = colorModeOptions,
+        selectedIndex = colorMode,
+        onSelectedIndexChange = onColorModeChange,
     )
-    val showThemeColor = settingsRowMatchesQuery(
-        title = stringResource(R.string.settings_theme_color),
-        summary = "",
-        value = keyColorOptions.getOrNull(seedIndex).orEmpty(),
-        optionText = keyColorOptions,
+    ThemeColorDotPicker(
+        options = keyColorOptions,
+        selectedIndex = seedIndex,
+        onSelectedIndexChange = onSeedIndexChange,
     )
-    val showChartStyle = settingsRowMatchesQuery(
+    SettingsSegmentedRow(
         title = stringResource(R.string.settings_network_activity_style),
-        summary = "",
-        value = chartStyleOptions.getOrNull(networkActivityStyle).orEmpty(),
-        optionText = chartStyleOptions,
+        options = chartStyleOptions,
+        selectedIndex = networkActivityStyle,
+        onSelectedIndexChange = onNetworkActivityStyleChange,
     )
-    if (!showColorMode && !showThemeColor && !showChartStyle) return
-
-    SettingsSectionCard {
-        if (showColorMode) {
-            SettingsSegmentedRow(
-                title = stringResource(R.string.settings_color_mode),
-                options = colorModeOptions,
-                selectedIndex = colorMode,
-                onSelectedIndexChange = onColorModeChange,
-            )
-        }
-        if (showThemeColor) {
-            ThemeColorDotPicker(
-                options = keyColorOptions,
-                selectedIndex = seedIndex,
-                onSelectedIndexChange = onSeedIndexChange,
-            )
-        }
-        if (showChartStyle) {
-            SettingsSegmentedRow(
-                title = stringResource(R.string.settings_network_activity_style),
-                options = chartStyleOptions,
-                selectedIndex = networkActivityStyle,
-                onSelectedIndexChange = onNetworkActivityStyleChange,
-            )
-        }
-    }
+    SettingsSegmentedRow(
+        title = stringResource(R.string.settings_navigation_bar_style),
+        options = listOf(
+            stringResource(R.string.option_nav_bar_classic),
+            stringResource(R.string.option_nav_bar_compact),
+        ),
+        // Bind to the persisted constants, not list positions, so reordering
+        // the labels can never change which bar the stored value selects.
+        values = listOf(NavigationBarStyleClassic, NavigationBarStyleCompact),
+        selectedIndex = navigationBarStyle,
+        onSelectedIndexChange = onNavigationBarStyleChange,
+    )
+    SwitchPreference(
+        title = stringResource(R.string.settings_auto_hide_navigation_bar),
+        summary = stringResource(R.string.settings_auto_hide_navigation_bar_summary),
+        icon = Icons.Rounded.ExpandMore,
+        checked = autoHideNavigationBar,
+        onCheckedChange = onAutoHideNavigationBarChange,
+        accent = IconAccent.MaskBlueVariant,
+    )
 }
 
 @Composable
@@ -117,8 +115,10 @@ private fun SettingsSegmentedRow(
     options: List<String>,
     selectedIndex: Int,
     onSelectedIndexChange: (Int) -> Unit,
+    values: List<Int> = options.indices.toList(),
 ) {
-    val safeIndex = if (selectedIndex in options.indices) selectedIndex else 0
+    val optionValues = if (values.size == options.size) values else options.indices.toList()
+    val safeIndex = optionValues.indexOf(selectedIndex).coerceAtLeast(0)
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
         Text(
             text = title,
@@ -127,25 +127,11 @@ private fun SettingsSegmentedRow(
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.padding(bottom = 8.dp),
         )
-        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-            options.forEachIndexed { index, label ->
-                SegmentedButton(
-                    selected = safeIndex == index,
-                    onClick = { onSelectedIndexChange(index) },
-                    shape = SegmentedButtonDefaults.itemShape(
-                        index = index,
-                        count = options.size,
-                    ),
-                ) {
-                    Text(
-                        text = label,
-                        maxLines = 1,
-                        softWrap = false,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-        }
+        AsteriskSegmentedControl(
+            items = options.mapIndexed { index, label -> AsteriskSegmentItem(optionValues[index], label) },
+            selectedValue = optionValues[safeIndex],
+            onSelected = onSelectedIndexChange,
+        )
     }
 }
 

@@ -3,7 +3,6 @@
 
 package features.mihomo
 
-import ui.isInDarkTheme
 import ui.components.AsteriskSearchTopAppBar
 import ui.components.AsteriskTopBarControls
 import ui.components.AsteriskDropdownMenuItem
@@ -60,7 +59,6 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInParent
@@ -124,6 +122,7 @@ import engine.mihomo.runtime.MihomoDelayStatus
 import engine.mihomo.runtime.MihomoProxyGroup
 import engine.mihomo.runtime.MihomoProxyNode
 import engine.mihomo.runtime.MihomoRuntimeState
+import engine.mihomo.runtime.canStartUserDelayTest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -137,12 +136,14 @@ import ui.theme.AsteriskMotion
 private data class MihomoProxyPageRuntimeState(
     val proxies: MihomoProxiesState,
     val delayTestingTarget: MihomoDelayTarget?,
+    val userDelayTestAllowed: Boolean,
     val lastError: String,
 )
 
 private fun MihomoRuntimeState.toProxyPageRuntimeState() = MihomoProxyPageRuntimeState(
     proxies = proxies,
     delayTestingTarget = delayTestingTarget,
+    userDelayTestAllowed = canStartUserDelayTest,
     lastError = lastError,
 )
 
@@ -378,7 +379,7 @@ fun MihomoProxyPage(
     }
 
     fun testProxy(node: MihomoProxyNode) {
-        if (!requireRuntime() || testingTarget != null) return
+        if (!requireRuntime() || !runtimeState.userDelayTestAllowed) return
         scope.launch {
             services.mihomoRuntime.testProxyDelay(appState, node.id)
                 .onSuccess { tipNotifier.show(delayDoneMessage) }
@@ -387,7 +388,7 @@ fun MihomoProxyPage(
     }
 
     fun testGroup(group: MihomoProxyGroup) {
-        if (!requireRuntime() || testingTarget != null) return
+        if (!requireRuntime() || !runtimeState.userDelayTestAllowed) return
         scope.launch {
             services.mihomoRuntime.testGroupDelay(appState, group.name, appState.connectionTestUrl)
                 .onSuccess { tipNotifier.show(delayDoneMessage) }
@@ -530,7 +531,7 @@ fun MihomoProxyPage(
                                 currentName = currentName,
                                 expanded = expanded,
                                 testing = testingTarget == MihomoDelayTarget.Group(group.name),
-                                delayTestEnabled = runtimeAvailable && testingTarget == null,
+                                delayTestEnabled = runtimeAvailable && runtimeState.userDelayTestAllowed,
                                 canLocate = nodes.any { it.name == currentName },
                                 onToggle = {
                                     selectedGroupName = group.name
@@ -578,7 +579,7 @@ fun MihomoProxyPage(
                                     node = node,
                                     selected = isMihomoProxyNodeCurrent(group, node.name, pendingSelections),
                                     selectionEnabled = isMihomoProxyGroupSelectable(group) && runtimeAvailable,
-                                    delayTestEnabled = runtimeAvailable && testingTarget == null,
+                                    delayTestEnabled = runtimeAvailable && runtimeState.userDelayTestAllowed,
                                     compact = columns > 1,
                                     testing = testingTarget == MihomoDelayTarget.Node(node.id),
                                     onSelect = { selectProxy(group, node) },
@@ -690,7 +691,7 @@ fun MihomoProxyPage(
                                         pendingSelections = pendingSelections,
                                     ),
                                     selectionEnabled = selectionEnabled,
-                                    delayTestEnabled = runtimeAvailable && testingTarget == null,
+                                    delayTestEnabled = runtimeAvailable && runtimeState.userDelayTestAllowed,
                                     compact = columns > 1,
                                     testing = testingTarget == MihomoDelayTarget.Node(node.id),
                                     onSelect = { selectProxy(group, node) },
@@ -711,7 +712,7 @@ fun MihomoProxyPage(
             }
             selectedGroup?.takeIf { !expandable }?.let { group ->
                 MihomoDelayToolbar(
-                    enabled = runtimeAvailable && testingTarget == null,
+                    enabled = runtimeAvailable && runtimeState.userDelayTestAllowed,
                     testing = testingTarget == MihomoDelayTarget.Group(group.name),
                     canLocate = (pendingSelections[group.name] ?: group.now).isNotBlank(),
                     onLocate = { locateRequestTrigger++ },
@@ -1366,7 +1367,7 @@ private fun ProtocolDelayLine(
                             MaterialTheme.typography.labelMedium
                         },
                         fontWeight = FontWeight.Medium,
-                        color = delayColor(delay, delayStatus),
+                        color = mihomoDelayTint(delay, delayStatus),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         textAlign = TextAlign.End,
@@ -1452,20 +1453,6 @@ private fun MihomoProxyLoadingCard() {
             text = stringResource(R.string.mihomo_proxies_loading),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-    }
-}
-
-@Composable
-private fun delayColor(delay: Int?, status: MihomoDelayStatus?): Color {
-    val darkTheme = isInDarkTheme()
-    return when {
-        status == MihomoDelayStatus.Timeout || status == MihomoDelayStatus.Failed -> if (darkTheme) Color(0xFFF12522) else Color(0xFFE94634)
-        status == null || delay == null -> MaterialTheme.colorScheme.onSurfaceVariant
-        delay < 0 -> if (darkTheme) Color(0xFFF12522) else Color(0xFFE94634)
-        delay < 100 -> if (darkTheme) Color(0xFF6BD58A) else Color(0xFF128A3C)
-        delay < 200 -> if (darkTheme) Color(0xFFFFC857) else Color(0xFFD18A00)
-        delay < 300 -> if (darkTheme) Color(0xFFFF9B63) else Color(0xFFE06400)
-        else -> if (darkTheme) Color(0xFFF12522) else Color(0xFFE94634)
     }
 }
 

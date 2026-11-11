@@ -34,6 +34,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -52,24 +53,56 @@ import java.net.ConnectException
 import kotlin.time.Duration.Companion.milliseconds
 import app.effects.MihomoRuntimeLifecycleTarget
 
+/**
+ * One delay test runs at a time. A background probe takes the slot only when it is free and
+ * yields it: a user test that finds a probe running cancels it and waits for its cleanup instead
+ * of failing, while a second user test still fails fast.
+ */
 internal class MihomoDelayJobSlot {
     private var current: Job? = null
+    private var currentPreemptible = false
 
     @Synchronized
-    fun tryAcquire(job: Job): Boolean {
+    fun tryAcquire(job: Job, preemptible: Boolean = false): Boolean {
         if (current != null) return false
         current = job
+        currentPreemptible = preemptible
         return true
     }
 
+    /** The running probe a user test may cancel, or null when the slot is free or user-owned. */
+    @Synchronized
+    fun preemptibleJob(): Job? = current?.takeIf { currentPreemptible }
+
     @Synchronized
     fun release(job: Job) {
-        if (current === job) current = null
+        if (current === job) {
+            current = null
+            currentPreemptible = false
+        }
     }
 
     @Synchronized
     fun cancel() {
         current?.cancel()
+    }
+}
+
+/**
+ * Rate limit for background probes, per node: the same node is probed at most once per
+ * [intervalMillis], while a different node is always let through. Lives with the runtime, not the
+ * UI, so recreating the activity does not reset it.
+ */
+internal class MihomoDelayProbeThrottle(private val intervalMillis: Long) {
+    private var lastTarget: MihomoProxyNodeId? = null
+    private var lastAtMillis = 0L
+
+    @Synchronized
+    fun take(target: MihomoProxyNodeId, nowMillis: Long): Boolean {
+        if (target == lastTarget && nowMillis - lastAtMillis < intervalMillis) return false
+        lastTarget = target
+        lastAtMillis = nowMillis
+        return true
     }
 }
 
@@ -92,6 +125,7 @@ internal class MihomoRuntimeRepository(
     private val proxyRefreshMutex = Mutex()
     private var monitorJob: Job? = null
     private val delayJobSlot = MihomoDelayJobSlot()
+    private val delayProbeThrottle = MihomoDelayProbeThrottle(DelayProbeThrottleMillis)
     private var activeSignature: MihomoRuntimeSignature? = null
     private var preparedRuntimeSignature: MihomoPreparedRuntimeSignature? = null
     private var runtimeGeneration = 0L
@@ -630,6 +664,30 @@ internal class MihomoRuntimeRepository(
         }.await()
     }
 
+    /**
+     * Background latency refresh for the node carrying traffic. It never competes with the user:
+     * it is skipped while any test runs, and a user test started meanwhile preempts it. A node
+     * probed within [DelayProbeThrottleMillis] is skipped, so a start followed by a resume, or a
+     * quick back-and-forth between apps, tests once; switching to another node always probes.
+     */
+    suspend fun probeProxyDelay(
+        appState: AppState,
+        proxyId: MihomoProxyNodeId,
+        nowMillis: Long,
+    ) {
+        if (!delayProbeThrottle.take(proxyId, nowMillis)) return
+        try {
+            startDelayTest(MihomoDelayTarget.Node(proxyId), preemptible = true) {
+                runProxyDelayTest(appState, proxyId, testUrl = "", expectedStatus = "")
+            }.await()
+        } catch (error: CancellationException) {
+            // The test runs in the app scope; a caller that moved on (the node changed, the app
+            // left the foreground) takes its probe down with it so the next node is not blocked.
+            delayJobSlot.preemptibleJob()?.cancel()
+            throw error
+        }
+    }
+
     suspend fun testGroupDelay(
         appState: AppState,
         groupName: String,
@@ -651,20 +709,27 @@ internal class MihomoRuntimeRepository(
         }.await()
     }
 
-    private fun startDelayTest(
+    private suspend fun startDelayTest(
         target: MihomoDelayTarget,
+        preemptible: Boolean = false,
         block: suspend () -> MihomoDelayResult,
     ): Deferred<Result<MihomoDelayResult>> {
+        if (!preemptible) {
+            // A user test takes over from a background probe instead of failing on it.
+            delayJobSlot.preemptibleJob()?.cancelAndJoin()
+        }
         val result = CompletableDeferred<Result<MihomoDelayResult>>()
         val job: Job = appScope.launch(Dispatchers.IO, start = CoroutineStart.LAZY) {
-            mutableState.update { current -> current.copy(delayTestingTarget = target) }
+            mutableState.update { current ->
+                current.copy(delayTestingTarget = target, delayTestingAutomatic = preemptible)
+            }
             try {
                 result.complete(runCatching { block() })
             } finally {
                 mutableState.update { current -> current.clearDelayTestingTarget(target) }
             }
         }
-        if (!delayJobSlot.tryAcquire(job)) {
+        if (!delayJobSlot.tryAcquire(job, preemptible)) {
             job.cancel()
             return CompletableDeferred(Result.failure(IllegalStateException("Mihomo delay test is already running")))
         }
@@ -1141,6 +1206,7 @@ internal class MihomoRuntimeRepository(
     )
 
     private companion object {
+        const val DelayProbeThrottleMillis = 30_000L
         const val LogTag = "MihomoRuntime"
         const val ProxyFallbackPollIntervalMillis = 30_000L
     }

@@ -339,11 +339,8 @@ private fun SettingsContent(
     val topLevelSearchItems = settingsTopLevelSearchItems(
         runMode = appState.runMode,
         colorModeOptions = colorModeOptions,
-        colorMode = appState.colorMode,
         keyColorOptions = keyColorOptions,
-        seedIndex = appState.seedIndex,
         chartStyleOptions = chartStyleOptions,
-        networkActivityStyle = appState.networkActivityStyle,
         languageOptions = languageOptions,
         languageMode = appState.languageMode,
         rawConfigEnabled = rawConfigState.enabled,
@@ -633,24 +630,13 @@ private fun SettingsContent(
             }
             item(key = "settings_app") {
                 SettingsAppSection(
-                    colorModeOptions = colorModeOptions,
-                    colorMode = appState.colorMode,
-                    keyColorOptions = keyColorOptions,
-                    seedIndex = appState.seedIndex,
-                    chartStyleOptions = chartStyleOptions,
-                    networkActivityStyle = appState.networkActivityStyle,
                     languageOptions = languageOptions,
                     languageMode = appState.languageMode,
-                    onColorModeChange = { index -> updateAppState { state -> state.copy(colorMode = index) } },
-                    onSeedIndexChange = { index -> updateAppState { state -> state.copy(seedIndex = index) } },
-                    onNetworkActivityStyleChange = { index ->
-                        updateAppState { state -> state.copy(networkActivityStyle = index) }
-                    },
+                    colorModeOptions = colorModeOptions,
+                    keyColorOptions = keyColorOptions,
+                    chartStyleOptions = chartStyleOptions,
                     onLanguageModeChange = { index -> updateAppState { state -> state.copy(languageMode = index) } },
-                    autoHideNavigationBar = appState.autoHideNavigationBar,
-                    onAutoHideNavigationBarChange = { enabled ->
-                        updateAppState { state -> state.copy(autoHideNavigationBar = enabled) }
-                    },
+                    onOpenPersonalization = { sheetState.showPersonalizationSettings = true },
                 )
             }
             item(key = "settings_backup_restore") {
@@ -712,6 +698,9 @@ private fun SettingsContent(
             appState = appState,
             sheetState = sheetState,
             tunStackOptions = tunStackOptions,
+            colorModeOptions = colorModeOptions,
+            keyColorOptions = keyColorOptions,
+            chartStyleOptions = chartStyleOptions,
             updateAppState = updateAppState,
         )
         SettingsRestoreConfirmDialog(

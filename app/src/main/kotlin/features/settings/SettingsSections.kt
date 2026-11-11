@@ -48,17 +48,10 @@ internal fun SettingsAppSection(
     languageOptions: List<String>,
     languageMode: Int,
     colorModeOptions: List<String>,
-    colorMode: Int,
     keyColorOptions: List<String>,
-    seedIndex: Int,
     chartStyleOptions: List<String>,
-    networkActivityStyle: Int,
-    onColorModeChange: (Int) -> Unit,
-    onSeedIndexChange: (Int) -> Unit,
-    onNetworkActivityStyleChange: (Int) -> Unit,
     onLanguageModeChange: (Int) -> Unit,
-    autoHideNavigationBar: Boolean,
-    onAutoHideNavigationBarChange: (Boolean) -> Unit,
+    onOpenPersonalization: () -> Unit,
 ) {
     SmallTitle(text = stringResource(R.string.settings_app))
     SettingsSectionCard {
@@ -70,31 +63,20 @@ internal fun SettingsAppSection(
             onSelectedIndexChange = onLanguageModeChange,
             accent = IconAccent.MaskBlue,
         )
-    }
-    ThemeSettingsContent(
-        colorModeOptions = colorModeOptions,
-        colorMode = colorMode,
-        keyColorOptions = keyColorOptions,
-        seedIndex = seedIndex,
-        chartStyleOptions = chartStyleOptions,
-        networkActivityStyle = networkActivityStyle,
-        onColorModeChange = onColorModeChange,
-        onSeedIndexChange = onSeedIndexChange,
-        onNetworkActivityStyleChange = onNetworkActivityStyleChange,
-    )
-    val autoHideNavigationBarTitle = stringResource(R.string.settings_auto_hide_navigation_bar)
-    val autoHideNavigationBarSummary = stringResource(R.string.settings_auto_hide_navigation_bar_summary)
-    if (settingsRowMatchesQuery(autoHideNavigationBarTitle, autoHideNavigationBarSummary, autoHideNavigationBar.toString())) {
-        SettingsSectionCard {
-            SwitchPreference(
-                title = autoHideNavigationBarTitle,
-                icon = Icons.Rounded.ExpandMore,
-                summary = autoHideNavigationBarSummary,
-                checked = autoHideNavigationBar,
-                onCheckedChange = onAutoHideNavigationBarChange,
-                accent = IconAccent.MaskBlueVariant,
-            )
-        }
+        ArrowPreference(
+            title = stringResource(R.string.settings_personalization),
+            summary = stringResource(R.string.settings_personalization_summary),
+            icon = Icons.Rounded.Palette,
+            onClick = onOpenPersonalization,
+            accent = IconAccent.MaskPurple,
+            // Keep every personalization option reachable from the settings
+            // search even though its controls now live behind the popup.
+            optionText = personalizationSearchTerms(
+                colorModeOptions = colorModeOptions,
+                keyColorOptions = keyColorOptions,
+                chartStyleOptions = chartStyleOptions,
+            ),
+        )
     }
 }
 

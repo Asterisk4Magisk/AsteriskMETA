@@ -15,6 +15,7 @@ import features.settings.servicecontrol.ServiceControlSettings
 import features.settings.servicecontrol.ServiceControlWifi
 import features.settings.servicecontrol.ServiceControlWifiRule
 import app.modes.normalizeColorMode
+import app.modes.normalizeNavigationBarStyle
 import app.modes.normalizeNetworkActivityStyle
 import androidx.core.content.edit
 import features.settings.servicecontrol.normalizeServiceControlSettings
@@ -57,6 +58,9 @@ internal class AppSettingsPreferences(
             autoHideNavigationBar = preferences.getBoolean(
                 KeyAutoHideNavigationBar,
                 defaults.autoHideNavigationBar,
+            ),
+            navigationBarStyle = normalizeNavigationBarStyle(
+                preferences.getInt(KeyNavigationBarStyle, defaults.navigationBarStyle),
             ),
             nextMihomoProfileId = preferences.getInt(KeyNextMihomoProfileId, defaults.nextMihomoProfileId),
             nextMihomoOverrideScriptId = preferences.getInt(
@@ -337,6 +341,7 @@ internal class AppSettingsPreferences(
             .putBoolean(KeyAllowScreenshots, state.allowScreenshots)
             .putBoolean(KeyHideLauncherIcon, state.hideLauncherIcon)
             .putBoolean(KeyAutoHideNavigationBar, state.autoHideNavigationBar)
+            .putInt(KeyNavigationBarStyle, state.navigationBarStyle)
             .putInt(KeyNextMihomoProfileId, state.nextMihomoProfileId)
             .putInt(KeyNextMihomoOverrideScriptId, state.nextMihomoOverrideScriptId)
             .putInt(KeySelectedMihomoProfileId, state.selectedMihomoProfileId)
@@ -584,6 +589,7 @@ private const val KeyHideRecentTasks = "hide_recent_tasks"
 private const val KeyAllowScreenshots = "allow_screenshots"
 private const val KeyHideLauncherIcon = "hide_launcher_icon"
 private const val KeyAutoHideNavigationBar = "auto_hide_navigation_bar"
+private const val KeyNavigationBarStyle = "navigation_bar_style"
 private const val KeyNextMihomoProfileId = "next_mihomo_profile_id"
 private const val KeyNextMihomoOverrideScriptId = "next_mihomo_override_script_id"
 private const val KeySelectedMihomoProfileId = "selected_mihomo_profile_id"

@@ -15,7 +15,7 @@ internal fun AsteriskSelectionCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    containerColor: Color = MaterialTheme.colorScheme.surfaceContainer,
+    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
     selectedContainerColor: Color = MaterialTheme.colorScheme.surfaceContainerHighest,
     content: @Composable ColumnScope.() -> Unit,
 ) {

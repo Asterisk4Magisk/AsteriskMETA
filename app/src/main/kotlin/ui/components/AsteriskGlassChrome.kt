@@ -47,8 +47,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
@@ -100,7 +105,30 @@ internal fun AsteriskScaffold(
     Scaffold(
         modifier = modifier,
         topBar = {
-            Box(Modifier.fillMaxWidth().clipToBounds().hazeBlur(HazeInput.Sources(backdrop), style)) {
+            // The blurred backdrop ends where the bar ends, which shows up as a hard seam over a
+            // card that scrolls under it. Feather the last few dp into the page — on the blur only,
+            // so a second row or a search field inside the bar keeps full opacity.
+            Box(Modifier.fillMaxWidth()) {
+                Box(
+                    Modifier
+                        .matchParentSize()
+                        .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
+                        .drawWithContent {
+                            drawContent()
+                            val fade = TopBarEdgeFade.toPx().coerceAtMost(size.height / 2f)
+                            if (fade <= 0f) return@drawWithContent
+                            drawRect(
+                                brush = Brush.verticalGradient(
+                                    0f to Color.Black,
+                                    (size.height - fade) / size.height to Color.Black,
+                                    1f to Color.Transparent,
+                                ),
+                                blendMode = BlendMode.DstIn,
+                            )
+                        }
+                        .clipToBounds()
+                        .hazeBlur(HazeInput.Sources(backdrop), style),
+                )
                 topBar()
             }
         },
@@ -296,3 +324,6 @@ internal fun RowScope.AsteriskFloatingNavigationItem(
         }
     }
 }
+
+/** Height of the soft edge that blends the top bar's blur into the page. */
+private val TopBarEdgeFade = 14.dp

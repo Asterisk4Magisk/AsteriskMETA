@@ -67,6 +67,8 @@ internal class SettingsSheetState(
     var showPrivateAddresses by mutableStateOf(false)
     var privateAddressCidrsDraft by mutableStateOf(emptyList<String>())
 
+    var showPersonalizationSettings by mutableStateOf(false)
+
     fun openLocalProxySettings(appState: AppState) {
         localProxySettingsDraft = appState.toLocalProxySettingsDraft()
         showLocalProxySettings = true

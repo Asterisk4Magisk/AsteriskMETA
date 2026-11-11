@@ -5,6 +5,7 @@ package data.backup
 
 import features.settings.withNormalizedConnectionTestSettings
 import app.AppState
+import app.modes.normalizeNavigationBarStyle
 import app.modes.normalizeNetworkActivityStyle
 import features.settings.AutoSwitchSettings
 import app.DefaultMihomoOverrideScriptId
@@ -76,6 +77,7 @@ private fun AppState.toBackupSettings(): AppBackupSettings =
         allowScreenshots = allowScreenshots,
         hideLauncherIcon = hideLauncherIcon,
         autoHideNavigationBar = autoHideNavigationBar,
+        navigationBarStyle = navigationBarStyle,
         mihomoMode = mihomoMode,
         mihomoProxyInterruptConnections = mihomoProxyInterruptConnections,
         mihomoProxyExcludeNotSelectable = mihomoProxyExcludeNotSelectable,
@@ -307,6 +309,7 @@ private fun AppBackupData.toAppState(): AppState {
         allowScreenshots = settings.allowScreenshots,
         hideLauncherIcon = settings.hideLauncherIcon,
         autoHideNavigationBar = settings.autoHideNavigationBar,
+        navigationBarStyle = normalizeNavigationBarStyle(settings.navigationBarStyle),
         mihomoProfiles = restoredProfiles,
         nextMihomoProfileId = nextId(defaults.nextMihomoProfileId, restoredProfiles.map(MihomoProfileState::id)),
         selectedMihomoProfileId = restoredSelectedProfileId,

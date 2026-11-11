@@ -50,8 +50,8 @@
     <!-- Home -->
     <string name="home_accumulated_download">累计下载</string>
     <string name="home_accumulated_upload">累计上传</string>
-    <plurals name="home_connections_summary">
-        <item quantity="other">%1$d 个活动连接</item>
+    <plurals name="home_connections_unit">
+        <item quantity="other">个活动连接</item>
     </plurals>
     <string name="home_current_profile">当前配置</string>
     <string name="home_current_proxy">当前节点</string>
@@ -65,7 +65,11 @@
     <string name="home_no_network_activity">暂无活动</string>
     <string name="home_no_proxy">尚未选择节点</string>
     <string name="home_no_subscription">当前配置暂无订阅用量信息</string>
-    <string name="home_resource_summary">CPU %1$s · %2$s</string>
+    <string name="home_node_delay_testing">测速中…</string>
+    <string name="home_node_delay_unknown">测速</string>
+    <string name="home_node_delay_value">%1$d ms</string>
+    <string name="home_resource_cpu_label">CPU</string>
+    <string name="home_resource_memory_label">内存</string>
     <string name="home_service_disabled">服务未启用</string>
     <string name="home_service_enabled">服务已启用</string>
     <string name="home_service_start">启动服务</string>
@@ -1050,13 +1054,18 @@
     <string name="option_english">English</string>
     <string name="option_follow_system">跟随系统</string>
     <string name="option_light">浅色</string>
+    <string name="option_nav_bar_classic">经典</string>
+    <string name="option_nav_bar_compact">紧凑</string>
     <string name="option_simplified_chinese">中文（简体）</string>
     <string name="settings_app">外观</string>
     <string name="settings_color_mode">主题</string>
     <string name="settings_language">语言</string>
+    <string name="settings_personalization">个性化</string>
+    <string name="settings_personalization_summary">主题、强调色与界面行为</string>
     <string name="settings_privacy">隐私</string>
     <string name="settings_theme_color">强调色</string>
     <string name="settings_network_activity_style">网络活动图表</string>
+    <string name="settings_navigation_bar_style">导航栏样式</string>
     <string name="settings_auto_hide_navigation_bar">自动隐藏导航栏</string>
     <string name="settings_auto_hide_navigation_bar_summary">开启后上滑页面自动隐藏底部导航栏</string>
     <string name="theme_color_blue">默认蓝</string>

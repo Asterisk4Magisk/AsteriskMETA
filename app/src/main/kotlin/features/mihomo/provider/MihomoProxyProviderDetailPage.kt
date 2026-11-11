@@ -67,6 +67,7 @@ import engine.mihomo.runtime.MihomoDelayStatus
 import engine.mihomo.runtime.MihomoDelayTarget
 import engine.mihomo.runtime.MihomoProxyNodeId
 import engine.mihomo.runtime.withDelayResult
+import engine.mihomo.runtime.canStartUserDelayTest
 import features.mihomo.MihomoDelayToolbar
 import features.mihomo.displayMihomoProtocolName
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -95,6 +96,12 @@ fun MihomoProxyProviderDetailPage(
             .map { state -> state.delayTestingTarget }
             .distinctUntilChanged()
     }.collectAsState(initial = null)
+    // A background probe of the active node may be preempted by a test started here.
+    val userDelayTestAllowed by remember(services.mihomoRuntime) {
+        services.mihomoRuntime.state
+            .map { state -> state.canStartUserDelayTest }
+            .distinctUntilChanged()
+    }.collectAsState(initial = true)
     val appContext = LocalContext.current.applicationContext
     val tipNotifier = services.tipNotifier
     val delayFailedMessage = stringResource(R.string.mihomo_proxies_delay_failed)
@@ -170,7 +177,7 @@ fun MihomoProxyProviderDetailPage(
 
     fun testNodeDelay(node: MihomoProxyProviderNode) {
         val detail = runtimeDetail ?: return
-        if (delayTestingTarget != null) return
+        if (!userDelayTestAllowed) return
         nodeFilterPagerScope.launch {
             services.mihomoRuntime.testProxyDelay(
                 appState = appState,
@@ -191,7 +198,7 @@ fun MihomoProxyProviderDetailPage(
 
     fun testProviderDelay() {
         val detail = runtimeDetail ?: return
-        if (delayTestingTarget != null) return
+        if (!userDelayTestAllowed) return
         nodeFilterPagerScope.launch {
             services.mihomoRuntime.testProviderDelay(
                 appState = appState,
@@ -276,7 +283,7 @@ fun MihomoProxyProviderDetailPage(
                                 searchQuery = nodeSearchQuery,
                                 filter = pageFilter,
                                 delayTestingTarget = delayTestingTarget,
-                                delayTestingEnabled = delayTestingTarget == null,
+                                delayTestingEnabled = userDelayTestAllowed,
                                 onDelayTest = ::testNodeDelay,
                                 onRetry = { runtimeReloadToken += 1 },
                             )
@@ -286,7 +293,7 @@ fun MihomoProxyProviderDetailPage(
             }
             runtimeDetail?.let { detail ->
                 MihomoDelayToolbar(
-                    enabled = !runtimeLoading && delayTestingTarget == null && detail.nodes.isNotEmpty(),
+                    enabled = !runtimeLoading && userDelayTestAllowed && detail.nodes.isNotEmpty(),
                     testing = delayTestingTarget == MihomoDelayTarget.Provider(detail.name),
                     onDelayTest = ::testProviderDelay,
                     bottomPadding = contentPadding.calculateBottomPadding(),

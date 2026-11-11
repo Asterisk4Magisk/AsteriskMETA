@@ -17,46 +17,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.unit.LayoutDirection
 import ui.theme.AsteriskMotion
 import ui.theme.LocalReduceMotion
-
-/** Full-width sliding highlight for the service mode switch. */
-@Composable
-internal fun Modifier.asteriskPillIndicator(
-    selectedIndex: Int,
-    itemCount: Int,
-    enabled: Boolean = true,
-): Modifier {
-    val position = animateFloatAsState(
-        targetValue = selectedIndex.coerceIn(0, (itemCount - 1).coerceAtLeast(0)).toFloat(),
-        animationSpec = AsteriskMotion.fastSpatial(),
-        label = "pill-indicator-position",
-    )
-    val color = animateColorAsState(
-        targetValue = asteriskPillSelectionColor(enabled),
-        animationSpec = AsteriskMotion.fastEffects(),
-        label = "pill-indicator-color",
-    )
-    val layoutDirection = LocalLayoutDirection.current
-    return drawBehind {
-        if (itemCount <= 0) return@drawBehind
-        val segmentWidth = size.width / itemCount
-        val logicalPosition = position.value.coerceIn(0f, (itemCount - 1).toFloat())
-        val physicalPosition = if (layoutDirection == LayoutDirection.Rtl) {
-            itemCount - 1 - logicalPosition
-        } else {
-            logicalPosition
-        }
-        drawRoundRect(
-            color = color.value,
-            topLeft = Offset(physicalPosition * segmentWidth, 0f),
-            size = Size(segmentWidth, size.height),
-            cornerRadius = CornerRadius(size.height / 2f),
-        )
-    }
-}
 
 /** Keep the navigation and mode-control tint identical while their motion differs. */
 @Composable

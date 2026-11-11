@@ -9,6 +9,7 @@ import app.modes.MihomoModeDirect
 import app.modes.MihomoModeGlobal
 import app.modes.MihomoModeRule
 import engine.mihomo.runtime.MihomoRuntimeState
+import engine.mihomo.runtime.activeNodeId
 import engine.mihomo.runtime.MihomoTrafficSample
 import engine.mihomo.runtime.MihomoTrafficState
 import engine.mihomo.runtime.TrafficHistoryCapacity
@@ -142,9 +143,7 @@ internal fun buildHomeControllerRuntimeState(
     runtimeState: MihomoRuntimeState,
 ): HomeControllerRuntimeState = HomeControllerRuntimeState(
     mihomoMode = runtimeState.configs.mode.toMihomoModeOrNull(),
-    selectedNode = runtimeState.proxies.groups
-        .firstOrNull { group -> group.now.isNotBlank() }
-        ?.now,
+    selectedNode = runtimeState.proxies.activeNodeId()?.name,
 )
 
 internal fun buildHomeControllerState(

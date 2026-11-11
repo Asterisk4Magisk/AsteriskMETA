@@ -34,7 +34,7 @@ internal fun AsteriskExpressiveCard(
     expanded: Boolean = false,
     enabled: Boolean = true,
     onClick: (() -> Unit)? = null,
-    containerColor: Color = MaterialTheme.colorScheme.surfaceContainer,
+    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
     selectedContainerColor: Color = MaterialTheme.colorScheme.surfaceContainerHighest,
     border: BorderStroke? = null,
     content: @Composable ColumnScope.() -> Unit,
@@ -51,13 +51,20 @@ internal fun AsteriskExpressiveCard(
     val colors = CardDefaults.cardColors(
         containerColor = if (selected) selectedContainerColor else containerColor,
     )
+    // The container ramp is only one or two tones wide in dark and light
+    // schemes alike, so selection also gets an explicit outline.
+    val resolvedBorder = border ?: if (selected) {
+        BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
+    } else {
+        null
+    }
 
     if (onClick == null) {
         Card(
             modifier = cardModifier,
             shape = shape,
             colors = colors,
-            border = border,
+            border = resolvedBorder,
             content = content,
         )
     } else {
@@ -67,7 +74,7 @@ internal fun AsteriskExpressiveCard(
             enabled = enabled,
             shape = shape,
             colors = colors,
-            border = border,
+            border = resolvedBorder,
             interactionSource = interactionSource,
             content = content,
         )

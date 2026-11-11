@@ -19,13 +19,17 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.shape.RoundedCornerShape
 import ui.icons.AsteriskIcons as Icons
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import ui.components.AsteriskCompactNavigationBar
+import ui.components.AsteriskCompactNavigationTab
 import ui.components.AsteriskFloatingNavigationBar
 import ui.components.AsteriskFloatingNavigationItem
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.Surface
 import ui.components.AsteriskScaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -36,6 +40,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
@@ -49,6 +54,7 @@ import ui.navigation.AsteriskNavDisplay
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
+import app.modes.NavigationBarStyleCompact
 import app.navigation.MainDestination
 import app.navigation.MainDestinationState
 import app.navigation.Navigator
@@ -118,7 +124,7 @@ private fun mainNavigationItems(): List<MainNavigationItem> {
     return remember(home, proxies, configurations, settings) {
         listOf(
             MainNavigationItem(MainDestination.Home, home, Icons.Rounded.Home),
-            MainNavigationItem(MainDestination.Proxies, proxies, Icons.AutoMirrored.Rounded.AltRoute),
+            MainNavigationItem(MainDestination.Proxies, proxies, Icons.Rounded.Dns),
             MainNavigationItem(MainDestination.Configurations, configurations, Icons.Rounded.Description),
             MainNavigationItem(MainDestination.Settings, settings, Icons.Rounded.Settings),
         )
@@ -374,6 +380,7 @@ private fun CompactScreenLayout(
                 MainNavigationBar(
                     navigationItems = navigationItems,
                     mainDestinationState = mainDestinationState,
+                    navigationBarStyle = appState.navigationBarStyle,
                 )
             }
         },
@@ -390,9 +397,25 @@ private fun CompactScreenLayout(
 private fun MainNavigationBar(
     navigationItems: List<MainNavigationItem>,
     mainDestinationState: MainDestinationState,
+    navigationBarStyle: Int,
     modifier: Modifier = Modifier,
 ) {
     val selectedDestination = mainDestinationState.current
+    if (navigationBarStyle == NavigationBarStyleCompact) {
+        AsteriskCompactNavigationBar(
+            tabs = navigationItems.map { item ->
+                AsteriskCompactNavigationTab(
+                    icon = item.icon,
+                    label = item.label,
+                    selected = selectedDestination == item.destination,
+                    onClick = { mainDestinationState.select(item.destination) },
+                )
+            },
+            modifier = modifier,
+            trailingAction = { HomeServicePowerButton(compact = true) },
+        )
+        return
+    }
     AsteriskFloatingNavigationBar(
         modifier = modifier,
         trailingAction = { HomeServicePowerButton() },
@@ -540,7 +563,10 @@ private fun rememberHomeServiceControl(): HomeServiceControl {
 }
 
 @Composable
-private fun HomeServicePowerButton(modifier: Modifier = Modifier) {
+private fun HomeServicePowerButton(
+    modifier: Modifier = Modifier,
+    compact: Boolean = false,
+) {
     val appState by LocalAppStateStore.current.collectAppState()
     val control = LocalHomeServiceControl.current
     val label = stringResource(
@@ -552,14 +578,49 @@ private fun HomeServicePowerButton(modifier: Modifier = Modifier) {
         },
     )
     val status = stringResource(if (appState.proxyRunning) R.string.home_service_enabled else R.string.home_service_disabled)
+    val semanticsModifier = modifier.semantics {
+        contentDescription = label
+        stateDescription = status
+    }
+    if (compact) {
+        // Compact navigation pairs the tabs with a filled FAB-sized button:
+        // 56dp with the stock M3 large corner (16dp) rather than this app's
+        // 24dp `shapes.large` card radius, which would read as a circle next
+        // to the pill. A Surface rather than FloatingActionButton, which has no
+        // disabled state: while busy the button must not ripple or announce
+        // itself as actionable.
+        Surface(
+            onClick = control.toggleService,
+            enabled = !control.busy,
+            modifier = semanticsModifier.size(56.dp),
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+            shadowElevation = 6.dp,
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                if (control.serviceOperationInProgress) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 3.dp,
+                        color = MaterialTheme.colorScheme.onPrimary,
+                    )
+                } else {
+                    Icon(
+                        imageVector = if (appState.proxyRunning) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                        contentDescription = null,
+                        modifier = Modifier.size(26.dp),
+                    )
+                }
+            }
+        }
+        return
+    }
     AsteriskFloatingNavigationAction(
         selected = appState.proxyRunning,
         onClick = control.toggleService,
         enabled = !control.busy,
-        modifier = modifier.semantics {
-            contentDescription = label
-            stateDescription = status
-        },
+        modifier = semanticsModifier,
     ) {
         if (control.serviceOperationInProgress) {
             CircularProgressIndicator(modifier = Modifier.size(32.dp), strokeWidth = 3.dp)

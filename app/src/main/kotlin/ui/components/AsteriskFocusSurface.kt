@@ -10,9 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Card
@@ -24,10 +22,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -56,6 +57,9 @@ internal fun focusAccentColor(tone: FocusTone): Color = when (tone) {
 private fun RowScope.FocusTitleAndSummary(
     title: String,
     summary: String?,
+    contentColor: Color,
+    summaryStyle: TextStyle,
+    summaryContentDescription: String? = null,
 ) {
     Column(
         modifier = Modifier.weight(1f),
@@ -71,8 +75,13 @@ private fun RowScope.FocusTitleAndSummary(
         if (summary != null) {
             Text(
                 text = summary,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = if (summaryContentDescription != null) {
+                    Modifier.semantics { contentDescription = summaryContentDescription }
+                } else {
+                    Modifier
+                },
+                style = summaryStyle,
+                color = contentColor.copy(alpha = 0.78f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -87,14 +96,20 @@ internal fun AsteriskFocusSurface(
     density: FocusDensity = FocusDensity.Medium,
     tone: FocusTone = FocusTone.Primary,
     summary: String? = null,
+    summaryStyle: TextStyle = MaterialTheme.typography.bodyMedium,
+    summaryContentDescription: String? = null,
     stateIcon: ImageVector? = null,
+    shapeOverride: Shape? = null,
     metrics: (@Composable RowScope.() -> Unit)? = null,
     primaryAction: (@Composable BoxScope.() -> Unit)? = null,
     keepPrimaryActionInline: Boolean = false,
     forcePrimaryActionStacked: Boolean = false,
+    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    contentColor: Color = MaterialTheme.colorScheme.onSurface,
+    stateIconTint: Color? = null,
     content: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
-    val shape = rememberExpressiveShape(
+    val shape = shapeOverride ?: rememberExpressiveShape(
         role = focusShapeRole(density),
         state = ExpressiveInteractionState.Rest,
     )
@@ -108,23 +123,33 @@ internal fun AsteriskFocusSurface(
         FocusDensity.Medium -> 20.dp
         FocusDensity.Compact -> 16.dp
     }
+    // Tighter top/bottom padding leaves room for the runtime line under the
+    // status title without growing the card.
+    val verticalPadding = when (density) {
+        FocusDensity.Large -> 10.dp
+        FocusDensity.Medium -> 16.dp
+        FocusDensity.Compact -> 12.dp
+    }
 
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = shape,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer,
-            contentColor = MaterialTheme.colorScheme.onSurface,
+            containerColor = containerColor,
+            contentColor = contentColor,
         ),
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = horizontalPadding, vertical = 20.dp),
+            modifier = Modifier.padding(horizontal = horizontalPadding, vertical = verticalPadding),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    // Centre-aligned: the trailing action is a single chip, so
+                    // its centre matches the state icon's centre regardless of
+                    // how many lines the title column has.
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     if (stateIcon != null) {
@@ -132,12 +157,15 @@ internal fun AsteriskFocusSurface(
                             imageVector = stateIcon,
                             contentDescription = null,
                             modifier = Modifier.size(if (density == FocusDensity.Large) 32.dp else 28.dp),
-                            tint = accentColor,
+                            tint = stateIconTint ?: accentColor,
                         )
                     }
                     FocusTitleAndSummary(
                         title = title,
                         summary = summary,
+                        contentColor = contentColor,
+                        summaryStyle = summaryStyle,
+                        summaryContentDescription = summaryContentDescription,
                     )
                     if (!stackPrimaryAction && primaryAction != null) {
                         Box(content = primaryAction)
@@ -161,9 +189,6 @@ internal fun AsteriskFocusSurface(
             }
             if (content != null) {
                 content()
-            }
-            if (density == FocusDensity.Large) {
-                Spacer(Modifier.height(2.dp))
             }
         }
     }

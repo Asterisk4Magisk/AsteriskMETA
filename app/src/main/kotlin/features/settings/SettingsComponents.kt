@@ -69,6 +69,7 @@ internal fun ArrowPreference(
     icon: ImageVector = Icons.Rounded.Tune,
     enabled: Boolean = true,
     accent: IconAccent = IconAccent.Surface,
+    optionText: List<String> = emptyList(),
 ) = SettingsActionRow(
     title = title,
     summary = summary,
@@ -76,6 +77,7 @@ internal fun ArrowPreference(
     onClick = onClick,
     enabled = enabled,
     accent = accent,
+    optionText = optionText,
 )
 
 @Composable
@@ -148,7 +150,7 @@ internal fun SettingsSectionCard(
         modifier = modifier
             .fillMaxWidth()
             .padding(bottom = bottomPadding),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
         shape = MaterialTheme.shapes.extraLarge,
     ) {
         Column(content = content)
@@ -167,8 +169,9 @@ internal fun SettingsActionRow(
     accent: IconAccent = IconAccent.Surface,
     horizontalPadding: Dp = 16.dp,
     showNavigationIcon: Boolean = true,
+    optionText: List<String> = emptyList(),
 ) {
-    if (!settingsRowMatchesQuery(title, summary, value)) return
+    if (!settingsRowMatchesQuery(title, summary, value, optionText)) return
     val rowAlpha by animateFloatAsState(
         targetValue = if (enabled) 1f else 0.38f,
         animationSpec = AsteriskMotion.fastEffects(),

@@ -50,9 +50,9 @@
     <!-- Home -->
     <string name="home_accumulated_download">Downloaded</string>
     <string name="home_accumulated_upload">Uploaded</string>
-    <plurals name="home_connections_summary">
-        <item quantity="one">%1$d active connection</item>
-        <item quantity="other">%1$d active connections</item>
+    <plurals name="home_connections_unit">
+        <item quantity="one">active connection</item>
+        <item quantity="other">active connections</item>
     </plurals>
     <string name="home_current_profile">Current profile</string>
     <string name="home_current_proxy">Current proxy</string>
@@ -66,7 +66,11 @@
     <string name="home_no_network_activity">No activity yet</string>
     <string name="home_no_proxy">No proxy selected</string>
     <string name="home_no_subscription">No subscription usage is available for this profile</string>
-    <string name="home_resource_summary">CPU %1$s · %2$s</string>
+    <string name="home_node_delay_testing">Testing…</string>
+    <string name="home_node_delay_unknown">Test</string>
+    <string name="home_node_delay_value">%1$d ms</string>
+    <string name="home_resource_cpu_label">CPU</string>
+    <string name="home_resource_memory_label">Memory</string>
     <string name="home_service_disabled">Service disabled</string>
     <string name="home_service_enabled">Service enabled</string>
     <string name="home_service_start">Start service</string>
@@ -1065,13 +1069,18 @@
     <string name="option_english">English</string>
     <string name="option_follow_system">Follow system</string>
     <string name="option_light">Light</string>
+    <string name="option_nav_bar_classic">Classic</string>
+    <string name="option_nav_bar_compact">Compact</string>
     <string name="option_simplified_chinese">中文（简体）</string>
     <string name="settings_app">Appearance</string>
     <string name="settings_color_mode">Theme</string>
     <string name="settings_language">Language</string>
+    <string name="settings_personalization">Personalization</string>
+    <string name="settings_personalization_summary">Theme, accent color and interface behavior</string>
     <string name="settings_privacy">Privacy</string>
     <string name="settings_theme_color">Accent color</string>
     <string name="settings_network_activity_style">Network activity chart</string>
+    <string name="settings_navigation_bar_style">Navigation bar style</string>
     <string name="settings_auto_hide_navigation_bar">Auto-hide navigation bar</string>
     <string name="settings_auto_hide_navigation_bar_summary">Hide the bottom bar when scrolling up</string>
     <string name="theme_color_blue">Default blue</string>

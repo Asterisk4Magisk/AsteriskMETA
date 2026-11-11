@@ -12,6 +12,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import app.effects.MihomoAutoSwitchSynchronizer
+import app.effects.NodeDelayAutoProbe
 import app.effects.MihomoRuntimeSynchronizer
 import app.effects.ProxyStatusSynchronizer
 import app.effects.ResourceFileSynchronizer
@@ -215,6 +216,10 @@ fun App(
     MihomoAutoSwitchSynchronizer(
         stateStore = stateStore,
         runtime = mihomoRuntime,
+    )
+    NodeDelayAutoProbe(
+        stateStore = stateStore,
+        mihomoRuntime = mihomoRuntime,
     )
     ProxyStatusSynchronizer(
         stateStore = stateStore,

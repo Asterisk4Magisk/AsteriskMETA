@@ -87,22 +87,26 @@ fun DrawScope.drawDottedWaveform(
     dotRadius: Float,
     direction: Float,
     ramp: DottedWaveformRamp,
+    verticalDotPitch: Float = 0f,
 ) {
     if (amplitudes.isEmpty() || slotCount < 2) return
     val slotWidth = (size.width - dotRadius * 2f) / (slotCount - 1)
     if (slotWidth <= 0f) return
     val dotPitch = slotWidth
+    // The lattice pitch doubles as the vertical step, which leaves a wide chart with only a handful
+    // of rows. Callers on a wide, short plot pass a finer pitch to keep the columns readable.
+    val verticalPitch = if (verticalDotPitch > 0f) verticalDotPitch else dotPitch
     // The first dot starts one pitch away from the anchor, which leaves an empty seam between two
     // opposing series (or above the baseline of a single one), and the last dot stays inside.
-    val firstDotOffset = dotPitch
+    val firstDotOffset = verticalPitch
     // Both halves meet at the vertical middle of the canvas.
     val anchorY = size.height / 2f
     // Callers pass -1f (grow up) or +1f (grow down); zero is treated as "up" on purpose.
     val extent = if (direction <= 0f) anchorY else size.height - anchorY
     val usableHeight = extent - dotRadius - firstDotOffset
     if (usableHeight < 0f) return
-    val maxDots = (usableHeight / dotPitch).toInt() + 1
-    val tallestColumnOffset = firstDotOffset + (maxDots - 1) * dotPitch
+    val maxDots = (usableHeight / verticalPitch).toInt() + 1
+    val tallestColumnOffset = firstDotOffset + (maxDots - 1) * verticalPitch
     val visible = minOf(amplitudes.size, slotCount)
     // The newest sample owns the rightmost slot, so the axis grows from the right edge.
     val firstSample = amplitudes.size - visible
@@ -114,7 +118,7 @@ fun DrawScope.drawDottedWaveform(
         val columnDots = 1 + (amplitude * (maxDots - 1)).roundToInt()
         val x = dotRadius + slotWidth * (initialSlot + slot)
         for (dot in 0 until columnDots) {
-            val offset = firstDotOffset + dot * dotPitch
+            val offset = firstDotOffset + dot * verticalPitch
             drawCircle(
                 color = ramp.colorFor(offset / tallestColumnOffset),
                 radius = dotRadius,

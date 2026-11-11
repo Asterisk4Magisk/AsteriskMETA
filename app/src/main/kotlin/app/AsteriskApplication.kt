@@ -57,6 +57,7 @@ import features.mihomo.provider.loadSelectedMihomoProviderUsageState
 import features.subscription.runtime.AndroidMihomoProfilePreparer
 import features.subscription.runtime.AndroidSubscriptionScheduleGateway
 import features.subscription.runtime.SubscriptionScheduler
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -260,8 +261,12 @@ class AsteriskApplication : Application(), SingletonImageLoader.Factory {
      */
     private fun refreshQuickSettingsTileOnProxyStateChange() {
         appScope.launch {
-            stateStore.state
-                .map { state -> state.quickSettingsTileState() }
+            // The runtime ticks every second for traffic; only a new proxy snapshot, a mode change
+            // or a start/stop can move the node the tile names.
+            val runtime = mihomoRuntime.state.distinctUntilChanged { old, new ->
+                old.running == new.running && old.configs === new.configs && old.proxies === new.proxies
+            }
+            combine(stateStore.state, runtime) { state, runtimeState -> state.quickSettingsTileState(runtimeState) }
                 .distinctUntilChanged()
                 .collect { tileState -> refreshQuickSettingsTileUnlessShowing(applicationContext, tileState) }
         }

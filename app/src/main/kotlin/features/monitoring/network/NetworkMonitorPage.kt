@@ -184,7 +184,8 @@ private fun PublicAddressFamilyCard(
         if (family == AddressFamily.Ipv4) R.string.common_ipv4 else R.string.common_ipv6
     )
     Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+        // Nested inside MonitoringSectionCard, so it stays one step below it.
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
         shape = MaterialTheme.shapes.large,
     ) {
         Column(

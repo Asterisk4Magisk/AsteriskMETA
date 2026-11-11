@@ -7,6 +7,7 @@ import engine.network.withoutIpv6FakeIpPool
 
 import app.modes.ColorModeSystem
 import app.modes.LanguageModeSystem
+import app.modes.NavigationBarStyleClassic
 import app.modes.NetworkActivityStyleDotted
 import app.modes.MihomoModeRule
 import app.modes.MihomoProxyGroupLayoutTabs
@@ -55,6 +56,7 @@ data class AppState(
     val allowScreenshots: Boolean = false,
     val hideLauncherIcon: Boolean = false,
     val autoHideNavigationBar: Boolean = false,
+    val navigationBarStyle: Int = NavigationBarStyleClassic,
 
     val mihomoProfiles: List<MihomoProfileState> = DefaultMihomoProfiles,
     val nextMihomoProfileId: Int = 1,
