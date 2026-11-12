@@ -33,8 +33,8 @@ internal fun AppState.quickSettingsTileState(runtime: MihomoRuntimeState): Quick
     )
 
 /**
- * The node the tile names while the proxy runs: the live selection followed down nested groups.
- * Nothing is cached, so a stopped core or Direct mode falls back to the app label.
+ * The node shown in the running tile's subtitle: the live selection followed down nested groups.
+ * Nothing is cached; a stopped core or Direct mode returns no node name.
  */
 internal fun quickSettingsActiveNodeName(state: AppState, runtime: MihomoRuntimeState): String? {
     if (!runtime.running) return null
@@ -48,7 +48,7 @@ private val tileShownState = AtomicReference<QuickSettingsTileState?>(null)
 /**
  * Marks the state that the tile is about to write to the store and then show itself, so the
  * state observer does not rebind the tile only to read the same status again. Call it before
- * the write: the observer runs on another thread and may see the write at once.
+ * to write: the observer runs on another thread and may see the write at once.
  */
 internal fun markQuickSettingsTileShowing(state: QuickSettingsTileState) {
     tileShownState.set(state)
@@ -56,7 +56,7 @@ internal fun markQuickSettingsTileShowing(state: QuickSettingsTileState) {
 
 /**
  * Called by the state observer for every distinct tile state. Every call consumes the mark,
- * so a mark the observer never saw (the write was conflated or changed nothing) cannot skip a
+ * so a mark the observer never saw (to write was conflated or changed nothing) cannot skip a
  * later state.
  */
 internal fun refreshQuickSettingsTileUnlessShowing(context: Context, state: QuickSettingsTileState) {

@@ -202,15 +202,13 @@ class ProxyQuickSettingsTileService : TileService() {
         processing: Boolean = false,
     ) {
         val tile = qsTile ?: return
-        // While the proxy runs the tile leads with the node it is using; the app name is only the
-        // resting label.
-        val activeNode = if (running) quickSettingsActiveNodeName(stateStore.state.value, mihomoRuntime.state.value) else null
-        tile.label = activeNode ?: getString(R.string.quick_settings_tile_label)
+        tile.label = getString(R.string.quick_settings_tile_label)
         tile.state = if (running) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             tile.subtitle = when {
                 processing -> getString(R.string.quick_settings_tile_processing)
-                running -> getString(R.string.quick_settings_tile_running)
+                running -> quickSettingsActiveNodeName(stateStore.state.value, mihomoRuntime.state.value)
+                    ?: getString(R.string.quick_settings_tile_running)
                 else -> getString(R.string.quick_settings_tile_stopped)
             }
         }
