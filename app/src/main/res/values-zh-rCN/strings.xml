@@ -160,7 +160,6 @@
     <!-- Monitoring - Traffic -->
     <string name="monitor_traffic_30_days">近 30 日</string>
     <string name="monitor_traffic_7_days">近 7 日</string>
-    <string name="monitor_traffic_last_5_minutes">最近 5 分钟；暂停期间不进行插值。</string>
     <string name="monitor_traffic_local_notice">流量历史仅记录在应用私有本地存储中，不会发送到探测服务或订阅源。</string>
     <string name="monitor_traffic_runtime">运行时长</string>
     <string name="monitor_traffic_session">本次服务累计</string>
@@ -168,7 +167,6 @@
     <string name="monitor_traffic_title">流量统计</string>
     <string name="monitor_traffic_today">今日总量</string>
     <string name="monitor_traffic_total">合计</string>
-    <string name="monitor_traffic_trend">5 分钟趋势</string>
 
     <!-- Monitoring - Network -->
     <string name="monitor_network_colo_ams">阿姆斯特丹</string>

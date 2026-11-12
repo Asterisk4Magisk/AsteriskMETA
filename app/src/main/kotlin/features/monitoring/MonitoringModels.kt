@@ -66,12 +66,6 @@ internal fun buildMonitoringConnectionsFocusState(
     )
 }
 
-internal data class MonitoringTrafficSpeedSample(
-    val timestampMillis: Long,
-    val uploadBytesPerSecond: Long,
-    val downloadBytesPerSecond: Long,
-)
-
 internal data class MonitoringTrafficSummary(
     val uploadBytesPerSecond: Long? = null,
     val downloadBytesPerSecond: Long? = null,
@@ -81,7 +75,6 @@ internal data class MonitoringTrafficSummary(
     val sevenDays: TrafficBytes = TrafficBytes(),
     val thirtyDays: TrafficBytes = TrafficBytes(),
     val dailyTotals: Map<String, TrafficBytes> = emptyMap(),
-    val speedSamples: List<MonitoringTrafficSpeedSample> = emptyList(),
 )
 
 internal data class MonitoringNetworkSummary(

@@ -33,7 +33,6 @@ import app.R
 import features.monitoring.MonitoringIntent
 import features.monitoring.MonitoringScaffold
 import features.monitoring.MonitoringSectionCard
-import features.monitoring.MonitoringTrafficSpeedSample
 import features.monitoring.MonitoringValueRow
 import features.monitoring.ObserveMonitoring
 import ui.layout.rememberPageGutter
@@ -103,11 +102,6 @@ internal fun TrafficMonitorPage(padding: PaddingValues) {
                     }
                 }
             }
-            item("speed") {
-                TrafficSpeedCard(
-                    samples = traffic.speedSamples,
-                )
-            }
             item("seven_days") {
                 SevenDayTrafficCard(traffic.dailyTotals, traffic.sevenDays)
             }
@@ -136,58 +130,6 @@ internal fun TrafficMonitorPage(padding: PaddingValues) {
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun TrafficSpeedCard(
-    samples: List<MonitoringTrafficSpeedSample>,
-) {
-    val downloadColor = MaterialTheme.colorScheme.primary
-    val uploadColor = MaterialTheme.colorScheme.tertiary
-    MonitoringSectionCard(
-        title = stringResource(R.string.monitor_traffic_trend),
-        modifier = TrafficContentModifier,
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            TrafficSpeedChart(samples, downloadColor, uploadColor)
-            Text(
-                stringResource(R.string.monitor_traffic_last_5_minutes),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-@Composable
-private fun TrafficSpeedChart(samples: List<MonitoringTrafficSpeedSample>, downloadColor: Color, uploadColor: Color) {
-    Canvas(Modifier.fillMaxWidth().height(170.dp)) {
-        val end = samples.lastOrNull()?.timestampMillis ?: System.currentTimeMillis()
-        val start = end - FiveMinutesMillis
-        val visible = samples.filter { it.timestampMillis >= start }
-        val max = maxOf(
-            1L,
-            visible.maxOfOrNull { sample -> maxOf(sample.downloadBytesPerSecond, sample.uploadBytesPerSecond) } ?: 0L,
-        ).toDouble()
-        repeat(4) { index ->
-            val y = size.height * index / 3f
-            drawLine(Color.Gray.copy(alpha = 0.18f), Offset(0f, y), Offset(size.width, y), 1.dp.toPx())
-        }
-        fun drawSeries(color: Color, selector: (MonitoringTrafficSpeedSample) -> Long) {
-            var previous: Pair<MonitoringTrafficSpeedSample, Offset>? = null
-            visible.forEach { sample ->
-                val point = Offset(
-                    x = ((sample.timestampMillis - start).toFloat() / FiveMinutesMillis.toFloat()) * size.width,
-                    y = size.height - (selector(sample).toDouble() / max).toFloat() * size.height,
-                )
-                previous?.takeIf { (old) -> sample.timestampMillis - old.timestampMillis <= 3_500L }
-                    ?.let { (_, oldPoint) -> drawLine(color, oldPoint, point, 2.dp.toPx(), cap = StrokeCap.Round) }
-                previous = sample to point
-            }
-        }
-        drawSeries(downloadColor, MonitoringTrafficSpeedSample::downloadBytesPerSecond)
-        drawSeries(uploadColor, MonitoringTrafficSpeedSample::uploadBytesPerSecond)
     }
 }
 
@@ -259,5 +201,4 @@ private fun combinedBytes(download: Long?, upload: Long?): String {
     return total.toReadableBytes()
 }
 
-private const val FiveMinutesMillis = 5L * 60L * 1_000L
 private val TrafficContentModifier = Modifier.fillMaxWidth().widthIn(max = 840.dp)

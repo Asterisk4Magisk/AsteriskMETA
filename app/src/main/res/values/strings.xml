@@ -161,7 +161,6 @@
     <!-- Monitoring - Traffic -->
     <string name="monitor_traffic_30_days">Last 30 days</string>
     <string name="monitor_traffic_7_days">Last 7 days</string>
-    <string name="monitor_traffic_last_5_minutes">Last 5 minutes; paused periods are not interpolated.</string>
     <string name="monitor_traffic_local_notice">Traffic history is recorded only in this app’s private local storage and is never sent to probe or subscription services.</string>
     <string name="monitor_traffic_runtime">Runtime</string>
     <string name="monitor_traffic_session">This service session</string>
@@ -169,7 +168,6 @@
     <string name="monitor_traffic_title">Traffic statistics</string>
     <string name="monitor_traffic_today">Today</string>
     <string name="monitor_traffic_total">Total</string>
-    <string name="monitor_traffic_trend">5-minute trend</string>
 
     <!-- Monitoring - Network -->
     <string name="monitor_network_colo_ams">Amsterdam</string>

@@ -25,7 +25,6 @@ internal data class MonitoringPlan(
     val trafficIntervalMillis: Long? = null,
     val collectConnectionDetails: Boolean = false,
     val recordResourceHistory: Boolean = false,
-    val recordTrafficHistory: Boolean = false,
     val refreshLocalNetworkOnEnter: Boolean = false,
     val networkPageVisible: Boolean = false,
 )
@@ -65,7 +64,6 @@ internal fun resolveMonitoringPlan(counts: Map<MonitoringIntent, Int>): Monitori
         },
         collectConnectionDetails = connections,
         recordResourceHistory = resource,
-        recordTrafficHistory = traffic,
         refreshLocalNetworkOnEnter = home && !network,
         networkPageVisible = network,
     )
