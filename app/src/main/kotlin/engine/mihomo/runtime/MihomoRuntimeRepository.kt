@@ -430,12 +430,12 @@ internal class MihomoRuntimeRepository(
             val backend = resolveInteractiveBackend(appState, control)
             withContext(Dispatchers.IO) {
                 ensureInteractiveRuntime(appState, backend)
-                client.getConnections(control, backend.useBridge())
+                client.getConnections(control, backend.useBridge(), state.value.proxies)
             }
         }
     }
 
-    suspend fun getConnectionCount(appState: AppState): Result<Int> {
+    suspend fun getConnectionCounts(appState: AppState): Result<ConnectionCounts> {
         return runCatching {
             require(appState.proxyRunning) { "Proxy service is not running" }
             require(appState.hasUsableMihomoProfile()) { "Mihomo profile is not configured" }
@@ -443,12 +443,7 @@ internal class MihomoRuntimeRepository(
             val backend = resolveInteractiveBackend(appState, control)
             withContext(Dispatchers.IO) {
                 ensureInteractiveRuntime(appState, backend)
-                try {
-                    client.getConnectionCount(control, backend.useBridge())
-                } catch (error: Throwable) {
-                    if (error is CancellationException) throw error
-                    client.getConnections(control, backend.useBridge()).connections.size
-                }
+                client.getConnectionCounts(control, backend.useBridge(), state.value.proxies)
             }
         }
     }

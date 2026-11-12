@@ -50,10 +50,6 @@
     <!-- Home -->
     <string name="home_accumulated_download">Downloaded</string>
     <string name="home_accumulated_upload">Uploaded</string>
-    <plurals name="home_connections_unit">
-        <item quantity="one">active connection</item>
-        <item quantity="other">active connections</item>
-    </plurals>
     <string name="home_current_profile">Current profile</string>
     <string name="home_current_proxy">Current proxy</string>
     <string name="home_mode_change_failed">Failed to change proxy mode</string>

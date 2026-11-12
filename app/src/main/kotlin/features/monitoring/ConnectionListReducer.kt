@@ -4,6 +4,9 @@
 package features.monitoring
 
 import engine.mihomo.runtime.MihomoConnection
+import engine.mihomo.runtime.ConnectionRouteKind
+import engine.mihomo.runtime.connectionCounts
+import engine.mihomo.runtime.resolvedConnectionRoute
 import java.util.Locale
 
 internal enum class ConnectionRouteFilter {
@@ -31,8 +34,11 @@ internal fun discardDisplayedConnection(
     val remaining = summary.snapshot.connections.filterNot { connection -> connection.id == connectionId }
     val removedCount = summary.snapshot.connections.size - remaining.size
     if (removedCount == 0) return summary
+    val counts = remaining.connectionCounts()
     return summary.copy(
         activeCount = summary.activeCount?.let { count -> (count - removedCount).coerceAtLeast(0) },
+        directCount = counts.directCount,
+        proxyCount = counts.proxyCount,
         snapshot = summary.snapshot.copy(connections = remaining),
     )
 }
@@ -41,6 +47,8 @@ internal fun clearDisplayedConnections(
     summary: MonitoringConnectionsSummary,
 ): MonitoringConnectionsSummary = summary.copy(
     activeCount = 0,
+    directCount = 0,
+    proxyCount = 0,
     snapshot = summary.snapshot.copy(connections = emptyList()),
 )
 
@@ -53,10 +61,11 @@ internal fun reduceConnections(
 ): List<MihomoConnection> {
     val normalizedQuery = query.trim().lowercase(Locale.ROOT)
     val filtered = connections.filter { connection ->
+        val resolvedRoute = connection.resolvedConnectionRoute()
         val matchesRoute = when (route) {
             ConnectionRouteFilter.All -> true
-            ConnectionRouteFilter.Proxy -> connection.hasKnownRouting() && !connection.isDirectConnection()
-            ConnectionRouteFilter.Direct -> connection.isDirectConnection()
+            ConnectionRouteFilter.Proxy -> resolvedRoute == ConnectionRouteKind.Proxy
+            ConnectionRouteFilter.Direct -> resolvedRoute == ConnectionRouteKind.Direct
         }
         val matchesQuery = normalizedQuery.isEmpty() || connection.searchableText().contains(normalizedQuery)
         matchesRoute && matchesQuery
@@ -120,14 +129,6 @@ private fun MihomoConnection.totalBytes(): Long {
     return if (Long.MAX_VALUE - upload < download) Long.MAX_VALUE else upload + download
 }
 
-private fun MihomoConnection.isDirectConnection(): Boolean {
-    return (chains + providerChains).any { chain -> chain.equals("DIRECT", ignoreCase = true) }
-}
-
-private fun MihomoConnection.hasKnownRouting(): Boolean {
-    return chains.isNotEmpty() || providerChains.isNotEmpty()
-}
-
 private fun MihomoConnection.sortableRateOrTraffic(): Long {
     val upload = uploadBytesPerSecond
     val download = downloadBytesPerSecond
@@ -139,7 +140,7 @@ private fun MihomoConnection.sortableRateOrTraffic(): Long {
 }
 
 private fun bytesPerSecond(previous: Long, current: Long, elapsedMillis: Long): Long? {
-    if (previous < 0L || current < previous || elapsedMillis <= 0L) return null
+    if (previous !in 0L..current || elapsedMillis <= 0L) return null
     return ((current - previous).toDouble() * 1_000.0 / elapsedMillis.toDouble())
         .coerceIn(0.0, Long.MAX_VALUE.toDouble())
         .toLong()

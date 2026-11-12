@@ -132,26 +132,27 @@ internal class MihomoControlClient(
     fun getConnections(
         config: MihomoControlConfig,
         useBridge: Boolean,
+        proxies: MihomoProxiesState = MihomoProxiesState(),
     ): MihomoConnectionsState {
         val response = if (useBridge) {
             Clash.queryConnections()
         } else {
             request(config, "/connections")
         }
-        return parseMihomoConnectionsJson(response)
+        return parseMihomoConnectionsJson(response, proxies = proxies)
     }
 
-    fun getConnectionCount(
+    fun getConnectionCounts(
         config: MihomoControlConfig,
         useBridge: Boolean,
-    ): Int {
-        if (useBridge) {
-            return Clash.queryConnectionCount()
+        proxies: MihomoProxiesState,
+    ): ConnectionCounts {
+        val response = if (useBridge) {
+            Clash.queryConnections()
+        } else {
+            request(config, "/connections")
         }
-        return requestJsonObject(config, "/connections")["connections"]
-            .jsonArrayOrNull()
-            ?.size
-            ?: error("Invalid Mihomo API response for /connections")
+        return parseMihomoConnectionCountsJson(response, proxies)
     }
 
     fun closeConnection(

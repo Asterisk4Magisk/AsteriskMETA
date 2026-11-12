@@ -52,7 +52,6 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -348,32 +347,15 @@ fun MihomoDashboardPage(
                         onClick = { navigator.push(AppRoute.ConnectionsMonitor) },
                         modifier = Modifier.weight(1f),
                     ) {
-                        val count = monitoringOverviewState.activeConnectionCount
-                        if (count == null) {
-                            Text(
-                                text = stringResource(R.string.home_value_unavailable),
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        } else {
-                            Row(verticalAlignment = Alignment.Bottom) {
-                                Text(
-                                    text = count.toString(),
-                                    style = MaterialTheme.typography.headlineSmall.copy(
-                                        fontFeatureSettings = "tnum",
-                                    ),
-                                    fontWeight = FontWeight.Bold,
-                                )
-                                Spacer(Modifier.width(4.dp))
-                                Text(
-                                    text = pluralStringResource(R.plurals.home_connections_unit, count),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(bottom = 5.dp),
-                                    maxLines = 1,
-                                )
-                            }
-                        }
+                        TileInlineMetric(
+                            label = stringResource(R.string.monitor_filter_direct),
+                            value = monitoringOverviewState.directConnectionCount?.toString() ?: HomeUnavailableValue,
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        TileInlineMetric(
+                            label = stringResource(R.string.monitor_filter_proxy),
+                            value = monitoringOverviewState.proxyConnectionCount?.toString() ?: HomeUnavailableValue,
+                        )
                     }
                 }
             }

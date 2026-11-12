@@ -121,7 +121,8 @@ internal data class HomeMonitoringOverviewState(
     val serviceRunning: Boolean,
     val resourceCpuPercent: Double?,
     val resourceMemoryBytes: Long?,
-    val activeConnectionCount: Int?,
+    val directConnectionCount: Int?,
+    val proxyConnectionCount: Int?,
     val todayTrafficBytes: Long,
     val networkRows: List<HomeNetworkRow>,
 )
@@ -184,7 +185,8 @@ internal fun buildHomeMonitoringOverviewState(
     serviceRunning = monitoringState.serviceRunning,
     resourceCpuPercent = monitoringState.resource.cpuPercent,
     resourceMemoryBytes = monitoringState.resource.memoryBytes,
-    activeConnectionCount = monitoringState.connections.activeCount,
+    directConnectionCount = monitoringState.connections.directCount,
+    proxyConnectionCount = monitoringState.connections.proxyCount,
     todayTrafficBytes = monitoringState.traffic.today.total,
     networkRows = listOf(
         HomeNetworkRow(HomeNetworkRowKind.Ipv4, monitoringState.network.local.ipv4Addresses.firstOrNull()),

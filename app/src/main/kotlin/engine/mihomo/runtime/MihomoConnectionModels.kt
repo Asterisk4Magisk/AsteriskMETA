@@ -23,6 +23,7 @@ internal data class MihomoConnection(
     val process: String = "",
     val processPath: String = "",
     val uid: Long? = null,
+    val outboundType: String = "",
     val chains: List<String> = emptyList(),
     val providerChains: List<String> = emptyList(),
     val rule: String = "",
@@ -44,6 +45,7 @@ internal data class MihomoConnectionsState(
 internal fun parseMihomoConnectionsJson(
     content: String,
     updatedAtMillis: Long = System.currentTimeMillis(),
+    proxies: MihomoProxiesState = MihomoProxiesState(),
 ): MihomoConnectionsState {
     val root = ConnectionJson.parseToJsonElement(content) as? JsonObject
         ?: error("Invalid Mihomo connections response")
@@ -52,12 +54,45 @@ internal fun parseMihomoConnectionsJson(
         downloadTotalBytes = root.longValue("downloadTotal") ?: 0L,
         connections = root.arrayValue("connections")
             .orEmpty()
-            .mapNotNull { element -> (element as? JsonObject)?.toMihomoConnectionOrNull() },
+            .mapNotNull { element -> (element as? JsonObject)?.toMihomoConnectionOrNull(proxies) },
         updatedAtMillis = updatedAtMillis,
     )
 }
 
-private fun JsonObject.toMihomoConnectionOrNull(): MihomoConnection? {
+internal fun parseMihomoConnectionCountsJson(
+    content: String,
+    proxies: MihomoProxiesState,
+): ConnectionCounts {
+    val root = ConnectionJson.parseToJsonElement(content) as? JsonObject
+        ?: error("Invalid Mihomo connections response")
+    var activeCount = 0
+    var directCount = 0
+    var proxyCount = 0
+    root.arrayValue("connections").orEmpty().forEach { element ->
+        val connection = element as? JsonObject ?: return@forEach
+        if (connection.stringValue("id") == null) return@forEach
+        activeCount += 1
+        val outbound = connection.outboundId()
+        val type = outbound?.let { proxies.nodeById[it]?.type }.orEmpty()
+        when (resolveConnectionRoute(outbound?.name, type)) {
+            ConnectionRouteKind.Direct -> directCount += 1
+            ConnectionRouteKind.Proxy -> proxyCount += 1
+            null -> Unit
+        }
+    }
+    return ConnectionCounts(activeCount, directCount, proxyCount)
+}
+
+private fun JsonObject.outboundId(): MihomoProxyNodeId? {
+    // Mihomo records the leaf first; provider names are positional and may be empty.
+    val name = (arrayValue("chains")?.firstOrNull() as? JsonPrimitive)?.contentOrNull
+        ?.takeIf(String::isNotBlank) ?: return null
+    val provider = (arrayValue("providerChains")?.firstOrNull() as? JsonPrimitive)?.contentOrNull
+        ?.takeIf(String::isNotBlank)
+    return MihomoProxyNodeId(name, provider)
+}
+
+private fun JsonObject.toMihomoConnectionOrNull(proxies: MihomoProxiesState): MihomoConnection? {
     val id = stringValue("id") ?: return null
     val metadata = objectValue("metadata") ?: JsonObject(emptyMap())
     val sourceHost = metadata.stringValue("sourceIP").orEmpty()
@@ -76,6 +111,7 @@ private fun JsonObject.toMihomoConnectionOrNull(): MihomoConnection? {
         process = metadata.stringValue("process").orEmpty(),
         processPath = metadata.stringValue("processPath").orEmpty(),
         uid = metadata.longValue("uid"),
+        outboundType = outboundId()?.let { proxies.nodeById[it]?.type }.orEmpty(),
         chains = stringListValue("chains"),
         providerChains = stringListValue("providerChains"),
         rule = stringValue("rule").orEmpty(),

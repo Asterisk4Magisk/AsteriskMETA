@@ -50,9 +50,6 @@
     <!-- Home -->
     <string name="home_accumulated_download">累计下载</string>
     <string name="home_accumulated_upload">累计上传</string>
-    <plurals name="home_connections_unit">
-        <item quantity="other">个活动连接</item>
-    </plurals>
     <string name="home_current_profile">当前配置</string>
     <string name="home_current_proxy">当前节点</string>
     <string name="home_mode_change_failed">切换代理模式失败</string>
