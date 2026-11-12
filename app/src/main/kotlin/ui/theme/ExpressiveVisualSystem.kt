@@ -4,8 +4,6 @@ import androidx.compose.ui.graphics.Shape
 
 internal enum class FocusDensity { Large, Medium, Compact }
 
-internal enum class FocusTone { Primary, Inactive, Warning, Error, ReadOnly }
-
 internal enum class ExpressiveShapeRole {
     FocusLarge,
     FocusMedium,

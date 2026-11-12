@@ -21,12 +21,12 @@ import androidx.compose.ui.unit.Dp
 import ui.theme.AsteriskMotion
 import ui.theme.LocalReduceMotion
 
-/** Keep the navigation and mode-control tint identical while their motion differs. */
+/** Shared tint for navigation items and service controls. */
 @Composable
-private fun asteriskPillSelectionColor(enabled: Boolean = true): Color {
+private fun asteriskPillSelectionColor(): Color {
     val colors = MaterialTheme.colorScheme
     val tintAlpha = if (colors.surface.luminance() < 0.5f) 0.18f else 0.12f
-    return colors.primary.copy(alpha = tintAlpha * if (enabled) 1f else 0.55f)
+    return colors.primary.copy(alpha = tintAlpha)
 }
 
 /** Fade and expand at this item's center, never travel across other destinations. */

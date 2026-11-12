@@ -113,7 +113,6 @@ import features.home.buildNetworkActivityWaveform
 import features.home.buildHomeSubscriptionContent
 import features.home.formatHomeRuntimeBytes
 import features.home.formatHomeServiceUptime
-import features.home.homeFocusTone
 import features.home.toHomeSubscriptionSummaryOrNull
 import features.home.toMihomoModeOrNull
 import features.mihomo.provider.MihomoProviderUsageItem
@@ -334,12 +333,12 @@ fun MihomoDashboardPage(
                         modifier = Modifier.weight(1f),
                     ) {
                         TileInlineMetric(
-                            label = stringResource(R.string.home_resource_cpu_label),
+                            label = stringResource(R.string.monitor_resource_card_cpu),
                             value = homeResourceCpuText(monitoringOverviewState),
                         )
                         Spacer(Modifier.height(4.dp))
                         TileInlineMetric(
-                            label = stringResource(R.string.home_resource_memory_label),
+                            label = stringResource(R.string.monitor_resource_card_memory),
                             value = homeResourceMemoryText(monitoringOverviewState),
                         )
                     }
@@ -493,7 +492,6 @@ private fun HomeControllerCard(
                 },
                 modifier = Modifier.fillMaxWidth(),
                 density = FocusDensity.Large,
-                tone = homeFocusTone(controllerState.serviceStatus),
                 // The runtime sits right under the service status line.
                 summary = runtimeText,
                 // Monospace keeps the --:--:-- placeholder exactly as wide as the
@@ -509,7 +507,6 @@ private fun HomeControllerCard(
                 // picked in Settings > Personalization.
                 containerColor = heroContainer,
                 contentColor = heroContent,
-                stateIconTint = heroContent,
                 // Inset by exactly the radius difference, so the gap to the
                 // base card stays even along the straight edges and around the
                 // corner arcs alike.
