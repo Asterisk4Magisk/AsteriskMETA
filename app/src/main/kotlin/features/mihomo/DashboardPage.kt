@@ -725,11 +725,11 @@ private fun NodeDelayChip(
 ) {
     // Same reading as the proxy list, so both show one status for the node.
     val text = when {
-        testing -> stringResource(R.string.home_node_delay_testing)
+        testing -> stringResource(R.string.mihomo_dashboard_network_detection_checking)
         delayStatus == MihomoDelayStatus.Timeout -> stringResource(R.string.mihomo_proxies_delay_timeout)
         delayStatus == MihomoDelayStatus.Failed -> stringResource(R.string.mihomo_proxies_delay_failed)
-        delayStatus == null || delay == null -> stringResource(R.string.home_node_delay_unknown)
-        else -> stringResource(R.string.home_node_delay_value, delay)
+        delayStatus == null || delay == null -> stringResource(R.string.mihomo_proxies_delay_not_tested)
+        else -> stringResource(R.string.monitor_milliseconds, delay)
     }
     val tint = if (testing) {
         MaterialTheme.colorScheme.onSurfaceVariant

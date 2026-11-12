@@ -66,9 +66,6 @@
     <string name="home_no_network_activity">No activity yet</string>
     <string name="home_no_proxy">No proxy selected</string>
     <string name="home_no_subscription">No subscription usage is available for this profile</string>
-    <string name="home_node_delay_testing">Testing…</string>
-    <string name="home_node_delay_unknown">Test</string>
-    <string name="home_node_delay_value">%1$d ms</string>
     <string name="home_resource_cpu_label">CPU</string>
     <string name="home_resource_memory_label">Memory</string>
     <string name="home_service_disabled">Service disabled</string>

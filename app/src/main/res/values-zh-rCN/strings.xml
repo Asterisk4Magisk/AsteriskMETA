@@ -65,9 +65,6 @@
     <string name="home_no_network_activity">暂无活动</string>
     <string name="home_no_proxy">尚未选择节点</string>
     <string name="home_no_subscription">当前配置暂无订阅用量信息</string>
-    <string name="home_node_delay_testing">测速中…</string>
-    <string name="home_node_delay_unknown">测速</string>
-    <string name="home_node_delay_value">%1$d ms</string>
     <string name="home_resource_cpu_label">CPU</string>
     <string name="home_resource_memory_label">内存</string>
     <string name="home_service_disabled">服务未启用</string>
