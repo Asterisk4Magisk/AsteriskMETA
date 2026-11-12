@@ -31,6 +31,7 @@ import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Surface
 import ui.components.AsteriskScaffold
+import ui.components.floatingChrome
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -103,6 +104,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -583,34 +585,40 @@ private fun HomeServicePowerButton(
         stateDescription = status
     }
     if (compact) {
-        // Compact navigation pairs the tabs with a filled FAB-sized button:
-        // 56dp with the stock M3 large corner (16dp) rather than this app's
-        // 24dp `shapes.large` card radius, which would read as a circle next
-        // to the pill. A Surface rather than FloatingActionButton, which has no
-        // disabled state: while busy the button must not ripple or announce
-        // itself as actionable.
-        Surface(
-            onClick = control.toggleService,
-            enabled = !control.busy,
-            modifier = semanticsModifier.size(56.dp),
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary,
-            shadowElevation = 6.dp,
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                if (control.serviceOperationInProgress) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        strokeWidth = 3.dp,
-                        color = MaterialTheme.colorScheme.onPrimary,
-                    )
-                } else {
-                    Icon(
-                        imageVector = if (appState.proxyRunning) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                        contentDescription = null,
-                        modifier = Modifier.size(26.dp),
-                    )
+        // Compact navigation pairs the tabs with a FAB-sized button: 56dp with
+        // the stock M3 large corner (16dp) rather than this app's 24dp
+        // `shapes.large` card radius, which would read as a circle next to the
+        // pill. It wears the same glass as the pill, so the icon takes
+        // `primary` to stay legible on the translucent surface. A Surface
+        // rather than FloatingActionButton, which has no disabled state: while
+        // busy the button must not ripple or announce itself as actionable.
+        val shape = RoundedCornerShape(16.dp)
+        Box(modifier = semanticsModifier.size(56.dp)) {
+            // Glass on its own layer behind the button so the blur never
+            // samples the icon.
+            Box(Modifier.matchParentSize().floatingChrome(shape))
+            Surface(
+                onClick = control.toggleService,
+                enabled = !control.busy,
+                modifier = Modifier.matchParentSize(),
+                shape = shape,
+                color = Color.Transparent,
+                contentColor = MaterialTheme.colorScheme.primary,
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    if (control.serviceOperationInProgress) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 3.dp,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    } else {
+                        Icon(
+                            imageVector = if (appState.proxyRunning) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                            contentDescription = null,
+                            modifier = Modifier.size(26.dp),
+                        )
+                    }
                 }
             }
         }

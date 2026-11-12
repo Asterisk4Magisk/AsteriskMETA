@@ -6,7 +6,6 @@ package ui.components
 import androidx.compose.animation.BoundsTransform
 import androidx.compose.animation.animateBounds
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -32,7 +31,6 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.LookaheadScope
@@ -49,8 +47,8 @@ internal data class AsteriskCompactNavigationTab(
 )
 
 /**
- * Compact bottom navigation: icon-only tabs inside one
- * floating circle of `surfaceContainer`, with a `secondaryContainer` circle
+ * Compact bottom navigation: icon-only tabs inside one floating circle of
+ * the shared glass (`floatingChrome`), with a `secondaryContainer` glass circle
  * that travels to the selected tab through `animateBounds`, and an optional
  * trailing action sitting beside the pill.
  *
@@ -88,74 +86,73 @@ internal fun AsteriskCompactNavigationBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(groupSpacing),
         ) {
-            Box(
-                modifier = Modifier
-                    .shadow(6.dp, CircleShape)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceContainer)
-                    .padding(4.dp),
-            ) {
-                LookaheadScope {
-                    // One shared pill, moved between tabs so it slides instead of
-                    // fading out and in at the destination.
-                    val selectionPill = remember {
-                        movableContentOf<BoxScope> { scope ->
-                            with(scope) {
-                                Box(
-                                    modifier = Modifier
-                                        .matchParentSize()
-                                        .animateBounds(
-                                            lookaheadScope = this@LookaheadScope,
-                                            boundsTransform = currentBoundsTransform,
-                                        )
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.secondaryContainer),
-                                )
+            Box {
+                // The shared glass sits on its own layer behind the tabs, as in
+                // the classic bar, so the blur never samples the tabs themselves.
+                Box(Modifier.matchParentSize().floatingChrome())
+                Box(modifier = Modifier.clip(CircleShape).padding(4.dp)) {
+                    LookaheadScope {
+                        // One shared pill, moved between tabs so it slides instead of
+                        // fading out and in at the destination.
+                        val selectionPill = remember {
+                            movableContentOf<BoxScope> { scope ->
+                                with(scope) {
+                                    Box(
+                                        modifier = Modifier
+                                            .matchParentSize()
+                                            .animateBounds(
+                                                lookaheadScope = this@LookaheadScope,
+                                                boundsTransform = currentBoundsTransform,
+                                            )
+                                            .clip(CircleShape)
+                                            .chromeBackground(MaterialTheme.colorScheme.secondaryContainer),
+                                    )
+                                }
                             }
                         }
-                    }
 
-                    Row(
-                        modifier = Modifier.selectableGroup(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(2.dp),
-                    ) {
-                        tabs.forEach { tab ->
-                            Box(
-                                modifier = Modifier.zIndex(if (tab.selected) 0f else 1f),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                if (tab.selected) {
-                                    selectionPill(this)
-                                }
-                                val contentColor by animateColorAsState(
-                                    targetValue = if (tab.selected) {
-                                        MaterialTheme.colorScheme.onSecondaryContainer
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurfaceVariant
-                                    },
-                                    animationSpec = AsteriskMotion.fastEffects(),
-                                    label = "compact-navigation-item-color",
-                                )
-                                Column(
-                                    modifier = Modifier
-                                        .clip(CircleShape)
-                                        .selectable(
-                                            selected = tab.selected,
-                                            onClick = tab.onClick,
-                                            role = Role.Tab,
-                                            indication = ripple(),
-                                            interactionSource = remember { MutableInteractionSource() },
-                                        )
-                                        .padding(horizontal = tabHorizontalPadding, vertical = 12.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
+                        Row(
+                            modifier = Modifier.selectableGroup(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(2.dp),
+                        ) {
+                            tabs.forEach { tab ->
+                                Box(
+                                    modifier = Modifier.zIndex(if (tab.selected) 0f else 1f),
+                                    contentAlignment = Alignment.Center,
                                 ) {
-                                    Icon(
-                                        imageVector = tab.icon,
-                                        contentDescription = tab.label,
-                                        modifier = Modifier.size(24.dp),
-                                        tint = contentColor,
+                                    if (tab.selected) {
+                                        selectionPill(this)
+                                    }
+                                    val contentColor by animateColorAsState(
+                                        targetValue = if (tab.selected) {
+                                            MaterialTheme.colorScheme.onSecondaryContainer
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                        },
+                                        animationSpec = AsteriskMotion.fastEffects(),
+                                        label = "compact-navigation-item-color",
                                     )
+                                    Column(
+                                        modifier = Modifier
+                                            .clip(CircleShape)
+                                            .selectable(
+                                                selected = tab.selected,
+                                                onClick = tab.onClick,
+                                                role = Role.Tab,
+                                                indication = ripple(),
+                                                interactionSource = remember { MutableInteractionSource() },
+                                            )
+                                            .padding(horizontal = tabHorizontalPadding, vertical = 12.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                    ) {
+                                        Icon(
+                                            imageVector = tab.icon,
+                                            contentDescription = tab.label,
+                                            modifier = Modifier.size(24.dp),
+                                            tint = contentColor,
+                                        )
+                                    }
                                 }
                             }
                         }

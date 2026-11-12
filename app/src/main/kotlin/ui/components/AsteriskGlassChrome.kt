@@ -53,6 +53,7 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
@@ -74,11 +75,10 @@ internal val LocalChromeBackdrop = compositionLocalOf<HazeState?> { null }
 private const val ChromeTransparency = 0.60f
 
 @Composable
-internal fun chromeStyle(): HazeBlurStyle {
-    val surface = MaterialTheme.colorScheme.surface
-    val tint = HazeColorEffect.tint(surface.copy(alpha = 1f - ChromeTransparency))
+internal fun chromeStyle(containerColor: Color = MaterialTheme.colorScheme.surface): HazeBlurStyle {
+    val tint = HazeColorEffect.tint(containerColor.copy(alpha = 1f - ChromeTransparency))
     return HazeBlurStyle {
-        backgroundColor(surface)
+        backgroundColor(containerColor)
         colorEffects(listOf(tint))
         blurRadius(14.dp)
         noiseFactor(0f)
@@ -176,16 +176,22 @@ internal fun AsteriskTopAppBar(
     )
 }
 
+/** Apply behind content: the no-backdrop fallback blurs the node's own content. */
 @Composable
-private fun Modifier.floatingChrome(): Modifier =
-    shadow(6.dp, CircleShape)
-        .clip(CircleShape)
-        .hazeBlur(
-            input = LocalChromeBackdrop.current?.let { HazeInput.Sources(it) }
-                ?: HazeInput.Content,
-            style = chromeStyle(),
-        )
-        .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f), CircleShape)
+internal fun Modifier.chromeBackground(containerColor: Color = MaterialTheme.colorScheme.surface): Modifier =
+    hazeBlur(
+        input = LocalChromeBackdrop.current?.let { HazeInput.Sources(it) }
+            ?: HazeInput.Content,
+        style = chromeStyle(containerColor),
+    )
+
+/** The shared floating glass: shadow, page-backdrop blur and hairline border. */
+@Composable
+internal fun Modifier.floatingChrome(shape: Shape = CircleShape): Modifier =
+    shadow(6.dp, shape)
+        .clip(shape)
+        .chromeBackground()
+        .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f), shape)
 
 @Composable
 private fun floatingNavigationContentColor(selected: Boolean): Color {
