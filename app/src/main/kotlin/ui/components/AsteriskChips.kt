@@ -100,8 +100,10 @@ private fun InteractiveChip(
     leadingIcon: (@Composable () -> Unit)?,
     trailingIcon: (@Composable () -> Unit)?,
 ) {
+    val inTopBar = LocalTopBarContent.current
     val containerColor = animateColorAsState(
         targetValue = when {
+            inTopBar -> if (selected) asteriskPillSelectionColor() else Color.Transparent
             selected -> MaterialTheme.colorScheme.primaryContainer
             else -> MaterialTheme.colorScheme.surfaceContainerHigh
         },
@@ -110,6 +112,7 @@ private fun InteractiveChip(
     )
     val contentColor = animateColorAsState(
         targetValue = when {
+            inTopBar && selected -> MaterialTheme.colorScheme.primary
             selected -> MaterialTheme.colorScheme.onPrimaryContainer
             else -> MaterialTheme.colorScheme.onSurfaceVariant
         },
@@ -129,7 +132,7 @@ private fun InteractiveChip(
             contentColor = contentColor.value,
             border = BorderStroke(
                 width = 1.dp,
-                color = if (selected) Color.Transparent else MaterialTheme.colorScheme.outlineVariant,
+                color = if (selected || inTopBar) Color.Transparent else MaterialTheme.colorScheme.outlineVariant,
             ),
         ) {
             Row(

@@ -68,10 +68,22 @@ internal fun <T> AsteriskSegmentedControl(
     onSelected: (T) -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    containerColor: Color = MaterialTheme.colorScheme.surfaceVariant,
+    containerColor: Color = if (LocalTopBarContent.current) {
+        Color.Transparent
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant
+    },
     contentColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
-    checkedContainerColor: Color = MaterialTheme.colorScheme.primaryContainer,
-    checkedContentColor: Color = MaterialTheme.colorScheme.onPrimaryContainer,
+    checkedContainerColor: Color = if (LocalTopBarContent.current) {
+        asteriskPillSelectionColor()
+    } else {
+        MaterialTheme.colorScheme.primaryContainer
+    },
+    checkedContentColor: Color = if (LocalTopBarContent.current) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    },
     contentPadding: PaddingValues = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
     textStyle: TextStyle = MaterialTheme.typography.labelLarge,
 ) {
@@ -92,7 +104,7 @@ internal fun <T> AsteriskSegmentedControl(
             val targetContainer = if (selected) checkedContainerColor else containerColor
             val targetContent = if (selected) checkedContentColor else contentColor
             val segmentContainer by animateColorAsState(
-                targetValue = if (enabled) targetContainer else targetContainer.copy(alpha = 0.3f),
+                targetValue = if (enabled) targetContainer else targetContainer.copy(alpha = targetContainer.alpha * 0.3f),
                 animationSpec = AsteriskMotion.effects(),
                 label = "segment-container-color",
             )

@@ -70,6 +70,7 @@ import dev.chrisbanes.haze.rememberHazeState
 import ui.theme.AsteriskMotion
 
 internal val LocalChromeBackdrop = compositionLocalOf<HazeState?> { null }
+internal val LocalTopBarContent = compositionLocalOf { false }
 
 // Shared by top bars, floating navigation controls, and the no-blur fallback.
 private const val ChromeTransparency = 0.60f
@@ -129,7 +130,9 @@ internal fun AsteriskScaffold(
                         .clipToBounds()
                         .hazeBlur(HazeInput.Sources(backdrop), style),
                 )
-                topBar()
+                CompositionLocalProvider(LocalTopBarContent provides true) {
+                    topBar()
+                }
             }
         },
         bottomBar = {

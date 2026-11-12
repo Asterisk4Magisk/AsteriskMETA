@@ -21,9 +21,9 @@ import androidx.compose.ui.unit.Dp
 import ui.theme.AsteriskMotion
 import ui.theme.LocalReduceMotion
 
-/** Shared tint for navigation items and service controls. */
+/** Shared tint for navigation items, top-bar options and service controls. */
 @Composable
-private fun asteriskPillSelectionColor(): Color {
+internal fun asteriskPillSelectionColor(): Color {
     val colors = MaterialTheme.colorScheme
     val tintAlpha = if (colors.surface.luminance() < 0.5f) 0.18f else 0.12f
     return colors.primary.copy(alpha = tintAlpha)
