@@ -32,6 +32,7 @@ import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Surface
 import ui.components.AsteriskScaffold
 import ui.components.floatingChrome
+import ui.components.asteriskNavigationSelection
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -605,7 +606,12 @@ private fun HomeServicePowerButton(
                 color = Color.Transparent,
                 contentColor = MaterialTheme.colorScheme.primary,
             ) {
-                Box(contentAlignment = Alignment.Center) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .asteriskNavigationSelection(appState.proxyRunning, cornerRadius = 16.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
                     if (control.serviceOperationInProgress) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(24.dp),

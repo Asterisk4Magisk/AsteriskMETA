@@ -17,6 +17,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.unit.Dp
 import ui.theme.AsteriskMotion
 import ui.theme.LocalReduceMotion
 
@@ -30,7 +31,7 @@ private fun asteriskPillSelectionColor(enabled: Boolean = true): Color {
 
 /** Fade and expand at this item's center, never travel across other destinations. */
 @Composable
-internal fun Modifier.asteriskNavigationSelection(selected: Boolean): Modifier {
+internal fun Modifier.asteriskNavigationSelection(selected: Boolean, cornerRadius: Dp? = null): Modifier {
     val reduceMotion = LocalReduceMotion.current
     val opacity = animateFloatAsState(
         targetValue = if (selected) 1f else 0f,
@@ -61,7 +62,9 @@ internal fun Modifier.asteriskNavigationSelection(selected: Boolean): Modifier {
             color = color.value.copy(alpha = color.value.alpha * alpha),
             topLeft = Offset((size.width - width) / 2f, (size.height - height) / 2f),
             size = Size(width, height),
-            cornerRadius = CornerRadius(height / 2f),
+            cornerRadius = CornerRadius(
+                cornerRadius?.toPx()?.times(indicatorScale) ?: (height / 2f)
+            ),
         )
     }
 }
