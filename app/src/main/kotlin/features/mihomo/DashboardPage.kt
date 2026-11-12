@@ -635,6 +635,8 @@ private fun HomeCurrentNodeRow(
         title = stringResource(R.string.home_current_proxy),
         value = nodeName ?: stringResource(R.string.home_no_proxy),
         onClick = onOpenProxies,
+        // Reserve the delay chip's 48dp touch target plus the row's vertical padding.
+        modifier = Modifier.heightIn(min = 72.dp),
     ) {
         if (testableNode != null) {
             val node = runtime.proxies.node(testableNode)
@@ -671,10 +673,11 @@ private fun HomeChinRow(
     title: String,
     value: String,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
     trailing: @Composable RowScope.() -> Unit = {},
 ) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
             .clickable(onClick = onClick)
