@@ -134,4 +134,4 @@ internal fun ObserveMonitoring(intent: MonitoringIntent, pageSessionId: String? 
 }
 
 private const val DetailMonitoringIntervalMillis = 1_000L
-private const val HomeMonitoringIntervalMillis = 3_000L
+private const val HomeMonitoringIntervalMillis = 4_000L

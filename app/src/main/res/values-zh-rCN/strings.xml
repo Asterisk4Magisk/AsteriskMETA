@@ -75,7 +75,7 @@
     <string name="home_subscription_summary">订阅摘要</string>
     <string name="home_subscription_total">总量</string>
     <string name="home_subscription_used">已用</string>
-    <string name="home_traffic_summary">今日 %1$s</string>
+    <string name="home_traffic_today">今日</string>
     <string name="home_value_unavailable">—</string>
     <string name="mihomo_dashboard_network_detection_checking">检测中…</string>
     <string name="mihomo_dashboard_no_profile">未配置</string>

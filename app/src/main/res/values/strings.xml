@@ -75,7 +75,7 @@
     <string name="home_subscription_summary">Subscription</string>
     <string name="home_subscription_total">Total</string>
     <string name="home_subscription_used">Used</string>
-    <string name="home_traffic_summary">Today %1$s</string>
+    <string name="home_traffic_today">Today</string>
     <string name="home_value_unavailable">—</string>
     <string name="mihomo_dashboard_network_detection_checking">Checking…</string>
     <string name="mihomo_dashboard_no_profile">No profile</string>

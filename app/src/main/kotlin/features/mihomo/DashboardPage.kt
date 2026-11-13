@@ -31,6 +31,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -56,9 +58,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.AppServices
@@ -129,7 +136,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import ui.components.AsteriskExpressiveCard
 import ui.components.AsteriskFocusSurface
 import ui.components.AsteriskPageCard
 import ui.components.AsteriskScaffold
@@ -142,7 +148,6 @@ import ui.charts.drawSmoothAreaLine
 import ui.charts.rememberDottedWaveformRamp
 import ui.layout.pageContentPaddingWithCutout
 import ui.layout.pageListPadding
-import ui.theme.ExpressiveShapeRole
 import ui.theme.FocusDensity
 import utils.toReadableBytes
 import kotlin.time.Duration.Companion.milliseconds
@@ -295,7 +300,7 @@ fun MihomoDashboardPage(
             outerPadding = padding,
             isWideScreen = isWideScreen,
         )
-        val listPadding = pageListPadding(contentPadding, bottomExtra = 24.dp)
+        val listPadding = pageListPadding(contentPadding)
 
         LazyColumn(
             state = listState,
@@ -319,99 +324,112 @@ fun MihomoDashboardPage(
                     chartStyle = appState.networkActivityStyle,
                 )
             }
-            item("monitoring_row_one") {
-                Row(
+            item("monitoring") {
+                // Equal row weights use the tallest card's intrinsic height for all four cards.
+                Column(
                     modifier = HomeContentModifier.height(IntrinsicSize.Max),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    MonitoringEntryCard(
-                        title = stringResource(R.string.home_monitor_resource),
-                        icon = Icons.Rounded.Memory,
-                        prominent = true,
-                        onClick = { navigator.push(AppRoute.ResourceMonitor) },
-                        modifier = Modifier.weight(1f),
+                    Row(
+                        modifier = Modifier.fillMaxWidth().weight(1f),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        TileInlineMetric(
-                            label = stringResource(R.string.monitor_resource_card_cpu),
-                            value = homeResourceCpuText(monitoringOverviewState),
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        TileInlineMetric(
-                            label = stringResource(R.string.monitor_resource_card_memory),
-                            value = homeResourceMemoryText(monitoringOverviewState),
-                        )
-                    }
-                    MonitoringEntryCard(
-                        title = stringResource(R.string.home_monitor_connections),
-                        icon = Icons.Rounded.Lan,
-                        onClick = { navigator.push(AppRoute.ConnectionsMonitor) },
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        TileInlineMetric(
-                            label = stringResource(R.string.monitor_filter_direct),
-                            value = monitoringOverviewState.directConnectionCount?.toString() ?: HomeUnavailableValue,
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        TileInlineMetric(
-                            label = stringResource(R.string.monitor_filter_proxy),
-                            value = monitoringOverviewState.proxyConnectionCount?.toString() ?: HomeUnavailableValue,
-                        )
-                    }
-                }
-            }
-            item("monitoring_row_two") {
-                Row(
-                    modifier = HomeContentModifier.height(IntrinsicSize.Max),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    MonitoringEntryCard(
-                        title = stringResource(R.string.home_monitor_traffic),
-                        icon = Icons.Rounded.DataUsage,
-                        onClick = { navigator.push(AppRoute.TrafficMonitor) },
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Text(
-                            text = stringResource(
-                                R.string.home_traffic_summary,
-                                monitoringOverviewState.todayTrafficBytes.toReadableBytes(),
-                            ),
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontFeatureSettings = "tnum",
-                            ),
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1,
-                        )
-                        Spacer(Modifier.weight(1f))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
+                        MonitoringEntryCard(
+                            title = stringResource(R.string.home_monitor_resource),
+                            icon = Icons.Rounded.Memory,
+                            onClick = { navigator.push(AppRoute.ResourceMonitor) },
+                            modifier = Modifier.weight(1f),
                         ) {
-                            TrafficMetric(
-                                icon = Icons.Rounded.Upload,
-                                label = stringResource(R.string.home_accumulated_upload),
-                                value = formatHomeRuntimeBytes(networkActivityState.accumulatedUploadBytes),
-                                modifier = Modifier.weight(1f),
+                            TileInlineMetric(
+                                label = stringResource(R.string.monitor_resource_card_cpu),
+                                value = homeResourceCpuText(monitoringOverviewState),
                             )
-                            TrafficMetric(
-                                icon = Icons.Rounded.Download,
-                                label = stringResource(R.string.home_accumulated_download),
-                                value = formatHomeRuntimeBytes(networkActivityState.accumulatedDownloadBytes),
-                                modifier = Modifier.weight(1f),
+                            Spacer(Modifier.height(6.dp))
+                            TileInlineMetric(
+                                label = stringResource(R.string.monitor_resource_card_memory),
+                                value = homeResourceMemoryText(monitoringOverviewState),
+                            )
+                        }
+                        MonitoringEntryCard(
+                            title = stringResource(R.string.home_monitor_connections),
+                            icon = Icons.Rounded.Lan,
+                            onClick = { navigator.push(AppRoute.ConnectionsMonitor) },
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            TileInlineMetric(
+                                label = stringResource(R.string.monitor_filter_direct),
+                                value = monitoringOverviewState.directConnectionCount
+                                    ?.takeIf { monitoringOverviewState.serviceRunning }?.toString() ?: HomeUnavailableValue,
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            TileInlineMetric(
+                                label = stringResource(R.string.monitor_filter_proxy),
+                                value = monitoringOverviewState.proxyConnectionCount
+                                    ?.takeIf { monitoringOverviewState.serviceRunning }?.toString() ?: HomeUnavailableValue,
                             )
                         }
                     }
-                    MonitoringEntryCard(
-                        title = stringResource(R.string.home_monitor_network),
-                        icon = Icons.Rounded.Public,
-                        prominent = true,
-                        onClick = { navigator.push(AppRoute.NetworkMonitor) },
-                        modifier = Modifier.weight(1f),
+                    Row(
+                        modifier = Modifier.fillMaxWidth().weight(1f),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        val (ipv4, ipv6) = homeNetworkValues(monitoringOverviewState)
-                        TileStackedMetric(label = stringResource(R.string.common_ipv4), value = ipv4)
-                        Spacer(Modifier.height(4.dp))
-                        TileStackedMetric(label = stringResource(R.string.common_ipv6), value = ipv6)
+                        MonitoringEntryCard(
+                            title = stringResource(R.string.home_monitor_traffic),
+                            icon = Icons.Rounded.DataUsage,
+                            onClick = { navigator.push(AppRoute.TrafficMonitor) },
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = stringResource(R.string.home_traffic_today),
+                                    modifier = Modifier.alignByBaseline(),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text = monitoringValueText(monitoringOverviewState.todayTrafficBytes.toReadableBytes()),
+                                    modifier = Modifier.weight(1f).alignByBaseline(),
+                                    style = MaterialTheme.typography.titleLarge.copy(
+                                        fontSize = 22.sp,
+                                        fontFeatureSettings = "tnum",
+                                    ),
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    autoSize = TextAutoSize.StepBased(minFontSize = 14.sp, maxFontSize = 22.sp),
+                                )
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                TrafficMetric(
+                                    label = stringResource(R.string.home_accumulated_upload),
+                                    value = formatHomeRuntimeBytes(networkActivityState.accumulatedUploadBytes),
+                                    modifier = Modifier.weight(1f),
+                                )
+                                TrafficMetric(
+                                    label = stringResource(R.string.home_accumulated_download),
+                                    value = formatHomeRuntimeBytes(networkActivityState.accumulatedDownloadBytes),
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
+                        }
+                        MonitoringEntryCard(
+                            title = stringResource(R.string.home_monitor_network),
+                            icon = Icons.Rounded.Public,
+                            onClick = { navigator.push(AppRoute.NetworkMonitor) },
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            val (ipv4, ipv6) = homeNetworkValues(monitoringOverviewState)
+                            TileStackedMetric(label = stringResource(R.string.common_ipv4), value = ipv4)
+                            Spacer(Modifier.height(2.dp))
+                            TileStackedMetric(label = stringResource(R.string.common_ipv6), value = ipv6)
+                        }
                     }
                 }
             }
@@ -1187,19 +1205,18 @@ private fun MonitoringEntryCard(
     icon: ImageVector,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    prominent: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    AsteriskExpressiveCard(
+    Card(
         onClick = onClick,
         modifier = modifier.heightIn(min = HomeMonitoringTileHeight),
-        role = if (prominent) ExpressiveShapeRole.GroupLarge else ExpressiveShapeRole.ContentCard,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp),
+                .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 12.dp),
         ) {
             // Caption-sized title next to its glyph: the numbers below are what the tile is for.
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1212,13 +1229,13 @@ private fun MonitoringEntryCard(
                 Spacer(Modifier.width(6.dp))
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(12.dp))
             content()
         }
     }
@@ -1227,7 +1244,12 @@ private fun MonitoringEntryCard(
 /** Label above its value, e.g. the two addresses on the network tile. */
 @Composable
 private fun TileStackedMetric(label: String, value: String) {
-    Column {
+    Column(
+        modifier = Modifier.fillMaxWidth().semantics(mergeDescendants = true) {
+            contentDescription = "$label $value"
+        },
+        verticalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,
@@ -1236,8 +1258,10 @@ private fun TileStackedMetric(label: String, value: String) {
         )
         Text(
             text = value,
-            style = MaterialTheme.typography.titleSmall.copy(fontFeatureSettings = "tnum"),
-            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.fillMaxWidth(),
+            style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, fontFeatureSettings = "tnum"),
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
             softWrap = false,
             overflow = TextOverflow.Ellipsis,
@@ -1245,57 +1269,82 @@ private fun TileStackedMetric(label: String, value: String) {
     }
 }
 
-/** Label beside its value, e.g. CPU and memory on the resource tile. */
+/** Full-width rows share a trailing value edge and align text by its baseline. */
 @Composable
 private fun TileInlineMetric(label: String, value: String) {
-    Row(verticalAlignment = Alignment.Bottom) {
+    Row(modifier = Modifier.fillMaxWidth().semantics(mergeDescendants = true) {}) {
         Text(
             text = label,
-            style = MaterialTheme.typography.labelSmall,
+            modifier = Modifier.alignByBaseline(),
+            style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
         )
-        Spacer(Modifier.width(6.dp))
+        Spacer(Modifier.width(8.dp))
         Text(
-            text = value,
-            style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
-            fontWeight = FontWeight.SemiBold,
+            text = monitoringValueText(value),
+            modifier = Modifier.weight(1f).alignByBaseline(),
+            style = MaterialTheme.typography.titleLarge.copy(fontSize = 22.sp, fontFeatureSettings = "tnum"),
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.End,
             maxLines = 1,
             softWrap = false,
             overflow = TextOverflow.Ellipsis,
+            autoSize = TextAutoSize.StepBased(minFontSize = 14.sp, maxFontSize = 22.sp),
         )
+    }
+}
+
+/** Keep the existing byte and CPU formatting, with quieter, smaller units. */
+@Composable
+private fun monitoringValueText(value: String): AnnotatedString {
+    val unitStart = value.indexOf(' ').takeIf { it >= 0 } ?: value.indexOf('%')
+    return buildAnnotatedString {
+        if (unitStart < 0) {
+            append(value)
+        } else {
+            append(value.substring(0, unitStart))
+            withStyle(
+                SpanStyle(
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Normal,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                ),
+            ) {
+                append(value.substring(unitStart))
+            }
+        }
     }
 }
 
 @Composable
 private fun TrafficMetric(
-    icon: ImageVector,
     label: String,
     value: String,
     modifier: Modifier = Modifier,
 ) {
-    Row(
+    Column(
         modifier = modifier.semantics(mergeDescendants = true) {
             contentDescription = "$label $value"
         },
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(3.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            modifier = Modifier.size(12.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
         )
         Text(
-            text = value,
-            style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
-            fontWeight = FontWeight.SemiBold,
+            text = monitoringValueText(value),
+            modifier = Modifier.fillMaxWidth(),
+            style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
+            fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1,
-            softWrap = false,
-            overflow = TextOverflow.Clip,
-            autoSize = TextAutoSize.StepBased(minFontSize = 8.sp, maxFontSize = 11.sp),
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
