@@ -13,7 +13,14 @@ internal enum class ConnectionRouteFilter {
     All,
     Proxy,
     Direct,
+
+    /** Keeps every route and only changes the list into an application grouping. */
+    App,
 }
+
+/** Whether the filter narrows connections by their route instead of regrouping them. */
+internal val ConnectionRouteFilter.restrictsRoute: Boolean
+    get() = this == ConnectionRouteFilter.Proxy || this == ConnectionRouteFilter.Direct
 
 internal enum class ConnectionSort {
     StartedAt,
@@ -66,6 +73,7 @@ internal fun reduceConnections(
             ConnectionRouteFilter.All -> true
             ConnectionRouteFilter.Proxy -> resolvedRoute == ConnectionRouteKind.Proxy
             ConnectionRouteFilter.Direct -> resolvedRoute == ConnectionRouteKind.Direct
+            ConnectionRouteFilter.App -> true
         }
         val matchesQuery = normalizedQuery.isEmpty() || connection.searchableText().contains(normalizedQuery)
         matchesRoute && matchesQuery

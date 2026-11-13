@@ -91,6 +91,7 @@
     <string name="monitor_copy_value">复制数值</string>
     <string name="monitor_data_stale">数据可能已过期</string>
     <string name="monitor_data_unavailable">数据不可用</string>
+    <string name="monitor_filter_app">应用</string>
     <string name="monitor_filter_direct">直连</string>
     <string name="monitor_filter_proxy">代理</string>
     <string name="monitor_loading">正在读取实时数据…</string>
@@ -105,6 +106,10 @@
 
     <!-- Monitoring - Connections -->
     <string name="monitor_connections_active">活动连接</string>
+    <plurals name="monitor_connections_app_count">
+        <item quantity="other">%1$d 条连接</item>
+    </plurals>
+    <string name="monitor_connections_app_details">该应用的连接</string>
     <string name="monitor_connections_chain">策略链</string>
     <string name="monitor_connections_provider_sources">Provider 来源</string>
     <string name="monitor_connections_close_all">关闭全部连接</string>
