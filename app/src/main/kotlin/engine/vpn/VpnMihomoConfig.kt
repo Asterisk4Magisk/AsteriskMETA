@@ -11,26 +11,28 @@ import engine.hevtun.HevSocks5TunnelConfigFileName
 import engine.hevtun.HevSocks5TunnelLogFileName
 import engine.hevtun.hevSocks5TunnelLogFile
 import engine.hevtun.hevSocks5TunnelSocksTargetAddress
+import engine.mihomo.DefaultMihomoTunCongestionController
+import engine.mihomo.MihomoCoreLogPaths
 import engine.mihomo.MihomoProfileFactory
 import engine.mihomo.binding.model.ConfigurationOverride
-import engine.mihomo.mihomoControllerSocket
-import engine.mihomo.raw.MihomoRawControllerConfig
-import engine.mihomo.DefaultMihomoTunCongestionController
 import engine.mihomo.effectiveMihomoTunCongestionController
-import engine.mihomo.sha256Hex
+import engine.mihomo.mihomoControllerSocket
+import engine.mihomo.prepareMihomoCoreLogPaths
+import engine.mihomo.raw.MihomoRawControllerConfig
+import engine.mihomo.raw.runtimeIpv6Enabled
 import engine.mihomo.selectedMihomoProfileOrNull
+import engine.mihomo.sha256Hex
+import engine.mihomo.withFlowMetadata
+import engine.proxy.LocalProxyLoopbackAddress
 import engine.proxy.LocalProxyOptions
+import engine.proxy.ProxyEngineStartRequest
+import engine.proxy.flowMetadataOptions
 import engine.proxy.toLocalProxyOptions
 import engine.proxy.toLocalProxyOptionsOrNull
-import engine.proxy.LocalProxyLoopbackAddress
-import engine.mihomo.MihomoCoreLogPaths
-import engine.mihomo.prepareMihomoCoreLogPaths
 import features.resources.runtime.prepareMihomoResourceFilePaths
-import system.toAndroidUserId
-import engine.proxy.ProxyEngineStartRequest
-import utils.writeAtomically
-import engine.mihomo.raw.runtimeIpv6Enabled
 import java.io.File
+import system.toAndroidUserId
+import utils.writeAtomically
 
 internal data class VpnServiceStartConfig(
     val sessionName: String,
@@ -78,10 +80,11 @@ internal object VpnMihomoConfigFactory {
             VpnAppendHttpProxyOptions.Disabled
         }
         val profilePath = File(resourceFilePaths.dataDir, "config.yaml").absolutePath
-        val profileBytes = request.preparedMihomoProfileBytes
+        val sourceProfileBytes = request.preparedMihomoProfileBytes
             ?: MihomoProfileFactory.buildProfileBytes(
                 context, appState, exposePorts = exposePorts, useRootProviderPaths = false,
             )
+        val profileBytes = sourceProfileBytes.withFlowMetadata(context, appState, exposePorts = exposePorts)
         val profileSignature = profileBytes.sha256Hex()
         val ageSecretKey = appState.selectedMihomoProfileOrNull()?.ageSecretKey.orEmpty()
         val runtimeIpv6 = rawConfig.runtimeIpv6Enabled(appState.enableIpv6)
@@ -124,7 +127,11 @@ internal object VpnMihomoConfigFactory {
             hevSocks5TunnelConfig = buildVpnHevSocks5TunnelConfig(
                 dataDir = resourceFilePaths.dataDir,
                 coreLogPaths = coreLogPaths,
-                localProxyOptions = localProxyOptions,
+                localProxyOptions = if (appState.enableVpnHevTun) {
+                    context.flowMetadataOptions()
+                } else {
+                    localProxyOptions
+                },
                 tunOptions = tunOptions,
                 enableIpv6 = runtimeIpv6,
                 useHevTun = appState.enableVpnHevTun,

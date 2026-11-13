@@ -14,12 +14,14 @@ import engine.mihomo.prepareMihomoCoreLogPaths
 import engine.mihomo.raw.MihomoRawConfigSnapshot
 import engine.mihomo.raw.runtimeIpv6Enabled
 import engine.mihomo.selectedMihomoProfileOrNull
+import engine.mihomo.withFlowMetadata
 import engine.network.parseCidrAddressOrNull
 import engine.network.toPortOrNull
 import engine.proxy.ProxyEngineStartRequest
+import engine.proxy.flowMetadataOptions
+import features.quicksettings.QuickSettingsTileRefreshReceiver
 import features.resources.runtime.MihomoResourceFilePaths
 import features.resources.runtime.mihomoResourceFilePaths
-import features.quicksettings.QuickSettingsTileRefreshReceiver
 import java.io.File
 
 internal class RootConfigBuildContext(
@@ -29,12 +31,17 @@ internal class RootConfigBuildContext(
     val rawConfig: MihomoRawConfigSnapshot? = null,
     private val preparedMihomoProfileBytes: ByteArray? = null,
 ) {
+    val bridgeOptions by lazy {
+        androidContext.flowMetadataOptions()
+    }
+
     fun buildRootStartConfig(): RootStartConfig {
         return appState.toRootStartConfig(
             runtimeEventReceiver = ComponentName(androidContext, QuickSettingsTileRefreshReceiver::class.java)
                 .flattenToString(),
-            mihomoProfileBytes = preparedMihomoProfileBytes
-                ?: MihomoProfileFactory.buildProfileBytes(androidContext, appState),
+            mihomoProfileBytes = (
+                preparedMihomoProfileBytes ?: MihomoProfileFactory.buildProfileBytes(androidContext, appState)
+            ).withFlowMetadata(androidContext, appState),
             resourceFilePaths = resourceFilePaths,
             rawConfig = rawConfig,
         )

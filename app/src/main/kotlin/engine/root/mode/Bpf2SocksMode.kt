@@ -10,7 +10,6 @@ import engine.root.config.RootConfigBuildContext
 import engine.root.config.RootModeStartConfig
 import engine.root.config.bpf2SocksBridgePortValue
 import engine.root.config.buildAsteriskdConfig
-import engine.root.config.tun2SocksInternalProxyPortValue
 import engine.root.daemon.config.AsteriskdBpf2SocksHelper
 import engine.root.daemon.config.AsteriskdMode
 import engine.root.daemon.config.AsteriskdModeOptions
@@ -25,11 +24,6 @@ internal fun RootConfigBuildContext.buildBpf2SocksStartConfig(): RootModeStartCo
             "Raw Mihomo configuration requires a SOCKS or Mixed inbound for BPF mode"
         }
     } ?: appState.toLocalProxyOptions()
-    val socksPort = rawConfig?.let { config ->
-        requireNotNull(config.socksInbound.value?.port) {
-            "Raw Mihomo configuration requires a SOCKS or Mixed inbound for BPF mode"
-        }
-    } ?: appState.tun2SocksInternalProxyPortValue()
     val rootStartConfig = buildRootStartConfig()
     val iptablesConfig = buildRootIptablesConfig().copy(enableEbpfRules = true)
     require(rootStartConfig.enableIpv6 == rawConfig.runtimeIpv6Enabled(appState.enableIpv6))
@@ -46,7 +40,8 @@ internal fun RootConfigBuildContext.buildBpf2SocksStartConfig(): RootModeStartCo
                 bridgeListenAddress = RootBpf2SocksListenAddress,
                 bridgePort = appState.bpf2SocksBridgePortValue(),
                 socksHost = RootBpf2SocksSocksInboundAddress,
-                socksPort = socksPort,
+                socksPort = bridgeOptions.port,
+                flowMetadataToken = bridgeOptions.password,
             ),
         ),
     )

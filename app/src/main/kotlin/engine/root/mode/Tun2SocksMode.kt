@@ -8,7 +8,6 @@ import engine.proxy.toLocalProxyOptionsOrNull
 import engine.root.config.RootConfigBuildContext
 import engine.root.config.RootModeStartConfig
 import engine.root.config.buildAsteriskdConfig
-import engine.root.config.tun2SocksInternalProxyPortValue
 import engine.root.daemon.config.AsteriskdHevSocks5TunnelHelper
 import engine.root.daemon.config.AsteriskdMode
 import engine.root.daemon.config.AsteriskdModeOptions
@@ -22,11 +21,6 @@ internal fun RootConfigBuildContext.buildTun2SocksStartConfig(): RootModeStartCo
             "Raw Mihomo configuration requires a SOCKS or Mixed inbound for Tun2Socks mode"
         }
     } ?: appState.toLocalProxyOptions()
-    val socks5ProxyPort = rawConfig?.let { config ->
-        requireNotNull(config.socksInbound.value?.port) {
-            "Raw Mihomo configuration requires a SOCKS or Mixed inbound for Tun2Socks mode"
-        }
-    } ?: appState.tun2SocksInternalProxyPortValue()
     val rootStartConfig = buildRootStartConfig()
     val iptablesConfig = buildRootIptablesConfig()
     return RootModeStartConfig(
@@ -40,7 +34,8 @@ internal fun RootConfigBuildContext.buildTun2SocksStartConfig(): RootModeStartCo
             helper = AsteriskdHevSocks5TunnelHelper(
                 executablePath = rootStartConfig.runtimePaths.hevSocks5TunnelExecutablePath,
                 socksHost = Tun2SocksListenAddress,
-                socksPort = socks5ProxyPort,
+                socksPort = bridgeOptions.port,
+                flowMetadataToken = bridgeOptions.password,
                 tunnelName = "asterisk0",
                 mtu = tunOptions.mtu,
                 ipv4Address = tunOptions.ipv4Address.address,

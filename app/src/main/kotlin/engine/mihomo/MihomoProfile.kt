@@ -81,7 +81,7 @@ internal object MihomoProfileFactory {
                 useRootProviderPaths,
                 context.mihomoControllerSocket().absolutePath,
             )
-        }
+        }.withFlowMetadata(context, appState, runMode, exposePorts)
     }
 
     fun buildProfile(
