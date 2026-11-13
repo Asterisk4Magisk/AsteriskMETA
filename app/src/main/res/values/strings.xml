@@ -62,6 +62,10 @@
     <string name="home_no_network_activity">No activity yet</string>
     <string name="home_no_proxy">No proxy selected</string>
     <string name="home_no_subscription">No subscription usage is available for this profile</string>
+    <string name="home_run_mode_bpf2socks" translatable="false">BPF2SOCKS</string>
+    <string name="home_run_mode_tproxy" translatable="false">TPROXY</string>
+    <string name="home_run_mode_tun" translatable="false">TUN</string>
+    <string name="home_run_mode_tun2socks" translatable="false">TUN2SOCKS</string>
     <string name="home_service_disabled">Service disabled</string>
     <string name="home_service_enabled">Service enabled</string>
     <string name="home_service_start">Start service</string>

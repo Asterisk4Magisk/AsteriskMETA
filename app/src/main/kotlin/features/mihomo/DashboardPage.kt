@@ -1353,10 +1353,10 @@ private fun TrafficMetric(
 private fun runModeLabel(runMode: Int): String {
     return stringResource(
         when (runMode) {
-            RunModeTproxy -> R.string.settings_run_mode_tproxy
-            RunModeTun -> R.string.settings_run_mode_tun
-            RunModeTun2Socks -> R.string.settings_run_mode_tun2socks
-            RunModeBpf2Socks -> R.string.settings_run_mode_bpf2socks
+            RunModeTproxy -> R.string.home_run_mode_tproxy
+            RunModeTun -> R.string.home_run_mode_tun
+            RunModeTun2Socks -> R.string.home_run_mode_tun2socks
+            RunModeBpf2Socks -> R.string.home_run_mode_bpf2socks
             else -> R.string.settings_run_mode_vpn_service
         },
     )
