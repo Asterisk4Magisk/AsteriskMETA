@@ -51,6 +51,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -506,6 +508,11 @@ private fun ConnectionAppGroupCard(
 ) {
     val label = group.label.ifBlank { stringResource(R.string.monitor_connections_unknown_source) }
     val packageName = group.packageName
+    val connectionCountDescription = pluralStringResource(
+        R.plurals.monitor_connections_app_count,
+        group.connectionCount,
+        group.connectionCount,
+    )
     Card(
         onClick = onToggle,
         modifier = ContentWidthModifier.then(modifier),
@@ -524,26 +531,13 @@ private fun ConnectionAppGroupCard(
             )
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = label,
-                        modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = pluralStringResource(
-                            R.plurals.monitor_connections_app_count,
-                            group.connectionCount,
-                            group.connectionCount,
-                        ),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
                 if (packageName != null && packageName != label) {
                     Text(
                         text = packageName,
@@ -554,6 +548,15 @@ private fun ConnectionAppGroupCard(
                     )
                 }
             }
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = group.connectionCount.toString(),
+                modifier = Modifier.clearAndSetSemantics { contentDescription = connectionCountDescription },
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                softWrap = false,
+            )
             AsteriskExpansionIndicator(
                 expanded = expanded,
                 contentDescription = stringResource(R.string.monitor_connections_app_details),
