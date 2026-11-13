@@ -572,14 +572,6 @@ private fun HomeControllerCard(
                     // Fill the 48dp touch target so it adds no invisible vertical gap.
                     minHeight = 48.dp,
                 )
-                if (controllerState.mihomoModeReadOnly) {
-                    Text(
-                        text = stringResource(R.string.settings_value_from_yaml),
-                        modifier = Modifier.padding(horizontal = 4.dp),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                }
             }
         }
     }
