@@ -38,6 +38,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.font.lerp
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import ui.theme.AsteriskMotion
 
@@ -86,6 +87,7 @@ internal fun <T> AsteriskSegmentedControl(
     },
     contentPadding: PaddingValues = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
     textStyle: TextStyle = MaterialTheme.typography.labelLarge,
+    minHeight: Dp = SegmentMinHeight,
 ) {
     if (items.isEmpty()) return
     Row(
@@ -119,7 +121,7 @@ internal fun <T> AsteriskSegmentedControl(
                 enabled = enabled,
                 modifier = Modifier
                     .weight(1f)
-                    .heightIn(min = SegmentMinHeight)
+                    .heightIn(min = minHeight)
                     .alpha(if (item.muted) 0.38f else 1f)
                     .semantics { role = Role.RadioButton },
                 shape = segmentShape(selectionFraction, index, items.lastIndex),
