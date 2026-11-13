@@ -336,7 +336,7 @@ internal fun ConnectionsMonitorPage(padding: PaddingValues) {
                         }
                     } else {
                         items(visibleConnections, key = MihomoConnection::id) { connection ->
-                            connectionCardItem(connection, ContentWidthModifier)
+                            connectionCardItem(connection, Modifier)
                         }
                     }
                 }
@@ -501,14 +501,14 @@ private fun ConnectionAppGroupCard(
     group: ConnectionAppGroup,
     expanded: Boolean,
     iconSizePx: Int,
-    modifier: Modifier = ContentWidthModifier,
+    modifier: Modifier = Modifier,
     onToggle: () -> Unit,
 ) {
     val label = group.label.ifBlank { stringResource(R.string.monitor_connections_unknown_source) }
     val packageName = group.packageName
     Card(
         onClick = onToggle,
-        modifier = modifier,
+        modifier = ContentWidthModifier.then(modifier),
         // One step above the connection cards so a group header reads as their parent.
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
         shape = MaterialTheme.shapes.large,
@@ -600,7 +600,7 @@ private fun ConnectionCard(
     onOpen: () -> Unit,
     onClose: () -> Unit,
     closeEnabled: Boolean,
-    modifier: Modifier = ContentWidthModifier,
+    modifier: Modifier = Modifier,
     detectedClosedAt: Long? = null,
 ) {
     // The core reports the final outbound first, followed by its enclosing groups.
@@ -608,7 +608,7 @@ private fun ConnectionCard(
     val providerSources = connection.providerChains.filter(String::isNotBlank).distinct().joinToString(" · ")
     Card(
         onClick = onOpen,
-        modifier = modifier,
+        modifier = ContentWidthModifier.then(modifier),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
         shape = MaterialTheme.shapes.large,
     ) {
@@ -764,7 +764,7 @@ private fun formatDuration(startedAtMillis: Long?, endedAtMillis: Long? = null):
 private val ContentWidthModifier = Modifier.fillMaxWidth().widthIn(max = 840.dp)
 
 /** Inset applied to the connections listed under their application. */
-private val NestedConnectionModifier = ContentWidthModifier.padding(start = 12.dp)
+private val NestedConnectionModifier = Modifier.padding(start = 12.dp)
 
 private fun Set<String>.toggleAppGroup(key: String): Set<String> =
     if (key in this) this - key else this + key
