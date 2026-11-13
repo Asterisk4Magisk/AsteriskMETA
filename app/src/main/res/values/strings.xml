@@ -95,6 +95,7 @@
     <string name="monitor_copy_value">Copy value</string>
     <string name="monitor_data_stale">Data may be out of date</string>
     <string name="monitor_data_unavailable">Data unavailable</string>
+    <string name="monitor_filter_app">Apps</string>
     <string name="monitor_filter_direct">Direct</string>
     <string name="monitor_filter_proxy">Proxy</string>
     <string name="monitor_loading">Loading live data…</string>
@@ -109,6 +110,11 @@
 
     <!-- Monitoring - Connections -->
     <string name="monitor_connections_active">Active</string>
+    <plurals name="monitor_connections_app_count">
+        <item quantity="one">%1$d connection</item>
+        <item quantity="other">%1$d connections</item>
+    </plurals>
+    <string name="monitor_connections_app_details">Connections from this app</string>
     <string name="monitor_connections_chain">Policy chain</string>
     <string name="monitor_connections_provider_sources">Provider sources</string>
     <string name="monitor_connections_close_all">Close all connections</string>
