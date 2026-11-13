@@ -6,20 +6,24 @@ package features.monitoring
 import android.content.Context
 import android.os.SystemClock
 import app.modes.RunModeVpnService
-import engine.mihomo.runtime.connectionCounts
 import app.modes.isRootRunMode
 import data.AndroidAppStateStore
 import engine.mihomo.raw.loadSelectedRawConfig
 import engine.mihomo.raw.usesRawMihomoConfig
-import engine.proxy.toLocalProxyOptionsOrNull
 import engine.mihomo.runtime.MihomoConnection
 import engine.mihomo.runtime.MihomoConnectionsState
 import engine.mihomo.runtime.MihomoRuntimeRepository
+import engine.mihomo.runtime.connectionCounts
+import engine.proxy.LocalProxyLoopbackAddress
+import engine.proxy.LocalProxyRuntime
+import engine.proxy.toLocalProxyOptions
+import engine.proxy.toLocalProxyOptionsOrNull
 import features.logs.AndroidAppLogger
 import features.monitoring.network.AddressFamily
 import features.monitoring.network.AndroidNetworkMonitor
 import features.monitoring.network.PublicNetworkProbeClient
 import features.monitoring.network.PublicNetworkProbeMemoryCache
+import features.monitoring.network.PublicProbeProxy
 import features.monitoring.network.applyPublicProbeAttempt
 import features.monitoring.network.applyPublicProbeAttempts
 import features.monitoring.resource.AndroidProcessStatsSource
@@ -52,14 +56,10 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import system.AndroidRootShellGateway
-import kotlin.time.Duration.Companion.milliseconds
-import engine.proxy.LocalProxyLoopbackAddress
-import engine.proxy.LocalProxyRuntime
-import engine.proxy.toLocalProxyOptions
-import features.monitoring.network.PublicProbeProxy
+import utils.encodeBase64
 import java.net.InetSocketAddress
 import java.net.Proxy
-import utils.encodeBase64
+import kotlin.time.Duration.Companion.milliseconds
 
 internal class MonitoringRepository(
     private val appScope: CoroutineScope,
@@ -103,12 +103,12 @@ internal class MonitoringRepository(
                     updateNetworkPageVisibility(plan.networkPageVisible)
                     if (plan.refreshLocalNetworkOnEnter) refreshLocalNetworkSnapshot()
                     coroutineScope {
-                        plan.runtimeSummaryIntervalMillis?.let { interval ->
+                        if (plan.observeRuntimeSummary) {
                             launch {
-                                while (currentCoroutineContext().isActive) {
-                                    refreshRuntimeSummary()
-                                    delay(interval.milliseconds)
-                                }
+                                mihomoRuntime.state
+                                    .map { runtime -> runtime.running }
+                                    .distinctUntilChanged()
+                                    .collect(::refreshRuntimeSummary)
                             }
                         }
                         plan.resourceIntervalMillis?.let { interval ->
@@ -169,12 +169,11 @@ internal class MonitoringRepository(
         return result
     }
 
-    private fun refreshRuntimeSummary() {
-        val runtime = mihomoRuntime.state.value
+    private fun refreshRuntimeSummary(running: Boolean) {
         mutableState.update { current ->
             current.copy(
-                serviceRunning = runtime.running,
-                network = current.network.copy(proxyConnected = runtime.running),
+                serviceRunning = running,
+                network = current.network.copy(proxyConnected = running),
             )
         }
     }
@@ -216,8 +215,12 @@ internal class MonitoringRepository(
                 val sameProcess = baseline != null && reading != null &&
                     baseline.pid == reading.snapshot.pid &&
                     baseline.startTimeTicks == reading.snapshot.startTimeTicks
-                val cpuPercent = reading?.snapshot?.let { current ->
-                    calculateProcessCpuPercent(baseline, current)
+                val cpuPercent = reading?.let { current ->
+                    calculateProcessCpuPercent(
+                        previous = baseline,
+                        current = current.snapshot,
+                        uptimeMillis = current.uptimeMillis,
+                    )
                 }
                 if (reading != null || isVpnMode) {
                     previousProcessSnapshot = reading?.snapshot

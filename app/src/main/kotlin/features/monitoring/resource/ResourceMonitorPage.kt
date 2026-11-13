@@ -281,8 +281,8 @@ private fun buildResourceChartData(
  * Bucket peaks of one series, unscaled; `NaN` marks a bucket without any reading, so the line breaks
  * there instead of dropping to zero.
  *
- * The axis starts at the series' own first reading. Samples before it (the CPU read that only sets
- * the baseline, or memory before its slower collector answers) would otherwise leave an empty margin
+ * The axis starts at the series' own first reading. Samples before it (an unavailable CPU reading,
+ * or memory before its slower collector answers) would otherwise leave an empty margin
  * on the left that shrinks as the history grows, so the line would seem to creep in from the right.
  */
 private inline fun buildResourceSeries(

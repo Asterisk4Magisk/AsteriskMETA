@@ -19,7 +19,7 @@ internal enum class MonitoringIntent {
 }
 
 internal data class MonitoringPlan(
-    val runtimeSummaryIntervalMillis: Long? = null,
+    val observeRuntimeSummary: Boolean = false,
     val connectionIntervalMillis: Long? = null,
     val resourceIntervalMillis: Long? = null,
     val trafficIntervalMillis: Long? = null,
@@ -40,11 +40,7 @@ internal fun resolveMonitoringPlan(counts: Map<MonitoringIntent, Int>): Monitori
     val any = home || connections || resource || traffic || network
 
     return MonitoringPlan(
-        runtimeSummaryIntervalMillis = when {
-            !any -> null
-            home && !connections && !resource && !traffic && !network -> HomeMonitoringIntervalMillis
-            else -> DetailMonitoringIntervalMillis
-        },
+        observeRuntimeSummary = any,
         // The resource page only shows the connection count and today's traffic, so it uses the
         // lightweight home cadence: polling connection details would load the core it is measuring.
         connectionIntervalMillis = when {

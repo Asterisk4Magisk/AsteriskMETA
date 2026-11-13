@@ -68,12 +68,12 @@ internal class AndroidProcessStatsSource(
 
     private suspend fun readRootProcess(): ProcessStatsReading? {
         val pid = runCatching { rootSupervisor.runningCorePid() }.getOrNull() ?: return null
-        val command = """
-            pid=${pid.toString().shellQuote()}
-            [ -r "/proc/${'$'}pid/stat" ] || exit 4
+        val command = $$"""
+            pid=$${pid.toString().shellQuote()}
+            [ -r "/proc/$pid/stat" ] || exit 4
             IFS= read -r cpu_line < /proc/stat || exit 5
-            printf '%s\n' "${'$'}cpu_line"
-            cat "/proc/${'$'}pid/stat"
+            printf '%s\n' "$cpu_line"
+            cat "/proc/$pid/stat"
         """.trimIndent()
         val result = runCatching {
             rootAccess.exec(command, ShellExecOptions(logFailure = false))
@@ -96,25 +96,25 @@ internal class AndroidProcessStatsSource(
         val totalTicks = parseTotalCpuTicks(aggregateStat) ?: return null
         val process = parseProcessStat(processStat) ?: return null
         val processorCount = Runtime.getRuntime().availableProcessors().coerceAtLeast(1)
+        val clockTicksPerSecond = runCatching { Os.sysconf(OsConstants._SC_CLK_TCK) }
+            .getOrNull()
+            ?.takeIf { ticks -> ticks > 0L }
         val snapshot = ProcessTickSnapshot(
             pid = process.pid,
             processTicks = process.processTicks,
             totalCpuTicks = totalTicks,
             processorCount = processorCount,
             startTimeTicks = process.startTimeTicks,
+            ticksPerSecond = clockTicksPerSecond ?: 0L,
         )
         return ProcessStatsReading(
             snapshot = snapshot,
             source = source,
-            uptimeMillis = processUptimeMillis(process.startTimeTicks),
+            uptimeMillis = clockTicksPerSecond?.let { processUptimeMillis(process.startTimeTicks, it) },
         )
     }
 
-    private fun processUptimeMillis(startTimeTicks: Long): Long? {
-        val clockTicksPerSecond = runCatching { Os.sysconf(OsConstants._SC_CLK_TCK) }
-            .getOrNull()
-            ?.takeIf { ticks -> ticks > 0L }
-            ?: return null
+    private fun processUptimeMillis(startTimeTicks: Long, clockTicksPerSecond: Long): Long? {
         val startMillis = runCatching {
             Math.multiplyExact(startTimeTicks, 1_000L) / clockTicksPerSecond
         }.getOrNull() ?: return null

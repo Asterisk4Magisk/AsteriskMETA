@@ -15,6 +15,7 @@ internal data class ProcessTickSnapshot(
     val totalCpuTicks: Long,
     val processorCount: Int,
     val startTimeTicks: Long,
+    val ticksPerSecond: Long,
 )
 
 internal data class ProcessStatsSample(
@@ -47,7 +48,7 @@ internal fun parseTotalCpuTicks(procStat: String): Long? {
 internal fun parseProcessStat(procStat: String): ProcessStat? {
     val openParenthesis = procStat.indexOf('(')
     val closeParenthesis = procStat.lastIndexOf(')')
-    if (openParenthesis <= 0 || closeParenthesis <= openParenthesis) return null
+    if (openParenthesis !in 1..<closeParenthesis) return null
     val pid = procStat.substring(0, openParenthesis).trim().toIntOrNull() ?: return null
     val fields = procStat.substring(closeParenthesis + 1)
         .trim()
@@ -75,12 +76,21 @@ internal fun parseProcessResidentMemoryBytes(procStatm: String, pageSizeBytes: L
 internal fun calculateProcessCpuPercent(
     previous: ProcessTickSnapshot?,
     current: ProcessTickSnapshot,
+    uptimeMillis: Long?,
 ): Double? {
     if (previous == null ||
         previous.pid != current.pid ||
         previous.startTimeTicks != current.startTimeTicks
     ) {
-        return null
+        // The first reading uses the lifetime average until an interval baseline is available.
+        if (uptimeMillis == null || uptimeMillis <= 0L || current.processTicks < 0L ||
+            current.ticksPerSecond <= 0L || current.processorCount <= 0
+        ) {
+            return null
+        }
+        val processCpuMillis = current.processTicks.toDouble() * 1_000.0 / current.ticksPerSecond
+        return (processCpuMillis / uptimeMillis * 100.0)
+            .coerceIn(0.0, current.processorCount * 100.0)
     }
     val processDelta = current.processTicks - previous.processTicks
     val totalDelta = current.totalCpuTicks - previous.totalCpuTicks
@@ -114,6 +124,7 @@ internal fun buildAppProcessTickSnapshot(
         totalCpuTicks = aggregateElapsedMillis,
         processorCount = processorCount,
         startTimeTicks = processStartElapsedRealtimeMillis,
+        ticksPerSecond = 1_000L,
     )
 }
 
