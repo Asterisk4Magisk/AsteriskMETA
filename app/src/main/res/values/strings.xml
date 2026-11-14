@@ -426,6 +426,22 @@
     <string name="mihomo_provider_management_refresh_current">Refresh current tab</string>
     <string name="mihomo_provider_management_title">Providers</string>
     <string name="mihomo_provider_missing">Provider does not exist in the current profile</string>
+    <string name="mihomo_provider_preview_decoded_mrs">Decoded MRS</string>
+    <string name="mihomo_provider_preview_loading">Reading provider content</string>
+    <plurals name="mihomo_provider_preview_lines">
+        <item quantity="one">%1$d line</item>
+        <item quantity="other">%1$d lines</item>
+    </plurals>
+    <string name="mihomo_provider_preview_search_case">Match case</string>
+    <string name="mihomo_provider_preview_search_close">Close search</string>
+    <string name="mihomo_provider_preview_search_count">%1$d/%2$d</string>
+    <string name="mihomo_provider_preview_search_count_truncated">%1$d/%2$d+</string>
+    <string name="mihomo_provider_preview_search_empty">No matches</string>
+    <string name="mihomo_provider_preview_search_hint">Search rules</string>
+    <string name="mihomo_provider_preview_search_invalid">Invalid regular expression</string>
+    <string name="mihomo_provider_preview_search_next">Next match</string>
+    <string name="mihomo_provider_preview_search_previous">Previous match</string>
+    <string name="mihomo_provider_preview_search_regex">Use regular expression</string>
     <string name="mihomo_provider_proxies_count">{count} proxies</string>
     <string name="mihomo_provider_proxies_empty">No proxies</string>
     <string name="mihomo_provider_proxies_search">Search proxies</string>

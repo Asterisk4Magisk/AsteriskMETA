@@ -34,6 +34,7 @@ internal data class ProviderDeclarationsState(
 internal data class MihomoProviderPreviewState(
     val requestId: Int = 0,
     val providerName: String = "",
+    val loading: Boolean = false,
     val rawContent: engine.mihomo.MihomoProviderRawContent? = null,
 )
 
@@ -43,6 +44,7 @@ internal fun beginMihomoProviderPreview(
 ): MihomoProviderPreviewState = state.copy(
     requestId = state.requestId + 1,
     providerName = providerName,
+    loading = true,
     rawContent = null,
 )
 
@@ -51,7 +53,7 @@ internal fun completeMihomoProviderPreview(
     requestId: Int,
     rawContent: engine.mihomo.MihomoProviderRawContent,
 ): MihomoProviderPreviewState = if (state.requestId == requestId) {
-    state.copy(rawContent = rawContent)
+    state.copy(loading = false, rawContent = rawContent)
 } else {
     state
 }
@@ -60,7 +62,7 @@ internal fun failMihomoProviderPreview(
     state: MihomoProviderPreviewState,
     requestId: Int,
 ): MihomoProviderPreviewState = if (state.requestId == requestId) {
-    state.copy(providerName = "", rawContent = null)
+    state.copy(providerName = "", loading = false, rawContent = null)
 } else {
     state
 }
