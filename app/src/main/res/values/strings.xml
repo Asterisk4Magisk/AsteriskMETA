@@ -433,7 +433,6 @@
         <item quantity="other">%1$d lines</item>
     </plurals>
     <string name="mihomo_provider_preview_search_case">Match case</string>
-    <string name="mihomo_provider_preview_search_close">Close search</string>
     <string name="mihomo_provider_preview_search_count">%1$d/%2$d</string>
     <string name="mihomo_provider_preview_search_count_truncated">%1$d/%2$d+</string>
     <string name="mihomo_provider_preview_search_empty">No matches</string>

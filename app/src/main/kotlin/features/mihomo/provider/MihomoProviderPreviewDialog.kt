@@ -4,7 +4,6 @@
 package features.mihomo.provider
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,37 +19,29 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboard
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
@@ -58,7 +49,6 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -77,12 +67,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import ui.clipboard.setPlainText
 import ui.components.AsteriskScaffold
+import ui.components.AsteriskSearchTopAppBar
 import ui.components.AsteriskStatusCard
-import ui.components.AsteriskTopAppBar
 import ui.components.AsteriskTopBarControls
 import ui.layout.pageContentPaddingWithCutout
 import ui.layout.pageListPadding
-import ui.theme.AsteriskShapeTokens
 import utils.toReadableBytes
 import ui.icons.AsteriskIcons as Icons
 
@@ -104,16 +93,14 @@ internal fun MihomoProviderPreviewDialog(
     val services = LocalAppServices.current
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
-    val focusManager = LocalFocusManager.current
-    val keyboardController = LocalSoftwareKeyboardController.current
     val textContent = rawContent as? MihomoProviderRawContent.Text
     val content = textContent?.content.orEmpty()
-    val lines = remember(content) {
-        if (content.isEmpty()) emptyList() else content.lines()
+    val preparedLines by produceState<List<String>?>(initialValue = null, content) {
+        value = null
+        value = withContext(Dispatchers.Default) { mihomoRuleTextLines(content) }
     }
+    val lines = preparedLines.orEmpty()
     val listState = rememberLazyListState()
-    val searchFocusRequester = remember { FocusRequester() }
-    var searchActive by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
     var matchCase by rememberSaveable { mutableStateOf(false) }
     var useRegex by rememberSaveable { mutableStateOf(false) }
@@ -128,6 +115,7 @@ internal fun MihomoProviderPreviewDialog(
             return@LaunchedEffect
         }
         searching = true
+        matches = MihomoRuleTextMatches()
         delay(SearchDebounceMillis)
         matches = withContext(Dispatchers.Default) {
             searchMihomoRuleText(
@@ -143,13 +131,6 @@ internal fun MihomoProviderPreviewDialog(
     val metadata = providerPreviewMetadata(rawContent = rawContent, lineCount = lines.size)
     val copiedMessage = stringResource(R.string.logs_copied_to_clipboard)
 
-    fun closeSearch() {
-        searchActive = false
-        query = ""
-        focusManager.clearFocus()
-        keyboardController?.hide()
-    }
-
     fun stepMatch(step: Int) {
         val count = matches.matches.size
         if (count == 0) return
@@ -161,10 +142,8 @@ internal fun MihomoProviderPreviewDialog(
     }
     LaunchedEffect(currentMatchIndex, matches) {
         val match = matches.matches.getOrNull(currentMatchIndex) ?: return@LaunchedEffect
-        listState.animateScrollToItem((match.lineIndex - LinesAboveMatch).coerceAtLeast(0))
-    }
-    LaunchedEffect(searchActive) {
-        if (searchActive) searchFocusRequester.requestFocus()
+        val errorRows = if (textContent?.lastError.isNullOrBlank()) 0 else 1
+        listState.animateScrollToItem((match.lineIndex - LinesAboveMatch).coerceAtLeast(0) + errorRows)
     }
 
     Dialog(
@@ -179,94 +158,67 @@ internal fun MihomoProviderPreviewDialog(
             modifier = Modifier.fillMaxSize(),
             topBar = {
                 Column {
-                    if (searchActive) {
-                        AsteriskTopAppBar(
-                            title = {
-                                ProviderRuleSearchField(
-                                    query = query,
-                                    onQueryChange = { query = it },
-                                    matchCase = matchCase,
-                                    onToggleMatchCase = { matchCase = !matchCase },
-                                    useRegex = useRegex,
-                                    onToggleRegex = { useRegex = !useRegex },
-                                    focusRequester = searchFocusRequester,
-                                    onSearch = { keyboardController?.hide() },
-                                    modifier = Modifier.fillMaxWidth(),
+                    AsteriskSearchTopAppBar(
+                        query = query,
+                        onQueryChange = { query = it },
+                        placeholder = stringResource(R.string.mihomo_provider_preview_search_hint),
+                        searchAvailable = lines.isNotEmpty(),
+                        title = {
+                            Text(
+                                text = providerName.ifBlank { ProviderPreviewFallbackName },
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        },
+                        navigationIcon = {
+                            IconButton(onClick = onDismissRequest) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                                    contentDescription = stringResource(R.string.common_back),
                                 )
-                            },
-                            navigationIcon = {
-                                IconButton(onClick = ::closeSearch) {
+                            }
+                        },
+                        actions = {
+                            if (lines.isNotEmpty()) {
+                                IconButton(onClick = {
+                                    scope.launch {
+                                        clipboard.setPlainText(content)
+                                        services.tipNotifier.show(copiedMessage)
+                                    }
+                                }) {
                                     Icon(
-                                        imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                                        contentDescription = stringResource(
-                                            R.string.mihomo_provider_preview_search_close,
-                                        ),
+                                        imageVector = Icons.Rounded.ContentCopy,
+                                        contentDescription = stringResource(R.string.common_copy),
                                     )
                                 }
-                            },
-                        )
+                            }
+                        },
+                    )
+                    if (metadata.isNotBlank()) {
+                        AsteriskTopBarControls {
+                            Text(
+                                text = metadata,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                    if (lines.isNotEmpty()) {
                         AsteriskTopBarControls(alignEndToAppBarActions = true) {
                             ProviderRuleSearchControls(
                                 matches = matches,
                                 currentIndex = currentMatchIndex,
                                 hasQuery = query.isNotEmpty(),
                                 searching = searching,
+                                matchCase = matchCase,
+                                onToggleMatchCase = { matchCase = !matchCase },
+                                useRegex = useRegex,
+                                onToggleRegex = { useRegex = !useRegex },
                                 onPrevious = { stepMatch(-1) },
                                 onNext = { stepMatch(1) },
-                                onClose = ::closeSearch,
                             )
-                        }
-                    } else {
-                        AsteriskTopAppBar(
-                            title = {
-                                Text(
-                                    text = providerName.ifBlank { ProviderPreviewFallbackName },
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            },
-                            navigationIcon = {
-                                IconButton(onClick = onDismissRequest) {
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                                        contentDescription = stringResource(R.string.common_back),
-                                    )
-                                }
-                            },
-                            actions = {
-                                if (lines.isNotEmpty()) {
-                                    IconButton(onClick = { searchActive = true }) {
-                                        Icon(
-                                            imageVector = Icons.Rounded.Search,
-                                            contentDescription = stringResource(R.string.common_search),
-                                        )
-                                    }
-                                    IconButton(
-                                        onClick = {
-                                            scope.launch {
-                                                clipboard.setPlainText(content)
-                                                services.tipNotifier.show(copiedMessage)
-                                            }
-                                        },
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Rounded.ContentCopy,
-                                            contentDescription = stringResource(R.string.common_copy),
-                                        )
-                                    }
-                                }
-                            },
-                        )
-                        if (metadata.isNotBlank()) {
-                            AsteriskTopBarControls {
-                                Text(
-                                    text = metadata,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            }
                         }
                     }
                 }
@@ -280,18 +232,14 @@ internal fun MihomoProviderPreviewDialog(
                 ),
             )
             when {
-                loading -> ProviderPreviewLoading()
-                textContent != null && lines.isNotEmpty() -> ProviderRuleTextList(
+                loading || preparedLines == null -> ProviderPreviewLoading()
+                textContent != null -> ProviderRuleTextList(
+                    errorMessage = textContent.lastError,
                     lines = lines,
                     matches = matches,
                     currentMatch = currentMatch,
                     contentPadding = contentPadding,
                     listState = listState,
-                )
-
-                textContent != null -> ProviderPreviewMessage(
-                    contentPadding = contentPadding,
-                    text = stringResource(R.string.common_empty),
                 )
 
                 else -> ProviderPreviewBinaryContent(
@@ -320,21 +268,6 @@ private fun ProviderPreviewLoading() {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-    }
-}
-
-@Composable
-private fun ProviderPreviewMessage(
-    contentPadding: PaddingValues,
-    text: String,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(contentPadding),
-    ) {
-        ProviderMessageCard(text = text)
     }
 }
 
@@ -384,6 +317,7 @@ private fun ProviderPreviewBinaryContent(
 
 @Composable
 private fun ProviderRuleTextList(
+    errorMessage: String,
     lines: List<String>,
     matches: MihomoRuleTextMatches,
     currentMatch: MihomoRuleTextMatch?,
@@ -401,6 +335,11 @@ private fun ProviderRuleTextList(
         contentPadding = contentPadding,
         modifier = Modifier.fillMaxSize(),
     ) {
+        if (errorMessage.isNotBlank()) {
+            item { ProviderMessageCard(text = errorMessage) }
+        } else if (lines.isEmpty()) {
+            item { ProviderMessageCard(text = stringResource(R.string.common_empty)) }
+        }
         items(count = lines.size) { index ->
             ProviderRuleTextLine(
                 lineNumber = index + 1,
@@ -495,11 +434,16 @@ private fun ProviderRuleSearchControls(
     currentIndex: Int,
     hasQuery: Boolean,
     searching: Boolean,
+    matchCase: Boolean,
+    onToggleMatchCase: () -> Unit,
+    useRegex: Boolean,
+    onToggleRegex: () -> Unit,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
-    onClose: () -> Unit,
 ) {
     val colorScheme = MaterialTheme.colorScheme
+    val matchCaseDescription = stringResource(R.string.mihomo_provider_preview_search_case)
+    val regexDescription = stringResource(R.string.mihomo_provider_preview_search_regex)
     val counter = when {
         !hasQuery || searching -> ""
         matches.patternInvalid -> stringResource(R.string.mihomo_provider_preview_search_invalid)
@@ -528,121 +472,32 @@ private fun ProviderRuleSearchControls(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
-        IconButton(onClick = onPrevious, enabled = matches.hasMatches) {
+        IconToggleButton(
+            checked = matchCase,
+            onCheckedChange = { onToggleMatchCase() },
+            modifier = Modifier.semantics {
+                contentDescription = matchCaseDescription
+            },
+        ) { Text(SearchMatchCaseLabel, fontFamily = FontFamily.Monospace) }
+        IconToggleButton(
+            checked = useRegex,
+            onCheckedChange = { onToggleRegex() },
+            modifier = Modifier.semantics {
+                contentDescription = regexDescription
+            },
+        ) { Text(SearchRegexLabel, fontFamily = FontFamily.Monospace) }
+        IconButton(onClick = onPrevious, enabled = matches.hasMatches && !searching) {
             Icon(
                 imageVector = Icons.Rounded.ArrowUpward,
                 contentDescription = stringResource(R.string.mihomo_provider_preview_search_previous),
             )
         }
-        IconButton(onClick = onNext, enabled = matches.hasMatches) {
+        IconButton(onClick = onNext, enabled = matches.hasMatches && !searching) {
             Icon(
                 imageVector = Icons.Rounded.ArrowDownward,
                 contentDescription = stringResource(R.string.mihomo_provider_preview_search_next),
             )
         }
-        IconButton(onClick = onClose) {
-            Icon(
-                imageVector = Icons.Rounded.Close,
-                contentDescription = stringResource(R.string.mihomo_provider_preview_search_close),
-            )
-        }
-    }
-}
-
-@Composable
-private fun ProviderRuleSearchField(
-    query: String,
-    onQueryChange: (String) -> Unit,
-    matchCase: Boolean,
-    onToggleMatchCase: () -> Unit,
-    useRegex: Boolean,
-    onToggleRegex: () -> Unit,
-    focusRequester: FocusRequester,
-    onSearch: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val colorScheme = MaterialTheme.colorScheme
-    TextField(
-        value = query,
-        onValueChange = onQueryChange,
-        modifier = modifier.focusRequester(focusRequester),
-        singleLine = true,
-        textStyle = MaterialTheme.typography.bodyLarge,
-        shape = AsteriskShapeTokens.Pill,
-        placeholder = {
-            Text(
-                text = stringResource(R.string.mihomo_provider_preview_search_hint),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        },
-        leadingIcon = {
-            Icon(
-                imageVector = Icons.Rounded.Search,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp),
-            )
-        },
-        trailingIcon = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                ProviderRuleSearchToggle(
-                    text = SearchMatchCaseLabel,
-                    active = matchCase,
-                    description = stringResource(R.string.mihomo_provider_preview_search_case),
-                    onClick = onToggleMatchCase,
-                )
-                ProviderRuleSearchToggle(
-                    text = SearchRegexLabel,
-                    active = useRegex,
-                    description = stringResource(R.string.mihomo_provider_preview_search_regex),
-                    onClick = onToggleRegex,
-                )
-                if (query.isNotEmpty()) {
-                    IconButton(onClick = { onQueryChange("") }, modifier = Modifier.size(SearchToggleSize)) {
-                        Icon(
-                            imageVector = Icons.Rounded.Clear,
-                            contentDescription = stringResource(R.string.common_clear),
-                            modifier = Modifier.size(16.dp),
-                        )
-                    }
-                }
-            }
-        },
-        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-        keyboardActions = KeyboardActions(onSearch = { onSearch() }),
-        colors = TextFieldDefaults.colors(
-            focusedContainerColor = colorScheme.surfaceContainerHigh,
-            unfocusedContainerColor = colorScheme.surfaceContainerHigh,
-            focusedIndicatorColor = Color.Transparent,
-            unfocusedIndicatorColor = Color.Transparent,
-        ),
-    )
-}
-
-@Composable
-private fun ProviderRuleSearchToggle(
-    text: String,
-    active: Boolean,
-    description: String,
-    onClick: () -> Unit,
-) {
-    val colorScheme = MaterialTheme.colorScheme
-    Box(
-        modifier = Modifier
-            .padding(start = 2.dp)
-            .size(SearchToggleSize)
-            .clip(AsteriskShapeTokens.Pill)
-            .background(if (active) colorScheme.primary.copy(alpha = ToggleActiveAlpha) else Color.Transparent)
-            .clickable(role = Role.Button, onClick = onClick)
-            .semantics { contentDescription = description },
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelMedium,
-            fontFamily = FontFamily.Monospace,
-            color = if (active) colorScheme.primary else colorScheme.onSurfaceVariant,
-        )
     }
 }
 
@@ -719,13 +574,11 @@ private const val GutterAlpha = 0.6f
 private const val MatchHighlightAlpha = 0.22f
 private const val CurrentMatchHighlightAlpha = 0.55f
 private const val CurrentLineAlpha = 0.08f
-private const val ToggleActiveAlpha = 0.16f
 private const val LinesAboveMatch = 2
 private const val SearchDebounceMillis = 120L
 private const val SearchMatchCaseLabel = "Aa"
 private const val SearchRegexLabel = ".*"
 
-private val SearchToggleSize = 32.dp
 private val RuleTextGutterGap = 10.dp
 private val RuleTextVerticalPadding = 2.dp
 private val RuleTextStyle = TextStyle(

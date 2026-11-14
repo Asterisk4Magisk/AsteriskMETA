@@ -5,6 +5,20 @@ package features.mihomo.provider
 
 import java.util.regex.Pattern
 import java.util.regex.PatternSyntaxException
+import kotlin.coroutines.CoroutineContext
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+
+/** Prepares reader rows off the UI thread and stops when its content is replaced. */
+internal suspend fun mihomoRuleTextLines(content: String): List<String> {
+    val context = currentCoroutineContext()
+    context.ensureActive()
+    if (content.isEmpty()) return emptyList()
+    return content.lineSequence().map { line ->
+        context.ensureActive()
+        line
+    }.toList()
+}
 
 /** One match inside one rendered line of a provider preview. */
 internal data class MihomoRuleTextMatch(
@@ -33,22 +47,29 @@ internal data class MihomoRuleTextMatches(
  * set cannot allocate without bound — [MihomoRuleTextMatches.truncated] reports that cut-off, and an
  * unusable pattern is reported instead of thrown at the UI.
  */
-internal fun searchMihomoRuleText(
+internal suspend fun searchMihomoRuleText(
     lines: List<String>,
     query: String,
     matchCase: Boolean,
     useRegex: Boolean,
     limit: Int = MaxMihomoRuleTextMatches,
 ): MihomoRuleTextMatches {
+    val context = currentCoroutineContext()
+    context.ensureActive()
     if (query.isEmpty() || lines.isEmpty()) return MihomoRuleTextMatches()
-    val collector = MihomoRuleTextMatchCollector(limit)
+    val collector = MihomoRuleTextMatchCollector(limit, context)
     if (useRegex) {
         val pattern = try {
-            Pattern.compile(query, if (matchCase) 0 else Pattern.CASE_INSENSITIVE)
+            Pattern.compile(query, if (matchCase) 0 else Pattern.CASE_INSENSITIVE or Pattern.UNICODE_CASE)
         } catch (_: PatternSyntaxException) {
             return MihomoRuleTextMatches(patternInvalid = true)
         }
-        collectRegexMatches(lines, pattern, collector)
+        try {
+            collectRegexMatches(lines, pattern, collector)
+        } catch (_: StackOverflowError) {
+            // The host regex engine can exhaust its stack on a deeply backtracking expression.
+            return MihomoRuleTextMatches(patternInvalid = true)
+        }
     } else {
         collectLiteralMatches(lines, query, matchCase, collector)
     }
@@ -61,16 +82,13 @@ private fun collectRegexMatches(
     collector: MihomoRuleTextMatchCollector,
 ) {
     for (lineIndex in lines.indices) {
+        collector.checkActive()
         val line = lines[lineIndex]
         val matcher = pattern.matcher(line)
-        var from = 0
-        while (from <= line.length && collector.hasRoom()) {
-            if (!matcher.find(from)) break
+        while (collector.hasRoom() && matcher.find()) {
             val start = matcher.start()
             val end = matcher.end()
             collector.add(lineIndex, start, end)
-            // An empty match still has to advance, otherwise the scan never ends.
-            from = if (end > start) end else start + 1
         }
         if (!collector.hasRoom()) return
     }
@@ -83,11 +101,12 @@ private fun collectLiteralMatches(
     collector: MihomoRuleTextMatchCollector,
 ) {
     for (lineIndex in lines.indices) {
+        collector.checkActive()
         val line = lines[lineIndex]
         val lastLineStart = line.length - query.length
         var from = 0
         while (from <= lastLineStart && collector.hasRoom()) {
-            val found = line.indexOf(query, from, matchCase)
+            val found = line.indexOf(query, from, matchCase, collector)
             if (found < 0) break
             collector.add(lineIndex, found, found + query.length)
             from = found + query.length
@@ -97,22 +116,35 @@ private fun collectLiteralMatches(
 }
 
 /** Index of the first occurrence of [query] at or after [from], optionally ignoring case. */
-private fun String.indexOf(query: String, from: Int, matchCase: Boolean): Int {
-    if (matchCase) return indexOf(query, from)
+private fun String.indexOf(
+    query: String,
+    from: Int,
+    matchCase: Boolean,
+    collector: MihomoRuleTextMatchCollector,
+): Int {
     var index = from
     while (index <= length - query.length) {
-        if (regionMatches(index, query, 0, query.length, ignoreCase = true)) return index
+        if (index and 255 == 0) collector.checkActive()
+        if (regionMatches(index, query, 0, query.length, ignoreCase = !matchCase)) return index
         index++
     }
     return -1
 }
 
-private class MihomoRuleTextMatchCollector(private val limit: Int) {
+private class MihomoRuleTextMatchCollector(
+    private val limit: Int,
+    private val context: CoroutineContext,
+) {
     private val matches = ArrayList<MihomoRuleTextMatch>()
     private val byLine = HashMap<Int, MutableList<IntRange>>()
     private var truncated = false
 
-    fun hasRoom(): Boolean = !truncated
+    fun checkActive() = context.ensureActive()
+
+    fun hasRoom(): Boolean {
+        checkActive()
+        return !truncated
+    }
 
     fun add(lineIndex: Int, start: Int, end: Int) {
         if (start >= end) return
