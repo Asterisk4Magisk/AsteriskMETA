@@ -40,6 +40,10 @@ internal sealed interface MihomoProviderRawContent {
         val content: String = "",
         override val lastError: String = "",
         val declarationOnly: Boolean = false,
+        /** Format the text was read from, set to `mrs` when a binary rule set was decoded. */
+        val sourceFormat: String = "",
+        /** Size of the file behind the text; 0 when the content has no file. */
+        val byteSize: Long = 0L,
     ) : MihomoProviderRawContent
 
     data class Binary(

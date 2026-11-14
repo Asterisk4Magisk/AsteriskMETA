@@ -8,6 +8,7 @@ import engine.mihomo.binding.MihomoBridge as Clash
 import engine.mihomo.MihomoProviderDeclaration
 import engine.mihomo.MihomoProviderRawContent
 import engine.mihomo.MihomoProviderRawSource
+import engine.mihomo.MihomoRuleSetMrs
 import features.resources.runtime.prepareMihomoResourceFilePaths
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -63,22 +64,16 @@ internal class MihomoProviderRawContentLoader {
             )
         }
         return runCatching {
-            val header = file.inputStream().use { input ->
-                val bytes = ByteArray(MihomoProviderHeaderSize)
-                val count = input.read(bytes)
-                if (count > 0) bytes.copyOf(count) else byteArrayOf()
-            }
+            val bytes = file.readBytes()
             val format = provider.ruleMetadata?.format.orEmpty()
-            if (isMihomoProviderBinaryContent(format, header)) {
-                return@runCatching MihomoProviderRawContent.Binary(
-                    byteSize = file.length(),
-                    format = format.ifBlank { MihomoMrsFormat },
-                )
+            if (MihomoRuleSetMrs.matches(format, bytes)) {
+                return@runCatching decodeRuleSet(file = file, bytes = bytes, format = format)
             }
-            val content = file.readText(Charsets.UTF_8)
+            val content = String(bytes, Charsets.UTF_8)
                 .decryptAge(provider.ageSecretKey.ifBlank { profileAgeSecretKey })
             MihomoProviderRawContent.Text(
                 content = content,
+                byteSize = file.length(),
             )
         }.getOrElse { error ->
             providerDeclarationFallbackContent(
@@ -87,6 +82,33 @@ internal class MihomoProviderRawContentLoader {
                 unavailableMessage = unavailableMessage,
             )
         }
+    }
+
+    /**
+     * Restores a binary rule set as text. A rule set keeps its binary card only when the payload
+     * cannot be read, which stays diagnosable through the card's error line.
+     */
+    private fun decodeRuleSet(
+        file: File,
+        bytes: ByteArray,
+        format: String,
+    ): MihomoProviderRawContent {
+        return runCatching { MihomoRuleSetMrs.decode(bytes) }.fold(
+            onSuccess = { decoded ->
+                MihomoProviderRawContent.Text(
+                    content = decoded.rules.joinToString(LineSeparator),
+                    sourceFormat = MihomoRuleSetMrs.Format,
+                    byteSize = file.length(),
+                )
+            },
+            onFailure = { error ->
+                MihomoProviderRawContent.Binary(
+                    byteSize = file.length(),
+                    format = format.ifBlank { MihomoRuleSetMrs.Format },
+                    lastError = error.message.orEmpty(),
+                )
+            },
+        )
     }
 }
 
@@ -106,18 +128,8 @@ internal fun Context.mihomoProviderDataDir(): File {
     return File(applicationContext.prepareMihomoResourceFilePaths().dataDir)
 }
 
-internal fun isMihomoProviderBinaryContent(format: String, header: ByteArray): Boolean {
-    val hasMrsMagic = header.size >= 4 &&
-        header[0] == 'M'.code.toByte() &&
-        header[1] == 'R'.code.toByte() &&
-        header[2] == 'S'.code.toByte() &&
-        header[3] == 1.toByte()
-    return format.equals("mrs", ignoreCase = true) || hasMrsMagic
-}
-
 private fun String.decryptAge(ageSecretKey: String): String {
     return Clash.decryptAge(this, ageSecretKey.trim().takeIf(String::isNotBlank))
 }
 
-private const val MihomoProviderHeaderSize = 4
-private const val MihomoMrsFormat = "mrs"
+private const val LineSeparator = "\n"

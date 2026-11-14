@@ -473,10 +473,11 @@ fun MihomoProviderManagementPage(
             )
         }
     }
-    previewState.rawContent?.let { rawContent ->
+    if (previewState.providerName.isNotBlank()) {
         MihomoProviderPreviewDialog(
             providerName = previewState.providerName,
-            rawContent = rawContent,
+            loading = previewState.loading,
+            rawContent = previewState.rawContent,
             onDismissRequest = {
                 previewState = dismissMihomoProviderPreview(previewState)
             },
