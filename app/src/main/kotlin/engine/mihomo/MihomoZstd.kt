@@ -8,30 +8,33 @@ package engine.mihomo
  *
  * Only decompression is implemented, and only what a rule set can contain: the frame and block
  * levels of RFC 8878, raw/RLE/Huffman literals and FSE-coded sequences. Dictionaries are rejected;
- * the content checksum is skipped rather than verified, since the rule set is validated by decoding
- * it. The structure follows the reference decoder closely so every bit-level rule stays checkable
- * against it.
+ * frame content sizes and optional XXH64 checksums are validated before returning the payload.
  */
 internal object MihomoZstd {
     /** Decompresses every frame in [input] and appends their content in order. */
     fun decompress(input: ByteArray): ByteArray {
         val output = ZstdOutput(input.size * OutputGrowthEstimate)
         var position = 0
-        while (input.size - position >= MagicSize) {
+        var hasFrame = false
+        while (position < input.size) {
+            require(input.size - position >= MagicSize) { ZstdTruncated }
             val magic = input.readIntLe(position)
             if (magic == FrameMagic) {
                 position = decompressFrame(input, position + MagicSize, output)
+                hasFrame = true
                 continue
             }
             if (magic and SkippableMagicMask == SkippableMagic) {
                 require(input.size - position >= MagicSize + IntBytes) { ZstdTruncated }
-                position += MagicSize + IntBytes + input.readIntLe(position + MagicSize)
+                val size = input.readIntLe(position + MagicSize).toLong() and 0xFFFFFFFFL
+                position += MagicSize + IntBytes
+                require(size <= input.size - position) { ZstdTruncated }
+                position += size.toInt()
                 continue
             }
-            require(position == 0) { "Unsupported zstd frame" }
-            break
+            throw IllegalArgumentException("Unsupported zstd frame")
         }
-        require(position > 0) { "Missing zstd frame" }
+        require(hasFrame) { "Missing zstd frame" }
         return output.toByteArray()
     }
 
@@ -39,13 +42,17 @@ internal object MihomoZstd {
         require(input.size - start >= 1) { ZstdTruncated }
         var position = start
         val descriptor = input[position++].toInt() and ByteMask
+        require(descriptor and 8 == 0) { "Reserved zstd frame bit is set" }
         val contentSizeFlag = descriptor ushr 6
         val singleSegment = (descriptor ushr 5) and 1 == 1
         val hasChecksum = (descriptor ushr 2) and 1 == 1
         val dictionaryIdFlag = descriptor and 3
         // The window descriptor only bounds the back-reference distance; match distances are
         // validated against the produced output instead.
-        if (!singleSegment) position++
+        if (!singleSegment) {
+            require(position < input.size) { ZstdTruncated }
+            position++
+        }
         val dictionaryIdSize = when (dictionaryIdFlag) {
             0 -> 0
             1 -> 1
@@ -58,12 +65,18 @@ internal object MihomoZstd {
             }
             position += dictionaryIdSize
         }
-        position += when (contentSizeFlag) {
+        val contentSizeBytes = when (contentSizeFlag) {
             0 -> if (singleSegment) 1 else 0
             1 -> 2
             2 -> IntBytes
             else -> LongBytes
         }
+        val contentSize = if (contentSizeBytes == 0) null else {
+            readVariable(input, position, contentSizeBytes) + if (contentSizeBytes == 2) 256L else 0L
+        }
+        position += contentSizeBytes
+        require(contentSize == null || contentSize in 0..MaximumZstdOutput.toLong()) { "Zstd output is too large" }
+        output.beginFrame()
 
         val blockState = BlockState()
         while (true) {
@@ -96,7 +109,12 @@ internal object MihomoZstd {
             }
             if (isLastBlock) break
         }
-        if (hasChecksum) position += IntBytes
+        require(contentSize == null || contentSize == output.frameSize.toLong()) { "Zstd content size does not match" }
+        if (hasChecksum) {
+            val checksum = input.readIntLe(position)
+            require(checksum == output.checksum()) { "Zstd content checksum does not match" }
+            position += IntBytes
+        }
         return position
     }
 
@@ -779,6 +797,15 @@ internal object MihomoZstd {
 private class ZstdOutput(initialCapacity: Int) {
     private var bytes = ByteArray(initialCapacity.coerceIn(MinimumZstdOutput, MaximumZstdOutput))
     private var size = 0
+    private var frameStart = 0
+
+    val frameSize: Int get() = size - frameStart
+
+    fun beginFrame() {
+        frameStart = size
+    }
+
+    fun checksum(): Int = mihomoZstdChecksum(bytes, frameStart, frameSize)
 
     fun append(source: ByteArray, offset: Int, length: Int) {
         if (length == 0) return
@@ -796,7 +823,7 @@ private class ZstdOutput(initialCapacity: Int) {
     }
 
     fun copyWithin(distance: Int, length: Int) {
-        require(distance in 1..size) { "Invalid zstd match distance" }
+        require(distance in 1..frameSize) { "Invalid zstd match distance" }
         ensureCapacity(size + length)
         var from = size - distance
         var to = size
@@ -973,6 +1000,7 @@ private fun ByteArray.readIntLe24(offset: Int): Int {
 }
 
 private fun readVariable(bytes: ByteArray, offset: Int, size: Int): Long {
+    require(offset >= 0 && size <= bytes.size - offset) { ZstdTruncated }
     var value = 0L
     for (index in 0 until size) {
         value = value or ((bytes[offset + index].toLong() and 0xFF) shl (8 * index))

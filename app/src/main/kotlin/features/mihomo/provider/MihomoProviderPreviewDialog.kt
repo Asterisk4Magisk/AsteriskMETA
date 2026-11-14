@@ -35,6 +35,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -108,9 +109,11 @@ internal fun MihomoProviderPreviewDialog(
     val keyboardController = LocalSoftwareKeyboardController.current
     val textContent = rawContent as? MihomoProviderRawContent.Text
     val content = textContent?.content.orEmpty()
-    val lines = remember(content) {
-        if (content.isEmpty()) emptyList() else content.lines()
+    val preparedLines by produceState<List<String>?>(initialValue = null, content) {
+        value = null
+        value = withContext(Dispatchers.Default) { mihomoRuleTextLines(content) }
     }
+    val lines = preparedLines.orEmpty()
     val listState = rememberLazyListState()
     val searchFocusRequester = remember { FocusRequester() }
     var searchActive by rememberSaveable { mutableStateOf(false) }
@@ -128,6 +131,7 @@ internal fun MihomoProviderPreviewDialog(
             return@LaunchedEffect
         }
         searching = true
+        matches = MihomoRuleTextMatches()
         delay(SearchDebounceMillis)
         matches = withContext(Dispatchers.Default) {
             searchMihomoRuleText(
@@ -161,14 +165,12 @@ internal fun MihomoProviderPreviewDialog(
     }
     LaunchedEffect(currentMatchIndex, matches) {
         val match = matches.matches.getOrNull(currentMatchIndex) ?: return@LaunchedEffect
-        listState.animateScrollToItem((match.lineIndex - LinesAboveMatch).coerceAtLeast(0))
-    }
-    LaunchedEffect(searchActive) {
-        if (searchActive) searchFocusRequester.requestFocus()
+        val errorRows = if (textContent?.lastError.isNullOrBlank()) 0 else 1
+        listState.animateScrollToItem((match.lineIndex - LinesAboveMatch).coerceAtLeast(0) + errorRows)
     }
 
     Dialog(
-        onDismissRequest = onDismissRequest,
+        onDismissRequest = { if (searchActive) closeSearch() else onDismissRequest() },
         properties = DialogProperties(
             usePlatformDefaultWidth = false,
             decorFitsSystemWindows = false,
@@ -180,6 +182,7 @@ internal fun MihomoProviderPreviewDialog(
             topBar = {
                 Column {
                     if (searchActive) {
+                        LaunchedEffect(Unit) { searchFocusRequester.requestFocus() }
                         AsteriskTopAppBar(
                             title = {
                                 ProviderRuleSearchField(
@@ -280,18 +283,14 @@ internal fun MihomoProviderPreviewDialog(
                 ),
             )
             when {
-                loading -> ProviderPreviewLoading()
-                textContent != null && lines.isNotEmpty() -> ProviderRuleTextList(
+                loading || preparedLines == null -> ProviderPreviewLoading()
+                textContent != null -> ProviderRuleTextList(
+                    errorMessage = textContent.lastError,
                     lines = lines,
                     matches = matches,
                     currentMatch = currentMatch,
                     contentPadding = contentPadding,
                     listState = listState,
-                )
-
-                textContent != null -> ProviderPreviewMessage(
-                    contentPadding = contentPadding,
-                    text = stringResource(R.string.common_empty),
                 )
 
                 else -> ProviderPreviewBinaryContent(
@@ -320,21 +319,6 @@ private fun ProviderPreviewLoading() {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-    }
-}
-
-@Composable
-private fun ProviderPreviewMessage(
-    contentPadding: PaddingValues,
-    text: String,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(contentPadding),
-    ) {
-        ProviderMessageCard(text = text)
     }
 }
 
@@ -384,6 +368,7 @@ private fun ProviderPreviewBinaryContent(
 
 @Composable
 private fun ProviderRuleTextList(
+    errorMessage: String,
     lines: List<String>,
     matches: MihomoRuleTextMatches,
     currentMatch: MihomoRuleTextMatch?,
@@ -401,6 +386,11 @@ private fun ProviderRuleTextList(
         contentPadding = contentPadding,
         modifier = Modifier.fillMaxSize(),
     ) {
+        if (errorMessage.isNotBlank()) {
+            item { ProviderMessageCard(text = errorMessage) }
+        } else if (lines.isEmpty()) {
+            item { ProviderMessageCard(text = stringResource(R.string.common_empty)) }
+        }
         items(count = lines.size) { index ->
             ProviderRuleTextLine(
                 lineNumber = index + 1,
@@ -528,13 +518,13 @@ private fun ProviderRuleSearchControls(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
-        IconButton(onClick = onPrevious, enabled = matches.hasMatches) {
+        IconButton(onClick = onPrevious, enabled = matches.hasMatches && !searching) {
             Icon(
                 imageVector = Icons.Rounded.ArrowUpward,
                 contentDescription = stringResource(R.string.mihomo_provider_preview_search_previous),
             )
         }
-        IconButton(onClick = onNext, enabled = matches.hasMatches) {
+        IconButton(onClick = onNext, enabled = matches.hasMatches && !searching) {
             Icon(
                 imageVector = Icons.Rounded.ArrowDownward,
                 contentDescription = stringResource(R.string.mihomo_provider_preview_search_next),

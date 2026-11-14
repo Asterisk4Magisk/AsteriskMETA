@@ -145,36 +145,13 @@ private object DomainKeyOrder : Comparator<String> {
 /**
  * Reads the reversed label bytes of one key back into a domain pattern.
  *
- * The trie stores the rune-reversed domain, so each rune sits in the buffer with its bytes reversed
- * and a trailing `+` marks a suffix-only pattern.
+ * The trie reverses Unicode code points, keeping each code point's UTF-8 bytes in order.
+ * A trailing `+` marks a suffix-only pattern.
  */
 private fun DomainKeyBuffer.decode(): String {
     var end = length
     if (end > 0 && bytes[end - 1] == DomainWildcardMarker) end--
-    val domain = StringBuilder(end)
-    var index = end - 1
-    while (index >= 0) {
-        val lead = bytes[index].toInt() and ByteMask
-        val size = when {
-            lead < Utf8SingleByteLimit -> 1
-            lead and Utf8TwoByteMask == Utf8TwoByteLead -> 2
-            lead and Utf8ThreeByteMask == Utf8ThreeByteLead -> 3
-            lead and Utf8FourByteMask == Utf8FourByteLead -> 4
-            else -> 1
-        }
-        if (index - size + 1 < 0) break
-        if (size == 1) {
-            domain.append(bytes[index].toInt().toChar())
-        } else {
-            val rune = ByteArray(size)
-            for (offset in 0 until size) {
-                rune[offset] = bytes[index - offset]
-            }
-            domain.append(String(rune, Charsets.UTF_8))
-        }
-        index -= size
-    }
-    return domain.toString()
+    return StringBuilder(String(bytes, 0, end, Charsets.UTF_8)).reverse().toString()
 }
 
 /** IPCIDR behavior payload: inclusive address ranges, each written as a 16-byte address pair. */
@@ -385,14 +362,6 @@ private const val DomainSuffixShorthand = "+."
 private const val InitialDomainKeyCapacity = 64
 private const val LongShift = 6
 private const val LongMask = 63
-
-private const val Utf8SingleByteLimit = 0x80
-private const val Utf8TwoByteMask = 0xE0
-private const val Utf8TwoByteLead = 0xC0
-private const val Utf8ThreeByteMask = 0xF0
-private const val Utf8ThreeByteLead = 0xE0
-private const val Utf8FourByteMask = 0xF8
-private const val Utf8FourByteLead = 0xF0
 
 private val DomainWildcardMarker: Byte = '+'.code.toByte()
 private val MrsMagic = byteArrayOf(
