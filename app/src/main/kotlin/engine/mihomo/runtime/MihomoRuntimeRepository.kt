@@ -38,6 +38,7 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -673,7 +674,7 @@ internal class MihomoRuntimeRepository(
         if (!delayProbeThrottle.take(proxyId, nowMillis)) return
         try {
             startDelayTest(MihomoDelayTarget.Node(proxyId), preemptible = true) {
-                runProxyDelayTest(appState, proxyId, testUrl = "", expectedStatus = "")
+                runProxyDelayTest(appState, proxyId, testUrl = "", expectedStatus = "", preemptible = true)
             }.await()
         } catch (error: CancellationException) {
             // The test runs in the app scope; a caller that moved on (the node changed, the app
@@ -747,10 +748,11 @@ internal class MihomoRuntimeRepository(
         proxyId: MihomoProxyNodeId,
         testUrl: String,
         expectedStatus: String,
+        preemptible: Boolean = false,
     ): MihomoDelayResult {
         return runInteractiveDelayTest(appState) { control, useBridge ->
             val groupFallbackName = state.value.proxies.groupFallbackFor(proxyId)
-            client.testProxyDelay(
+            suspend fun measure() = client.testProxyDelay(
                 config = control,
                 proxyId = proxyId,
                 url = testUrl.ifBlank { appState.connectionTestUrl },
@@ -759,6 +761,18 @@ internal class MihomoRuntimeRepository(
                 groupFallbackName = groupFallbackName,
                 useBridge = useBridge,
             )
+            if (preemptible) {
+                currentCoroutineContext().ensureActive()
+                // Cancellation releases the test slot without waiting for the blocking core call.
+                val request = appScope.async(Dispatchers.IO) { measure() }
+                try {
+                    request.await()
+                } finally {
+                    request.cancel()
+                }
+            } else {
+                measure()
+            }
         }
     }
 
