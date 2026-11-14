@@ -34,7 +34,7 @@ import engine.mihomo.DefaultMihomoControlPort
 import engine.mihomo.DefaultMihomoSnifferHttpPorts
 import engine.mihomo.DefaultMihomoSnifferQuicPorts
 import engine.mihomo.DefaultMihomoSnifferTlsPorts
-import engine.mihomo.MihomoFindProcessModeFollowProfile
+import engine.mihomo.MihomoFindProcessModeStrict
 import engine.mihomo.MihomoGeodataLoaderStandard
 import engine.mihomo.MihomoDnsModeFakeIp
 import engine.mihomo.MihomoDnsModeRedirHost
@@ -118,7 +118,7 @@ data class AppState(
     val enableTrafficStatsNotification: Boolean = false,
     val enableBroadcastControl: Boolean = false,
     val mihomoGeodataLoader: Int = MihomoGeodataLoaderStandard,
-    val mihomoFindProcessMode: Int = MihomoFindProcessModeFollowProfile,
+    val mihomoFindProcessMode: Int = MihomoFindProcessModeStrict,
     val enableResourceAutoUpdate: Boolean = false,
     val resourceAutoUpdateInterval: String = "24",
     val resourceFileSource: Int = ResourceFileSourceMetaCubeXGithub,

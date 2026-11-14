@@ -104,7 +104,7 @@ internal fun ConnectionsMonitorPage(padding: PaddingValues) {
     val context = LocalContext.current
     val iconSizePx = with(LocalDensity.current) { ANDROID_APP_ICON_SIZE_DP.dp.roundToPx() }
     var query by rememberSaveable { mutableStateOf("") }
-    var route by rememberSaveable { mutableStateOf(ConnectionRouteFilter.All) }
+    var route by rememberSaveable { mutableStateOf(ConnectionRouteFilter.App) }
     var sort by rememberSaveable { mutableStateOf(ConnectionSort.Traffic) }
     var selected by remember { mutableStateOf<MihomoConnection?>(null) }
     var expandedAppKeys by remember { mutableStateOf(emptySet<String>()) }
@@ -731,10 +731,9 @@ private fun StatusCard(message: String, loading: Boolean = false) {
 @Composable
 private fun connectionRouteLabel(route: ConnectionRouteFilter): String = stringResource(
     when (route) {
-        ConnectionRouteFilter.All -> R.string.common_all
+        ConnectionRouteFilter.App -> R.string.monitor_filter_app
         ConnectionRouteFilter.Proxy -> R.string.monitor_filter_proxy
         ConnectionRouteFilter.Direct -> R.string.monitor_filter_direct
-        ConnectionRouteFilter.App -> R.string.monitor_filter_app
     },
 )
 
