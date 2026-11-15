@@ -509,10 +509,6 @@
     <string name="mihomo_provider_missing">Provider does not exist in the current profile</string>
     <string name="mihomo_provider_preview_decoded_mrs">Decoded MRS</string>
     <string name="mihomo_provider_preview_loading">Reading provider content</string>
-    <plurals name="mihomo_provider_preview_lines">
-        <item quantity="one">%1$d line</item>
-        <item quantity="other">%1$d lines</item>
-    </plurals>
     <string name="mihomo_provider_proxies_count">{count} proxies</string>
     <string name="mihomo_provider_proxies_empty">No proxies</string>
     <string name="mihomo_provider_proxies_search">Search proxies</string>

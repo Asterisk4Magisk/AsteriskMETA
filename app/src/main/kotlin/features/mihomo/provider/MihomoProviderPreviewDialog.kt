@@ -41,7 +41,6 @@ import ui.components.AsteriskTopBarControls
 import ui.components.rememberCodePreviewDocument
 import ui.layout.rememberCodeEditorFocusState
 import ui.theme.AsteriskMotion
-import utils.toReadableBytes
 import ui.icons.AsteriskIcons as Icons
 
 /** Provider-specific decoding and diagnostics use the shared full-screen code preview. */
@@ -60,8 +59,7 @@ internal fun MihomoProviderPreviewDialog(
         editorFocused = editorState?.isFocused == true,
         clearEditorFocus = { editorState?.clearFocus() },
     )
-    val lineCount = if (content.isEmpty()) 0 else document?.lineCount ?: 0
-    val metadata = providerPreviewMetadata(rawContent, lineCount)
+    val metadata = providerPreviewMetadata(rawContent)
     val searchAvailable = textContent != null && editorState != null
     AsteriskCodePreviewDialog(
         title = providerName.ifBlank { ProviderPreviewFallbackName },
@@ -121,7 +119,7 @@ private fun ProviderPreviewLoading() {
 private fun ProviderPreviewBinaryContent(
     content: MihomoProviderRawContent.Binary?,
 ) {
-    val metadata = providerPreviewMetadata(rawContent = content, lineCount = 0)
+    val metadata = providerPreviewMetadata(content)
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -192,35 +190,15 @@ private fun ProviderPreviewTextContent(
 @Composable
 private fun providerPreviewMetadata(
     rawContent: MihomoProviderRawContent?,
-    lineCount: Int,
 ): String {
     return when (rawContent) {
-        is MihomoProviderRawContent.Text -> {
-            var metadata = when {
-                // A decoded rule set is no longer the file the provider declares.
-                rawContent.sourceFormat.equals(MihomoRuleSetMrs.Format, ignoreCase = true) ->
-                    stringResource(R.string.mihomo_provider_preview_decoded_mrs)
+        is MihomoProviderRawContent.Text -> when {
+            // A decoded rule set is no longer the file the provider declares.
+            rawContent.sourceFormat.equals(MihomoRuleSetMrs.Format, ignoreCase = true) ->
+                stringResource(R.string.mihomo_provider_preview_decoded_mrs)
 
-                rawContent.declarationOnly -> stringResource(R.string.mihomo_provider_raw_declaration)
-                else -> ""
-            }
-            if (rawContent.byteSize > 0L) {
-                val size = rawContent.byteSize.toReadableBytes()
-                metadata = if (metadata.isBlank()) size else stringResource(
-                    R.string.mihomo_provider_raw_metadata,
-                    metadata,
-                    size,
-                )
-            }
-            if (lineCount > 0) {
-                val lines = pluralStringResource(R.plurals.mihomo_provider_preview_lines, lineCount, lineCount)
-                metadata = if (metadata.isBlank()) lines else stringResource(
-                    R.string.mihomo_provider_raw_metadata,
-                    metadata,
-                    lines,
-                )
-            }
-            metadata
+            rawContent.declarationOnly -> stringResource(R.string.mihomo_provider_raw_declaration)
+            else -> ""
         }
 
         is MihomoProviderRawContent.Binary -> {
@@ -228,11 +206,6 @@ private fun providerPreviewMetadata(
                 R.string.mihomo_provider_raw_metadata,
                 stringResource(R.string.mihomo_rule_provider_binary_preview),
                 rawContent.format.ifBlank { MihomoRuleSetMrs.Format }.uppercase(),
-            )
-            metadata = stringResource(
-                R.string.mihomo_provider_raw_metadata,
-                metadata,
-                rawContent.byteSize.toReadableBytes(),
             )
             rawContent.ruleCount?.let { count ->
                 metadata = stringResource(

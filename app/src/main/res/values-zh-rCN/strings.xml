@@ -497,9 +497,6 @@
     <string name="mihomo_provider_missing">当前配置中不存在该 Provider</string>
     <string name="mihomo_provider_preview_decoded_mrs">已解码 MRS</string>
     <string name="mihomo_provider_preview_loading">正在读取 Provider 内容</string>
-    <plurals name="mihomo_provider_preview_lines">
-        <item quantity="other">%1$d 行</item>
-    </plurals>
     <string name="mihomo_provider_proxies_count">{count} 个节点</string>
     <string name="mihomo_provider_proxies_empty">没有节点</string>
     <string name="mihomo_provider_proxies_search">搜索节点</string>
