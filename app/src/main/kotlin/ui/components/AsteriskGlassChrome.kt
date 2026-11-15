@@ -81,7 +81,7 @@ internal fun chromeStyle(containerColor: Color = MaterialTheme.colorScheme.surfa
     return HazeBlurStyle {
         backgroundColor(containerColor)
         colorEffects(listOf(tint))
-        blurRadius(14.dp)
+        blurRadius(12.dp)
         noiseFactor(0f)
         fallbackColorEffect(tint)
     }
