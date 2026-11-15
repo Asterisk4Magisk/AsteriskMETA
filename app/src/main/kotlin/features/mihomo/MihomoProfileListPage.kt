@@ -1004,9 +1004,8 @@ internal fun MihomoProfileCard(
                 if (displayState.ruleOverrideEntryCount > 0) add(
                     stringResource(R.string.mihomo_rule_override_applied, displayState.ruleOverrideEntryCount),
                 )
-                if (overrideScriptName != null) add(
-                    if (displayState.rawConfiguration) stringResource(R.string.mihomo_profile_override_script_stopped)
-                    else stringResource(R.string.mihomo_profile_override_script_applied)
+                if (overrideScriptName != null && !displayState.rawConfiguration) add(
+                    stringResource(R.string.mihomo_profile_override_script_applied)
                         .formatTemplate("name" to overrideScriptName),
                 )
             }.joinToString(" · ")

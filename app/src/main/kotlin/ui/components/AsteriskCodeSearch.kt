@@ -255,7 +255,6 @@ private fun CodeSearchOverlay(
                                 next.y.coerceIn(gutter, maxY),
                             )
                         },
-                        onReset = { draggedPosition = null },
                     )
                 }
             }
@@ -267,13 +266,11 @@ private fun CodeSearchOverlay(
 private fun CodeSearchDragHandle(
     onDragStarted: () -> Unit,
     onDrag: (Offset) -> Unit,
-    onReset: () -> Unit,
 ) {
     val currentOnDragStarted by rememberUpdatedState(onDragStarted)
     val currentOnDrag by rememberUpdatedState(onDrag)
-    IconButton(
-        onClick = onReset,
-        modifier = Modifier.pointerInput(Unit) {
+    Box(
+        modifier = Modifier.size(48.dp).pointerInput(Unit) {
             detectDragGestures(
                 onDragStart = { currentOnDragStarted() },
             ) { change, delta ->
@@ -281,6 +278,7 @@ private fun CodeSearchDragHandle(
                 currentOnDrag(delta)
             }
         },
+        contentAlignment = Alignment.Center,
     ) {
         Icon(
             imageVector = Icons.Rounded.DragIndicator,

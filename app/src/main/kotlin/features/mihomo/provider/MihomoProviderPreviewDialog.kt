@@ -60,7 +60,7 @@ internal fun MihomoProviderPreviewDialog(
         title = providerName.ifBlank { ProviderPreviewFallbackName },
         onDismissRequest = onDismissRequest,
         searchAvailable = searchAvailable,
-        actions = { if (searchAvailable && editorState != null) AsteriskCodeCopyButton(editorState::snapshotText) },
+        actions = { if (searchAvailable) AsteriskCodeCopyButton(editorState::snapshotText) },
         topBarContent = {
             if (metadata.isNotBlank()) {
                 AsteriskTopBarControls {
@@ -180,29 +180,28 @@ private fun providerPreviewMetadata(
 ): String {
     return when (rawContent) {
         is MihomoProviderRawContent.Text -> {
-            val source = stringResource(
-                when {
-                    // A decoded rule set is no longer the file the provider declares.
-                    rawContent.sourceFormat.equals(MihomoRuleSetMrs.Format, ignoreCase = true) ->
-                        R.string.mihomo_provider_preview_decoded_mrs
+            var metadata = when {
+                // A decoded rule set is no longer the file the provider declares.
+                rawContent.sourceFormat.equals(MihomoRuleSetMrs.Format, ignoreCase = true) ->
+                    stringResource(R.string.mihomo_provider_preview_decoded_mrs)
 
-                    rawContent.declarationOnly -> R.string.mihomo_provider_raw_declaration
-                    else -> R.string.mihomo_provider_raw_temporary
-                },
-            )
-            var metadata = source
+                rawContent.declarationOnly -> stringResource(R.string.mihomo_provider_raw_declaration)
+                else -> ""
+            }
             if (rawContent.byteSize > 0L) {
-                metadata = stringResource(
+                val size = rawContent.byteSize.toReadableBytes()
+                metadata = if (metadata.isBlank()) size else stringResource(
                     R.string.mihomo_provider_raw_metadata,
                     metadata,
-                    rawContent.byteSize.toReadableBytes(),
+                    size,
                 )
             }
             if (lineCount > 0) {
-                metadata = stringResource(
+                val lines = pluralStringResource(R.plurals.mihomo_provider_preview_lines, lineCount, lineCount)
+                metadata = if (metadata.isBlank()) lines else stringResource(
                     R.string.mihomo_provider_raw_metadata,
                     metadata,
-                    pluralStringResource(R.plurals.mihomo_provider_preview_lines, lineCount, lineCount),
+                    lines,
                 )
             }
             metadata

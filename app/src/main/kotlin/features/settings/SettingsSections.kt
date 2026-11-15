@@ -169,7 +169,6 @@ internal fun SettingsCoreSection(
     val rawState = LocalRawConfigState.current
     val raw = rawState.snapshot
     val rawEnabled = rawState.showsReadOnlyYamlValues
-    val fromYaml = stringResource(R.string.settings_value_from_yaml)
     val notConfigured = stringResource(R.string.settings_value_not_configured)
     SmallTitle(text = stringResource(R.string.settings_core))
     SettingsSectionCard {
@@ -209,7 +208,6 @@ internal fun SettingsCoreSection(
                 title = stringResource(R.string.settings_sniffer),
                 accent = IconAccent.MaskGreen,
                 value = raw?.snifferEnabled?.value?.toString() ?: notConfigured,
-                source = fromYaml,
                 summary = raw?.snifferEnabled?.path ?: rawState.unavailableReason.orEmpty(),
                 icon = Icons.Rounded.TravelExplore,
             )
@@ -217,7 +215,6 @@ internal fun SettingsCoreSection(
                 title = stringResource(R.string.settings_geodata_mode),
                 accent = IconAccent.MaskBlue,
                 value = raw?.geodataMode?.value?.toString() ?: notConfigured,
-                source = fromYaml,
                 summary = raw?.geodataMode?.path ?: rawState.unavailableReason.orEmpty(),
                 icon = Icons.Rounded.Public,
             )
@@ -225,7 +222,6 @@ internal fun SettingsCoreSection(
                 title = stringResource(R.string.settings_geodata_loader),
                 accent = IconAccent.MaskGrey,
                 value = raw?.geodataLoader?.value ?: notConfigured,
-                source = fromYaml,
                 summary = raw?.geodataLoader?.path ?: rawState.unavailableReason.orEmpty(),
                 icon = Icons.Rounded.Storage,
             )
@@ -272,7 +268,6 @@ internal fun SettingsCoreSection(
                 title = stringResource(R.string.settings_log_level),
                 accent = IconAccent.MaskRed,
                 value = raw?.logLevel?.value ?: notConfigured,
-                source = fromYaml,
                 summary = raw?.logLevel?.path ?: rawState.unavailableReason.orEmpty(),
                 icon = Icons.Rounded.BugReport,
             )
@@ -341,14 +336,13 @@ internal fun SettingsAdvancedSection(
                 title = "IPv6",
                 accent = IconAccent.MaskBlue,
                 value = raw?.ipv6?.value?.toString() ?: stringResource(R.string.settings_value_not_configured),
-                source = stringResource(R.string.settings_value_from_yaml),
                 summary = raw?.ipv6?.path ?: rawState.unavailableReason.orEmpty(),
                 icon = Icons.Rounded.Public,
             )
             SettingsReadOnlyRow(
                 title = stringResource(R.string.mihomo_profile_override_script),
                 accent = IconAccent.MaskPurple,
-                value = stringResource(R.string.mihomo_profile_override_script_stopped),
+                value = "",
                 source = stringResource(R.string.mihomo_profile_raw_chip),
                 icon = Icons.Rounded.Lock,
             )
@@ -579,7 +573,6 @@ internal fun SettingsProxyModeSections(
                             accent = IconAccent.MaskBlueVariant,
                             value = raw?.tunInbound?.value?.let { "${it.device} · ${it.stack} · ${it.mtu}" }
                                 ?: stringResource(R.string.settings_value_not_configured),
-                            source = stringResource(R.string.settings_value_from_yaml),
                             summary = raw?.tunInbound?.path ?: rawState.unavailableReason.orEmpty(),
                             icon = Icons.Rounded.SettingsInputComponent,
                         )
@@ -635,7 +628,6 @@ private fun LocalProxyPreference(
             accent = IconAccent.MaskBlue,
             value = raw?.socksInbound?.value?.port?.toString()
                 ?: stringResource(R.string.settings_value_not_configured),
-            source = stringResource(R.string.settings_value_from_yaml),
             summary = raw?.socksInbound?.path ?: rawState.unavailableReason.orEmpty(),
             icon = Icons.Rounded.Router,
         )

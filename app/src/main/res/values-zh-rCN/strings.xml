@@ -20,7 +20,7 @@
     <string name="code_editor_search_empty">无匹配结果</string>
     <string name="code_editor_search_hint">查找</string>
     <string name="code_editor_search_invalid">正则表达式无效</string>
-    <string name="code_editor_search_move">拖动移动查找浮窗，点击恢复位置</string>
+    <string name="code_editor_search_move">拖动移动查找浮窗</string>
     <string name="code_editor_search_next">下一个匹配</string>
     <string name="code_editor_search_previous">上一个匹配</string>
     <string name="code_editor_search_regex">使用正则表达式</string>
@@ -328,7 +328,6 @@
     <string name="mihomo_profile_override_script">覆写脚本</string>
     <string name="mihomo_profile_override_script_applied">脚本：{name}</string>
     <string name="mihomo_profile_override_script_none">不应用</string>
-    <string name="mihomo_profile_override_script_stopped">原始配置模式下已停用</string>
     <string name="mihomo_profile_preview">预览</string>
     <string name="mihomo_profile_preview_failed">预览配置失败</string>
     <string name="mihomo_profile_preview_title">预览 {name}</string>
@@ -409,7 +408,6 @@
     <string name="mihomo_profile_url">URL</string>
     <string name="mihomo_profile_user_agent">User-Agent</string>
     <string name="mihomo_profiles_title">配置管理</string>
-    <string name="settings_value_from_yaml">来自 YAML</string>
     <string name="settings_value_not_configured">未配置</string>
 
     <!-- Provider management -->
@@ -441,7 +439,6 @@
     <string name="mihomo_provider_proxies_search">搜索节点</string>
     <string name="mihomo_provider_raw_declaration">声明片段</string>
     <string name="mihomo_provider_raw_metadata">%1$s · %2$s</string>
-    <string name="mihomo_provider_raw_temporary">临时编辑</string>
     <string name="mihomo_provider_runtime_error">%1$s：%2$s</string>
     <string name="mihomo_provider_runtime_unavailable">运行时 Provider 数据不可用</string>
     <string name="mihomo_provider_traffic_unlimited">不限量</string>

@@ -1103,7 +1103,6 @@ private fun ProfileOverrideScriptSelector(
         SettingsActionRow(
             title = stringResource(R.string.mihomo_profile_override_script),
             horizontalPadding = 0.dp,
-            summary = stringResource(R.string.mihomo_profile_override_script_stopped),
             icon = Icons.Rounded.Lock,
             enabled = false,
             onClick = {},

@@ -283,8 +283,8 @@ internal fun SettingsDropdownRow(
 internal fun SettingsReadOnlyRow(
     title: String,
     value: String,
-    source: String,
     modifier: Modifier = Modifier,
+    source: String = "",
     icon: ImageVector = Icons.Rounded.Lock,
     summary: String = "",
     accent: IconAccent = IconAccent.Surface,
@@ -296,14 +296,18 @@ internal fun SettingsReadOnlyRow(
         icon = icon,
         summary = summary,
         value = value,
-        modifier = modifier.semantics { contentDescription = "$title，$value，$source" },
-        trailing = {
-            Text(
-                text = source,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary,
-            )
+        modifier = modifier.semantics {
+            contentDescription = listOf(title, value, source).filter(String::isNotBlank).joinToString("，")
         },
+        trailing = if (source.isNotBlank()) {
+            {
+                Text(
+                    text = source,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+        } else null,
     )
 }
 
