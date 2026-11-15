@@ -3,12 +3,8 @@
 
 package ui.layout
 
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import ui.components.AsteriskTopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.calculateEndPadding
@@ -80,11 +76,13 @@ fun pageContentPadding(
     extraEnd: Dp = 0.dp,
 ): PaddingValues {
     val topPadding = innerPadding.calculateTopPadding() + extraTop
-    val bottomPadding = if (isWideScreen) {
+    val outerBottomPadding = if (isWideScreen) {
         WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + outerPadding.calculateBottomPadding()
     } else {
         outerPadding.calculateBottomPadding()
     }
+    // Standalone windows have no outer page padding; retain their Scaffold's system-bar inset.
+    val bottomPadding = maxOf(innerPadding.calculateBottomPadding(), outerBottomPadding)
     return remember(topPadding, bottomPadding, extraStart, extraEnd) {
         PaddingValues(
             top = topPadding,
@@ -128,36 +126,3 @@ fun pageListPadding(
         bottom = contentPadding.calculateBottomPadding() + bottomExtra,
     )
 }
-
-@Composable
-fun AdaptiveTopAppBar(
-    title: String,
-    isWideScreen: Boolean,
-    scrollBehavior: TopAppBarScrollBehavior,
-    modifier: Modifier = Modifier,
-    subtitle: String = "",
-    navigationIcon: @Composable () -> Unit = {},
-    actions: @Composable RowScope.() -> Unit = {},
-    bottomContent: @Composable () -> Unit = {},
-) {
-    AsteriskTopAppBar(
-        title = {
-            androidx.compose.foundation.layout.Column {
-                Text(title, style = MaterialTheme.typography.titleLarge)
-                if (subtitle.isNotBlank()) {
-                    Text(
-                        subtitle,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                bottomContent()
-            }
-        },
-        modifier = modifier,
-        scrollBehavior = scrollBehavior,
-        navigationIcon = navigationIcon,
-        actions = actions,
-    )
-}
-

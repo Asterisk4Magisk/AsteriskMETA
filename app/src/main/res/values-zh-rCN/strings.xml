@@ -8,6 +8,22 @@
     <string name="code_editor_format_failed">格式化失败，请检查语法后重试</string>
     <string name="code_editor_format_javascript">格式化 JavaScript</string>
     <string name="code_editor_format_yaml">格式化 YAML</string>
+    <string name="code_editor_replace">替换</string>
+    <string name="code_editor_replace_all">全部替换</string>
+    <string name="code_editor_replace_changed">替换期间内容已更改，请重试。</string>
+    <string name="code_editor_replace_hide">收起替换</string>
+    <string name="code_editor_replace_hint">替换为</string>
+    <string name="code_editor_replace_show">展开替换</string>
+    <string name="code_editor_search_case">区分大小写</string>
+    <string name="code_editor_search_close">关闭搜索</string>
+    <string name="code_editor_search_count">%1$d/%2$d</string>
+    <string name="code_editor_search_empty">无匹配结果</string>
+    <string name="code_editor_search_hint">查找</string>
+    <string name="code_editor_search_invalid">正则表达式无效</string>
+    <string name="code_editor_search_move">拖动移动查找浮窗，点击恢复位置</string>
+    <string name="code_editor_search_next">下一个匹配</string>
+    <string name="code_editor_search_previous">上一个匹配</string>
+    <string name="code_editor_search_regex">使用正则表达式</string>
     <string name="common_add">添加</string>
     <string name="common_all">全部</string>
     <string name="common_back">返回</string>
@@ -420,22 +436,12 @@
     <plurals name="mihomo_provider_preview_lines">
         <item quantity="other">%1$d 行</item>
     </plurals>
-    <string name="mihomo_provider_preview_search_case">区分大小写</string>
-    <string name="mihomo_provider_preview_search_close">关闭搜索</string>
-    <string name="mihomo_provider_preview_search_count">%1$d/%2$d</string>
-    <string name="mihomo_provider_preview_search_count_truncated">%1$d/%2$d+</string>
-    <string name="mihomo_provider_preview_search_empty">无匹配结果</string>
-    <string name="mihomo_provider_preview_search_hint">搜索规则</string>
-    <string name="mihomo_provider_preview_search_invalid">正则表达式无效</string>
-    <string name="mihomo_provider_preview_search_next">下一个匹配</string>
-    <string name="mihomo_provider_preview_search_previous">上一个匹配</string>
-    <string name="mihomo_provider_preview_search_regex">使用正则表达式</string>
     <string name="mihomo_provider_proxies_count">{count} 个节点</string>
     <string name="mihomo_provider_proxies_empty">没有节点</string>
     <string name="mihomo_provider_proxies_search">搜索节点</string>
     <string name="mihomo_provider_raw_declaration">声明片段</string>
     <string name="mihomo_provider_raw_metadata">%1$s · %2$s</string>
-    <string name="mihomo_provider_raw_read_only">只读</string>
+    <string name="mihomo_provider_raw_temporary">临时编辑</string>
     <string name="mihomo_provider_runtime_error">%1$s：%2$s</string>
     <string name="mihomo_provider_runtime_unavailable">运行时 Provider 数据不可用</string>
     <string name="mihomo_provider_traffic_unlimited">不限量</string>
@@ -570,7 +576,7 @@
     <string name="mihomo_override_script_debug_success">成功</string>
     <string name="mihomo_override_script_debug_summary">节点 %1$d → %2$d · 策略组 %3$d → %4$d · 规则 %5$d → %6$d</string>
     <string name="mihomo_override_script_debug_summary_title">摘要</string>
-    <string name="mihomo_override_script_debug_title">调试</string>
+    <string name="mihomo_override_script_debug_title">调试结果</string>
     <plurals name="mihomo_override_script_delete_message">
         <item quantity="other">删除“%1$s”后，引用它的 %2$d 个配置也会移除该脚本；两项变更将一并完成。</item>
     </plurals>

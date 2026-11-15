@@ -20,19 +20,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import ui.icons.AsteriskIcons as Icons
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import ui.components.AsteriskModalBottomSheet
-import ui.components.AsteriskActionButton
+import ui.components.AsteriskCodePreviewDialog
+import ui.components.AsteriskCodeCopyButton
+import ui.components.AsteriskCodePreviewLoading
+import ui.components.rememberCodePreviewDocument
 import ui.components.AsteriskScaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -51,7 +51,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -59,8 +58,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import app.DefaultMihomoOverrideScriptId
 import app.DefaultMihomoProfileId
 import app.LocalAppServices
@@ -73,7 +70,6 @@ import app.MihomoProfileState
 import app.MihomoProfileType
 import app.R
 import app.collectAppState
-import ui.clipboard.setPlainText
 import app.navigation.Route
 import engine.mihomo.MihomoProviderMetadataCache
 import engine.mihomo.MihomoProfileFactory
@@ -1229,68 +1225,17 @@ private fun MihomoProfilePreviewDialog(
     onDismissRequest: () -> Unit,
 ) {
     if (!show) return
-    val clipboard = LocalClipboard.current
-    val services = LocalAppServices.current
-    val scope = rememberCoroutineScope()
-    val copiedMessage = stringResource(R.string.logs_copied_to_clipboard)
-    val previewEditorState = remember(content) {
-        MihomoCodeEditorState(content).also { state ->
-            state.replaceText(content, placeCursorAtEnd = false)
-        }
-    }
-
-    Dialog(
+    val document = rememberCodePreviewDocument(content)
+    val editorState = remember(document) { document?.let { MihomoCodeEditorState(it, placeCursorAtEnd = false) } }
+    AsteriskCodePreviewDialog(
+        title = stringResource(R.string.mihomo_profile_preview_title)
+            .formatTemplate("name" to profileName.ifBlank { "-" }),
         onDismissRequest = onDismissRequest,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
-    ) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .widthIn(max = 880.dp)
-                .padding(24.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-        ) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                Text(
-                    text = stringResource(R.string.mihomo_profile_preview_title)
-                        .formatTemplate("name" to profileName.ifBlank { "-" }),
-                    style = MaterialTheme.typography.headlineSmall,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-                )
-                YamlCodeEditor(
-                    state = previewEditorState,
-                    readOnly = true,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f, fill = false)
-                        .heightIn(min = 360.dp, max = 560.dp),
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-                ) {
-                    if (content.isNotBlank()) {
-                        AsteriskActionButton(
-                            text = stringResource(R.string.common_copy),
-                            icon = Icons.Rounded.ContentCopy,
-                            onClick = {
-                                scope.launch {
-                                    clipboard.setPlainText(content)
-                                    services.tipNotifier.show(copiedMessage)
-                                }
-                            },
-                        )
-                    }
-                    AsteriskActionButton(
-                        text = stringResource(R.string.common_complete),
-                        icon = Icons.Rounded.Check,
-                        onClick = onDismissRequest,
-                    )
-                }
-            }
-        }
+        searchAvailable = editorState != null,
+        actions = { if (editorState != null) AsteriskCodeCopyButton(editorState::snapshotText) },
+    ) { searchState, editorModifier ->
+        if (editorState == null) AsteriskCodePreviewLoading()
+        else YamlCodeEditor(editorState, Modifier.fillMaxSize().then(editorModifier), searchState = searchState, showFormatButton = false)
     }
 }
 

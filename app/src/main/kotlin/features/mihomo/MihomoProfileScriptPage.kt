@@ -3,13 +3,23 @@
 
 package features.mihomo
 
-import androidx.compose.ui.window.Dialog
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Card
-import androidx.compose.foundation.layout.widthIn
+
+import androidx.navigationevent.compose.rememberNavigationEventState
+
+import androidx.navigationevent.compose.NavigationBackHandler
+
+import androidx.navigationevent.NavigationEventInfo
+
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+
+import androidx.compose.ui.platform.LocalFocusManager
+
+import androidx.compose.runtime.saveable.rememberSaveable
+
+import androidx.compose.runtime.LaunchedEffect
+
 import androidx.compose.foundation.layout.BoxWithConstraints
 import ui.components.AsteriskCancelButton
-import ui.layout.codeEditorShowsSupportingContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.Arrangement
@@ -20,7 +30,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
@@ -64,7 +73,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.DialogProperties
 import app.DefaultMihomoOverrideScript
 import app.DefaultMihomoOverrideScriptId
 import app.DefaultMihomoProfileId
@@ -90,10 +98,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import ui.clipboard.setPlainText
+import ui.components.AsteriskCodeSearchHost
+import ui.components.rememberAsteriskCodeSearchState
+import ui.components.AsteriskCodePreviewDialog
+import ui.components.AsteriskCodePreviewTabs
+import ui.components.AsteriskCodeActionButton
 import ui.components.AsteriskActionButton
 import ui.components.AsteriskExpressiveCard
 import ui.components.AsteriskExtendedFab
-import ui.components.AsteriskFilterChip
 import ui.components.AsteriskListRow
 import ui.layout.pageContentPaddingWithCutout
 import ui.layout.pageListPadding
@@ -491,119 +503,161 @@ fun MihomoOverrideScriptEditPage(
         }
     }
 
-    AsteriskScaffold(
-        topBar = {
-            AsteriskTopAppBar(
-                title = { Text(title, maxLines = 1) },
-                navigationIcon = {
-                    IconButton(onClick = { navigator.pop() }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                            contentDescription = stringResource(R.string.common_back),
-                        )
-                    }
-                },
-                actions = {
-                    TextButton(
-                        onClick = ::runScriptDebug,
-                        enabled = !debugRunning,
-                    ) {
-                        if (debugRunning) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                strokeWidth = 2.dp,
+    val codeSearch = rememberAsteriskCodeSearchState()
+    val focusManager = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
+    var editorExpanded by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(scriptEditorState.isFocused, codeSearch.active) {
+        if (scriptEditorState.isFocused || codeSearch.active) editorExpanded = true
+    }
+    fun exitEditor() {
+        codeSearch.clearEditorFocus()
+        focusManager.clearFocus(force = true)
+        keyboard?.hide()
+        editorExpanded = false
+    }
+    val editorBackState = rememberNavigationEventState(NavigationEventInfo.None)
+    NavigationBackHandler(
+        state = editorBackState,
+        isBackEnabled = editorExpanded && !codeSearch.active,
+        onBackCompleted = ::exitEditor,
+    )
+    AsteriskCodeSearchHost(
+        state = codeSearch,
+        modifier = Modifier.fillMaxSize(),
+        enabled = isNew || targetScript != null,
+        onSearchClosed = codeSearch::focusEditor,
+        editorTools = { searchButton ->
+            searchButton()
+            MihomoCodeFormatButton(scriptEditorState, MihomoCodeLanguage.JavaScript)
+        },
+    ) { _, editorModifier, backdrop ->
+        AsteriskScaffold(
+            backdrop = backdrop,
+            topBar = {
+                AsteriskTopAppBar(
+                    title = { Text(title, maxLines = 1) },
+                    navigationIcon = {
+                        IconButton(
+                            onClick = {
+                                when {
+                                    codeSearch.active -> codeSearch.close()
+                                    editorExpanded -> exitEditor()
+                                    else -> navigator.pop()
+                                }
+                            },
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                                contentDescription = stringResource(R.string.common_back),
                             )
-                            Spacer(Modifier.width(6.dp))
-                        } else {
-                            Icon(Icons.Rounded.BugReport, contentDescription = null)
-                            Spacer(Modifier.width(6.dp))
                         }
+                    },
+                    actions = {
+                        TextButton(
+                            onClick = ::runScriptDebug,
+                            enabled = !debugRunning,
+                        ) {
+                            if (debugRunning) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp,
+                                )
+                                Spacer(Modifier.width(6.dp))
+                            } else {
+                                Icon(Icons.Rounded.BugReport, contentDescription = null)
+                                Spacer(Modifier.width(6.dp))
+                            }
+                            Text(
+                                stringResource(
+                                    if (debugRunning) {
+                                        R.string.mihomo_override_script_debug_running
+                                    } else {
+                                        R.string.mihomo_override_script_debug_run
+                                    },
+                                ),
+                            )
+                        }
+                        TextButton(
+                            onClick = ::saveScript,
+                        ) {
+                            Icon(Icons.Rounded.Save, contentDescription = null)
+                            Spacer(Modifier.width(6.dp))
+                            Text(stringResource(R.string.common_save))
+                        }
+                    },
+                )
+            },
+        ) { innerPadding ->
+            val contentPadding = pageContentPaddingWithCutout(
+                innerPadding = innerPadding,
+                outerPadding = padding,
+                isWideScreen = isWideScreen,
+            )
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(contentPadding)
+                    .padding(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 12.dp),
+            ) {
+                if (!isNew && targetScript == null) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().weight(1f),
+                        contentAlignment = Alignment.Center,
+                    ) {
                         Text(
-                            stringResource(
-                                if (debugRunning) {
-                                    R.string.mihomo_override_script_debug_running
-                                } else {
-                                    R.string.mihomo_override_script_debug_run
-                                },
-                            ),
+                            text = stringResource(R.string.mihomo_profile_missing),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    TextButton(
-                        onClick = ::saveScript,
-                    ) {
-                        Icon(Icons.Rounded.Save, contentDescription = null)
-                        Spacer(Modifier.width(6.dp))
-                        Text(stringResource(R.string.common_save))
+                } else {
+                    key(targetScript?.id, isNew) {
+                        AnimatedVisibility(
+                            visible = !editorExpanded,
+                            enter = AsteriskMotion.contentEnter(),
+                            exit = AsteriskMotion.contentExit(),
+                        ) {
+                            Column {
+                                OutlinedTextField(
+                                    shape = AsteriskShapeTokens.InnerContainer,
+                                    state = nameState,
+                                    label = { Text(stringResource(R.string.mihomo_override_script_name)) },
+                                    lineLimits = TextFieldLineLimits.SingleLine,
+                                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                                )
+                                DebugProfileSelector(
+                                    profiles = appState.mihomoProfiles,
+                                    selectedProfileId = debugProfileId,
+                                    onSelectedProfileIdChange = { debugProfileId = it },
+                                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                                )
+                            }
+                        }
+                        JavaScriptCodeEditor(
+                            state = scriptEditorState,
+                            showFormatButton = false,
+                            searchState = codeSearch,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                                .imePadding()
+                                .then(editorModifier),
+                        )
+                    }
+                }
+            }
+            MihomoOverrideScriptDebugDialog(
+                result = debugResult,
+                onDismissRequest = { debugResult = null },
+                onCopy = { report ->
+                    scope.launch {
+                        clipboard.setPlainText(report)
+                        services.tipNotifier.show(copiedMessage)
                     }
                 },
             )
-        },
-    ) { innerPadding ->
-        val contentPadding = pageContentPaddingWithCutout(
-            innerPadding = innerPadding,
-            outerPadding = padding,
-            isWideScreen = isWideScreen,
-        )
-
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(contentPadding)
-                .padding(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 12.dp),
-        ) {
-            if (!isNew && targetScript == null) {
-                Box(
-                    modifier = Modifier.fillMaxWidth().weight(1f),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = stringResource(R.string.mihomo_profile_missing),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            } else {
-                key(targetScript?.id, isNew) {
-                    AnimatedVisibility(
-                        visible = codeEditorShowsSupportingContent(scriptEditorState.isFocused),
-                        enter = AsteriskMotion.contentEnter(),
-                        exit = AsteriskMotion.contentExit(),
-                    ) {
-                        Column {
-                            OutlinedTextField(
-                                shape = AsteriskShapeTokens.InnerContainer,
-                                state = nameState,
-                                label = { Text(stringResource(R.string.mihomo_override_script_name)) },
-                                lineLimits = TextFieldLineLimits.SingleLine,
-                                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                            )
-                            DebugProfileSelector(
-                                profiles = appState.mihomoProfiles,
-                                selectedProfileId = debugProfileId,
-                                onSelectedProfileIdChange = { debugProfileId = it },
-                                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                            )
-                        }
-                    }
-                    JavaScriptCodeEditor(
-                        state = scriptEditorState,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f)
-                            .imePadding(),
-                    )
-                }
-            }
         }
-        MihomoOverrideScriptDebugDialog(
-            result = debugResult,
-            onDismissRequest = { debugResult = null },
-            onCopy = { result ->
-                scope.launch {
-                    clipboard.setPlainText(result.toClipboardReport())
-                    services.tipNotifier.show(copiedMessage)
-                }
-            },
-        )
     }
 }
 
@@ -644,7 +698,7 @@ private fun DebugProfileSelector(
 private fun MihomoOverrideScriptDebugDialog(
     result: MihomoProfileScriptDebugResult?,
     onDismissRequest: () -> Unit,
-    onCopy: (MihomoProfileScriptDebugResult) -> Unit,
+    onCopy: (String) -> Unit,
 ) {
     if (result == null) return
     var showOutput by remember(result) { mutableStateOf(false) }
@@ -659,141 +713,103 @@ private fun MihomoOverrideScriptDebugDialog(
         }
     }
     val outputEffectsMotion = AsteriskMotion.fastEffects<Float>()
+    val hasDiagnostics = !result.error.isNullOrBlank() || result.summary != null
 
-    Dialog(
+    AsteriskCodePreviewDialog(
+        title = stringResource(R.string.mihomo_override_script_debug_title),
         onDismissRequest = onDismissRequest,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
-    ) {
-        Card(
-            modifier = Modifier.fillMaxWidth().widthIn(max = 880.dp).padding(24.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-        ) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = stringResource(R.string.mihomo_override_script_debug_title),
-                        style = MaterialTheme.typography.headlineSmall,
-                        modifier = Modifier.weight(1f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+        searchAvailable = showOutput,
+        keepSearchButtonVisible = true,
+        actions = {
+            AsteriskCodeActionButton(
+                icon = Icons.Rounded.ContentCopy,
+                label = stringResource(R.string.mihomo_override_script_debug_copy),
+                onClick = {
+                    onCopy(
+                        result.toClipboardReport(
+                            outputText = outputEditorState.snapshotText()
+                                .takeUnless { result.outputYaml.isNullOrBlank() && it == outputText }.orEmpty(),
+                        ),
                     )
-                    Surface(
-                        shape = MaterialTheme.shapes.small,
-                        color = if (result.success) {
-                            MaterialTheme.colorScheme.primaryContainer
-                        } else {
-                            MaterialTheme.colorScheme.errorContainer
-                        },
-                    ) {
+                },
+            )
+        },
+        topBarContent = {
+            AsteriskCodePreviewTabs(
+                showOutput = showOutput,
+                onShowOutputChange = { showOutput = it },
+                consoleLabel = stringResource(R.string.mihomo_override_script_debug_logs),
+                outputLabel = stringResource(R.string.mihomo_override_script_debug_output),
+            )
+        },
+    ) { searchState, editorModifier ->
+        BoxWithConstraints(
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            val diagnosticsMaxHeight = maxHeight * 0.35f
+            Column(modifier = Modifier.fillMaxSize()) {
+                Column(
+                    modifier = Modifier.fillMaxWidth()
+                        .heightIn(max = diagnosticsMaxHeight)
+                        .verticalScroll(rememberScrollState()),
+                ) {
+                    result.error?.takeIf(String::isNotBlank)?.let { error ->
+                        DebugSection(
+                            title = stringResource(R.string.mihomo_override_script_debug_error),
+                            body = error,
+                            error = true,
+                        )
+                    }
+                    result.summary?.let { summary ->
+                        val title = stringResource(R.string.mihomo_override_script_debug_summary_title)
+                        val details = stringResource(
+                            R.string.mihomo_override_script_debug_summary,
+                            summary.inputProxyCount,
+                            summary.outputProxyCount,
+                            summary.inputProxyGroupCount,
+                            summary.outputProxyGroupCount,
+                            summary.inputRuleCount,
+                            summary.outputRuleCount,
+                        )
                         Text(
-                            text = stringResource(
-                                if (result.success) {
-                                    R.string.mihomo_override_script_debug_success
-                                } else {
-                                    R.string.mihomo_override_script_debug_failed
-                                },
-                            ),
-                            style = MaterialTheme.typography.labelLarge,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            text = "$title · $details",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(top = if (!result.error.isNullOrBlank()) 8.dp else 0.dp),
                         )
                     }
                 }
-                BoxWithConstraints(
-                    modifier = Modifier.fillMaxWidth().height(560.dp).weight(1f, fill = false),
-                ) {
-                    val diagnosticsMaxHeight = maxHeight * 0.35f
-                    Column(modifier = Modifier.fillMaxSize()) {
-                        Column(
-                            modifier = Modifier.fillMaxWidth()
-                                .heightIn(max = diagnosticsMaxHeight)
-                                .verticalScroll(rememberScrollState()),
+                AnimatedContent(
+                    targetState = showOutput,
+                    modifier = Modifier.fillMaxWidth().weight(1f).padding(top = if (hasDiagnostics) 8.dp else 0.dp),
+                    transitionSpec = AsteriskMotion.fadeThrough(outputEffectsMotion),
+                    contentAlignment = Alignment.TopStart,
+                    label = "script-debug-output",
+                ) { showingOutput ->
+                    if (showingOutput) {
+                        YamlCodeEditor(
+                            state = outputEditorState,
+                            showFormatButton = false,
+                            searchState = searchState,
+                            modifier = Modifier.fillMaxSize().then(editorModifier),
+                        )
+                    } else {
+                        Surface(
+                            modifier = Modifier.fillMaxSize(),
+                            shape = MaterialTheme.shapes.large,
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
                         ) {
-                            result.error?.takeIf(String::isNotBlank)?.let { error ->
-                                DebugSection(
-                                    title = stringResource(R.string.mihomo_override_script_debug_error),
-                                    body = error,
-                                    error = true,
-                                    modifier = Modifier.padding(top = 14.dp),
+                            SelectionContainer {
+                                Text(
+                                    text = consoleText,
+                                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                                    modifier = Modifier.verticalScroll(rememberScrollState()).padding(16.dp),
                                 )
-                            }
-                            result.summary?.let { summary ->
-                                DebugSection(
-                                    title = stringResource(R.string.mihomo_override_script_debug_summary_title),
-                                    body = stringResource(
-                                        R.string.mihomo_override_script_debug_summary,
-                                        summary.inputProxyCount,
-                                        summary.outputProxyCount,
-                                        summary.inputProxyGroupCount,
-                                        summary.outputProxyGroupCount,
-                                        summary.inputRuleCount,
-                                        summary.outputRuleCount,
-                                    ),
-                                    modifier = Modifier.padding(top = 10.dp),
-                                )
-                            }
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            AsteriskFilterChip(
-                                selected = !showOutput,
-                                onClick = { showOutput = false },
-                                label = stringResource(R.string.mihomo_override_script_debug_logs),
-                                leadingIcon = { Icon(Icons.Rounded.Code, contentDescription = null) },
-                            )
-                            AsteriskFilterChip(
-                                selected = showOutput,
-                                onClick = { showOutput = true },
-                                label = stringResource(R.string.mihomo_override_script_debug_output),
-                                leadingIcon = { Icon(Icons.Rounded.Description, contentDescription = null) },
-                            )
-                        }
-                        AnimatedContent(
-                            targetState = showOutput,
-                            modifier = Modifier.fillMaxWidth().weight(1f).padding(top = 8.dp),
-                            transitionSpec = AsteriskMotion.fadeThrough(outputEffectsMotion),
-                            contentAlignment = Alignment.TopStart,
-                            label = "script-debug-output",
-                        ) { showingOutput ->
-                            if (showingOutput) {
-                                YamlCodeEditor(
-                                    state = outputEditorState,
-                                    readOnly = true,
-                                    modifier = Modifier.fillMaxSize(),
-                                )
-                            } else {
-                                Surface(
-                                    modifier = Modifier.fillMaxSize(),
-                                    shape = MaterialTheme.shapes.large,
-                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                ) {
-                                    SelectionContainer {
-                                        Text(
-                                            text = consoleText,
-                                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                                            modifier = Modifier.verticalScroll(rememberScrollState()).padding(16.dp),
-                                        )
-                                    }
-                                }
                             }
                         }
                     }
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-                ) {
-                    AsteriskActionButton(
-                        text = stringResource(R.string.mihomo_override_script_debug_copy),
-                        icon = Icons.Rounded.ContentCopy,
-                        onClick = { onCopy(result) },
-                    )
-                    AsteriskActionButton(
-                        text = stringResource(R.string.common_complete),
-                        icon = Icons.Rounded.Check,
-                        onClick = onDismissRequest,
-                    )
                 }
             }
         }
@@ -840,7 +856,9 @@ private fun DebugSection(
     }
 }
 
-private fun MihomoProfileScriptDebugResult.toClipboardReport(): String {
+private fun MihomoProfileScriptDebugResult.toClipboardReport(
+    outputText: String = outputYaml.orEmpty(),
+): String {
     return buildString {
         appendLine(if (success) "Script debug: success" else "Script debug: failed")
         error?.takeIf(String::isNotBlank)?.let { error ->
@@ -862,7 +880,7 @@ private fun MihomoProfileScriptDebugResult.toClipboardReport(): String {
         } else {
             logs.forEach { log -> appendLine("[${log.level}] ${log.message}") }
         }
-        outputYaml?.takeIf(String::isNotBlank)?.let { output ->
+        outputText.takeIf(String::isNotBlank)?.let { output ->
             appendLine()
             appendLine("Final YAML:")
             appendLine(output)

@@ -99,9 +99,9 @@ internal fun AsteriskScaffold(
     containerColor: Color = MaterialTheme.colorScheme.background,
     contentColor: Color = contentColorFor(containerColor),
     contentWindowInsets: WindowInsets = ScaffoldDefaults.contentWindowInsets,
+    backdrop: HazeState = rememberHazeState(),
     content: @Composable (PaddingValues) -> Unit,
 ) {
-    val backdrop = rememberHazeState()
     val style = chromeStyle()
     Scaffold(
         modifier = modifier,

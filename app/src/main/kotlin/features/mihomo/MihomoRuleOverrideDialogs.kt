@@ -263,13 +263,16 @@ internal fun MihomoRuleOverridePreviewDialog(
                                 label = stringResource(R.string.mihomo_rule_override_preview_final),
                             )
                         }
-                        val text = if (showFinal) current.compilation.finalYaml else current.compilation.scriptInputYaml
-                        val editorState = remember(current, showFinal) {
-                            MihomoCodeEditorState().also { state -> state.replaceText(text, placeCursorAtEnd = false) }
+                        val inputEditorState = remember(current) {
+                            MihomoCodeEditorState(current.compilation.scriptInputYaml, placeCursorAtEnd = false)
                         }
+                        val finalEditorState = remember(current) {
+                            MihomoCodeEditorState(current.compilation.finalYaml, placeCursorAtEnd = false)
+                        }
+                        val editorState = if (showFinal) finalEditorState else inputEditorState
                         YamlCodeEditor(
                             state = editorState,
-                            readOnly = true,
+                            showFormatButton = false,
                             modifier = Modifier.fillMaxWidth().weight(1f).padding(top = 8.dp),
                         )
                     }

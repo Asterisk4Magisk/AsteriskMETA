@@ -19,12 +19,14 @@ import ui.icons.AsteriskIcons as Icons
 import android.content.Context
 import android.graphics.Typeface
 import android.text.InputType
+import android.view.ViewGroup
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -41,6 +43,8 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import io.github.rosemoe.sora.event.ContentChangeEvent
+import io.github.rosemoe.sora.event.PublishSearchResultEvent
+import io.github.rosemoe.sora.event.SelectionChangeEvent
 import io.github.rosemoe.sora.lang.EmptyLanguage
 import io.github.rosemoe.sora.lang.analysis.AnalyzeManager
 import io.github.rosemoe.sora.lang.analysis.AsyncIncrementalAnalyzeManager
@@ -52,17 +56,19 @@ import io.github.rosemoe.sora.lang.styling.TextStyle
 import io.github.rosemoe.sora.text.Content
 import io.github.rosemoe.sora.widget.CodeEditor
 import io.github.rosemoe.sora.widget.schemes.EditorColorScheme
+import ui.components.AsteriskCodeSearchState
 import ui.isInDarkTheme
 import ui.theme.AsteriskMotion
 import ui.theme.AsteriskShapeTokens
 
 @Stable
 internal class MihomoCodeEditorState(
-    initialText: String = "",
+    initialText: CharSequence = "",
+    placeCursorAtEnd: Boolean = true,
 ) {
     private var editor: CodeEditor? = null
     private var retainedText = initialText
-    private var moveCursorToEnd = true
+    private var moveCursorToEnd = placeCursorAtEnd
 
     var documentVersion by mutableIntStateOf(0)
         private set
@@ -94,7 +100,7 @@ internal class MihomoCodeEditorState(
         }
     }
 
-    fun snapshotText(): String = editor?.text?.toString() ?: retainedText
+    fun snapshotText(): String = editor?.text?.toString() ?: retainedText.toString()
 
     fun replaceText(text: String, placeCursorAtEnd: Boolean = true) {
         if (text == retainedText && editor?.text?.toString() == text) return
@@ -137,11 +143,15 @@ internal fun JavaScriptCodeEditor(
     state: MihomoCodeEditorState,
     modifier: Modifier = Modifier,
     readOnly: Boolean = false,
+    searchState: AsteriskCodeSearchState? = null,
+    showFormatButton: Boolean = true,
 ) {
     SoraCodeEditor(
         state = state,
         language = MihomoCodeLanguage.JavaScript,
+        searchState = searchState,
         readOnly = readOnly,
+        showFormatButton = showFormatButton,
         modifier = modifier,
     )
 }
@@ -151,10 +161,14 @@ internal fun YamlCodeEditor(
     state: MihomoCodeEditorState,
     modifier: Modifier = Modifier,
     readOnly: Boolean = false,
+    searchState: AsteriskCodeSearchState? = null,
+    showFormatButton: Boolean = true,
 ) {
     SoraCodeEditor(
         state = state,
         language = MihomoCodeLanguage.Yaml,
+        showFormatButton = showFormatButton,
+        searchState = searchState,
         readOnly = readOnly,
         modifier = modifier,
     )
@@ -166,22 +180,11 @@ private fun SoraCodeEditor(
     language: MihomoCodeLanguage,
     readOnly: Boolean,
     modifier: Modifier = Modifier,
+    searchState: AsteriskCodeSearchState? = null,
+    showFormatButton: Boolean = true,
 ) {
     val colors = rememberCodeEditorColors()
     val colorScheme = remember(colors) { colors.toSoraColorScheme() }
-    val context = LocalContext.current.applicationContext
-    val scope = rememberCoroutineScope()
-    val tipNotifier = LocalAppServices.current.tipNotifier
-    val currentReadOnly by rememberUpdatedState(readOnly)
-    var formatting by remember(state, language) { mutableStateOf(false) }
-    val formatLabel = stringResource(
-        when (language) {
-            MihomoCodeLanguage.JavaScript -> R.string.code_editor_format_javascript
-            MihomoCodeLanguage.Yaml -> R.string.code_editor_format_yaml
-        },
-    )
-    val formatFailed = stringResource(R.string.code_editor_format_failed)
-    val contentChanged = stringResource(R.string.code_editor_format_content_changed)
     val borderWidth by animateDpAsState(
         targetValue = if (state.isFocused) FocusedBorderWidth else 0.dp,
         animationSpec = AsteriskMotion.fastSpatial(),
@@ -203,12 +206,21 @@ private fun SoraCodeEditor(
             AndroidView(
                 factory = { context ->
                     MihomoSoraEditor(context).also { editor ->
+                        if (searchState != null) {
+                            // Sora ignores extra scroll space for WRAP_CONTENT; the reader fills this viewport.
+                            editor.layoutParams = ViewGroup.LayoutParams(
+                                ViewGroup.LayoutParams.MATCH_PARENT,
+                                ViewGroup.LayoutParams.MATCH_PARENT,
+                            )
+                        }
                         editor.configure(language, colors, colorScheme)
                         editor.bindState(state)
+                        editor.bindSearchState(searchState)
                     }
                 },
                 update = { editor ->
                     editor.bindState(state)
+                    editor.bindSearchState(searchState)
                     editor.updateLanguage(language)
                     if (editor.colorScheme !== colorScheme) {
                         editor.colorScheme = colorScheme
@@ -217,73 +229,105 @@ private fun SoraCodeEditor(
                     editor.isEnabled = behavior.enabled
                     editor.isFocusable = behavior.selectionEnabled
                     editor.isFocusableInTouchMode = behavior.selectionEnabled
-                    editor.isEditable = behavior.editable
+                    // Sora hides the IME whenever setEditable(false) is called, including unchanged updates.
+                    if (editor.isEditable != behavior.editable) editor.isEditable = behavior.editable
+                    searchState?.updateEditable(editor)
                 },
                 onRelease = { editor ->
+                    editor.bindSearchState(null)
                     editor.bindState(null)
                     editor.release()
                 },
                 modifier = Modifier.fillMaxSize(),
             )
-            if (!readOnly) {
+            if (!readOnly && showFormatButton) {
                 Surface(
                     modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp),
                     shape = AsteriskShapeTokens.InnerContainer,
                     color = MaterialTheme.colorScheme.primaryContainer,
                     tonalElevation = 3.dp,
                 ) {
-                    IconButton(
-                        enabled = !formatting,
-                        onClick = {
-                            val source = state.snapshotText()
-                            formatting = true
-                            scope.launch {
-                                try {
-                                    val formatted = formatMihomoCode(context, source, language)
-                                    if (!currentReadOnly) {
-                                        if (state.snapshotText() == source) {
-                                            state.replaceFormattedText(formatted)
-                                        } else {
-                                            tipNotifier.show(contentChanged)
-                                        }
-                                    }
-                                } catch (cancelled: CancellationException) {
-                                    throw cancelled
-                                } catch (_: Exception) {
-                                    tipNotifier.show(formatFailed)
-                                } finally {
-                                    formatting = false
-                                }
-                            }
-                        },
-                    ) {
-                        if (formatting) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                strokeWidth = 2.dp,
-                            )
-                        } else {
-                            Icon(
-                                Icons.Rounded.AutoFixHigh,
-                                contentDescription = formatLabel,
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            )
-                        }
-                    }
+                    MihomoCodeFormatButton(state, language, readOnly)
                 }
             }
         }
     }
 }
 
+@Composable
+internal fun MihomoCodeFormatButton(
+    state: MihomoCodeEditorState,
+    language: MihomoCodeLanguage,
+    readOnly: Boolean = false,
+) {
+    val context = LocalContext.current.applicationContext
+    val scope = rememberCoroutineScope()
+    val tipNotifier = LocalAppServices.current.tipNotifier
+    val currentReadOnly by rememberUpdatedState(readOnly)
+    var formatting by remember(state, language) { mutableStateOf(false) }
+    val formatLabel = stringResource(
+        when (language) {
+            MihomoCodeLanguage.JavaScript -> R.string.code_editor_format_javascript
+            MihomoCodeLanguage.Yaml -> R.string.code_editor_format_yaml
+        },
+    )
+    val formatFailed = stringResource(R.string.code_editor_format_failed)
+    val contentChanged = stringResource(R.string.code_editor_format_content_changed)
+    IconButton(
+        enabled = !formatting,
+        onClick = {
+            val source = state.snapshotText()
+            formatting = true
+            scope.launch {
+                try {
+                    val formatted = formatMihomoCode(context, source, language)
+                    if (!currentReadOnly) {
+                        if (state.snapshotText() == source) {
+                            state.replaceFormattedText(formatted)
+                        } else {
+                            tipNotifier.show(contentChanged)
+                        }
+                    }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    tipNotifier.show(formatFailed)
+                } finally {
+                    formatting = false
+                }
+            }
+        },
+    ) {
+        if (formatting) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(18.dp),
+                color = LocalContentColor.current,
+                strokeWidth = 2.dp,
+            )
+        } else {
+            Icon(
+                Icons.Rounded.AutoFixHigh,
+                contentDescription = formatLabel,
+            )
+        }
+    }
+}
+
 private class MihomoSoraEditor(context: Context) : CodeEditor(context) {
     private var boundState: MihomoCodeEditorState? = null
+    private var boundSearchState: AsteriskCodeSearchState? = null
     private var language: MihomoCodeLanguage? = null
 
     init {
         subscribeAlways(ContentChangeEvent::class.java) { event ->
             boundState?.onContentChanged(this, event.action)
+            boundSearchState?.onContentChanged(this)
+        }
+        subscribeAlways(PublishSearchResultEvent::class.java) {
+            boundSearchState?.onResultsPublished(this)
+        }
+        subscribeAlways(SelectionChangeEvent::class.java) {
+            boundSearchState?.onSelectionChanged(this)
         }
         onFocusChangeListener = OnFocusChangeListener { _, focused ->
             boundState?.onFocusChanged(this, focused)
@@ -294,6 +338,13 @@ private class MihomoSoraEditor(context: Context) : CodeEditor(context) {
         if (boundState === state) return
         boundState?.detach(this)
         boundState = state
+        state?.attach(this)
+    }
+
+    fun bindSearchState(state: AsteriskCodeSearchState?) {
+        if (boundSearchState === state) return
+        boundSearchState?.detach(this)
+        boundSearchState = state
         state?.attach(this)
     }
 
@@ -314,7 +365,7 @@ private fun MihomoSoraEditor.configure(
     setTypefaceLineNumber(Typeface.MONOSPACE)
     setLineSpacing(dp(EditorLineSpacing).toFloat(), 1f)
     setTabWidth(EditorTabWidth)
-    setWordwrap(false)
+    isWordwrap = false
     setPinLineNumber(true)
     setLineNumberEnabled(true)
     setDisplayLnPanel(false)
@@ -322,9 +373,9 @@ private fun MihomoSoraEditor.configure(
     setDividerWidth(dp(DividerWidth).toFloat())
     setHighlightCurrentBlock(false)
     setBlockLineEnabled(false)
-    setRenderFunctionCharacters(false)
+    isRenderFunctionCharacters = false
     setLigatureEnabled(false)
-    setScalable(true)
+    isScalable = true
     setCursorAnimationEnabled(true)
     setInputType(
         InputType.TYPE_CLASS_TEXT or
@@ -457,6 +508,8 @@ private fun CodeEditorColors.toSoraColorScheme(): EditorColorScheme {
         setColor(EditorColorScheme.SELECTION_INSERT, accent.toArgb())
         setColor(EditorColorScheme.SELECTION_HANDLE, accent.toArgb())
         setColor(EditorColorScheme.SELECTED_TEXT_BACKGROUND, selection.toArgb())
+        setColor(EditorColorScheme.MATCHED_TEXT_BACKGROUND, selection.toArgb())
+        setColor(EditorColorScheme.MATCHED_TEXT_BORDER, accent.toArgb())
         setColor(EditorColorScheme.CURRENT_LINE, currentLine.toArgb())
         setColor(EditorColorScheme.SCROLL_BAR_TRACK, border.toArgb())
         setColor(EditorColorScheme.SCROLL_BAR_THUMB, lineNumber.toArgb())
