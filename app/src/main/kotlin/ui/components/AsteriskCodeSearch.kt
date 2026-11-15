@@ -214,6 +214,8 @@ private fun CodeSearchOverlay(
         var panelSize by remember { mutableStateOf(IntSize.Zero) }
         var draggedPosition by remember { mutableStateOf<Offset?>(null) }
         val panelWidth = (maxWidth - 32.dp).coerceIn(0.dp, 340.dp)
+        val shadowPadding = 16.dp
+        val shadowOutset = with(density) { shadowPadding.toPx() }
         val width = with(density) { panelWidth.toPx() }
         val gutter = with(density) { 16.dp.toPx() }
         val gap = with(density) { 8.dp.toPx() }
@@ -233,8 +235,10 @@ private fun CodeSearchOverlay(
         AnimatedVisibility(
             visible = searchActive,
             modifier = Modifier
-                .absoluteOffset { IntOffset(position.x.roundToInt(), position.y.roundToInt()) }
-                .width(panelWidth),
+                .absoluteOffset {
+                    IntOffset((position.x - shadowOutset).roundToInt(), (position.y - shadowOutset).roundToInt())
+                }
+                .width(panelWidth + shadowPadding * 2),
             enter = EnterTransition.None,
             exit = ExitTransition.None,
         ) {
@@ -254,27 +258,29 @@ private fun CodeSearchOverlay(
             }
             Box(
                 modifier = Modifier
-                    // Fade and move the whole glass without an offscreen rectangle clipping its rounded shadow.
+                    // Include the shadow in the layer so it fades with the glass without clipping its rounded edges.
                     .graphicsLayer {
                         alpha = opacity
-                        translationY = (positionProgress - 1f) * size.height / 8f
-                        compositingStrategy = CompositingStrategy.ModulateAlpha
+                        translationY = (positionProgress - 1f) * (size.height - shadowOutset * 2) / 8f
+                        compositingStrategy = CompositingStrategy.Offscreen
                     }
-                    .onSizeChanged { panelSize = it },
+                    .padding(shadowPadding),
             ) {
-                content {
-                    CodeSearchDragHandle(
-                        onDragStarted = {
-                            draggedPosition = position
-                        },
-                        onDrag = { delta ->
-                            val next = (draggedPosition ?: position) + delta
-                            draggedPosition = Offset(
-                                next.x.coerceIn(gutter, maxX),
-                                next.y.coerceIn(gutter, maxY),
-                            )
-                        },
-                    )
+                Box(Modifier.onSizeChanged { panelSize = it }) {
+                    content {
+                        CodeSearchDragHandle(
+                            onDragStarted = {
+                                draggedPosition = position
+                            },
+                            onDrag = { delta ->
+                                val next = (draggedPosition ?: position) + delta
+                                draggedPosition = Offset(
+                                    next.x.coerceIn(gutter, maxX),
+                                    next.y.coerceIn(gutter, maxY),
+                                )
+                            },
+                        )
+                    }
                 }
             }
         }
