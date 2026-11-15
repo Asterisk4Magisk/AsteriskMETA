@@ -202,7 +202,10 @@ internal fun <T : Any> AsteriskNavDisplay(
     ) { targetSceneKey ->
         val targetScene = renderedScenes.getValue(targetSceneKey)
         val sceneLayer = remember(targetSceneKey) { layers.getValue(targetSceneKey) }
-        val dimAlpha = transition.animateFloat(
+        val settled = transition.currentState == transition.targetState
+        // Seeking resets the fraction to zero after completion. Dispose the dim animation
+        // then, so its old initial value cannot shade the settled foreground page.
+        val dimAlpha = if (settled) null else transition.animateFloat(
             transitionSpec = {
                 if (inPredictiveBack) AsteriskMotion.predictiveNavigation(reducedMotion)
                 else AsteriskMotion.navigation(reducedMotion)
@@ -211,7 +214,6 @@ internal fun <T : Any> AsteriskNavDisplay(
         ) { topSceneKey ->
             if ((layers[topSceneKey] ?: sceneLayer) > sceneLayer) 0.5f else 0f
         }
-        val settled = transition.currentState == transition.targetState
         val lifecycleOwner = rememberLifecycleOwner(
             maxLifecycle = if (settled) Lifecycle.State.RESUMED else Lifecycle.State.STARTED,
         )
@@ -231,7 +233,7 @@ internal fun <T : Any> AsteriskNavDisplay(
                     drawContent()
                     // Dim only the covered page, with the same clock and easing as its slide.
                     // Reading in draw keeps animation frames out of composition.
-                    drawRect(Color.Black, alpha = dimAlpha.value.coerceIn(0f, 0.5f))
+                    drawRect(Color.Black, alpha = dimAlpha?.value?.coerceIn(0f, 0.5f) ?: 0f)
                 },
             ) {
                 targetScene.content()
