@@ -65,7 +65,6 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -99,24 +98,18 @@ internal fun AsteriskCodeSearchHost(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     showSearchButton: Boolean = enabled,
-    onSearchClosed: (() -> Unit)? = null,
     editorTools: (@Composable RowScope.(searchButton: @Composable () -> Unit) -> Unit)? = null,
     content: @Composable (searchButton: @Composable () -> Unit, editorModifier: Modifier, backdrop: HazeState) -> Unit,
 ) {
     val backdrop = rememberHazeState()
-    val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
     var anchor by remember { mutableStateOf(Rect.Zero) }
     var editorBounds by remember { mutableStateOf(Rect.Zero) }
     var origin by remember { mutableStateOf(Offset.Zero) }
     var wasActive by remember { mutableStateOf(state.active) }
-    val currentOnSearchClosed by rememberUpdatedState(onSearchClosed)
     LaunchedEffect(state.active) {
-        if (wasActive && !state.active) {
-            currentOnSearchClosed?.invoke() ?: run {
-                focusManager.clearFocus()
-                keyboard?.hide()
-            }
+        if (wasActive && !state.active && !state.hasEditorFocus()) {
+            keyboard?.hide()
         }
         wasActive = state.active
     }

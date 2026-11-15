@@ -499,7 +499,6 @@ fun MihomoOverrideScriptEditPage(
         state = codeSearch,
         modifier = Modifier.fillMaxSize(),
         enabled = isNew || targetScript != null,
-        onSearchClosed = codeSearch::focusEditor,
         editorTools = { searchButton ->
             searchButton()
             MihomoCodeFormatButton(scriptEditorState, MihomoCodeLanguage.JavaScript)

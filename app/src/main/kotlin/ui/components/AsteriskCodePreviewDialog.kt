@@ -76,7 +76,6 @@ internal fun AsteriskCodePreviewDialog(
             modifier = Modifier.fillMaxSize(),
             enabled = searchAvailable,
             showSearchButton = keepSearchButtonVisible || searchAvailable,
-            onSearchClosed = if (searchAvailable) searchState::focusEditor else null,
         ) { searchButton, editorModifier, backdrop ->
             AsteriskScaffold(
                 backdrop = backdrop,

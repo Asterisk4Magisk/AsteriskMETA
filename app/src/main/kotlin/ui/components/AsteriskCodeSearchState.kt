@@ -76,12 +76,7 @@ internal class AsteriskCodeSearchState(
         clearResults()
     }
 
-    fun focusEditor() {
-        editor?.let {
-            it.requestFocus()
-            it.showSoftInput()
-        }
-    }
+    fun hasEditorFocus(): Boolean = editor?.isFocused == true
 
     fun clearEditorFocus() {
         editor?.clearFocus()
