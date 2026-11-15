@@ -14,6 +14,8 @@ import androidx.lifecycle.lifecycleScope
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.platform.LocalView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -268,6 +270,11 @@ class MainActivity : ComponentActivity() {
     private fun showAppContent() {
         enableEdgeToEdge()
         setContent {
+            val composeView = LocalView.current
+            SideEffect {
+                // Compose handles IME insets; let Android resize instead of panning native editors.
+                composeView.isScrollContainer = true
+            }
             App(
                 padding = WindowInsets.systemBars.union(WindowInsets.displayCutout).asPaddingValues(),
                 qrCodeScanner = qrCodeScanRequester::scan,
