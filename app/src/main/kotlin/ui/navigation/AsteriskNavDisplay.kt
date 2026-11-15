@@ -1,23 +1,17 @@
 /*
  * Copyright 2025 The Android Open Source Project
- * Copyright 2025 compose-miuix-ui contributors
+ * Copyright 2025-2026 compose-miuix-ui contributors
  * SPDX-License-Identifier: Apache-2.0
  *
- * Based on AndroidX Navigation3 1.1.7's NavDisplay and the interruption handling in
- * compose-miuix-ui/miuix 0.9.3. This single-pane host uses only public AndroidX APIs.
+ * Based on AndroidX Navigation3's scene APIs and the default animation in
+ * compose-miuix-ui/miuix 0.9.4. This single-pane host uses only public AndroidX APIs.
  * Licensed under the Apache License, Version 2.0:
  * https://www.apache.org/licenses/LICENSE-2.0
  */
 
 package ui.navigation
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedContentTransitionScope
-import androidx.compose.animation.ContentTransform
-import androidx.compose.animation.core.SeekableTransitionState
-import androidx.compose.animation.core.animate
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.rememberTransition
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -26,14 +20,20 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.rememberLifecycleOwner
@@ -42,37 +42,25 @@ import androidx.navigation3.scene.Scene
 import androidx.navigation3.scene.SceneInfo
 import androidx.navigation3.scene.SinglePaneSceneStrategy
 import androidx.navigation3.scene.rememberSceneState
-import androidx.navigation3.ui.LocalNavAnimatedContentScope
+import androidx.navigationevent.NavigationEvent
 import androidx.navigationevent.NavigationEventTransitionState.InProgress
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.launch
 import ui.theme.AsteriskMotion
 import ui.theme.LocalReduceMotion
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
-/**
- * The apps use one entry per scene; sheets and dialogs live inside those entries.
- * Keep AndroidX entry decoration, lifecycle and back dispatch, while owning the
- * transition so an interrupted entry cannot change stacking order or restart at zero.
- */
+/** Keep Navigation3 entry ownership while driving every layer from the same visual depth. */
 @Composable
 internal fun <T : Any> AsteriskNavDisplay(
     entries: List<NavEntry<T>>,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
-    transitionSpec: AnimatedContentTransitionScope<Any>.() -> ContentTransform,
-    popTransitionSpec: AnimatedContentTransitionScope<Any>.() -> ContentTransform,
-    predictivePopTransitionSpec: AnimatedContentTransitionScope<Any>.(Int) -> ContentTransform,
 ) {
     require(entries.isNotEmpty()) { "Navigation entries cannot be empty" }
     val strategies = remember { listOf(SinglePaneSceneStrategy<T>()) }
-    val sceneState = rememberSceneState(
-        entries = entries,
-        sceneStrategies = strategies,
-        onBack = onBack,
-    )
+    val sceneState = rememberSceneState(entries = entries, sceneStrategies = strategies, onBack = onBack)
     val scene = sceneState.currentScene
     val previousScene = sceneState.previousScenes.lastOrNull()
     val gestureState = rememberNavigationEventState(
@@ -87,180 +75,160 @@ internal fun <T : Any> AsteriskNavDisplay(
         },
     )
 
-    // Scene equality includes its decorated content. Re-entering a popped route can
-    // produce a new Scene with the same key before its old transition has settled.
-    // Animate by key so A -> B remains A -> B, rather than becoming B(old) -> B(new)
-    // and dropping A. Render the latest content independently of animation identity.
+    val currentScenes = sceneState.previousScenes + scene
+    val topIndex = currentScenes.lastIndex
+    val liveKeys by rememberUpdatedState(currentScenes.map { it.key }.toSet())
     val renderedScenes = remember { mutableStateMapOf<Any, Scene<T>>() }
-    for (backScene in sceneState.previousScenes) renderedScenes[backScene.key] = backScene
-    renderedScenes[scene.key] = scene
-    val retainedSceneKeys by rememberUpdatedState(
-        sceneState.previousScenes.map { it.key }.toSet() + scene.key,
-    )
-    val transitionState = remember { SeekableTransitionState(scene.key) }
-    val transition = rememberTransition(transitionState, label = "navigation-scene")
+    val indices = remember { mutableStateMapOf<Any, Int>() }
+    // A replacement occupies the same slot; a popped entry keeps its slot until it leaves.
+    val replacedKeys = renderedScenes.keys.filter { it !in liveKeys && indices.getValue(it) <= topIndex }
+    for (sceneKey in replacedKeys) {
+        renderedScenes.remove(sceneKey)
+        indices.remove(sceneKey)
+    }
+    currentScenes.forEachIndexed { index, item ->
+        renderedScenes[item.key] = item
+        indices[item.key] = index
+    }
+
+    val position = remember { Animatable(topIndex.toFloat()) }
+    val motion = remember { NavigationMotionState() }
     val inPredictiveBack by remember(previousScene != null) {
         derivedStateOf { previousScene != null && gestureState.transitionState is InProgress }
     }
-    val contentKeys = sceneState.entries.map { it.contentKey }
-    val history = remember { NavigationHistory(contentKeys) }
-    history.update(contentKeys)
-    val isPop = history.isPop
-
-    // A scene keeps its assigned layer until the whole transition has settled.
-    // In particular, starting back while A -> B is entering must not put B below A.
-    val layers = remember { mutableMapOf<Any, Float>() }
-    val initialKey = transition.currentState
-    val targetKey = transition.targetState
-    val initialLayer = layers.getOrPut(initialKey) { 0f }
-    val interruptedEntry = inPredictiveBack && transition.currentState == previousScene?.key
-    val targetLayer = when {
-        initialKey == targetKey -> initialLayer
-        targetKey in layers -> layers.getValue(targetKey)
-        (isPop || inPredictiveBack) && !interruptedEntry -> initialLayer - 1f
-        else -> initialLayer + 1f
-    }
-    layers[targetKey] = targetLayer
-
     val reducedMotion = LocalReduceMotion.current
-    val cornerRadius = rememberNavigationCornerRadius()
-    val cornerShape = remember(cornerRadius) { RoundedCornerShape(cornerRadius) }
-    if (inPredictiveBack && previousScene != null) {
-        LaunchedEffect(scene.key, previousScene.key) {
-            val entryInterruptionFraction = transitionState.fraction
-            snapshotFlow { gestureState.transitionState }.collectLatest { gesture ->
+    LaunchedEffect(scene.key, topIndex, inPredictiveBack, reducedMotion) {
+        if (inPredictiveBack) {
+            position.stop()
+            val anchor = topIndex - position.value
+            motion.startGesture()
+            snapshotFlow { gestureState.transitionState }.collect { gesture ->
                 if (gesture is InProgress) {
-                    if (transition.currentState == previousScene.key) {
-                        // Reverse the partially completed A -> B transition, rather than
-                        // retargeting it as though B had already finished entering.
-                        transitionState.seekTo(
-                            AsteriskMotion.interruptedNavigationFraction(
-                                entryFraction = entryInterruptionFraction,
-                                backProgress = gesture.latestEvent.progress,
-                            ),
-                            scene.key,
-                        )
-                    } else {
-                        transitionState.seekTo(gesture.latestEvent.progress, previousScene.key)
-                    }
+                    motion.trackGesture(gesture.latestEvent)
+                    position.snapTo(topIndex - AsteriskMotion.navigationGestureProgress(anchor, gesture.latestEvent.progress))
                 }
             }
-        }
-    } else {
-        LaunchedEffect(scene.key) {
-            if (transitionState.currentState != scene.key) {
-                if (transitionState.targetState == scene.key) {
-                    transitionState.animateTo(
-                        scene.key,
-                        animationSpec = AsteriskMotion.navigation(reducedMotion),
-                    )
-                } else {
-                    transitionState.animateTo(scene.key)
-                }
+        } else {
+            val target = topIndex.toFloat()
+            val released = motion.fromGesture
+            val initialVelocity = motion.velocity
+            motion.fromGesture = false
+            val distance = target - position.value
+            if (distance == 0f) {
+                motion.velocity = 0f
+                renderedScenes.keys.retainAll(liveKeys)
+                indices.keys.retainAll(liveKeys)
+                return@LaunchedEffect
+            }
+            val cancel = released && distance >= 0f
+            val settleVelocity = if (released && !cancel) {
+                AsteriskMotion.navigationCommitVelocity(-distance, initialVelocity)
             } else {
-                // Commit/cancel can return to the initial state while the entry is still
-                // visible. Finish that same transition before disposing its old content.
-                val duration = transition.totalDurationNanos / 1_000_000
-                val completed = transition.targetState == scene.key
-                val finalFraction = if (completed) 1f else 0f
-                val remaining = if (completed) 1f - transitionState.fraction else transitionState.fraction
-                animate(
-                    transitionState.fraction,
-                    finalFraction,
-                    animationSpec = AsteriskMotion.navigation(
-                        reducedMotion = reducedMotion,
-                        durationMillis = (remaining * duration).toInt(),
-                    ),
-                ) { value, _ ->
-                    this@LaunchedEffect.launch {
-                        if (value == finalFraction) transitionState.snapTo(scene.key)
-                        else transitionState.seekTo(value)
+                initialVelocity
+            }
+            val animation = if (!released && initialVelocity == 0f && abs(distance) >= 0.999f) {
+                AsteriskMotion.navigation(reducedMotion)
+            } else {
+                AsteriskMotion.navigationSettle(reducedMotion)
+            }
+            if (cancel) position.updateBounds(upperBound = target)
+            try {
+                position.animateTo(target, animationSpec = animation, initialVelocity = settleVelocity) {
+                    motion.velocity = velocity
+                }
+                motion.velocity = 0f
+                renderedScenes.keys.retainAll(liveKeys)
+                indices.keys.retainAll(liveKeys)
+            } finally {
+                if (cancel) position.updateBounds(lowerBound = null, upperBound = null)
+            }
+        }
+    }
+
+    val settled by remember(topIndex, inPredictiveBack) {
+        derivedStateOf { !inPredictiveBack && !position.isRunning && position.value == topIndex.toFloat() }
+    }
+    val visibleKeys by remember(scene.key) {
+        derivedStateOf {
+            val top = position.value
+            renderedScenes.keys.filter { sceneKey ->
+                val depth = top - indices.getValue(sceneKey)
+                sceneKey == scene.key || (depth > -1f && depth < 1f)
+            }.sortedBy { indices.getValue(it) }
+        }
+    }
+    val cornerRadius = rememberNavigationCornerRadius()
+    val cornerShape = remember(cornerRadius) {
+        RoundedCornerShape(topStart = cornerRadius, bottomStart = cornerRadius)
+    }
+    val direction = if (LocalLayoutDirection.current == LayoutDirection.Rtl) -1f else 1f
+    Box(modifier) {
+        visibleKeys.forEachIndexed { visibleIndex, sceneKey ->
+            val index = indices.getValue(sceneKey)
+            if (visibleIndex == visibleKeys.lastIndex && visibleIndex > 0) {
+                Box(Modifier.fillMaxSize().drawBehind {
+                    // The scrim covers the viewport, independently of the covered page's alpha.
+                    drawRect(Color.Black, alpha = (position.value - index + 1f).coerceIn(0f, 1f) * 0.5f)
+                })
+            }
+            key(sceneKey) {
+                val lifecycleOwner = rememberLifecycleOwner(
+                    maxLifecycle = if (settled && sceneKey == scene.key) Lifecycle.State.RESUMED else Lifecycle.State.STARTED,
+                )
+                CompositionLocalProvider(LocalLifecycleOwner provides lifecycleOwner) {
+                    Box(
+                        modifier = Modifier.fillMaxSize().graphicsLayer {
+                            val depth = position.value - index
+                            val covered = depth.coerceIn(0f, 1f)
+                            translationX = if (depth <= 0f) {
+                                (direction * (-depth).coerceIn(0f, 1f) * size.width).roundToInt().toFloat()
+                            } else {
+                                -direction * covered * size.width * 0.25f
+                            }
+                            alpha = when {
+                                depth <= -1f || depth > 1f -> 0f
+                                depth > 0f -> 1f - covered * 0.1f
+                                else -> 1f
+                            }
+                            shape = cornerShape
+                            clip = depth > -1f && depth < 0f
+                        }.then(if (sceneKey == scene.key) Modifier else Modifier.clearAndSetSemantics {})
+                            .pointerInput(settled) {
+                                if (!settled) awaitPointerEventScope {
+                                    while (true) {
+                                        awaitPointerEvent(PointerEventPass.Initial).changes.forEach { it.consume() }
+                                    }
+                                }
+                            },
+                    ) {
+                        renderedScenes.getValue(sceneKey).content()
                     }
                 }
-            }
-        }
-    }
-
-    transition.AnimatedContent(
-        modifier = modifier,
-        contentKey = { it },
-        transitionSpec = {
-            val gesture = gestureState.transitionState
-            val transform = when {
-                inPredictiveBack && gesture is InProgress ->
-                    predictivePopTransitionSpec(gesture.latestEvent.swipeEdge)
-                isPop -> popTransitionSpec()
-                else -> transitionSpec()
-            }
-            ContentTransform(
-                targetContentEnter = transform.targetContentEnter,
-                initialContentExit = transform.initialContentExit,
-                targetContentZIndex = targetLayer,
-                sizeTransform = null,
-            )
-        },
-    ) { targetSceneKey ->
-        val targetScene = renderedScenes.getValue(targetSceneKey)
-        val sceneLayer = remember(targetSceneKey) { layers.getValue(targetSceneKey) }
-        val settled = transition.currentState == transition.targetState
-        // Seeking resets the fraction to zero after completion. Dispose the dim animation
-        // then, so its old initial value cannot shade the settled foreground page.
-        val dimAlpha = if (settled) null else transition.animateFloat(
-            transitionSpec = {
-                if (inPredictiveBack) AsteriskMotion.predictiveNavigation(reducedMotion)
-                else AsteriskMotion.navigation(reducedMotion)
-            },
-            label = "navigation-scene-dim",
-        ) { topSceneKey ->
-            if ((layers[topSceneKey] ?: sceneLayer) > sceneLayer) 0.5f else 0f
-        }
-        val lifecycleOwner = rememberLifecycleOwner(
-            maxLifecycle = if (settled) Lifecycle.State.RESUMED else Lifecycle.State.STARTED,
-        )
-        CompositionLocalProvider(
-            LocalLifecycleOwner provides lifecycleOwner,
-            LocalNavAnimatedContentScope provides this,
-        ) {
-            // Clip the moving foreground page, so its corners travel with the slide.
-            // Keep clipping through predictive-back cancellation and interrupted entry.
-            Box(
-                modifier = Modifier.fillMaxSize().graphicsLayer {
-                    shape = cornerShape
-                    clip = (transition.currentState != transition.targetState ||
-                        transition.isRunning || inPredictiveBack) &&
-                        layers[targetSceneKey] == layers.values.maxOrNull()
-                }.drawWithContent {
-                    drawContent()
-                    // Dim only the covered page, with the same clock and easing as its slide.
-                    // Reading in draw keeps animation frames out of composition.
-                    drawRect(Color.Black, alpha = dimAlpha?.value?.coerceIn(0f, 0.5f) ?: 0f)
-                },
-            ) {
-                targetScene.content()
-            }
-        }
-    }
-
-    LaunchedEffect(transition, inPredictiveBack) {
-        if (!inPredictiveBack) {
-            snapshotFlow {
-                transition.currentState == transition.targetState && !transition.isRunning
-            }.filter { it }.collect {
-                val settledKey = transition.targetState
-                layers.keys.retainAll(setOf(settledKey))
-                renderedScenes.keys.retainAll(retainedSceneKeys)
             }
         }
     }
 }
 
-private class NavigationHistory(private var keys: List<Any>) {
-    var isPop: Boolean = false
-        private set
+private class NavigationMotionState {
+    var velocity = 0f
+    var fromGesture = false
+    private var lastProgress = 0f
+    private var lastTimeMillis = 0L
 
-    fun update(next: List<Any>) {
-        if (next == keys) return
-        isPop = next.size < keys.size && keys.take(next.size) == next
-        keys = next
+    fun startGesture() {
+        velocity = 0f
+        fromGesture = true
+        lastProgress = 0f
+        lastTimeMillis = 0L
+    }
+
+    fun trackGesture(event: NavigationEvent) {
+        if (lastTimeMillis != 0L && event.frameTimeMillis > lastTimeMillis) {
+            velocity = -(event.progress - lastProgress) * 1000f / (event.frameTimeMillis - lastTimeMillis)
+        }
+        if (event.frameTimeMillis != 0L) {
+            lastProgress = event.progress
+            lastTimeMillis = event.frameTimeMillis
+        }
     }
 }

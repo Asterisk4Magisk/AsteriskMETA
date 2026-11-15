@@ -260,9 +260,6 @@ fun AppContent(
             AsteriskNavDisplay(
                 entries = entries,
                 onBack = { navigator.pop() },
-                transitionSpec = AsteriskMotion.navigationForward(),
-                popTransitionSpec = AsteriskMotion.navigationBack(),
-                predictivePopTransitionSpec = AsteriskMotion.predictiveNavigationBack(),
             )
             features.proxy.ProxyErrorHost()
         }
