@@ -3,9 +3,9 @@
 
 package features.mihomo
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -22,7 +21,6 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -52,11 +50,15 @@ import engine.mihomo.mihomoRuleReferenceIssues
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import ui.components.AsteriskCodeCopyButton
+import ui.components.AsteriskCodePreviewDialog
+import ui.components.AsteriskCodePreviewLoading
+import ui.components.AsteriskCodePreviewTabs
 import ui.components.AsteriskActionButton
-import ui.components.AsteriskChipTone
-import ui.components.AsteriskFilterChip
 import ui.components.AsteriskInfoChip
 import ui.components.AsteriskSearchField
+import ui.layout.rememberCodeEditorFocusState
+import ui.theme.AsteriskMotion
 import ui.icons.AsteriskIcons as Icons
 
 /**
@@ -203,90 +205,62 @@ internal fun MihomoRuleOverridePreviewDialog(
     }
     var showFinal by remember { mutableStateOf(false) }
 
-    Dialog(
+    val compiled = preview as? RuleOverridePreview.Compiled
+    val inputEditorState = remember(compiled) {
+        MihomoCodeEditorState(compiled?.compilation?.scriptInputYaml.orEmpty(), placeCursorAtEnd = false)
+    }
+    val finalEditorState = remember(compiled) {
+        MihomoCodeEditorState(compiled?.compilation?.finalYaml.orEmpty(), placeCursorAtEnd = false)
+    }
+    val editorState = if (showFinal) finalEditorState else inputEditorState
+    val editorFocus = rememberCodeEditorFocusState(
+        editorFocused = editorState.isFocused,
+        clearEditorFocus = editorState::clearFocus,
+    )
+
+    AsteriskCodePreviewDialog(
+        title = stringResource(R.string.mihomo_rule_override_preview),
         onDismissRequest = onDismissRequest,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
-    ) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .widthIn(max = 880.dp)
-                .fillMaxHeight()
-                .padding(horizontal = 16.dp, vertical = 24.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-        ) {
-            Column(modifier = Modifier.fillMaxSize().padding(20.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = stringResource(R.string.mihomo_rule_override_preview),
-                        style = MaterialTheme.typography.headlineSmall,
-                        modifier = Modifier.weight(1f),
-                    )
-                    when (preview) {
-                        RuleOverridePreview.Compiling -> CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
-                        is RuleOverridePreview.Compiled -> AsteriskInfoChip(
-                            text = stringResource(R.string.mihomo_override_script_debug_success),
-                            tone = AsteriskChipTone.Primary,
-                        )
-                        is RuleOverridePreview.Failed -> AsteriskInfoChip(
-                            text = stringResource(R.string.mihomo_override_script_debug_failed),
-                            tone = AsteriskChipTone.Error,
-                        )
-                    }
-                }
-                when (val current = preview) {
-                    RuleOverridePreview.Compiling -> Box(Modifier.weight(1f))
-
-                    is RuleOverridePreview.Failed -> SelectionContainer(Modifier.weight(1f).padding(top = 12.dp)) {
-                        Text(
-                            text = current.message,
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.verticalScroll(rememberScrollState()),
-                        )
-                    }
-
-                    is RuleOverridePreview.Compiled -> {
-                        PreviewNotes(current, sourceIsCachedSubscription)
-                        Row(
-                            modifier = Modifier.padding(top = 8.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            AsteriskFilterChip(
-                                selected = !showFinal,
-                                onClick = { showFinal = false },
-                                label = stringResource(R.string.mihomo_rule_override_preview_after_override),
-                            )
-                            AsteriskFilterChip(
-                                selected = showFinal,
-                                onClick = { showFinal = true },
-                                label = stringResource(R.string.mihomo_rule_override_preview_final),
-                            )
-                        }
-                        val inputEditorState = remember(current) {
-                            MihomoCodeEditorState(current.compilation.scriptInputYaml, placeCursorAtEnd = false)
-                        }
-                        val finalEditorState = remember(current) {
-                            MihomoCodeEditorState(current.compilation.finalYaml, placeCursorAtEnd = false)
-                        }
-                        val editorState = if (showFinal) finalEditorState else inputEditorState
-                        YamlCodeEditor(
-                            state = editorState,
-                            showFormatButton = false,
-                            modifier = Modifier.fillMaxWidth().weight(1f).padding(top = 8.dp),
-                        )
-                    }
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                    horizontalArrangement = Arrangement.End,
+        searchAvailable = compiled != null,
+        focusState = editorFocus,
+        actions = {
+            if (compiled != null) AsteriskCodeCopyButton(editorState::snapshotText)
+        },
+        topBarContent = {
+            if (compiled != null) {
+                AsteriskCodePreviewTabs(
+                    showOutput = showFinal,
+                    onShowOutputChange = { showFinal = it },
+                    consoleLabel = stringResource(R.string.mihomo_rule_override_preview_after_override),
+                    outputLabel = stringResource(R.string.mihomo_rule_override_preview_final),
+                )
+            }
+        },
+    ) { searchState, editorModifier ->
+        when (val current = preview) {
+            RuleOverridePreview.Compiling -> AsteriskCodePreviewLoading()
+            is RuleOverridePreview.Failed -> SelectionContainer(Modifier.fillMaxSize()) {
+                Text(
+                    text = current.message,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                )
+            }
+            is RuleOverridePreview.Compiled -> Column(Modifier.fillMaxSize()) {
+                AnimatedVisibility(
+                    visible = !editorFocus.expanded,
+                    enter = AsteriskMotion.contentEnter(),
+                    exit = AsteriskMotion.contentExit(),
                 ) {
-                    AsteriskActionButton(
-                        text = stringResource(R.string.common_complete),
-                        icon = Icons.Rounded.Check,
-                        onClick = onDismissRequest,
-                    )
+                    PreviewNotes(current, sourceIsCachedSubscription)
                 }
+                YamlCodeEditor(
+                    state = editorState,
+                    showFormatButton = false,
+                    searchState = searchState,
+                    modifier = Modifier.fillMaxWidth().weight(1f).padding(top = 8.dp).then(editorModifier),
+                )
             }
         }
     }

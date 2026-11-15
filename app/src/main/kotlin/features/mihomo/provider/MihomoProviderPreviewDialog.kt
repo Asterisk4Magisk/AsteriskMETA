@@ -3,6 +3,7 @@
 
 package features.mihomo.provider
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,6 +39,8 @@ import ui.components.AsteriskCodeSearchState
 import ui.components.AsteriskStatusCard
 import ui.components.AsteriskTopBarControls
 import ui.components.rememberCodePreviewDocument
+import ui.layout.rememberCodeEditorFocusState
+import ui.theme.AsteriskMotion
 import utils.toReadableBytes
 import ui.icons.AsteriskIcons as Icons
 
@@ -53,6 +56,10 @@ internal fun MihomoProviderPreviewDialog(
     val content = textContent?.content.orEmpty()
     val document = rememberCodePreviewDocument(content)
     val editorState = remember(document) { document?.let { MihomoCodeEditorState(it, placeCursorAtEnd = false) } }
+    val editorFocus = rememberCodeEditorFocusState(
+        editorFocused = editorState?.isFocused == true,
+        clearEditorFocus = { editorState?.clearFocus() },
+    )
     val lineCount = if (content.isEmpty()) 0 else document?.lineCount ?: 0
     val metadata = providerPreviewMetadata(rawContent, lineCount)
     val searchAvailable = textContent != null && editorState != null
@@ -60,6 +67,7 @@ internal fun MihomoProviderPreviewDialog(
         title = providerName.ifBlank { ProviderPreviewFallbackName },
         onDismissRequest = onDismissRequest,
         searchAvailable = searchAvailable,
+        focusState = editorFocus,
         actions = { if (searchAvailable) AsteriskCodeCopyButton(editorState::snapshotText) },
         topBarContent = {
             if (metadata.isNotBlank()) {
@@ -79,6 +87,7 @@ internal fun MihomoProviderPreviewDialog(
             loading || document == null -> ProviderPreviewLoading()
             textContent != null && editorState != null -> ProviderPreviewTextContent(
                 errorMessage = textContent.lastError,
+                editorExpanded = editorFocus.expanded,
                 state = editorState,
                 searchState = searchState,
                 modifier = editorModifier,
@@ -153,14 +162,21 @@ private fun ProviderPreviewBinaryContent(
 @Composable
 private fun ProviderPreviewTextContent(
     errorMessage: String,
+    editorExpanded: Boolean,
     state: MihomoCodeEditorState,
     searchState: AsteriskCodeSearchState,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
-        if (errorMessage.isNotBlank()) {
-            ProviderMessageCard(text = errorMessage)
-            Spacer(Modifier.height(8.dp))
+        AnimatedVisibility(
+            visible = errorMessage.isNotBlank() && !editorExpanded,
+            enter = AsteriskMotion.contentEnter(),
+            exit = AsteriskMotion.contentExit(),
+        ) {
+            Column {
+                ProviderMessageCard(text = errorMessage)
+                Spacer(Modifier.height(8.dp))
+            }
         }
         Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
             YamlCodeEditor(

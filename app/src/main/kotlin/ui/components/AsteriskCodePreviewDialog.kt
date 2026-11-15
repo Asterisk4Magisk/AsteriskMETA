@@ -3,6 +3,7 @@
 
 package ui.components
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -38,6 +39,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import ui.clipboard.setPlainText
 import ui.layout.pageListPadding
+import ui.layout.CodeEditorFocusState
+import ui.theme.AsteriskMotion
 import ui.icons.AsteriskIcons as Icons
 
 /** Full-screen preview chrome; loading, diagnostics and the document language stay with the caller. */
@@ -47,13 +50,21 @@ internal fun AsteriskCodePreviewDialog(
     onDismissRequest: () -> Unit,
     searchAvailable: Boolean = true,
     keepSearchButtonVisible: Boolean = false,
+    focusState: CodeEditorFocusState? = null,
     actions: @Composable RowScope.() -> Unit = {},
     topBarContent: @Composable ColumnScope.() -> Unit = {},
     content: @Composable (searchState: AsteriskCodeSearchState, editorModifier: Modifier) -> Unit,
 ) {
     val searchState = rememberAsteriskCodeSearchState()
+    val onBack = {
+        when {
+            searchState.active -> searchState.close()
+            focusState?.expanded == true -> focusState.exit()
+            else -> onDismissRequest()
+        }
+    }
     Dialog(
-        onDismissRequest = { if (searchState.active) searchState.close() else onDismissRequest() },
+        onDismissRequest = onBack,
         properties = DialogProperties(
             usePlatformDefaultWidth = false,
             decorFitsSystemWindows = false,
@@ -75,13 +86,19 @@ internal fun AsteriskCodePreviewDialog(
                         AsteriskTopAppBar(
                             title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                             navigationIcon = {
-                                IconButton(onClick = { if (searchState.active) searchState.close() else onDismissRequest() }) {
+                                IconButton(onClick = onBack) {
                                     Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.common_back))
                                 }
                             },
                             actions = { searchButton(); actions() },
                         )
-                        topBarContent()
+                        AnimatedVisibility(
+                            visible = focusState?.expanded != true,
+                            enter = AsteriskMotion.contentEnter(),
+                            exit = AsteriskMotion.contentExit(),
+                        ) {
+                            Column(content = topBarContent)
+                        }
                     }
                 },
             ) { innerPadding ->

@@ -4,7 +4,7 @@
 package features.mihomo
 
 import ui.components.AsteriskCancelButton
-import ui.layout.codeEditorShowsSupportingContent
+import ui.layout.rememberCodeEditorFocusState
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
@@ -201,6 +201,12 @@ fun MihomoProfileEditPage(
     var rawParseResult by remember(targetProfile?.id, isNew) {
         mutableStateOf<MihomoRawConfigParseResult?>(null)
     }
+
+    val editorFocus = rememberCodeEditorFocusState(
+        editorFocused = contentEditorState.isFocused,
+        clearEditorFocus = contentEditorState::clearFocus,
+        backEnabled = !saving,
+    )
 
     BackHandler(enabled = saving) {}
 
@@ -482,7 +488,7 @@ fun MihomoProfileEditPage(
                 title = { Text(title, maxLines = 1) },
                 navigationIcon = {
                     IconButton(
-                        onClick = { navigator.pop() },
+                        onClick = { if (editorFocus.expanded) editorFocus.exit() else navigator.pop() },
                         enabled = !saving,
                     ) {
                         Icon(
@@ -581,7 +587,7 @@ fun MihomoProfileEditPage(
                         )
                     } else {
                         AnimatedVisibility(
-                            visible = codeEditorShowsSupportingContent(contentEditorState.isFocused),
+                            visible = !editorFocus.expanded,
                             enter = AsteriskMotion.contentEnter(),
                             exit = AsteriskMotion.contentExit(),
                         ) {
@@ -1263,8 +1269,7 @@ private fun RawModeConfirmationDialog(
 }
 
 private fun String.isValidAgeSecretKey(stored: String?): Boolean {
-    if (isBlank() || trim() == stored?.trim()) return true
-    return Clash.veritySecretKeys(this)
+    return isBlank() || trim() == stored?.trim() || Clash.veritySecretKeys(this)
 }
 
 private const val RawConfigValidationDebounceMillis = 350L

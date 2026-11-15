@@ -3,21 +3,7 @@
 
 package features.mihomo
 
-
-import androidx.navigationevent.compose.rememberNavigationEventState
-
-import androidx.navigationevent.compose.NavigationBackHandler
-
-import androidx.navigationevent.NavigationEventInfo
-
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-
-import androidx.compose.ui.platform.LocalFocusManager
-
-import androidx.compose.runtime.saveable.rememberSaveable
-
-import androidx.compose.runtime.LaunchedEffect
-
+import ui.layout.rememberCodeEditorFocusState
 import androidx.compose.foundation.layout.BoxWithConstraints
 import ui.components.AsteriskCancelButton
 import androidx.compose.animation.AnimatedVisibility
@@ -504,23 +490,10 @@ fun MihomoOverrideScriptEditPage(
     }
 
     val codeSearch = rememberAsteriskCodeSearchState()
-    val focusManager = LocalFocusManager.current
-    val keyboard = LocalSoftwareKeyboardController.current
-    var editorExpanded by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(scriptEditorState.isFocused, codeSearch.active) {
-        if (scriptEditorState.isFocused || codeSearch.active) editorExpanded = true
-    }
-    fun exitEditor() {
-        codeSearch.clearEditorFocus()
-        focusManager.clearFocus(force = true)
-        keyboard?.hide()
-        editorExpanded = false
-    }
-    val editorBackState = rememberNavigationEventState(NavigationEventInfo.None)
-    NavigationBackHandler(
-        state = editorBackState,
-        isBackEnabled = editorExpanded && !codeSearch.active,
-        onBackCompleted = ::exitEditor,
+    val editorFocus = rememberCodeEditorFocusState(
+        editorFocused = scriptEditorState.isFocused,
+        clearEditorFocus = codeSearch::clearEditorFocus,
+        searchActive = codeSearch.active,
     )
     AsteriskCodeSearchHost(
         state = codeSearch,
@@ -542,7 +515,7 @@ fun MihomoOverrideScriptEditPage(
                             onClick = {
                                 when {
                                     codeSearch.active -> codeSearch.close()
-                                    editorExpanded -> exitEditor()
+                                    editorFocus.expanded -> editorFocus.exit()
                                     else -> navigator.pop()
                                 }
                             },
@@ -614,7 +587,7 @@ fun MihomoOverrideScriptEditPage(
                 } else {
                     key(targetScript?.id, isNew) {
                         AnimatedVisibility(
-                            visible = !editorExpanded,
+                            visible = !editorFocus.expanded,
                             enter = AsteriskMotion.contentEnter(),
                             exit = AsteriskMotion.contentExit(),
                         ) {
@@ -712,6 +685,10 @@ private fun MihomoOverrideScriptDebugDialog(
             state.replaceText(outputText, placeCursorAtEnd = false)
         }
     }
+    val outputFocus = rememberCodeEditorFocusState(
+        editorFocused = outputEditorState.isFocused,
+        clearEditorFocus = outputEditorState::clearFocus,
+    )
     val outputEffectsMotion = AsteriskMotion.fastEffects<Float>()
     val hasDiagnostics = !result.error.isNullOrBlank() || result.summary != null
 
@@ -720,6 +697,7 @@ private fun MihomoOverrideScriptDebugDialog(
         onDismissRequest = onDismissRequest,
         searchAvailable = showOutput,
         keepSearchButtonVisible = true,
+        focusState = outputFocus,
         actions = {
             AsteriskCodeActionButton(
                 icon = Icons.Rounded.ContentCopy,
@@ -748,42 +726,48 @@ private fun MihomoOverrideScriptDebugDialog(
         ) {
             val diagnosticsMaxHeight = maxHeight * 0.35f
             Column(modifier = Modifier.fillMaxSize()) {
-                Column(
-                    modifier = Modifier.fillMaxWidth()
-                        .heightIn(max = diagnosticsMaxHeight)
-                        .verticalScroll(rememberScrollState()),
+                AnimatedVisibility(
+                    visible = !outputFocus.expanded,
+                    enter = AsteriskMotion.contentEnter(),
+                    exit = AsteriskMotion.contentExit(),
                 ) {
-                    result.error?.takeIf(String::isNotBlank)?.let { error ->
-                        DebugSection(
-                            title = stringResource(R.string.mihomo_override_script_debug_error),
-                            body = error,
-                            error = true,
-                        )
-                    }
-                    result.summary?.let { summary ->
-                        val title = stringResource(R.string.mihomo_override_script_debug_summary_title)
-                        val details = stringResource(
-                            R.string.mihomo_override_script_debug_summary,
-                            summary.inputProxyCount,
-                            summary.outputProxyCount,
-                            summary.inputProxyGroupCount,
-                            summary.outputProxyGroupCount,
-                            summary.inputRuleCount,
-                            summary.outputRuleCount,
-                        )
-                        Text(
-                            text = "$title · $details",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.padding(top = if (!result.error.isNullOrBlank()) 8.dp else 0.dp),
-                        )
+                    Column(
+                        modifier = Modifier.fillMaxWidth()
+                            .heightIn(max = diagnosticsMaxHeight)
+                            .verticalScroll(rememberScrollState()),
+                    ) {
+                        result.error?.takeIf(String::isNotBlank)?.let { error ->
+                            DebugSection(
+                                title = stringResource(R.string.mihomo_override_script_debug_error),
+                                body = error,
+                                error = true,
+                            )
+                        }
+                        result.summary?.let { summary ->
+                            val title = stringResource(R.string.mihomo_override_script_debug_summary_title)
+                            val details = stringResource(
+                                R.string.mihomo_override_script_debug_summary,
+                                summary.inputProxyCount,
+                                summary.outputProxyCount,
+                                summary.inputProxyGroupCount,
+                                summary.outputProxyGroupCount,
+                                summary.inputRuleCount,
+                                summary.outputRuleCount,
+                            )
+                            Text(
+                                text = "$title · $details",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(top = if (!result.error.isNullOrBlank()) 8.dp else 0.dp),
+                            )
+                        }
                     }
                 }
                 AnimatedContent(
                     targetState = showOutput,
-                    modifier = Modifier.fillMaxWidth().weight(1f).padding(top = if (hasDiagnostics) 8.dp else 0.dp),
+                    modifier = Modifier.fillMaxWidth().weight(1f).padding(top = if (hasDiagnostics && !outputFocus.expanded) 8.dp else 0.dp),
                     transitionSpec = AsteriskMotion.fadeThrough(outputEffectsMotion),
                     contentAlignment = Alignment.TopStart,
                     label = "script-debug-output",

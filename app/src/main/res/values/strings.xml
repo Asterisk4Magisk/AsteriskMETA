@@ -575,7 +575,6 @@
     <string name="mihomo_override_script_add">Add script</string>
     <string name="mihomo_override_script_debug_copy">Copy report</string>
     <string name="mihomo_override_script_debug_error">Error</string>
-    <string name="mihomo_override_script_debug_failed">Failed</string>
     <string name="mihomo_override_script_debug_logs">Console</string>
     <string name="mihomo_override_script_debug_no_logs">No console output</string>
     <string name="mihomo_override_script_debug_no_output">No final YAML</string>
@@ -585,7 +584,6 @@
     <string name="mihomo_override_script_debug_raw_profile">This profile disables all overrides, so no script runs for it</string>
     <string name="mihomo_override_script_debug_run">Debug</string>
     <string name="mihomo_override_script_debug_running">Debugging…</string>
-    <string name="mihomo_override_script_debug_success">Succeeded</string>
     <string name="mihomo_override_script_debug_summary">Proxies %1$d → %2$d · Groups %3$d → %4$d · Rules %5$d → %6$d</string>
     <string name="mihomo_override_script_debug_summary_title">Summary</string>
     <string name="mihomo_override_script_debug_title">Debug results</string>
