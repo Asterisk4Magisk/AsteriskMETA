@@ -39,7 +39,6 @@ import ui.components.AsteriskCodeSearchState
 import ui.components.AsteriskStatusCard
 import ui.components.AsteriskTopBarControls
 import ui.components.rememberCodePreviewDocument
-import ui.layout.rememberCodeEditorFocusState
 import ui.theme.AsteriskMotion
 import ui.icons.AsteriskIcons as Icons
 
@@ -55,17 +54,12 @@ internal fun MihomoProviderPreviewDialog(
     val content = textContent?.content.orEmpty()
     val document = rememberCodePreviewDocument(content)
     val editorState = remember(document) { document?.let { MihomoCodeEditorState(it, placeCursorAtEnd = false) } }
-    val editorFocus = rememberCodeEditorFocusState(
-        editorFocused = editorState?.isFocused == true,
-        clearEditorFocus = { editorState?.clearFocus() },
-    )
     val metadata = providerPreviewMetadata(rawContent)
     val searchAvailable = textContent != null && editorState != null
     AsteriskCodePreviewDialog(
         title = providerName.ifBlank { ProviderPreviewFallbackName },
         onDismissRequest = onDismissRequest,
         searchAvailable = searchAvailable,
-        focusState = editorFocus,
         actions = { if (searchAvailable) AsteriskCodeCopyButton(editorState::snapshotText) },
         topBarContent = {
             if (metadata.isNotBlank()) {
@@ -85,7 +79,6 @@ internal fun MihomoProviderPreviewDialog(
             loading || document == null -> ProviderPreviewLoading()
             textContent != null && editorState != null -> ProviderPreviewTextContent(
                 errorMessage = textContent.lastError,
-                editorExpanded = editorFocus.expanded,
                 state = editorState,
                 searchState = searchState,
                 modifier = editorModifier,
@@ -160,14 +153,13 @@ private fun ProviderPreviewBinaryContent(
 @Composable
 private fun ProviderPreviewTextContent(
     errorMessage: String,
-    editorExpanded: Boolean,
     state: MihomoCodeEditorState,
     searchState: AsteriskCodeSearchState,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         AnimatedVisibility(
-            visible = errorMessage.isNotBlank() && !editorExpanded,
+            visible = errorMessage.isNotBlank(),
             enter = AsteriskMotion.contentEnter(),
             exit = AsteriskMotion.contentExit(),
         ) {
