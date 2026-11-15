@@ -4,10 +4,10 @@
 package ui.components
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.EnterExitState
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -57,6 +57,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -200,6 +202,8 @@ private fun CodeSearchOverlay(
     anchor: Rect,
     content: @Composable (dragHandle: @Composable () -> Unit) -> Unit,
 ) {
+    val opacitySpec = AsteriskMotion.fastEffects<Float>()
+    val positionSpec = AsteriskMotion.fastSpatial<Float>()
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
@@ -231,18 +235,33 @@ private fun CodeSearchOverlay(
             modifier = Modifier
                 .absoluteOffset { IntOffset(position.x.roundToInt(), position.y.roundToInt()) }
                 .width(panelWidth),
-            enter = fadeIn(AsteriskMotion.fastEffects()) +
-                slideInVertically(AsteriskMotion.fastSpatial()) { -it / 8 },
-            exit = fadeOut(AsteriskMotion.fastEffects()) +
-                slideOutVertically(AsteriskMotion.fastSpatial()) { -it / 8 },
+            enter = EnterTransition.None,
+            exit = ExitTransition.None,
         ) {
+            val opacity by transition.animateFloat(
+                transitionSpec = { opacitySpec },
+                label = "code-search-opacity",
+            ) { if (it == EnterExitState.Visible) 1f else 0f }
+            val positionProgress by transition.animateFloat(
+                transitionSpec = { positionSpec },
+                label = "code-search-position",
+            ) { if (it == EnterExitState.Visible) 1f else 0f }
             DisposableEffect(Unit) {
                 onDispose {
                     draggedPosition = null
                     panelSize = IntSize.Zero
                 }
             }
-            Box(modifier = Modifier.onSizeChanged { panelSize = it }) {
+            Box(
+                modifier = Modifier
+                    // Fade and move the whole glass without an offscreen rectangle clipping its rounded shadow.
+                    .graphicsLayer {
+                        alpha = opacity
+                        translationY = (positionProgress - 1f) * size.height / 8f
+                        compositingStrategy = CompositingStrategy.ModulateAlpha
+                    }
+                    .onSizeChanged { panelSize = it },
+            ) {
                 content {
                     CodeSearchDragHandle(
                         onDragStarted = {
