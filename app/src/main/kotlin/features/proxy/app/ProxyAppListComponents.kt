@@ -294,11 +294,7 @@ private fun UidChip(
     sharedUid: Boolean,
 ) {
     AsteriskInfoChip(
-        text = if (sharedUid) {
-            "SUID:${uid?.toString() ?: "..."}"
-        } else {
-            "UID:${uid?.toString() ?: "..."}"
-        },
+        text = uid?.toString() ?: "...",
         tone = if (sharedUid) AsteriskChipTone.Tertiary else AsteriskChipTone.Secondary,
     )
 }
