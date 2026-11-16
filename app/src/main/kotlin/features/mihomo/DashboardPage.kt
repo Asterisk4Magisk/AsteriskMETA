@@ -624,8 +624,6 @@ private fun HomeCurrentNodeRow(
         title = stringResource(R.string.home_current_proxy),
         value = nodeName ?: stringResource(R.string.home_no_proxy),
         onClick = onOpenProxies,
-        // Reserve the delay chip's 48dp touch target plus the row's vertical padding.
-        modifier = Modifier.heightIn(min = 72.dp),
     ) {
         if (testableNode != null) {
             val node = runtime.proxies.node(testableNode)
@@ -668,9 +666,11 @@ private fun HomeChinRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
+            // Both rows reserve the delay chip's 48dp touch target plus symmetric padding.
+            .heightIn(min = 60.dp)
             .clip(RoundedCornerShape(10.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 4.dp, vertical = 12.dp),
+            .padding(horizontal = 4.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
