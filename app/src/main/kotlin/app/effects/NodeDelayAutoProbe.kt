@@ -6,6 +6,8 @@ package app.effects
 import android.os.SystemClock
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
@@ -17,26 +19,33 @@ import engine.mihomo.runtime.MihomoRuntimeState
 import engine.mihomo.runtime.activeNodeId
 import features.home.toMihomoModeOrNull
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 
 /**
- * Keeps the active node's latency fresh when the app enters the foreground. It probes only the
- * first testable active node resolved for that resume; later selector changes are user actions and
- * must not implicitly start another delay test. An already started probe finishes across selections.
+ * Probes the first testable active node on home entry and resume. Home visibility only gates
+ * new probes; an already started probe finishes across navigation and selector changes.
+ * Group batches and foreground lifecycle still may cancel it.
  */
 @Composable
 internal fun NodeDelayAutoProbe(
     stateStore: AndroidAppStateStore,
     mihomoRuntime: MihomoRuntimeRepository,
+    homeVisible: Boolean,
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
+    val latestHomeVisible = rememberUpdatedState(homeVisible)
     LaunchedEffect(lifecycleOwner, stateStore, mihomoRuntime) {
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-            val selectionRevision = mihomoRuntime.state.value.proxySelectionRevision
-            val id = mihomoRuntime.state.awaitResumeProbeNode(selectionRevision) {
-                stateStore.state.value.mihomoMode
-            } ?: return@repeatOnLifecycle
-            mihomoRuntime.probeProxyDelay(stateStore.state.value, id, SystemClock.elapsedRealtime())
+            snapshotFlow { latestHomeVisible.value }.collect { visible ->
+                if (!visible) return@collect
+                val selectionRevision = mihomoRuntime.state.value.proxySelectionRevision
+                val id = mihomoRuntime.state.awaitResumeProbeNode(selectionRevision) {
+                    stateStore.state.value.mihomoMode
+                } ?: return@collect
+                if (!latestHomeVisible.value) return@collect
+                mihomoRuntime.probeProxyDelay(stateStore.state.value, id, SystemClock.elapsedRealtime())
+            }
         }
     }
 }
