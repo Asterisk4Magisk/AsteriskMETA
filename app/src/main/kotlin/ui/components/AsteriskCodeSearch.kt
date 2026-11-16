@@ -157,7 +157,6 @@ internal fun AsteriskCodeSearchHost(
                     searchState = state,
                     searchPending = state.pending,
                     onSearch = { keyboard?.hide() },
-                    onClose = state::close,
                     dragHandle = dragHandle,
                 )
             }
@@ -317,7 +316,6 @@ private fun CodeSearchPanel(
     searchState: AsteriskCodeSearchState,
     searchPending: Boolean,
     onSearch: () -> Unit,
-    onClose: () -> Unit,
     dragHandle: @Composable () -> Unit,
 ) {
     Box(modifier = Modifier.pointerInput(Unit) {}) {
@@ -335,7 +333,6 @@ private fun CodeSearchPanel(
                     state = searchState.queryInput,
                     focusRequester = focusRequester,
                     onSearch = onSearch,
-                    onClose = onClose,
                     dragHandle = dragHandle,
                 )
                 AnimatedVisibility(
@@ -459,7 +456,7 @@ private fun CodeReplaceControls(
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
     Row(
-        modifier = Modifier.fillMaxWidth().padding(start = 48.dp),
+        modifier = Modifier.fillMaxWidth().padding(start = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         BasicTextField(
@@ -486,7 +483,7 @@ private fun CodeReplaceControls(
             },
         )
         AsteriskCodeActionButton(
-            icon = Icons.Rounded.EditNote,
+            icon = Icons.Rounded.Check,
             label = stringResource(R.string.code_editor_replace),
             onClick = state::replaceCurrent,
             enabled = state.canReplace,
@@ -497,7 +494,7 @@ private fun CodeReplaceControls(
             }
         } else {
             AsteriskCodeActionButton(
-                icon = Icons.AutoMirrored.Rounded.PlaylistAddCheck,
+                icon = Icons.Rounded.DoneAll,
                 label = stringResource(R.string.code_editor_replace_all),
                 onClick = onReplaceAll,
                 enabled = state.canReplace,
@@ -511,15 +508,13 @@ private fun CodeSearchField(
     state: TextFieldState,
     focusRequester: FocusRequester,
     onSearch: () -> Unit,
-    onClose: () -> Unit,
     dragHandle: @Composable () -> Unit,
 ) {
     val colorScheme = MaterialTheme.colorScheme
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().padding(start = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        dragHandle()
         BasicTextField(
             state = state,
             modifier = Modifier.weight(1f).heightIn(min = 48.dp).focusRequester(focusRequester),
@@ -547,20 +542,14 @@ private fun CodeSearchField(
             if (state.text.isNotEmpty()) {
                 IconButton(onClick = { state.setTextAndPlaceCursorAtEnd("") }) {
                     Icon(
-                        imageVector = Icons.Rounded.Delete,
+                        imageVector = Icons.Rounded.Close,
                         contentDescription = stringResource(R.string.common_clear),
                         modifier = Modifier.size(20.dp),
                     )
                 }
             }
         }
-        IconButton(onClick = onClose) {
-            Icon(
-                imageVector = Icons.Rounded.Close,
-                contentDescription = stringResource(R.string.code_editor_search_close),
-                modifier = Modifier.size(20.dp),
-            )
-        }
+        dragHandle()
     }
 }
 
