@@ -5,7 +5,6 @@ package features.mihomo.provider
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -47,7 +46,6 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -62,14 +60,19 @@ import app.R
 import app.collectAppState
 import engine.mihomo.runtime.MihomoProxyProviderNode
 import engine.mihomo.runtime.MihomoProxyProviderRuntimeDetail
+import engine.mihomo.runtime.MihomoDelayMeasurement
 import engine.mihomo.runtime.MihomoDelayResult
 import engine.mihomo.runtime.MihomoDelayStatus
 import engine.mihomo.runtime.MihomoDelayTarget
 import engine.mihomo.runtime.MihomoProxyNodeId
 import engine.mihomo.runtime.withDelayResult
 import engine.mihomo.runtime.canStartUserDelayTest
+import engine.mihomo.runtime.canStartSharedProxyDelayTest
+import engine.mihomo.runtime.canStartProxyDelayTest
+import engine.mihomo.runtime.delayTestingNodeIds
 import features.mihomo.MihomoDelayToolbar
 import features.mihomo.displayMihomoProtocolName
+import features.mihomo.mihomoDelayTint
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -81,6 +84,12 @@ import ui.layout.pageListPadding
 import ui.theme.AsteriskMotion
 import ui.theme.ExpressiveShapeRole
 import ui.icons.AsteriskIcons as Icons
+
+private data class ProviderDelayRuntime(
+    val pending: Set<MihomoProxyNodeId>,
+    val total: Int,
+    val result: MihomoDelayResult,
+)
 
 @Composable
 fun MihomoProxyProviderDetailPage(
@@ -102,10 +111,42 @@ fun MihomoProxyProviderDetailPage(
             .map { state -> state.canStartUserDelayTest }
             .distinctUntilChanged()
     }.collectAsState(initial = true)
+    val nodeDelayTestAllowed by remember(services.mihomoRuntime) {
+        services.mihomoRuntime.state
+            .map { state -> state.canStartSharedProxyDelayTest }
+            .distinctUntilChanged()
+    }.collectAsState(initial = true)
+    val delayRuntime by remember(services.mihomoRuntime, providerName) {
+        services.mihomoRuntime.state
+            .map { state ->
+                val pending = state.delayTestingNodeIds.filterTo(linkedSetOf()) { id ->
+                    id.providerName == providerName
+                }
+                val measurements = state.proxies.nodes.mapNotNull { node ->
+                    val status = node.delayStatus ?: return@mapNotNull null
+                    if (node.providerName != providerName) return@mapNotNull null
+                    node.id to MihomoDelayMeasurement(
+                        id = node.id,
+                        status = status,
+                        delay = node.delay,
+                        error = node.delayError,
+                    )
+                }.toMap()
+                ProviderDelayRuntime(
+                    pending = pending,
+                    total = if (state.delayTestingTarget == MihomoDelayTarget.Provider(providerName)) {
+                        state.delayTestingTotal
+                    } else {
+                        pending.size
+                    },
+                    result = MihomoDelayResult(measurements),
+                )
+            }
+            .distinctUntilChanged()
+    }.collectAsState(initial = ProviderDelayRuntime(emptySet(), 0, MihomoDelayResult()))
     val appContext = LocalContext.current.applicationContext
     val tipNotifier = services.tipNotifier
     val delayFailedMessage = stringResource(R.string.mihomo_proxies_delay_failed)
-    val delayDoneMessage = stringResource(R.string.mihomo_proxies_delay_done)
     var declarationsState by remember { mutableStateOf(ProviderDeclarationsState(loading = true)) }
     var runtimeDetail by remember { mutableStateOf<MihomoProxyProviderRuntimeDetail?>(null) }
     var runtimeLoading by remember { mutableStateOf(false) }
@@ -175,22 +216,23 @@ fun MihomoProxyProviderDetailPage(
         runtimeLoading = false
     }
 
+    LaunchedEffect(delayRuntime.result) {
+        if (delayRuntime.result.measurements.isEmpty()) return@LaunchedEffect
+        latestDelayResult = mergeMihomoProviderDelayResults(latestDelayResult, delayRuntime.result)
+        runtimeDetail = runtimeDetail?.withDelayResult(delayRuntime.result)
+    }
+
     fun testNodeDelay(node: MihomoProxyProviderNode) {
         val detail = runtimeDetail ?: return
-        if (!userDelayTestAllowed) return
+        val id = MihomoProxyNodeId(node.name, detail.name)
+        if (!services.mihomoRuntime.state.value.canStartProxyDelayTest(id)) return
         nodeFilterPagerScope.launch {
             services.mihomoRuntime.testProxyDelay(
                 appState = appState,
                 proxyId = MihomoProxyNodeId(node.name, detail.name),
                 testUrl = appState.connectionTestUrl,
                 expectedStatus = detail.expectedStatus,
-            ).onSuccess { result ->
-                val mergedResult = mergeMihomoProviderDelayResults(latestDelayResult, result)
-                latestDelayResult = mergedResult
-                runtimeDetail = runtimeDetail?.withDelayResult(mergedResult)
-                tipNotifier.show(delayDoneMessage)
-                runtimeReloadToken += 1
-            }.onFailure { error ->
+            ).onFailure { error ->
                 tipNotifier.showError(error, delayFailedMessage)
             }
         }
@@ -205,13 +247,7 @@ fun MihomoProxyProviderDetailPage(
                 providerName = detail.name,
                 testUrl = appState.connectionTestUrl,
                 expectedStatus = detail.expectedStatus,
-            ).onSuccess { result ->
-                val mergedResult = mergeMihomoProviderDelayResults(latestDelayResult, result)
-                latestDelayResult = mergedResult
-                runtimeDetail = runtimeDetail?.withDelayResult(mergedResult)
-                tipNotifier.show(delayDoneMessage)
-                runtimeReloadToken += 1
-            }.onFailure { error ->
+            ).onFailure { error ->
                 tipNotifier.showError(error, delayFailedMessage)
             }
         }
@@ -283,7 +319,8 @@ fun MihomoProxyProviderDetailPage(
                                 searchQuery = nodeSearchQuery,
                                 filter = pageFilter,
                                 delayTestingTarget = delayTestingTarget,
-                                delayTestingEnabled = userDelayTestAllowed,
+                                delayTestingPending = delayRuntime.pending,
+                                delayTestingEnabled = nodeDelayTestAllowed,
                                 onDelayTest = ::testNodeDelay,
                                 onRetry = { runtimeReloadToken += 1 },
                             )
@@ -295,6 +332,8 @@ fun MihomoProxyProviderDetailPage(
                 MihomoDelayToolbar(
                     enabled = !runtimeLoading && userDelayTestAllowed && detail.nodes.isNotEmpty(),
                     testing = delayTestingTarget == MihomoDelayTarget.Provider(detail.name),
+                    testingCompleted = delayRuntime.total - delayRuntime.pending.size,
+                    testingTotal = delayRuntime.total,
                     onDelayTest = ::testProviderDelay,
                     bottomPadding = contentPadding.calculateBottomPadding(),
                     modifier = Modifier.align(Alignment.BottomEnd),
@@ -311,6 +350,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.providerNodeItems(
     searchQuery: String,
     filter: ProxyProviderNodeFilter,
     delayTestingTarget: MihomoDelayTarget?,
+    delayTestingPending: Set<MihomoProxyNodeId>,
     delayTestingEnabled: Boolean,
     onDelayTest: (MihomoProxyProviderNode) -> Unit,
     onRetry: () -> Unit,
@@ -348,9 +388,9 @@ private fun androidx.compose.foundation.lazy.LazyListScope.providerNodeItems(
         ) { node ->
             ProviderNodeCard(
                 node = node,
-                testing = delayTestingTarget == MihomoDelayTarget.Node(
-                    MihomoProxyNodeId(node.name, detail?.name),
-                ),
+                testing = MihomoProxyNodeId(node.name, detail?.name).let { id ->
+                    delayTestingTarget == MihomoDelayTarget.Node(id) || id in delayTestingPending
+                },
                 delayTestingEnabled = delayTestingEnabled,
                 onDelayTest = { onDelayTest(node) },
                 modifier = Modifier.animateItem(
@@ -455,7 +495,7 @@ private fun ProviderNodeCard(
                         text = node.delayText(),
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Medium,
-                        color = node.providerDelayColor(),
+                        color = mihomoDelayTint(node.delay, node.delayStatus),
                         textAlign = TextAlign.Center,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -468,21 +508,6 @@ private fun ProviderNodeCard(
 
 private fun MihomoProxyProviderNode.protocolText(): String {
     return type.ifBlank { subtitle.ifBlank { "Proxy" } }
-}
-
-@Composable
-private fun MihomoProxyProviderNode.providerDelayColor(): Color {
-    val darkTheme = isSystemInDarkTheme()
-    return when {
-        delayStatus == MihomoDelayStatus.Timeout || delayStatus == MihomoDelayStatus.Failed -> {
-            MaterialTheme.colorScheme.error
-        }
-        delayStatus == null || delay == null -> MaterialTheme.colorScheme.onSurfaceVariant
-        delay < 100 -> if (darkTheme) Color(0xFF6BD58A) else Color(0xFF128A3C)
-        delay < 200 -> if (darkTheme) Color(0xFFFFC857) else Color(0xFFD18A00)
-        delay < 400 -> if (darkTheme) Color(0xFFFF9B63) else Color(0xFFE06400)
-        else -> MaterialTheme.colorScheme.error
-    }
 }
 
 @Composable

@@ -263,7 +263,11 @@ internal fun Map<String, Any?>.toAsteriskRuntimeProfileObject(
     controllerSocketPath: String? = null,
 ): Map<String, Any?> {
     val updated = linkedMapOf<String, Any?>()
-    val managedKeys = AsteriskManagedTopLevelKeys
+    val managedKeys = if (appState.overrideUnifiedDelay) {
+        AsteriskManagedTopLevelKeys + MihomoUnifiedDelayKey
+    } else {
+        AsteriskManagedTopLevelKeys
+    }
     forEach { (name, value) ->
         if (name !in managedKeys) {
             updated[name] = normalizeYamlValue(value)
@@ -334,7 +338,7 @@ private fun MutableMap<String, Any?>.putAsteriskRuntimeOverrides(
         put("bind-address", LocalProxyLoopbackAddress)
     }
     put("mode", appState.mihomoModeName())
-    put("unified-delay", appState.connectionTestUnifiedDelay)
+    if (appState.overrideUnifiedDelay) put(MihomoUnifiedDelayKey, true)
     put("log-level", appState.mihomoLogLevelName())
     put("geodata-mode", appState.enableGeodataMode)
     put("geodata-loader", appState.mihomoGeodataLoaderName())
@@ -745,7 +749,6 @@ private val AsteriskManagedTopLevelKeys = setOf(
     "allow-lan",
     "bind-address",
     "mode",
-    "unified-delay",
     "log-level",
     "geodata-mode",
     "geodata-loader",
@@ -756,6 +759,7 @@ private val AsteriskManagedTopLevelKeys = setOf(
     MihomoAutoSwitchConfigKey,
 )
 
+private const val MihomoUnifiedDelayKey = "unified-delay"
 private const val NameserverPolicySeparator = "=>"
 private const val SystemDnsServer = "system://"
 internal const val MihomoProfileMissingErrorMessage = "No Mihomo configuration selected"

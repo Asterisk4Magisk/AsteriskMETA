@@ -27,6 +27,20 @@ internal fun MihomoProxyNodeId.toMihomoProxyLazyItemKey(): String {
     }
 }
 
+internal fun mihomoProxyNodeGridItemKey(
+    nodeId: MihomoProxyNodeId,
+    index: Int,
+    delaySortEnabled: Boolean,
+    groupName: String? = null,
+): String {
+    val groupPrefix = groupName?.let { name -> "${name.length}:$name:" }.orEmpty()
+    return if (delaySortEnabled) {
+        "delay-slot:$groupPrefix$index"
+    } else {
+        "node:$groupPrefix${nodeId.toMihomoProxyLazyItemKey()}"
+    }
+}
+
 internal fun filterMihomoProxyGroups(
     proxies: MihomoProxiesState,
     excludeNotSelectable: Boolean,
@@ -40,19 +54,20 @@ internal fun reduceMihomoProxyNodeNames(
     proxies: MihomoProxiesState,
     query: String,
     sort: Int,
+    sortProxies: MihomoProxiesState = proxies,
 ): List<MihomoProxyNodeId> {
     val keyword = query.trim()
     return group?.all
         ?.filter { nodeId ->
+            if (keyword.isEmpty()) return@filter true
             val node = proxies.node(nodeId)
             val displayType = node.type.displayMihomoProtocolName()
-            keyword.isEmpty() ||
-                node.name.contains(keyword, ignoreCase = true) ||
+            node.name.contains(keyword, ignoreCase = true) ||
                 node.providerName.orEmpty().contains(keyword, ignoreCase = true) ||
                 node.type.contains(keyword, ignoreCase = true) ||
                 displayType.contains(keyword, ignoreCase = true)
         }
-        ?.sortMihomoProxyNodeNames(proxies, resolveMihomoProxySort(sort))
+        ?.sortMihomoProxyNodeNames(sortProxies, resolveMihomoProxySort(sort))
         .orEmpty()
 }
 
@@ -65,6 +80,7 @@ internal fun reduceMihomoProxyGroupSections(
     proxies: MihomoProxiesState,
     query: String,
     sort: Int,
+    sortProxies: MihomoProxiesState = proxies,
 ): List<MihomoProxyGroupSection> {
     val keyword = query.trim()
     return proxies.groups.mapNotNull { group ->
@@ -74,6 +90,7 @@ internal fun reduceMihomoProxyGroupSections(
             proxies = proxies,
             query = if (matchesGroup) "" else keyword,
             sort = sort,
+            sortProxies = sortProxies,
         )
         if (matchesGroup || nodes.isNotEmpty()) MihomoProxyGroupSection(group, nodes) else null
     }

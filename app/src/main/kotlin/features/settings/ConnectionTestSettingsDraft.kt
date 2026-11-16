@@ -9,14 +9,14 @@ internal data class ConnectionTestSettingsDraft(
     val url: String = DefaultConnectionTestUrl,
     val concurrent: Int = DefaultConnectionTestConcurrent,
     val timeoutMillis: Int = DefaultConnectionTestTimeoutMillis,
-    val unifiedDelay: Boolean = DefaultConnectionTestUnifiedDelay,
+    val overrideUnifiedDelay: Boolean = DefaultConnectionTestOverrideUnifiedDelay,
 )
 
 internal fun AppState.toConnectionTestSettingsDraft() = ConnectionTestSettingsDraft(
     url = connectionTestUrl,
     concurrent = connectionTestConcurrent,
     timeoutMillis = connectionTestTimeoutMillis,
-    unifiedDelay = connectionTestUnifiedDelay,
+    overrideUnifiedDelay = overrideUnifiedDelay,
 )
 
 internal fun AppState.withConnectionTestSettings(draft: ConnectionTestSettingsDraft): AppState {
@@ -25,6 +25,6 @@ internal fun AppState.withConnectionTestSettings(draft: ConnectionTestSettingsDr
         connectionTestUrl = draft.url,
         connectionTestConcurrent = draft.concurrent,
         connectionTestTimeoutMillis = draft.timeoutMillis,
-        connectionTestUnifiedDelay = draft.unifiedDelay,
+        overrideUnifiedDelay = draft.overrideUnifiedDelay,
     ).withNormalizedConnectionTestSettings()
 }

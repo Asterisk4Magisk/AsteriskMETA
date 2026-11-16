@@ -5,10 +5,27 @@ package features.settings
 
 import app.AppState
 
-const val DefaultConnectionTestUrl = "http://cp.cloudflare.com/"
-const val DefaultConnectionTestConcurrent = 5
+const val DefaultConnectionTestUrl = "https://www.gstatic.com/generate_204"
+const val DefaultConnectionTestConcurrent = 8
 const val DefaultConnectionTestTimeoutMillis = 5000
-const val DefaultConnectionTestUnifiedDelay = true
+const val DefaultConnectionTestOverrideUnifiedDelay = true
+
+internal const val ConnectionTestDefaultsVersion = 1
+private const val LegacyDefaultConnectionTestUrl = "http://cp.cloudflare.com/"
+private const val LegacyDefaultConnectionTestConcurrent = 5
+
+internal data class ConnectionTestDefaultsMigration(val url: String, val concurrent: Int, val version: Int)
+
+internal fun migrateConnectionTestDefaults(url: String, concurrent: Int, version: Int): ConnectionTestDefaultsMigration {
+    if (version >= ConnectionTestDefaultsVersion) return ConnectionTestDefaultsMigration(url, concurrent, version)
+    // Older settings store values, not user intent. Migrate exact old defaults once; after that,
+    // explicitly choosing those same values is supported, including through backup/restore.
+    return ConnectionTestDefaultsMigration(
+        url = if (url.trim() == LegacyDefaultConnectionTestUrl) DefaultConnectionTestUrl else url,
+        concurrent = if (concurrent == LegacyDefaultConnectionTestConcurrent) DefaultConnectionTestConcurrent else concurrent,
+        version = ConnectionTestDefaultsVersion,
+    )
+}
 
 data class ConnectionTestIntBounds(val min: Int, val max: Int)
 val ConnectionTestConcurrentBounds = ConnectionTestIntBounds(min = 1, max = 32)
@@ -21,9 +38,7 @@ fun isValidConnectionTestUrl(url: String): Boolean {
 }
 
 fun AppState.withNormalizedConnectionTestSettings(): AppState = copy(
-    connectionTestUrl = connectionTestUrl.trim()
-        .takeIf(::isValidConnectionTestUrl)
-        ?: DefaultConnectionTestUrl,
+    connectionTestUrl = connectionTestUrl.trim().takeIf(::isValidConnectionTestUrl) ?: DefaultConnectionTestUrl,
     connectionTestConcurrent = connectionTestConcurrent.coerceIn(
         ConnectionTestConcurrentBounds.min,
         ConnectionTestConcurrentBounds.max,

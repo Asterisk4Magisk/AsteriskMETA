@@ -322,7 +322,7 @@ internal fun settingsNestedSearchEntries(
         stringResource(R.string.connection_test_url),
         stringResource(R.string.connection_test_concurrent),
         stringResource(R.string.connection_test_timeout),
-        stringResource(R.string.connection_test_unified_delay),
+        stringResource(R.string.connection_test_override_unified_delay),
     )
     val autoSwitch = stringResource(R.string.settings_auto_switch)
     val autoSwitchItems = listOf(

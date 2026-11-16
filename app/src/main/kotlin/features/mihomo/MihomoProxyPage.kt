@@ -25,7 +25,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -53,6 +53,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -117,13 +118,20 @@ import engine.mihomo.hasUsableMihomoProfile
 import engine.mihomo.selectedMihomoProfileOrNull
 import engine.mihomo.sha256Hex
 import engine.mihomo.runtime.MihomoProxiesState
+import engine.mihomo.runtime.MihomoDelayProgress
 import engine.mihomo.runtime.MihomoDelayTarget
 import engine.mihomo.runtime.MihomoDelayStatus
 import engine.mihomo.runtime.MihomoProxyGroup
 import engine.mihomo.runtime.MihomoProxyNode
+import engine.mihomo.runtime.MihomoProxyNodeId
 import engine.mihomo.runtime.MihomoRuntimeState
 import engine.mihomo.runtime.canStartUserDelayTest
+import engine.mihomo.runtime.canStartSharedProxyDelayTest
+import engine.mihomo.runtime.canShareProxyDelay
+import engine.mihomo.runtime.delayTestingNodeIds
+import engine.mihomo.runtime.individualDelayTests
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -136,14 +144,28 @@ import ui.theme.AsteriskMotion
 private data class MihomoProxyPageRuntimeState(
     val proxies: MihomoProxiesState,
     val delayTestingTarget: MihomoDelayTarget?,
+    val delayTestingPending: Set<MihomoProxyNodeId>,
+    val groupDelayTesting: Map<String, MihomoDelayProgress>,
+    val groupDelayTestAllowed: Boolean,
+    val exclusiveGroupDelayTesting: Boolean,
+    val anyGroupDelayTesting: Boolean,
     val userDelayTestAllowed: Boolean,
+    val sharedProxyDelayTestAllowed: Boolean,
+    val nodeDelayTesting: Set<MihomoProxyNodeId>,
     val lastError: String,
 )
 
 private fun MihomoRuntimeState.toProxyPageRuntimeState() = MihomoProxyPageRuntimeState(
     proxies = proxies,
     delayTestingTarget = delayTestingTarget,
+    delayTestingPending = delayTestingNodeIds,
+    groupDelayTesting = groupDelayTesting,
+    groupDelayTestAllowed = canStartSharedProxyDelayTest,
+    exclusiveGroupDelayTesting = groupDelayTesting.values.any(MihomoDelayProgress::exclusive),
+    anyGroupDelayTesting = groupDelayTesting.isNotEmpty(),
     userDelayTestAllowed = canStartUserDelayTest,
+    sharedProxyDelayTestAllowed = canStartSharedProxyDelayTest,
+    nodeDelayTesting = nodeDelayTesting,
     lastError = lastError,
 )
 
@@ -183,7 +205,6 @@ fun MihomoProxyPage(
     val selectFailedMessage = stringResource(R.string.mihomo_proxies_select_failed)
     val closeConnectionsFailedMessage = stringResource(R.string.mihomo_proxies_interrupt_connections_failed)
     val delayFailedMessage = stringResource(R.string.mihomo_proxies_delay_failed)
-    val delayDoneMessage = stringResource(R.string.mihomo_proxies_delay_done)
 
     val hasProfiles = appState.mihomoProfiles.isNotEmpty()
     val hasUsableProfile = appState.hasUsableMihomoProfile()
@@ -267,6 +288,30 @@ fun MihomoProxyPage(
     val resolvedSelectedGroupName = selectedGroupName.takeIf { groupName -> groupName in groupNames }
         ?: groupNames.firstOrNull().orEmpty()
     val testingTarget = runtimeState.delayTestingTarget
+    val allTestingPending = runtimeState.delayTestingPending
+    val anyDelayTesting = testingTarget != null || runtimeState.groupDelayTesting.isNotEmpty() ||
+        runtimeState.nodeDelayTesting.isNotEmpty()
+    var delaySortSnapshot by remember(appState.selectedMihomoProfileId) {
+        mutableStateOf<MihomoProxiesState?>(null)
+    }
+    val latestProxies = rememberUpdatedState(proxies)
+    val delaySortEnabled = appState.mihomoProxySort == MihomoProxySortDelay
+    val refreshDelaySort = anyDelayTesting && delaySortEnabled
+    LaunchedEffect(refreshDelaySort, appState.selectedMihomoProfileId) {
+        if (!refreshDelaySort) {
+            delaySortSnapshot = null
+            return@LaunchedEffect
+        }
+        delaySortSnapshot = latestProxies.value
+        while (true) {
+            delay(MihomoDelaySortRefreshMillis)
+            delaySortSnapshot = latestProxies.value
+        }
+    }
+    val sortProxies = if (refreshDelaySort) delaySortSnapshot ?: proxies else proxies
+    val visibleSortProxies = remember(sortProxies, appState.mihomoProxyExcludeNotSelectable) {
+        filterMihomoProxyGroups(sortProxies, excludeNotSelectable = appState.mihomoProxyExcludeNotSelectable)
+    }
     var searchQuery by rememberSaveable { mutableStateOf("") }
     val selectedGroup = visibleProxies.groups.firstOrNull { group -> group.name == resolvedSelectedGroupName }
     val groupLayout = if (appState.mihomoProxyGroupLayout == MihomoProxyGroupLayoutExpandable) {
@@ -277,6 +322,7 @@ fun MihomoProxyPage(
     val proxyLayout = resolveMihomoProxyLayout(appState.mihomoProxyLayout, isWideScreen)
     val columns = resolveMihomoProxyColumns(proxyLayout)
     var pendingSelections by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    val selectionRequests = remember { mutableMapOf<String, Any>() }
     var locateRequestTrigger by remember { mutableIntStateOf(0) }
     var expandedGroupNames by rememberSaveable(appState.selectedMihomoProfileId) {
         mutableStateOf<Set<String>>(emptySet())
@@ -293,6 +339,10 @@ fun MihomoProxyPage(
         )
     }
 
+    LaunchedEffect(resolvedSelectedGroupName, services.mihomoRuntime) {
+        services.mihomoRuntime.focusDelayTestGroup(resolvedSelectedGroupName.takeIf(String::isNotBlank))
+    }
+
     LaunchedEffect(groupNames) {
         pendingSelections = pendingSelections.filterKeys { groupName -> groupName in groupNames }
         expandedGroupNames = expandedGroupNames.filter { groupName -> groupName in groupNames }.toSet()
@@ -302,14 +352,6 @@ fun MihomoProxyPage(
         val lastIndex = groupNames.lastIndex
         if (groupLayout == MihomoProxyGroupLayoutTabs && lastIndex >= 0 && groupPagerState.currentPage > lastIndex) {
             groupPagerState.scrollToPage(lastIndex)
-        }
-    }
-
-    LaunchedEffect(visibleProxies.groups) {
-        if (pendingSelections.isEmpty()) return@LaunchedEffect
-        pendingSelections = pendingSelections.filter { (groupName, proxyName) ->
-            val group = visibleProxies.groups.firstOrNull { item -> item.name == groupName } ?: return@filter false
-            group.now != proxyName && group.all.any { nodeId -> nodeId.name == proxyName }
         }
     }
 
@@ -358,40 +400,62 @@ fun MihomoProxyPage(
         val pendingProxyName = pendingSelections[group.name]
         if (pendingProxyName == node.name || (pendingProxyName == null && group.now == node.name)) return
         pendingSelections = pendingSelections + (group.name to node.name)
+        val request = Any()
+        selectionRequests[group.name] = request
         // Finish the DNS transaction even if this page leaves composition.
         services.appScope.launch(Dispatchers.Main.immediate) {
             services.mihomoRuntime.selectProxy(appState, group.name, node.name)
                 .onSuccess {
+                    if (selectionRequests[group.name] !== request) return@onSuccess
+                    pendingSelections = pendingSelections - group.name
+                    selectionRequests.remove(group.name)
                     if (appState.mihomoProxyInterruptConnections && appState.proxyRunning) {
-                        services.mihomoRuntime.closeConnectionsForGroup(appState, group.name)
-                            .onFailure { error ->
-                                tipNotifier.showError(error, closeConnectionsFailedMessage)
-                            }
+                        // Selection has already been applied locally; connection cleanup must not
+                        // delay its feedback or participate in delay-test/sort orchestration.
+                        services.appScope.launch(Dispatchers.Main.immediate) {
+                            services.mihomoRuntime.closeConnectionsForGroup(appState, group.name)
+                                .onFailure { error ->
+                                    tipNotifier.showError(error, closeConnectionsFailedMessage)
+                                }
+                        }
                     }
                 }
                 .onFailure { error ->
-                    if (pendingSelections[group.name] == node.name) {
+                    if (selectionRequests[group.name] === request) {
                         pendingSelections = pendingSelections - group.name
+                        selectionRequests.remove(group.name)
                     }
                     tipNotifier.showError(error, selectFailedMessage)
                 }
         }
     }
 
+    fun canTestProxy(node: MihomoProxyNode): Boolean = if (proxies.canShareProxyDelay(node.id)) {
+        runtimeState.sharedProxyDelayTestAllowed
+    } else {
+        runtimeState.userDelayTestAllowed
+    }
+
     fun testProxy(node: MihomoProxyNode) {
-        if (!requireRuntime() || !runtimeState.userDelayTestAllowed) return
+        if (!requireRuntime() || !canTestProxy(node) || node.id in runtimeState.nodeDelayTesting) return
         scope.launch {
             services.mihomoRuntime.testProxyDelay(appState, node.id)
-                .onSuccess { tipNotifier.show(delayDoneMessage) }
                 .onFailure { error -> tipNotifier.showError(error, delayFailedMessage) }
         }
     }
 
+    fun canStartGroupTest(group: MihomoProxyGroup): Boolean {
+        val exclusive = proxies.individualDelayTests(group.name) == null
+        return runtimeState.groupDelayTestAllowed &&
+            group.name !in runtimeState.groupDelayTesting &&
+            !runtimeState.exclusiveGroupDelayTesting &&
+            !(exclusive && (runtimeState.anyGroupDelayTesting || runtimeState.nodeDelayTesting.isNotEmpty()))
+    }
+
     fun testGroup(group: MihomoProxyGroup) {
-        if (!requireRuntime() || !runtimeState.userDelayTestAllowed) return
+        if (!requireRuntime() || !canStartGroupTest(group)) return
         scope.launch {
             services.mihomoRuntime.testGroupDelay(appState, group.name, appState.connectionTestUrl)
-                .onSuccess { tipNotifier.show(delayDoneMessage) }
                 .onFailure { error -> tipNotifier.showError(error, delayFailedMessage) }
         }
     }
@@ -472,8 +536,17 @@ fun MihomoProxyPage(
 
         Box {
             if (expandable) {
-                val sections = remember(visibleProxies, keyword, appState.mihomoProxySort) {
-                    reduceMihomoProxyGroupSections(visibleProxies, keyword, appState.mihomoProxySort)
+                val sections = remember(
+                    visibleSortProxies,
+                    keyword,
+                    appState.mihomoProxySort,
+                ) {
+                    reduceMihomoProxyGroupSections(
+                        proxies = visibleSortProxies,
+                        sortProxies = visibleSortProxies,
+                        query = keyword,
+                        sort = appState.mihomoProxySort,
+                    )
                 }
                 fun isExpanded(group: MihomoProxyGroup) = if (keyword.isNotEmpty()) {
                     group.name !in searchCollapsedGroupNames
@@ -518,7 +591,9 @@ fun MihomoProxyPage(
                             MihomoProxyEmptyCard()
                         }
                     }
-                    sections.forEach { (group, nodes) ->
+                    sections.forEach { section ->
+                        val group = visibleProxies.groups.firstOrNull { it.name == section.group.name } ?: section.group
+                        val nodes = section.nodes
                         val expanded = isExpanded(group)
                         val currentName = pendingSelections[group.name] ?: group.now
                         item(
@@ -526,12 +601,15 @@ fun MihomoProxyPage(
                             contentType = "group",
                             span = { GridItemSpan(maxLineSpan) },
                         ) {
+                            val groupProgress = runtimeState.groupDelayTesting[group.name]
                             MihomoProxyGroupCard(
                                 group = group,
                                 currentName = currentName,
                                 expanded = expanded,
-                                testing = testingTarget == MihomoDelayTarget.Group(group.name),
-                                delayTestEnabled = runtimeAvailable && runtimeState.userDelayTestAllowed,
+                                testing = groupProgress != null,
+                                testingCompleted = groupProgress?.completed ?: 0,
+                                testingTotal = groupProgress?.total ?: 0,
+                                delayTestEnabled = runtimeAvailable && canStartGroupTest(group),
                                 canLocate = nodes.any { it.name == currentName },
                                 onToggle = {
                                     selectedGroupName = group.name
@@ -569,27 +647,46 @@ fun MihomoProxyPage(
                                     )
                                 }
                             }
-                            items(
+                            itemsIndexed(
                                 items = nodes,
-                                key = { "node:${group.name.length}:${group.name}:${it.toMihomoProxyLazyItemKey()}" },
-                                contentType = { "node" },
-                            ) { nodeId ->
-                                val node = proxies.node(nodeId)
-                                MihomoProxyNodeCard(
-                                    node = node,
-                                    selected = isMihomoProxyNodeCurrent(group, node.name, pendingSelections),
-                                    selectionEnabled = isMihomoProxyGroupSelectable(group) && runtimeAvailable,
-                                    delayTestEnabled = runtimeAvailable && runtimeState.userDelayTestAllowed,
-                                    compact = columns > 1,
-                                    testing = testingTarget == MihomoDelayTarget.Node(node.id),
-                                    onSelect = { selectProxy(group, node) },
-                                    onDelayTest = { testProxy(node) },
-                                    modifier = Modifier.animateItem(
-                                        fadeInSpec = AsteriskMotion.contentFade(),
-                                        placementSpec = AsteriskMotion.contentPlacement(),
-                                        fadeOutSpec = AsteriskMotion.fastEffects(),
-                                    ).fillMaxWidth(),
-                                )
+                                key = { index, nodeId ->
+                                    // Delay refreshes replace a fixed viewport slot instead of moving
+                                    // the node key, so LazyGrid never follows the selected node.
+                                    mihomoProxyNodeGridItemKey(
+                                        nodeId = nodeId,
+                                        index = index,
+                                        delaySortEnabled = delaySortEnabled,
+                                        groupName = group.name,
+                                    )
+                                },
+                                contentType = { _, _ -> "node" },
+                            ) { _, nodeId ->
+                                AnimatedContent(
+                                    targetState = nodeId,
+                                    modifier = Modifier
+                                        .animateItem(
+                                            fadeInSpec = AsteriskMotion.contentFade(),
+                                            placementSpec = AsteriskMotion.contentPlacement(),
+                                            fadeOutSpec = AsteriskMotion.fastEffects(),
+                                        )
+                                        .fillMaxWidth(),
+                                    transitionSpec = AsteriskMotion.fadeThrough(AsteriskMotion.fastEffects()),
+                                    label = "proxy-delay-sort-slot",
+                                ) { displayedId ->
+                                    val node = proxies.node(displayedId)
+                                    MihomoProxyNodeCard(
+                                        node = node,
+                                        selected = isMihomoProxyNodeCurrent(group, node.name, pendingSelections),
+                                        selectionEnabled = isMihomoProxyGroupSelectable(group) && runtimeAvailable,
+                                        delayTestEnabled = runtimeAvailable && canTestProxy(node),
+                                        compact = columns > 1,
+                                        testing = testingTarget == MihomoDelayTarget.Node(node.id) ||
+                                            node.id in allTestingPending,
+                                        onSelect = { selectProxy(group, node) },
+                                        onDelayTest = { testProxy(node) },
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                }
                             }
                         }
                     }
@@ -600,10 +697,17 @@ fun MihomoProxyPage(
                 verticalAlignment = Alignment.Top,
             ) { page ->
                 val group = visibleProxies.groups.getOrNull(page)
-                val pageNodes = remember(group, visibleProxies, searchQuery, appState.mihomoProxySort) {
+                val sortGroup = visibleSortProxies.groups.firstOrNull { it.name == group?.name }
+                val pageNodes = remember(
+                    sortGroup,
+                    visibleSortProxies,
+                    searchQuery,
+                    appState.mihomoProxySort,
+                ) {
                     reduceMihomoProxyNodeNames(
-                        group = group,
-                        proxies = visibleProxies,
+                        group = sortGroup,
+                        proxies = visibleSortProxies,
+                        sortProxies = visibleSortProxies,
                         query = searchQuery,
                         sort = resolveMihomoProxySort(appState.mihomoProxySort),
                     )
@@ -670,13 +774,15 @@ fun MihomoProxyPage(
                                 MihomoProxyEmptyCard()
                             }
                         } else {
-                            items(
+                            itemsIndexed(
                                 items = pageNodes,
-                                key = { nodeId -> nodeId.toMihomoProxyLazyItemKey() },
-                            ) { nodeId ->
-                                val node = proxies.node(nodeId)
-                                val selectionEnabled = isMihomoProxyGroupSelectable(group) && runtimeAvailable
-                                MihomoProxyNodeCard(
+                                key = { index, nodeId ->
+                                    // Keep the visible index and pixel offset across each 3 s reorder.
+                                    mihomoProxyNodeGridItemKey(nodeId, index, delaySortEnabled)
+                                },
+                            ) { _, nodeId ->
+                                AnimatedContent(
+                                    targetState = nodeId,
                                     modifier = Modifier
                                         .animateItem(
                                             fadeInSpec = AsteriskMotion.effects(),
@@ -684,19 +790,28 @@ fun MihomoProxyPage(
                                             fadeOutSpec = AsteriskMotion.effects(),
                                         )
                                         .fillMaxWidth(),
-                                    node = node,
-                                    selected = isMihomoProxyNodeCurrent(
-                                        group = group,
-                                        nodeName = node.name,
-                                        pendingSelections = pendingSelections,
-                                    ),
-                                    selectionEnabled = selectionEnabled,
-                                    delayTestEnabled = runtimeAvailable && runtimeState.userDelayTestAllowed,
-                                    compact = columns > 1,
-                                    testing = testingTarget == MihomoDelayTarget.Node(node.id),
-                                    onSelect = { selectProxy(group, node) },
-                                    onDelayTest = { testProxy(node) },
-                                )
+                                    transitionSpec = AsteriskMotion.fadeThrough(AsteriskMotion.fastEffects()),
+                                    label = "proxy-delay-sort-slot",
+                                ) { displayedId ->
+                                    val node = proxies.node(displayedId)
+                                    val selectionEnabled = isMihomoProxyGroupSelectable(group) && runtimeAvailable
+                                    MihomoProxyNodeCard(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        node = node,
+                                        selected = isMihomoProxyNodeCurrent(
+                                            group = group,
+                                            nodeName = node.name,
+                                            pendingSelections = pendingSelections,
+                                        ),
+                                        selectionEnabled = selectionEnabled,
+                                        delayTestEnabled = runtimeAvailable && canTestProxy(node),
+                                        compact = columns > 1,
+                                        testing = testingTarget == MihomoDelayTarget.Node(node.id) ||
+                                            node.id in allTestingPending,
+                                        onSelect = { selectProxy(group, node) },
+                                        onDelayTest = { testProxy(node) },
+                                    )
+                                }
                             }
                         }
                     }
@@ -711,9 +826,12 @@ fun MihomoProxyPage(
                 )
             }
             selectedGroup?.takeIf { !expandable }?.let { group ->
+                val groupProgress = runtimeState.groupDelayTesting[group.name]
                 MihomoDelayToolbar(
-                    enabled = runtimeAvailable && runtimeState.userDelayTestAllowed,
-                    testing = testingTarget == MihomoDelayTarget.Group(group.name),
+                    enabled = runtimeAvailable && canStartGroupTest(group),
+                    testing = groupProgress != null,
+                    testingCompleted = groupProgress?.completed ?: 0,
+                    testingTotal = groupProgress?.total ?: 0,
                     canLocate = (pendingSelections[group.name] ?: group.now).isNotBlank(),
                     onLocate = { locateRequestTrigger++ },
                     onDelayTest = { testGroup(group) },
@@ -732,6 +850,8 @@ private fun MihomoProxyGroupCard(
     currentName: String,
     expanded: Boolean,
     testing: Boolean,
+    testingCompleted: Int,
+    testingTotal: Int,
     delayTestEnabled: Boolean,
     canLocate: Boolean,
     onToggle: () -> Unit,
@@ -792,7 +912,19 @@ private fun MihomoProxyGroupCard(
                 }
                 Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
                     if (testing) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                            if (testingTotal > 0) {
+                                Text(
+                                    text = stringResource(
+                                        R.string.mihomo_proxies_delay_testing_progress,
+                                        testingCompleted.coerceAtMost(testingTotal),
+                                        testingTotal,
+                                    ),
+                                    style = MaterialTheme.typography.labelSmall,
+                                )
+                            }
+                        }
                     } else {
                         IconButton(onClick = onDelayTest, enabled = delayTestEnabled) {
                             Icon(Icons.Rounded.Speed, stringResource(R.string.mihomo_proxies_group_test))
@@ -1314,7 +1446,8 @@ private fun ProtocolDelayLine(
                 .fillMaxWidth()
                 .height(24.dp)
                 .clip(ui.theme.AsteriskShapeTokens.Pill)
-                .clickable(enabled = enabled, onClick = onClick),
+                // Keep the delay hit target while testing; a second tap must never select the card.
+                .clickable(enabled = enabled, onClick = { if (!testing) onClick() }),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -1456,6 +1589,7 @@ private fun MihomoProxyLoadingCard() {
     }
 }
 
+private const val MihomoDelaySortRefreshMillis = 3_000L
 private val MihomoProxyNodeCardHeight = 112.dp
 
 // Compact (multi-column) cards fit a two-line title, a 2dp gap and the 28dp protocol/delay line.

@@ -98,15 +98,15 @@ internal fun ConnectionTestSettingsBottomSheet(
                         ConnectionTestTimeoutStepMillis - 1,
                 )
                 SwitchPreference(
-                    title = stringResource(R.string.connection_test_unified_delay),
+                    title = stringResource(R.string.connection_test_override_unified_delay),
                     icon = Icons.Rounded.Speed,
                     summary = stringResource(
-                        if (overridesEnabled) R.string.connection_test_unified_delay_summary
-                        else R.string.connection_test_unified_delay_raw_summary,
+                        if (overridesEnabled) R.string.connection_test_override_unified_delay_summary
+                        else R.string.connection_test_override_unified_delay_raw_summary,
                     ),
-                    checked = draft.unifiedDelay,
+                    checked = draft.overrideUnifiedDelay,
                     enabled = overridesEnabled,
-                    onCheckedChange = { onDraftChange(draft.copy(unifiedDelay = it)) },
+                    onCheckedChange = { onDraftChange(draft.copy(overrideUnifiedDelay = it)) },
                 )
             }
         }

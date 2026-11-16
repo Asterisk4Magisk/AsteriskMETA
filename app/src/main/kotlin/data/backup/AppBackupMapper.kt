@@ -4,6 +4,7 @@
 package data.backup
 
 import features.settings.withNormalizedConnectionTestSettings
+import features.settings.ConnectionTestDefaultsVersion
 import app.AppState
 import app.modes.normalizeNavigationBarStyle
 import app.modes.normalizeNetworkActivityStyle
@@ -109,10 +110,11 @@ private fun AppState.toBackupSettings(): AppBackupSettings =
         tunVpnDns = tunVpnDns,
         tunIpv4Cidr = tunIpv4Cidr,
         tunIpv6Cidr = tunIpv6Cidr,
+        connectionTestDefaultsVersion = ConnectionTestDefaultsVersion,
         connectionTestUrl = connectionTestUrl,
         connectionTestConcurrent = connectionTestConcurrent,
         connectionTestTimeoutMillis = connectionTestTimeoutMillis,
-        connectionTestUnifiedDelay = connectionTestUnifiedDelay,
+        overrideUnifiedDelay = overrideUnifiedDelay,
         coreLogLevel = coreLogLevel,
         enableGeodataMode = enableGeodataMode,
         enableTrafficStatsNotification = enableTrafficStatsNotification,
@@ -354,7 +356,7 @@ private fun AppBackupData.toAppState(): AppState {
         connectionTestUrl = settings.connectionTestUrl,
         connectionTestConcurrent = settings.connectionTestConcurrent,
         connectionTestTimeoutMillis = settings.connectionTestTimeoutMillis,
-        connectionTestUnifiedDelay = settings.connectionTestUnifiedDelay,
+        overrideUnifiedDelay = settings.overrideUnifiedDelay,
         coreLogLevel = settings.coreLogLevel,
         enableGeodataMode = settings.enableGeodataMode,
         enableTrafficStatsNotification = settings.enableTrafficStatsNotification,

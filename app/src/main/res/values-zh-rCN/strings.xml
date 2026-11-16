@@ -235,10 +235,10 @@
     <string name="monitor_network_title">网络状态</string>
 
     <!-- Proxy selection -->
-    <string name="mihomo_proxies_delay_done">完成</string>
     <string name="mihomo_proxies_delay_failed">失败</string>
     <string name="mihomo_proxies_delay_not_tested">未测试</string>
     <string name="mihomo_proxies_delay_timeout">超时</string>
+    <string name="mihomo_proxies_delay_testing_progress">%1$d/%2$d</string>
     <string name="mihomo_proxies_groups">策略组</string>
     <string name="mihomo_proxies_expand_groups">展开策略组</string>
     <string name="mihomo_proxies_group_test">整组测试</string>
@@ -275,9 +275,9 @@
     <string name="connection_test_settings_summary">调整 Mihomo URL 延迟测试行为</string>
     <string name="connection_test_settings_title">连接测试</string>
     <string name="connection_test_timeout">测试超时（ms）</string>
-    <string name="connection_test_unified_delay">统一延迟</string>
-    <string name="connection_test_unified_delay_raw_summary">当前配置已禁用覆写，统一延迟以其 YAML 配置为准</string>
-    <string name="connection_test_unified_delay_summary">计算 RTT，消除连接握手等带来的不同类型节点延迟差异</string>
+    <string name="connection_test_override_unified_delay">覆写统一延迟</string>
+    <string name="connection_test_override_unified_delay_raw_summary">当前配置已禁用覆写，统一延迟以其 YAML 配置为准</string>
+    <string name="connection_test_override_unified_delay_summary">强制将 unified-delay 设为 true；关闭时保留配置或脚本中的值</string>
     <string name="connection_test_url">测试链接</string>
     <string name="connection_test_url_invalid">请输入合法的 HTTP 或 HTTPS 链接</string>
 

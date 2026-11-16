@@ -3,6 +3,8 @@
 
 package data.backup
 
+import features.settings.migrateConnectionTestDefaults
+
 internal fun AppBackupFile.migrateAppBackup(): AppBackupFile {
     require(format == AppBackupFormat) {
         "Invalid backup file format"
@@ -15,8 +17,15 @@ internal fun AppBackupFile.migrateAppBackup(): AppBackupFile {
         }
     }
 
-    return when (version) {
-        CurrentAppBackupVersion -> this
-        else -> error("Unsupported backup file version")
-    }
+    val settings = data.settings
+    val migrated = migrateConnectionTestDefaults(
+        settings.connectionTestUrl,
+        settings.connectionTestConcurrent,
+        settings.connectionTestDefaultsVersion,
+    )
+    return copy(data = data.copy(settings = settings.copy(
+        connectionTestUrl = migrated.url,
+        connectionTestConcurrent = migrated.concurrent,
+        connectionTestDefaultsVersion = migrated.version,
+    )))
 }

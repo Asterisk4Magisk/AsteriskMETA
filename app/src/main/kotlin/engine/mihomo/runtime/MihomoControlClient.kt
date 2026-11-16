@@ -81,7 +81,13 @@ internal class MihomoControlClient(
         Clash::queryProviderProxyDelay,
     private val bridgeProxySnapshot: () -> String = Clash::queryProxies,
     private val bridgeGroupDelay: MihomoBridgeGroupDelay = Clash::queryGroupDelay,
+    private val sharedDelayTasks: MihomoSharedDelayTasks<MihomoDelayTaskKey, MihomoDelayResult> =
+        MihomoSharedDelayTasks(),
 ) {
+    fun focusDelayTestOwner(owner: String?) {
+        sharedDelayTasks.focus(owner)
+    }
+
     fun isApiAvailable(config: MihomoControlConfig): Boolean {
         return runCatching {
             request(
@@ -186,13 +192,16 @@ internal class MihomoControlClient(
         config: MihomoControlConfig,
         useBridge: Boolean,
         mode: String,
+        includeProviderNodes: Boolean = false,
     ): MihomoProxiesState {
         val response = if (useBridge) {
             bridgeProxySnapshot()
         } else {
             request(config, "/proxies")
         }
-        val snapshot = parseMihomoOfficialProxySnapshot(response)
+        val snapshot = parseMihomoOfficialProxySnapshot(response).let { proxies ->
+            if (!includeProviderNodes) proxies else proxies.withProviderNodes(getProxyProviders(config, useBridge))
+        }
         val globalProxyNames = snapshot.groups
             .firstOrNull { group -> group.name == MihomoGlobalGroupName }
             ?.all
@@ -201,6 +210,22 @@ internal class MihomoControlClient(
         return snapshot.copy(
             groups = snapshot.groups.filterVisibleForMode(mode, globalProxyNames),
         )
+    }
+
+    private fun getProxyProviders(
+        config: MihomoControlConfig,
+        useBridge: Boolean,
+    ): List<MihomoProxyProviderRuntimeDetail> {
+        if (useBridge) {
+            return Clash.queryProviders()
+                .filter { provider -> provider.type == Provider.Type.Proxy }
+                .map { provider -> getProxyProvider(config, provider.name, useBridge = true) }
+        }
+        val providers = requestJsonObject(config, "/providers/proxies").objectValue("providers")
+            ?: error("Invalid Mihomo API proxy provider response")
+        return providers.mapNotNull { (name, value) ->
+            value.jsonObjectOrNull()?.toProxyProviderRuntimeDetail(name)
+        }
     }
 
     fun getProxyProvider(
@@ -471,8 +496,20 @@ internal class MihomoControlClient(
         timeoutMillis: Int = DefaultMihomoDelayTimeoutMillis,
         expectedStatus: String = "",
         expectedProxyIds: List<MihomoProxyNodeId> = emptyList(),
+        concurrency: Int = features.settings.DefaultConnectionTestConcurrent,
+        owner: String? = null,
+        individualTests: List<MihomoDelayTest> = emptyList(),
+        onStarted: (List<MihomoProxyNodeId>) -> Unit = {},
+        onResult: (MihomoDelayResult) -> Unit = {},
         useBridge: Boolean,
     ): MihomoDelayResult {
+        if (individualTests.isNotEmpty()) {
+            return testProxyDelays(
+                config, individualTests, url, timeoutMillis, expectedStatus,
+                concurrency, owner, onStarted, onResult, useBridge,
+            )
+        }
+        onStarted(expectedProxyIds.distinct())
         if (useBridge) {
             val delays = runCatching {
                 bridgeGroupDelay(groupName, url, timeoutMillis, expectedStatus)
@@ -516,6 +553,8 @@ internal class MihomoControlClient(
         timeoutMillis: Int = DefaultMihomoDelayTimeoutMillis,
         expectedStatus: String = "",
         concurrency: Int = features.settings.DefaultConnectionTestConcurrent,
+        onStarted: (List<MihomoProxyNodeId>) -> Unit = {},
+        onResult: (MihomoDelayResult) -> Unit = {},
         useBridge: Boolean,
     ): MihomoDelayResult {
         val proxyIds = getProxyProvider(
@@ -529,9 +568,52 @@ internal class MihomoControlClient(
             .map { name -> MihomoProxyNodeId(name, providerName) }
             .distinct()
             .toList()
-        // Provider batches are scheduled by the app in both backends.
-        // Group tests retain Mihomo's native scheduling and selection semantics.
-        val results = runMihomoDelayBatch(proxyIds, concurrency) { proxyId ->
+        return testProxyDelays(
+            config, proxyIds.map(::MihomoDelayTest), url, timeoutMillis, expectedStatus,
+            concurrency, providerName, onStarted, onResult, useBridge,
+        )
+    }
+
+    private suspend fun testProxyDelays(
+        config: MihomoControlConfig,
+        tests: List<MihomoDelayTest>,
+        url: String,
+        timeoutMillis: Int,
+        expectedStatus: String,
+        concurrency: Int,
+        owner: String?,
+        onStarted: (List<MihomoProxyNodeId>) -> Unit,
+        onResult: (MihomoDelayResult) -> Unit,
+        useBridge: Boolean,
+    ): MihomoDelayResult {
+        val resultIds = tests.map(MihomoDelayTest::resultId)
+        onStarted(resultIds)
+        // Every group member registers immediately; the shared scheduler owns the global limit and
+        // can therefore reprioritize queued work when the visible group changes.
+        val results = runMihomoDelayBatch(tests, onResult) { test ->
+            sharedProxyDelay(
+                config, test.measuredId, url, timeoutMillis, expectedStatus,
+                concurrency, owner, useBridge,
+            ).withResultId(test.resultId)
+        }
+        return MihomoDelayResult(
+            results.flatMap { result -> result.measurements.entries }
+                .associate { entry -> entry.key to entry.value },
+        ).withMissingMeasurements(resultIds)
+    }
+
+    suspend fun sharedProxyDelay(
+        config: MihomoControlConfig,
+        proxyId: MihomoProxyNodeId,
+        url: String,
+        timeoutMillis: Int,
+        expectedStatus: String,
+        concurrency: Int,
+        owner: String? = null,
+        useBridge: Boolean,
+    ): MihomoDelayResult {
+        val key = MihomoDelayTaskKey(proxyId, url, timeoutMillis, expectedStatus, config, useBridge)
+        return sharedDelayTasks.run(key, concurrency, owner) {
             testProxyDelay(
                 config = config,
                 proxyId = proxyId,
@@ -541,10 +623,6 @@ internal class MihomoControlClient(
                 useBridge = useBridge,
             )
         }
-        return MihomoDelayResult(
-            results.flatMap { result -> result.measurements.entries }
-                .associate { entry -> entry.key to entry.value },
-        ).withMissingMeasurements(proxyIds)
     }
 
     fun traffic(config: MihomoControlConfig, useBridge: Boolean): Flow<MihomoTrafficSample> = flow {
@@ -948,6 +1026,10 @@ private fun JsonObject.toMihomoProxyProviderNode(): MihomoProxyProviderNode {
             normalizedDelay < 0 -> MihomoDelayStatus.Timeout
             else -> MihomoDelayStatus.Success
         },
+        delayUpdatedAtMillis = this["history"].jsonArrayOrNull()?.lastOrNull()
+            .jsonObjectOrNull()?.stringValue("time")?.let { time ->
+                runCatching { java.time.Instant.parse(time).toEpochMilli() }.getOrNull()
+            },
     )
 }
 
@@ -964,15 +1046,8 @@ private fun JsonObject.errorMessageOrNull(): String? {
     return stringValue("error") ?: stringValue("Error")
 }
 
-private fun Int.toMihomoHistoryDelay(
-    timeoutMillis: Int = DefaultMihomoDelayTimeoutMillis,
-): Int {
-    return when {
-        this <= 0 -> MihomoTimeoutDelay
-        this >= timeoutMillis -> MihomoTimeoutDelay
-        else -> this
-    }
-}
+private fun Int.toMihomoHistoryDelay(): Int =
+    if (this in 1 until MihomoOfficialUntestedDelay) this else MihomoTimeoutDelay
 
 internal class CoreRestartRequiredException(
     val fields: List<String>,
