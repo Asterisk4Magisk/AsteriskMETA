@@ -22,6 +22,7 @@ object ProjectConfig {
     const val TARGET_SDK = 37
     const val TARGET_SDK_MINOR = 2
     const val MIN_SDK = 26
+    const val NDK_VERSION = "30.0.16248370"
     val SUPPORTED_ANDROID_ABIS = listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
 }
 

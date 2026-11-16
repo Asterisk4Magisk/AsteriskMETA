@@ -104,7 +104,7 @@ Debug builds carry the application id `org.asterisk.zcc.ameta.debug` and a DEV-b
 
 Use `-Pcore=meow` for the Meow build, default is `-Pcore=mihomo`.
 
-If Gradle cannot find the Android NDK, configure it through Android Studio, `ndk.dir` in `local.properties`, or `ANDROID_NDK_HOME`.
+The Android NDK version is pinned by `ProjectConfig.NDK_VERSION` in [`buildSrc/src/main/kotlin/BuildConfig.kt`](buildSrc/src/main/kotlin/BuildConfig.kt). Install that version through SDK Manager.
 
 ## License
 
