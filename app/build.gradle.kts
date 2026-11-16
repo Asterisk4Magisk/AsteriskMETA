@@ -22,6 +22,7 @@ val bundledCoreArtifact = if (bundledCoreId == "meow") "libclash-rs" else "libcl
 
 android {
     namespace = "app"
+    buildToolsVersion = ProjectConfig.BUILD_TOOLS_VERSION
     compileSdk {
         version = release(ProjectConfig.TARGET_SDK) {
             minorApiLevel = ProjectConfig.TARGET_SDK_MINOR
