@@ -67,6 +67,7 @@ import dev.chrisbanes.haze.blur.HazeColorEffect
 import dev.chrisbanes.haze.blur.hazeBlur
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
+import ui.DialogSystemBarAppearance
 import ui.theme.AsteriskMotion
 
 internal val LocalChromeBackdrop = compositionLocalOf<HazeState?> { null }
@@ -102,6 +103,7 @@ internal fun AsteriskScaffold(
     backdrop: HazeState = rememberHazeState(),
     content: @Composable (PaddingValues) -> Unit,
 ) {
+    DialogSystemBarAppearance()
     val style = chromeStyle()
     Scaffold(
         modifier = modifier,

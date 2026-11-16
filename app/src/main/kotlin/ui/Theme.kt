@@ -40,6 +40,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.window.DialogWindowProvider
 import androidx.core.graphics.drawable.toDrawable
 import androidx.core.view.WindowCompat
 import app.R
@@ -285,6 +286,20 @@ val KeyColors: List<Color> = listOf(
 fun keyColorFor(index: Int): Color? = if (index <= 0) null else KeyColors.getOrNull(index - 1)
 
 private val DefaultSeedColor = Color(0xFF6750A4)
+
+/** Dialog windows need their own system bar appearance; activity flags do not reach them. */
+@Composable
+internal fun DialogSystemBarAppearance() {
+    val view = LocalView.current
+    val window = (view.parent as? DialogWindowProvider)?.window ?: return
+    val isDark = isInDarkTheme()
+    SideEffect {
+        WindowCompat.getInsetsController(window, view).apply {
+            isAppearanceLightStatusBars = !isDark
+            isAppearanceLightNavigationBars = !isDark
+        }
+    }
+}
 
 @Composable
 private fun SystemBarAppearance(
