@@ -16,16 +16,13 @@ import engine.mihomo.runtime.MihomoRuntimeRepository
 import engine.mihomo.runtime.MihomoRuntimeState
 import engine.mihomo.runtime.activeNodeId
 import features.home.toMihomoModeOrNull
-import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 
 /**
  * Keeps the active node's latency fresh when the app enters the foreground. It probes only the
  * first testable active node resolved for that resume; later selector changes are user actions and
- * must not implicitly start a delay test or reorder the proxy list.
+ * must not implicitly start another delay test. An already started probe finishes across selections.
  */
 @Composable
 internal fun NodeDelayAutoProbe(
@@ -39,22 +36,7 @@ internal fun NodeDelayAutoProbe(
             val id = mihomoRuntime.state.awaitResumeProbeNode(selectionRevision) {
                 stateStore.state.value.mihomoMode
             } ?: return@repeatOnLifecycle
-            val revision = selectionRevision
-            coroutineScope {
-                val probe = launch {
-                    mihomoRuntime.probeProxyDelay(stateStore.state.value, id, SystemClock.elapsedRealtime())
-                }
-                val nodeChange = launch {
-                    mihomoRuntime.state
-                        .first { runtime ->
-                            runtime.proxySelectionRevision != revision ||
-                                runtime.activeProbeNode(stateStore.state.value.mihomoMode) != id
-                        }
-                    probe.cancel()
-                }
-                probe.join()
-                nodeChange.cancelAndJoin()
-            }
+            mihomoRuntime.probeProxyDelay(stateStore.state.value, id, SystemClock.elapsedRealtime())
         }
     }
 }

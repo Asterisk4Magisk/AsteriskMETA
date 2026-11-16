@@ -24,6 +24,7 @@ internal class MihomoDelayJobs {
         preemptible: Boolean = false,
         nodeId: MihomoProxyNodeId? = null,
     ): Boolean {
+        if (preemptible && jobs.isNotEmpty()) return false
         if (jobs.isNotEmpty() && (exclusive || jobs.values.any { it.exclusive })) return false
         if (groupName != null && jobs.values.any { it.groupName == groupName }) return false
         if (nodeId != null && jobs.values.any { it.nodeId == nodeId }) return false

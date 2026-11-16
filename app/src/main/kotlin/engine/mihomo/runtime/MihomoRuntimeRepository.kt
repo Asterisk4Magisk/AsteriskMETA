@@ -566,7 +566,6 @@ internal class MihomoRuntimeRepository(
                 mutableState.update { current ->
                     current.copy(proxySelectionRevision = current.proxySelectionRevision + 1L)
                 }
-                delayJobs.preemptibleJob()?.cancel()
             }
             // Acquire on the caller's dispatcher so rapid taps keep their submission order.
             proxySelectionMutex.withLock {
@@ -659,9 +658,9 @@ internal class MihomoRuntimeRepository(
     }
 
     /**
-     * Background latency refresh for the node carrying traffic. It never competes with the user:
-     * it is skipped while any test runs, and a user test started meanwhile preempts it. A node
-     * probed within [DelayProbeThrottleMillis] is skipped, so a start followed by a resume, or a
+     * Background latency refresh for the node carrying traffic. It is skipped while any test runs,
+     * shares slots with later single-node tests, and yields to group or provider batches. A node
+     * probed within [DelayProbeThrottleMillis] is skipped, so a start followed by a résumé, or a
      * quick back-and-forth between apps, tests once.
      */
     suspend fun probeProxyDelay(
@@ -670,8 +669,13 @@ internal class MihomoRuntimeRepository(
         nowMillis: Long,
     ) {
         if (!delayProbeThrottle.take(proxyId, nowMillis)) return
-        val probe = startDelayTest(MihomoDelayTarget.Node(proxyId), preemptible = true) {
-            runProxyDelayTest(appState, proxyId, testUrl = "", expectedStatus = "")
+        val shared = state.value.proxies.canShareProxyDelay(proxyId)
+        val probe = startDelayTest(
+            target = MihomoDelayTarget.Node(proxyId),
+            exclusive = !shared,
+            preemptible = true,
+        ) {
+            runProxyDelayTest(appState, proxyId, testUrl = "", expectedStatus = "", shared = shared)
         }
         try {
             probe.await()
@@ -713,8 +717,8 @@ internal class MihomoRuntimeRepository(
         nodeId: MihomoProxyNodeId? = null,
         block: suspend () -> MihomoDelayResult,
     ): Deferred<Result<MihomoDelayResult>> {
-        if (!preemptible) {
-            // A user test takes over from a background probe instead of failing on it.
+        if (!preemptible && (groupName != null || exclusive)) {
+            // Batches and core-scheduled group fallbacks take over from a background probe.
             delayJobs.preemptibleJob()?.cancelAndJoin()
         }
         currentCoroutineContext().ensureActive()
@@ -744,6 +748,7 @@ internal class MihomoRuntimeRepository(
                     current.copy(
                         delayTestingTarget = target,
                         delayTestingAutomatic = preemptible,
+                        delayTestingExclusive = exclusive,
                         delayTestingPending = emptySet(),
                         delayTestingTotal = 0,
                     )

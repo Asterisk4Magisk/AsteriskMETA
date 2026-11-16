@@ -193,9 +193,9 @@ internal data class MihomoRuntimeState(
     val delayTestingTotal: Int = 0,
     val groupDelayTesting: Map<String, MihomoDelayProgress> = emptyMap(),
     val nodeDelayTesting: Set<MihomoProxyNodeId> = emptySet(),
-    // The running test is a background probe a user test may preempt; only meaningful while
-    // [delayTestingTarget] is set, so the resets that clear the target need not clear it.
+    // Properties of [delayTestingTarget]; ignored once that target is cleared.
     val delayTestingAutomatic: Boolean = false,
+    val delayTestingExclusive: Boolean = false,
     val lastError: String = "",
 )
 
@@ -204,7 +204,7 @@ internal val MihomoRuntimeState.canStartUserDelayTest: Boolean
         (delayTestingTarget == null || delayTestingAutomatic)
 
 internal val MihomoRuntimeState.canStartSharedProxyDelayTest: Boolean
-    get() = (delayTestingTarget == null || delayTestingAutomatic) &&
+    get() = (delayTestingTarget == null || delayTestingAutomatic && !delayTestingExclusive) &&
         groupDelayTesting.values.none(MihomoDelayProgress::exclusive)
 
 internal val MihomoRuntimeState.delayTestingNodeIds: Set<MihomoProxyNodeId>
@@ -212,8 +212,7 @@ internal val MihomoRuntimeState.delayTestingNodeIds: Set<MihomoProxyNodeId>
         groupDelayTesting.values.flatMapTo(linkedSetOf(), MihomoDelayProgress::pending)
 
 internal fun MihomoRuntimeState.canStartProxyDelayTest(id: MihomoProxyNodeId): Boolean {
-    if (id in nodeDelayTesting) return false
-    return if (proxies.canShareProxyDelay(id)) canStartSharedProxyDelayTest else canStartUserDelayTest
+    return id !in nodeDelayTesting && if (proxies.canShareProxyDelay(id)) canStartSharedProxyDelayTest else canStartUserDelayTest
 }
 
 internal data class MihomoDelayResult(

@@ -105,7 +105,7 @@ fun MihomoProxyProviderDetailPage(
             .map { state -> state.delayTestingTarget }
             .distinctUntilChanged()
     }.collectAsState(initial = null)
-    // A background probe of the active node may be preempted by a test started here.
+    // A provider batch may preempt the active node's background probe.
     val userDelayTestAllowed by remember(services.mihomoRuntime) {
         services.mihomoRuntime.state
             .map { state -> state.canStartUserDelayTest }
