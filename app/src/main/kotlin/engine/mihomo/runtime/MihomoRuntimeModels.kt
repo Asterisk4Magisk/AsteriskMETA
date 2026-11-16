@@ -50,6 +50,20 @@ internal enum class MihomoDelayStatus {
     Failed,
 }
 
+internal data class MihomoDelayTaskKey(
+    val measuredId: MihomoProxyNodeId,
+    val url: String,
+    val timeoutMillis: Int,
+    val expectedStatus: String,
+    val control: MihomoControlConfig,
+    val useBridge: Boolean,
+)
+
+internal data class MihomoDelayTest(
+    val resultId: MihomoProxyNodeId,
+    val measuredId: MihomoProxyNodeId = resultId,
+)
+
 internal data class MihomoDelayMeasurement(
     val id: MihomoProxyNodeId,
     val status: MihomoDelayStatus,
@@ -91,6 +105,8 @@ internal data class MihomoProxiesState(
     val nodeById: Map<MihomoProxyNodeId, MihomoProxyNode> = nodes.associateBy(MihomoProxyNode::id),
     val topLevelProxyIds: Set<MihomoProxyNodeId> = nodes.mapTo(linkedSetOf(), MihomoProxyNode::id),
     val updatedAtMillis: Long = 0L,
+    // Hidden groups remain part of leaf resolution even though the UI does not list them.
+    val allGroups: List<MihomoProxyGroup> = groups,
 ) {
     fun node(id: MihomoProxyNodeId): MihomoProxyNode {
         return nodeById[id] ?: MihomoProxyNode(id = id, type = "Proxy")
@@ -108,16 +124,9 @@ internal data class MihomoProxiesState(
  * beats building a map on every snapshot; the hop limit stops a selection cycle.
  */
 internal fun MihomoProxiesState.activeNodeId(): MihomoProxyNodeId? {
-    var group = groups.firstOrNull { candidate -> candidate.now.isNotBlank() } ?: return null
-    repeat(groups.size) {
-        val name = group.now
-        val id = group.all.firstOrNull { member -> member.name == name } ?: MihomoProxyNodeId(name)
-        val next = groups.firstOrNull { candidate -> candidate.name == name }
-            ?.takeIf { nested -> nested.now.isNotBlank() && nested.now != name }
-            ?: return id
-        group = next
-    }
-    return MihomoProxyNodeId(group.now)
+    val group = groups.firstOrNull { candidate -> candidate.now.isNotBlank() } ?: return null
+    val id = group.all.firstOrNull { member -> member.name == group.now } ?: MihomoProxyNodeId(group.now)
+    return delayTestLeaf(id)
 }
 
 internal data class MihomoProxyProviderNode(
@@ -128,6 +137,7 @@ internal data class MihomoProxyProviderNode(
     val delay: Int? = null,
     val delayStatus: MihomoDelayStatus? = delay?.let { MihomoDelayStatus.Success },
     val delayError: String = "",
+    val delayUpdatedAtMillis: Long? = null,
 )
 
 internal data class MihomoProviderSubscriptionInfo(
@@ -158,6 +168,15 @@ internal data class MihomoRuleProviderRuntimeSummary(
     val updatedAtMillis: Long = 0L,
 )
 
+internal data class MihomoDelayProgress(
+    val pending: Set<MihomoProxyNodeId> = emptySet(),
+    val total: Int = 0,
+    val exclusive: Boolean = false,
+) {
+    val completed: Int
+        get() = total - pending.size
+}
+
 internal data class MihomoRuntimeState(
     val running: Boolean = false,
     val control: MihomoControlConfig = MihomoControlConfig(),
@@ -168,16 +187,34 @@ internal data class MihomoRuntimeState(
     val configs: MihomoConfigsState = MihomoConfigsState(),
     val proxies: MihomoProxiesState = MihomoProxiesState(),
     val proxiesRefreshing: Boolean = false,
+    val proxySelectionRevision: Long = 0L,
     val delayTestingTarget: MihomoDelayTarget? = null,
+    val delayTestingPending: Set<MihomoProxyNodeId> = emptySet(),
+    val delayTestingTotal: Int = 0,
+    val groupDelayTesting: Map<String, MihomoDelayProgress> = emptyMap(),
+    val nodeDelayTesting: Set<MihomoProxyNodeId> = emptySet(),
     // The running test is a background probe a user test may preempt; only meaningful while
     // [delayTestingTarget] is set, so the resets that clear the target need not clear it.
     val delayTestingAutomatic: Boolean = false,
     val lastError: String = "",
 )
 
-/** True when a user-started delay test may begin now (nothing runs, or only a background probe). */
 internal val MihomoRuntimeState.canStartUserDelayTest: Boolean
-    get() = delayTestingTarget == null || delayTestingAutomatic
+    get() = nodeDelayTesting.isEmpty() && groupDelayTesting.isEmpty() &&
+        (delayTestingTarget == null || delayTestingAutomatic)
+
+internal val MihomoRuntimeState.canStartSharedProxyDelayTest: Boolean
+    get() = (delayTestingTarget == null || delayTestingAutomatic) &&
+        groupDelayTesting.values.none(MihomoDelayProgress::exclusive)
+
+internal val MihomoRuntimeState.delayTestingNodeIds: Set<MihomoProxyNodeId>
+    get() = nodeDelayTesting + delayTestingPending +
+        groupDelayTesting.values.flatMapTo(linkedSetOf(), MihomoDelayProgress::pending)
+
+internal fun MihomoRuntimeState.canStartProxyDelayTest(id: MihomoProxyNodeId): Boolean {
+    if (id in nodeDelayTesting) return false
+    return if (proxies.canShareProxyDelay(id)) canStartSharedProxyDelayTest else canStartUserDelayTest
+}
 
 internal data class MihomoDelayResult(
     val measurements: Map<MihomoProxyNodeId, MihomoDelayMeasurement> = emptyMap(),
@@ -185,20 +222,26 @@ internal data class MihomoDelayResult(
     fun measurement(id: MihomoProxyNodeId): MihomoDelayMeasurement? = measurements[id]
 }
 
+internal fun MihomoDelayResult.withResultId(id: MihomoProxyNodeId): MihomoDelayResult {
+    val measurement = measurements.values.singleOrNull() ?: return this
+    return MihomoDelayResult(measurements + (id to measurement.copy(id = id)))
+}
+
 internal sealed interface MihomoDelayTarget {
     data class Node(val id: MihomoProxyNodeId) : MihomoDelayTarget
-
-    data class Group(val name: String) : MihomoDelayTarget
 
     data class Provider(val name: String) : MihomoDelayTarget
 }
 
-internal fun MihomoRuntimeState.clearDelayTestingTarget(
-    completedTarget: MihomoDelayTarget,
-): MihomoRuntimeState {
-    return if (delayTestingTarget == completedTarget) {
-        copy(delayTestingTarget = null)
-    } else {
-        this
+internal fun MihomoProxiesState.withPreservedSelections(
+    previous: MihomoProxiesState,
+    preserve: Boolean,
+): MihomoProxiesState {
+    if (!preserve) return this
+    val previousGroups = previous.allGroups.associateBy(MihomoProxyGroup::name)
+    fun selected(group: MihomoProxyGroup): MihomoProxyGroup {
+        val selectedName = previousGroups[group.name]?.now ?: return group
+        return if (group.all.any { it.name == selectedName }) group.copy(now = selectedName) else group
     }
+    return copy(groups = groups.map(::selected), allGroups = allGroups.map(::selected))
 }

@@ -18,6 +18,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.R
@@ -30,9 +32,20 @@ internal fun MihomoDelayToolbar(
     onDelayTest: () -> Unit,
     bottomPadding: Dp,
     modifier: Modifier = Modifier,
+    testingCompleted: Int = 0,
+    testingTotal: Int = 0,
     canLocate: Boolean = false,
     onLocate: () -> Unit = {},
 ) {
+    val progressText = if (testing && testingTotal > 0) {
+        stringResource(
+            R.string.mihomo_proxies_delay_testing_progress,
+            testingCompleted.coerceAtMost(testingTotal),
+            testingTotal,
+        )
+    } else {
+        null
+    }
     Row(
         modifier = modifier.padding(
             end = 20.dp,
@@ -58,6 +71,9 @@ internal fun MihomoDelayToolbar(
         }
         ExtendedFloatingActionButton(
             onClick = { if (enabled) onDelayTest() },
+            modifier = Modifier.semantics {
+                progressText?.let { stateDescription = it }
+            },
             containerColor = MaterialTheme.colorScheme.primaryContainer,
             contentColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(
                 alpha = if (enabled && !testing) 1f else 0.45f,
@@ -76,7 +92,9 @@ internal fun MihomoDelayToolbar(
                     )
                 }
             },
-            text = { Text(stringResource(R.string.mihomo_proxies_group_test)) },
+            text = {
+                Text(progressText ?: stringResource(R.string.mihomo_proxies_group_test))
+            },
         )
     }
 }

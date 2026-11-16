@@ -6,6 +6,8 @@ package data
 import android.content.Context
 import android.content.SharedPreferences
 import features.settings.withNormalizedConnectionTestSettings
+import features.settings.ConnectionTestDefaultsVersion
+import features.settings.migrateConnectionTestDefaults
 import app.AppState
 import features.settings.AutoSwitchSettings
 import engine.mihomo.normalizeMihomoTunCongestionController
@@ -39,6 +41,20 @@ internal class AppSettingsPreferences(
 
     fun load(): AppState {
         val defaults = AppState()
+        val defaultsVersion = preferences.getInt(KeyConnectionTestDefaultsVersion, 0)
+        if (defaultsVersion < ConnectionTestDefaultsVersion) {
+            val migrated = migrateConnectionTestDefaults(
+                preferences.getString(KeyConnectionTestUrl, defaults.connectionTestUrl) ?: defaults.connectionTestUrl,
+                preferences.getInt(KeyConnectionTestConcurrent, defaults.connectionTestConcurrent),
+                defaultsVersion,
+            )
+            // Persist both values and their migration marker in the same preferences transaction.
+            preferences.edit {
+                putString(KeyConnectionTestUrl, migrated.url)
+                putInt(KeyConnectionTestConcurrent, migrated.concurrent)
+                putInt(KeyConnectionTestDefaultsVersion, migrated.version)
+            }
+        }
         val mihomoControlSecret = preferences.getString(KeyMihomoControlSecret, null)
             ?.takeIf(String::isNotBlank)
             ?: UUID.randomUUID().toString().also { secret ->
@@ -162,7 +178,7 @@ internal class AppSettingsPreferences(
             connectionTestUrl = preferences.getString(KeyConnectionTestUrl, defaults.connectionTestUrl) ?: defaults.connectionTestUrl,
             connectionTestConcurrent = preferences.getInt(KeyConnectionTestConcurrent, defaults.connectionTestConcurrent),
             connectionTestTimeoutMillis = preferences.getInt(KeyConnectionTestTimeoutMillis, defaults.connectionTestTimeoutMillis),
-            connectionTestUnifiedDelay = preferences.getBoolean(KeyConnectionTestUnifiedDelay, defaults.connectionTestUnifiedDelay),
+            overrideUnifiedDelay = preferences.getBoolean(KeyOverrideUnifiedDelay, defaults.overrideUnifiedDelay),
             coreLogLevel = preferences.getInt(KeyCoreLogLevel, defaults.coreLogLevel),
             enableGeodataMode = preferences.getBoolean(KeyEnableGeodataMode, defaults.enableGeodataMode),
             enableTrafficStatsNotification = preferences.getBoolean(
@@ -333,7 +349,8 @@ internal class AppSettingsPreferences(
     }
 
     private fun SharedPreferences.Editor.putAppState(state: AppState): SharedPreferences.Editor {
-        return putInt(KeyColorMode, state.colorMode)
+        return putInt(KeyConnectionTestDefaultsVersion, ConnectionTestDefaultsVersion)
+            .putInt(KeyColorMode, state.colorMode)
             .putInt(KeyNetworkActivityStyle, state.networkActivityStyle)
             .putInt(KeyLanguageMode, state.languageMode)
             .putInt(KeySeedIndex, state.seedIndex)
@@ -389,7 +406,7 @@ internal class AppSettingsPreferences(
             .putString(KeyConnectionTestUrl, state.connectionTestUrl)
             .putInt(KeyConnectionTestConcurrent, state.connectionTestConcurrent)
             .putInt(KeyConnectionTestTimeoutMillis, state.connectionTestTimeoutMillis)
-            .putBoolean(KeyConnectionTestUnifiedDelay, state.connectionTestUnifiedDelay)
+            .putBoolean(KeyOverrideUnifiedDelay, state.overrideUnifiedDelay)
             .putInt(KeyCoreLogLevel, state.coreLogLevel)
             .putBoolean(KeyEnableGeodataMode, state.enableGeodataMode)
             .putBoolean(KeyEnableTrafficStatsNotification, state.enableTrafficStatsNotification)
@@ -731,7 +748,8 @@ internal const val KeyServiceControlKeyguardUnlockStop = "service_control_keygua
 private const val KeySubscriptionHwid = "subscription_hwid"
 private val SubscriptionHwidLock = Any()
 
+private const val KeyConnectionTestDefaultsVersion = "connection_test_defaults_version"
 private const val KeyConnectionTestUrl = "connection_test_url"
 private const val KeyConnectionTestConcurrent = "connection_test_concurrent"
 private const val KeyConnectionTestTimeoutMillis = "connection_test_timeout_millis"
-private const val KeyConnectionTestUnifiedDelay = "connection_test_unified_delay"
+private const val KeyOverrideUnifiedDelay = "connection_test_unified_delay"

@@ -11,6 +11,7 @@ import app.DefaultMihomoProfileUpdateInterval
 import app.DefaultMihomoProfileUserAgent
 import app.MihomoProfileType
 import app.MihomoRuleOverrideState
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 internal const val AppBackupFormat = "asteriskmeta-backup"
@@ -79,10 +80,13 @@ internal data class AppBackupSettings(
     val tunVpnDns: String = BackupDefaults.tunVpnDns,
     val tunIpv4Cidr: String = BackupDefaults.tunIpv4Cidr,
     val tunIpv6Cidr: String = BackupDefaults.tunIpv6Cidr,
+    // Absent in older v1 backups; independent of the unchanged backup frame version.
+    val connectionTestDefaultsVersion: Int = 0,
     val connectionTestUrl: String = BackupDefaults.connectionTestUrl,
     val connectionTestConcurrent: Int = BackupDefaults.connectionTestConcurrent,
     val connectionTestTimeoutMillis: Int = BackupDefaults.connectionTestTimeoutMillis,
-    val connectionTestUnifiedDelay: Boolean = BackupDefaults.connectionTestUnifiedDelay,
+    @SerialName("connectionTestUnifiedDelay")
+    val overrideUnifiedDelay: Boolean = BackupDefaults.overrideUnifiedDelay,
     val coreLogLevel: Int = BackupDefaults.coreLogLevel,
     val enableGeodataMode: Boolean = BackupDefaults.enableGeodataMode,
     val enableTrafficStatsNotification: Boolean = BackupDefaults.enableTrafficStatsNotification,

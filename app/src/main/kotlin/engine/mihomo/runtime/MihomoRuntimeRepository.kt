@@ -55,41 +55,6 @@ import kotlin.time.Duration.Companion.milliseconds
 import app.effects.MihomoRuntimeLifecycleTarget
 
 /**
- * One delay test runs at a time. A background probe takes the slot only when it is free and
- * yields it: a user test that finds a probe running cancels it and waits for its cleanup instead
- * of failing, while a second user test still fails fast.
- */
-internal class MihomoDelayJobSlot {
-    private var current: Job? = null
-    private var currentPreemptible = false
-
-    @Synchronized
-    fun tryAcquire(job: Job, preemptible: Boolean = false): Boolean {
-        if (current != null) return false
-        current = job
-        currentPreemptible = preemptible
-        return true
-    }
-
-    /** The running probe a user test may cancel, or null when the slot is free or user-owned. */
-    @Synchronized
-    fun preemptibleJob(): Job? = current?.takeIf { currentPreemptible }
-
-    @Synchronized
-    fun release(job: Job) {
-        if (current === job) {
-            current = null
-            currentPreemptible = false
-        }
-    }
-
-    @Synchronized
-    fun cancel() {
-        current?.cancel()
-    }
-}
-
-/**
  * Rate limit for background probes, per node: the same node is probed at most once per
  * [intervalMillis], while a different node is always let through. Lives with the runtime, not the
  * UI, so recreating the activity does not reset it.
@@ -123,14 +88,17 @@ internal class MihomoRuntimeRepository(
     private val trafficHistoryLock = Any()
     private val runtimeStateLock = Any()
     private val runtimePreparationMutex = Mutex()
+    private val proxySelectionMutex = Mutex()
     private val proxyRefreshMutex = Mutex()
+    private val delayJobs = MihomoDelayJobs()
     private var monitorJob: Job? = null
-    private val delayJobSlot = MihomoDelayJobSlot()
     private val delayProbeThrottle = MihomoDelayProbeThrottle(DelayProbeThrottleMillis)
     private var activeSignature: MihomoRuntimeSignature? = null
     private var preparedRuntimeSignature: MihomoPreparedRuntimeSignature? = null
     private var runtimeGeneration = 0L
     private var proxySnapshotConfigKey: Int? = null
+    private var proxySnapshotRevision = 0L
+    private var proxySelectionAppliedRevision = 0L
     @Volatile
     private var lastLoggedRuntimeError = ""
 
@@ -268,12 +236,12 @@ internal class MihomoRuntimeRepository(
     private fun stopMonitor(resetSnapshots: Boolean = false) {
         monitorJob?.cancel()
         monitorJob = null
-        cancelDelayTest()
         if (resetSnapshots) {
             synchronized(trafficHistoryLock) { trafficHistory.clear() }
         }
         synchronized(runtimeStateLock) {
             runtimeGeneration += 1L
+            delayJobs.cancel()
             activeSignature = null
             if (resetSnapshots) proxySnapshotConfigKey = null
             mutableState.update { current ->
@@ -287,6 +255,10 @@ internal class MihomoRuntimeRepository(
                         traffic = current.traffic.copy(connected = false),
                         proxiesRefreshing = false,
                         delayTestingTarget = null,
+                        delayTestingPending = emptySet(),
+                        delayTestingTotal = 0,
+                        groupDelayTesting = emptyMap(),
+                        nodeDelayTesting = emptySet(),
                         lastError = "",
                     )
                 }
@@ -321,6 +293,7 @@ internal class MihomoRuntimeRepository(
                     useBridge = backend.useBridge(),
                     generation = generation,
                     configKey = configKey,
+                    includeProviderNodes = true,
                 ).getOrThrow()
             }
         }
@@ -506,7 +479,11 @@ internal class MihomoRuntimeRepository(
                 appContext.withRootDnsMutation(appState) {
                     client.updateProxyProvider(control, providerName, backend.useBridge())
                 }
-                refreshProxySnapshot(control, backend.useBridge(), generation, configKey, coalesce = false)
+                refreshProxySnapshot(
+                    control, backend.useBridge(), generation, configKey,
+                    coalesce = false,
+                    includeProviderNodes = true,
+                )
             }
         }
     }
@@ -585,15 +562,27 @@ internal class MihomoRuntimeRepository(
             val backend = resolveInteractiveBackend(appState, control)
             val generation = currentRuntimeGeneration()
             val configKey = appState.mihomoRuntimeConfigKey(appState.mihomoRuntimeBackend(appContext))
-            withContext(Dispatchers.IO) {
-                ensureInteractiveRuntime(appState, backend)
-                appContext.withRootDnsMutation(appState) {
-                    client.selectProxy(control, groupName, proxyName, backend.useBridge())
+            synchronized(runtimeStateLock) {
+                mutableState.update { current ->
+                    current.copy(proxySelectionRevision = current.proxySelectionRevision + 1L)
                 }
-                applySelectedProxy(groupName, proxyName, generation, configKey)
-                refreshProxySnapshot(control, backend.useBridge(), generation, configKey, coalesce = false)
-                refreshConnectivity()
+                delayJobs.preemptibleJob()?.cancel()
             }
+            // Acquire on the caller's dispatcher so rapid taps keep their submission order.
+            proxySelectionMutex.withLock {
+                withContext(Dispatchers.IO) {
+                    ensureInteractiveRuntime(appState, backend)
+                    check(isRuntimeRequestCurrent(generation, configKey)) { "Mihomo runtime changed before selection" }
+                    appContext.withRootDnsMutation(appState) {
+                        client.selectProxy(control, groupName, proxyName, backend.useBridge())
+                    }
+                    applySelectedProxy(groupName, proxyName, generation, configKey)
+                }
+            }
+            appScope.launch(Dispatchers.IO) {
+                refreshProxySnapshot(control, backend.useBridge(), generation, configKey)
+            }
+            refreshConnectivity()
         }
     }
 
@@ -649,14 +638,23 @@ internal class MihomoRuntimeRepository(
             .getOrNull()
     }
 
+    fun focusDelayTestGroup(groupName: String?) {
+        client.focusDelayTestOwner(groupName)
+    }
+
     suspend fun testProxyDelay(
         appState: AppState,
         proxyId: MihomoProxyNodeId,
         testUrl: String = "",
         expectedStatus: String = "",
     ): Result<MihomoDelayResult> {
-        return startDelayTest(MihomoDelayTarget.Node(proxyId)) {
-            runProxyDelayTest(appState, proxyId, testUrl, expectedStatus)
+        val shared = state.value.proxies.canShareProxyDelay(proxyId)
+        return startDelayTest(
+            target = MihomoDelayTarget.Node(proxyId),
+            exclusive = !shared,
+            nodeId = proxyId.takeIf { shared },
+        ) {
+            runProxyDelayTest(appState, proxyId, testUrl, expectedStatus, shared)
         }.await()
     }
 
@@ -664,7 +662,7 @@ internal class MihomoRuntimeRepository(
      * Background latency refresh for the node carrying traffic. It never competes with the user:
      * it is skipped while any test runs, and a user test started meanwhile preempts it. A node
      * probed within [DelayProbeThrottleMillis] is skipped, so a start followed by a resume, or a
-     * quick back-and-forth between apps, tests once; switching to another node always probes.
+     * quick back-and-forth between apps, tests once.
      */
     suspend fun probeProxyDelay(
         appState: AppState,
@@ -672,14 +670,13 @@ internal class MihomoRuntimeRepository(
         nowMillis: Long,
     ) {
         if (!delayProbeThrottle.take(proxyId, nowMillis)) return
+        val probe = startDelayTest(MihomoDelayTarget.Node(proxyId), preemptible = true) {
+            runProxyDelayTest(appState, proxyId, testUrl = "", expectedStatus = "")
+        }
         try {
-            startDelayTest(MihomoDelayTarget.Node(proxyId), preemptible = true) {
-                runProxyDelayTest(appState, proxyId, testUrl = "", expectedStatus = "", preemptible = true)
-            }.await()
+            probe.await()
         } catch (error: CancellationException) {
-            // The test runs in the app scope; a caller that moved on (the node changed, the app
-            // left the foreground) takes its probe down with it so the next node is not blocked.
-            delayJobSlot.preemptibleJob()?.cancel()
+            probe.cancel()
             throw error
         }
     }
@@ -689,7 +686,10 @@ internal class MihomoRuntimeRepository(
         groupName: String,
         testUrl: String,
     ): Result<MihomoDelayResult> {
-        return startDelayTest(MihomoDelayTarget.Group(groupName)) {
+        return startDelayTest(
+            groupName = groupName,
+            exclusive = state.value.proxies.individualDelayTests(groupName) == null,
+        ) {
             runGroupDelayTest(appState, groupName, testUrl)
         }.await()
     }
@@ -706,41 +706,73 @@ internal class MihomoRuntimeRepository(
     }
 
     private suspend fun startDelayTest(
-        target: MihomoDelayTarget,
+        target: MihomoDelayTarget? = null,
+        groupName: String? = null,
+        exclusive: Boolean = true,
         preemptible: Boolean = false,
+        nodeId: MihomoProxyNodeId? = null,
         block: suspend () -> MihomoDelayResult,
     ): Deferred<Result<MihomoDelayResult>> {
         if (!preemptible) {
             // A user test takes over from a background probe instead of failing on it.
-            delayJobSlot.preemptibleJob()?.cancelAndJoin()
+            delayJobs.preemptibleJob()?.cancelAndJoin()
         }
+        currentCoroutineContext().ensureActive()
+        val generation = currentRuntimeGeneration()
         val result = CompletableDeferred<Result<MihomoDelayResult>>()
-        val job: Job = appScope.launch(Dispatchers.IO, start = CoroutineStart.LAZY) {
+        var outcome: Result<MihomoDelayResult>? = null
+        val job = appScope.launch(Dispatchers.IO, start = CoroutineStart.LAZY) {
+            outcome = runMihomoRuntimeCatching {
+                check(currentRuntimeGeneration() == generation) { "Mihomo runtime changed before its delay test" }
+                block()
+            }
+        }
+        synchronized(runtimeStateLock) {
+            if (!delayJobs.tryAcquire(job, groupName, exclusive, preemptible, nodeId)) {
+                job.cancel()
+                return CompletableDeferred(Result.failure(IllegalStateException("Mihomo delay test is already running")))
+            }
             mutableState.update { current ->
-                current.copy(delayTestingTarget = target, delayTestingAutomatic = preemptible)
+                if (groupName != null) {
+                    current.copy(
+                        groupDelayTesting = current.groupDelayTesting +
+                            (groupName to MihomoDelayProgress(exclusive = exclusive)),
+                    )
+                } else if (nodeId != null) {
+                    current.copy(nodeDelayTesting = current.nodeDelayTesting + nodeId)
+                } else {
+                    current.copy(
+                        delayTestingTarget = target,
+                        delayTestingAutomatic = preemptible,
+                        delayTestingPending = emptySet(),
+                        delayTestingTotal = 0,
+                    )
+                }
             }
-            try {
-                result.complete(runCatching { block() })
-            } finally {
-                mutableState.update { current -> current.clearDelayTestingTarget(target) }
+            job.invokeOnCompletion { error ->
+                synchronized(runtimeStateLock) {
+                    if (delayJobs.release(job)) {
+                        mutableState.update { current ->
+                            if (groupName != null) {
+                                current.copy(groupDelayTesting = current.groupDelayTesting - groupName)
+                            } else if (nodeId != null) {
+                                current.copy(nodeDelayTesting = current.nodeDelayTesting - nodeId)
+                            } else {
+                                current.copy(
+                                    delayTestingTarget = null,
+                                    delayTestingPending = emptySet(),
+                                    delayTestingTotal = 0,
+                                )
+                            }
+                        }
+                    }
+                }
+                result.complete(outcome ?: Result.failure(error ?: CancellationException("Mihomo delay test cancelled")))
             }
-        }
-        if (!delayJobSlot.tryAcquire(job, preemptible)) {
-            job.cancel()
-            return CompletableDeferred(Result.failure(IllegalStateException("Mihomo delay test is already running")))
-        }
-        job.invokeOnCompletion { error ->
-            delayJobSlot.release(job)
-            if (!result.isCompleted && error != null) {
-                result.complete(Result.failure(error))
-            }
+            result.invokeOnCompletion { if (result.isCancelled) job.cancel() }
         }
         job.start()
         return result
-    }
-
-    private fun cancelDelayTest() {
-        delayJobSlot.cancel()
     }
 
     private suspend fun runProxyDelayTest(
@@ -748,31 +780,38 @@ internal class MihomoRuntimeRepository(
         proxyId: MihomoProxyNodeId,
         testUrl: String,
         expectedStatus: String,
-        preemptible: Boolean = false,
+        shared: Boolean = false,
     ): MihomoDelayResult {
-        return runInteractiveDelayTest(appState) { control, useBridge ->
-            val groupFallbackName = state.value.proxies.groupFallbackFor(proxyId)
-            suspend fun measure() = client.testProxyDelay(
-                config = control,
-                proxyId = proxyId,
-                url = testUrl.ifBlank { appState.connectionTestUrl },
-                timeoutMillis = appState.connectionTestTimeoutMillis,
-                expectedStatus = expectedStatus,
-                groupFallbackName = groupFallbackName,
-                useBridge = useBridge,
-            )
-            if (preemptible) {
-                currentCoroutineContext().ensureActive()
-                // Cancellation releases the test slot without waiting for the blocking core call.
-                val request = appScope.async(Dispatchers.IO) { measure() }
-                try {
-                    request.await()
-                } finally {
-                    request.cancel()
-                }
+        return runInteractiveDelayTest(appState, sharedNodeTest = shared) { control, useBridge, onStarted, _ ->
+            onStarted(listOf(proxyId))
+            val proxies = state.value.proxies
+            val measuredId = proxies.delayTestLeaf(proxyId)
+                ?: error("Cannot resolve the selected leaf for ${proxyId.name}")
+            val groupFallbackName = proxies.groupFallbackFor(measuredId)
+            check(!shared || groupFallbackName == null) { "Mihomo node changed before its delay test" }
+            val url = testUrl.ifBlank { appState.connectionTestUrl }
+            val result = if (groupFallbackName == null) {
+                client.sharedProxyDelay(
+                    config = control,
+                    proxyId = measuredId,
+                    url = url,
+                    timeoutMillis = appState.connectionTestTimeoutMillis,
+                    expectedStatus = expectedStatus,
+                    concurrency = appState.connectionTestConcurrent,
+                    useBridge = useBridge,
+                )
             } else {
-                measure()
+                client.testProxyDelay(
+                    config = control,
+                    proxyId = measuredId,
+                    url = url,
+                    timeoutMillis = appState.connectionTestTimeoutMillis,
+                    expectedStatus = expectedStatus,
+                    groupFallbackName = groupFallbackName,
+                    useBridge = useBridge,
+                )
             }
+            result.withResultId(proxyId)
         }
     }
 
@@ -781,17 +820,26 @@ internal class MihomoRuntimeRepository(
         groupName: String,
         testUrl: String,
     ): MihomoDelayResult {
-        return runInteractiveDelayTest(appState) { control, useBridge ->
-            val expectedProxyIds = state.value.proxies.groups
-                .firstOrNull { group -> group.name == groupName }
-                ?.all
-                .orEmpty()
+        return runInteractiveDelayTest(appState, progressGroupName = groupName) { control, useBridge, onStarted, onResult ->
+            val proxies = state.value.proxies
+            val group = proxies.groups.firstOrNull { group -> group.name == groupName }
+            val expectedProxyIds = group?.all.orEmpty()
+            val individualTests = proxies.individualDelayTests(groupName)
+            // A queued request may outlive a selector/profile change. Never enter a native group
+            // test under a slot acquired for ordinary shared work.
+            val exclusive = state.value.groupDelayTesting[groupName]?.exclusive == true
+            check(exclusive || individualTests != null) { "Mihomo group changed before its delay test started" }
             client.testGroupDelay(
                 config = control,
                 groupName = groupName,
                 url = testUrl.ifBlank { appState.connectionTestUrl },
                 timeoutMillis = appState.connectionTestTimeoutMillis,
                 expectedProxyIds = expectedProxyIds,
+                concurrency = appState.connectionTestConcurrent,
+                owner = groupName,
+                individualTests = individualTests.orEmpty(),
+                onStarted = onStarted,
+                onResult = onResult,
                 useBridge = useBridge,
             )
         }
@@ -874,6 +922,7 @@ internal class MihomoRuntimeRepository(
         if (isInteractiveRuntimePrepared(appState, signature)) return
 
         withContext(Dispatchers.IO) {
+            currentCoroutineContext().ensureActive()
             runtimePreparationMutex.withLock {
                 if (isInteractiveRuntimePrepared(appState, signature)) return@withLock
                 prepareRuntime(appState, backend)
@@ -890,7 +939,7 @@ internal class MihomoRuntimeRepository(
         testUrl: String,
         expectedStatus: String,
     ): MihomoDelayResult {
-        return runInteractiveDelayTest(appState) { control, useBridge ->
+        return runInteractiveDelayTest(appState) { control, useBridge, onStarted, onResult ->
             client.testProviderDelay(
                 config = control,
                 providerName = providerName,
@@ -898,18 +947,24 @@ internal class MihomoRuntimeRepository(
                 url = testUrl.ifBlank { appState.connectionTestUrl },
                 timeoutMillis = appState.connectionTestTimeoutMillis,
                 expectedStatus = expectedStatus,
+                onStarted = onStarted,
+                onResult = onResult,
                 useBridge = useBridge,
             )
         }
     }
 
-    /**
-     * Run one delay test against the interactive runtime, then publish its delays and refresh
-     * the proxy snapshot for the generation and configuration it was started under.
-     */
+    /** Publish each completed measurement; snapshot reconciliation must not hold the test slot. */
     private suspend fun runInteractiveDelayTest(
         appState: AppState,
-        test: suspend (control: MihomoControlConfig, useBridge: Boolean) -> MihomoDelayResult,
+        progressGroupName: String? = null,
+        sharedNodeTest: Boolean = false,
+        test: suspend (
+            control: MihomoControlConfig,
+            useBridge: Boolean,
+            onStarted: (List<MihomoProxyNodeId>) -> Unit,
+            onResult: (MihomoDelayResult) -> Unit,
+        ) -> MihomoDelayResult,
     ): MihomoDelayResult {
         val control = resolveMihomoControlConfig(appState)
         val backend = resolveInteractiveBackend(appState, control)
@@ -917,9 +972,20 @@ internal class MihomoRuntimeRepository(
         val configKey = appState.mihomoRuntimeConfigKey(appState.mihomoRuntimeBackend(appContext))
         return withContext(Dispatchers.IO) {
             ensureInteractiveRuntime(appState, backend)
-            test(control, backend.useBridge()).also { result ->
-                applyDelays(result, generation, configKey)
-                refreshProxySnapshot(control, backend.useBridge(), generation, configKey, coalesce = false)
+            currentCoroutineContext().ensureActive()
+            check(isRuntimeRequestCurrent(generation, configKey)) { "Mihomo runtime changed before its delay test" }
+            fun started(ids: List<MihomoProxyNodeId>) {
+                if (!sharedNodeTest) updateDelayTestProgress(generation, configKey, ids, progressGroupName)
+            }
+            fun completed(result: MihomoDelayResult) {
+                applyDelayTestResult(result, generation, configKey, progressGroupName, sharedNodeTest)
+            }
+            publishMihomoDelayResults(::completed) { onResult ->
+                test(control, backend.useBridge(), ::started, onResult)
+            }.also {
+                appScope.launch(Dispatchers.IO) {
+                    refreshProxySnapshot(control, backend.useBridge(), generation, configKey)
+                }
             }
         }
     }
@@ -1028,7 +1094,9 @@ internal class MihomoRuntimeRepository(
         generation: Long,
         configKey: Int,
     ) {
-        refreshProxySnapshot(control, useBridge, generation, configKey)
+        refreshProxySnapshot(
+            control, useBridge, generation, configKey, includeProviderNodes = true,
+        )
         if (!isRuntimeRequestCurrent(generation, configKey)) return
         val memory = runRuntimeRequest { client.getMemory(control, useBridge) }
         val version = runRuntimeRequest { client.getVersion(control, useBridge) }
@@ -1048,15 +1116,16 @@ internal class MihomoRuntimeRepository(
         generation: Long,
         configKey: Int,
         coalesce: Boolean = true,
+        includeProviderNodes: Boolean = false,
     ): Result<Unit> {
-        val observedUpdatedAtMillis = state.value.proxies.updatedAtMillis
+        val observedSnapshotRevision = synchronized(runtimeStateLock) { proxySnapshotRevision }
         return proxyRefreshMutex.withLock {
             if (!isRuntimeRequestCurrent(generation, configKey)) return@withLock Result.success(Unit)
             val refreshedByAnotherRequest = synchronized(runtimeStateLock) {
-                proxySnapshotConfigKey == configKey &&
-                    state.value.proxies.updatedAtMillis > observedUpdatedAtMillis
+                proxySnapshotConfigKey == configKey && proxySnapshotRevision > observedSnapshotRevision
             }
-            if (coalesce && refreshedByAnotherRequest) return@withLock Result.success(Unit)
+            if (coalesce && !includeProviderNodes && refreshedByAnotherRequest) return@withLock Result.success(Unit)
+            val observedSelectionRevision = synchronized(runtimeStateLock) { proxySelectionAppliedRevision }
 
             updateRuntimeStateIfCurrent(generation, configKey) { current ->
                 current.copy(proxiesRefreshing = true)
@@ -1064,20 +1133,32 @@ internal class MihomoRuntimeRepository(
             try {
                 val configs = runRuntimeRequest { client.getConfigs(control, useBridge) }
                 val mode = configs.getOrNull()?.mode ?: state.value.configs.mode
-                val proxies = runRuntimeRequest { client.getProxies(control, useBridge, mode) }
+                val proxies = runRuntimeRequest {
+                    client.getProxies(control, useBridge, mode, includeProviderNodes)
+                }
                 val committed = synchronized(runtimeStateLock) {
                     if (!isRuntimeRequestCurrentLocked(generation, configKey)) {
                         false
                     } else {
                         val refreshedProxies = proxies.getOrNull()
-                        if (refreshedProxies != null) proxySnapshotConfigKey = configKey
+                        if (refreshedProxies != null) {
+                            proxySnapshotConfigKey = configKey
+                            proxySnapshotRevision += 1L
+                        }
                         mutableState.update { current ->
+                            val reconciledProxies = refreshedProxies?.let { snapshot ->
+                                (if (includeProviderNodes) snapshot else snapshot.withPreservedProviderNodes(current.proxies))
+                                    .withPreservedDelays(current.proxies)
+                                    .withPreservedSelections(
+                                        current.proxies,
+                                        preserve = proxySelectionAppliedRevision != observedSelectionRevision,
+                                    )
+                            }
                             current.copy(
                                 running = true,
                                 control = control,
                                 configs = configs.getOrNull() ?: current.configs,
-                                proxies = refreshedProxies?.withPreservedDelays(current.proxies)
-                                    ?: current.proxies,
+                                proxies = reconciledProxies ?: current.proxies,
                                 proxiesRefreshing = false,
                                 lastError = proxies.exceptionOrNull()?.message.orEmpty(),
                             )
@@ -1158,16 +1239,50 @@ internal class MihomoRuntimeRepository(
         AndroidAppLogger.warn(LogTag, "$source failed: $message", error)
     }
 
-    private fun applyDelays(
+    private fun updateDelayTestProgress(
+        generation: Long,
+        configKey: Int,
+        ids: List<MihomoProxyNodeId>,
+        groupName: String?,
+    ) {
+        val pending = ids.toSet()
+        updateRuntimeStateIfCurrent(generation, configKey) { current ->
+            if (groupName == null) {
+                current.copy(delayTestingPending = pending, delayTestingTotal = pending.size)
+            } else {
+                val existing = current.groupDelayTesting[groupName]
+                current.copy(
+                    groupDelayTesting = current.groupDelayTesting +
+                        (groupName to MihomoDelayProgress(pending, pending.size, existing?.exclusive == true)),
+                )
+            }
+        }
+    }
+
+    private fun applyDelayTestResult(
         result: MihomoDelayResult,
         generation: Long,
         configKey: Int,
+        groupName: String?,
+        sharedNodeTest: Boolean,
     ) {
         if (result.measurements.isEmpty()) return
         updateRuntimeStateIfCurrent(generation, configKey) { current ->
-            current.copy(
-                proxies = current.proxies.withDelayResult(result),
-            )
+            if (sharedNodeTest) {
+                current.copy(proxies = current.proxies.withDelayResult(result))
+            } else if (groupName == null) {
+                current.copy(
+                    proxies = current.proxies.withDelayResult(result),
+                    delayTestingPending = current.delayTestingPending - result.measurements.keys,
+                )
+            } else {
+                val progress = current.groupDelayTesting[groupName] ?: MihomoDelayProgress()
+                current.copy(
+                    proxies = current.proxies.withDelayResult(result),
+                    groupDelayTesting = current.groupDelayTesting +
+                        (groupName to progress.copy(pending = progress.pending - result.measurements.keys)),
+                )
+            }
         }
     }
 
@@ -1185,20 +1300,20 @@ internal class MihomoRuntimeRepository(
         generation: Long,
         configKey: Int,
     ) {
-        updateRuntimeStateIfCurrent(generation, configKey) { current ->
-            val groups = current.proxies.groups.map { group ->
-                if (group.name == groupName) {
-                    group.copy(now = proxyName)
-                } else {
-                    group
-                }
+        synchronized(runtimeStateLock) {
+            if (!isRuntimeRequestCurrentLocked(generation, configKey)) return
+            proxySelectionAppliedRevision += 1L
+            fun selected(group: MihomoProxyGroup) =
+                if (group.name == groupName) group.copy(now = proxyName) else group
+            mutableState.update { current ->
+                current.copy(
+                    proxies = current.proxies.copy(
+                        groups = current.proxies.groups.map(::selected),
+                        allGroups = current.proxies.allGroups.map(::selected),
+                        updatedAtMillis = System.currentTimeMillis(),
+                    ),
+                )
             }
-            current.copy(
-                proxies = current.proxies.copy(
-                    groups = groups,
-                    updatedAtMillis = System.currentTimeMillis(),
-                ),
-            )
         }
     }
 
@@ -1226,7 +1341,7 @@ private fun saturatedTrafficAdd(previous: Long, increment: Long): Long {
     return if (Long.MAX_VALUE - previous < increment) Long.MAX_VALUE else previous + increment
 }
 
-private suspend fun closeMihomoConnectionsForGroup(
+internal suspend fun closeMihomoConnectionsForGroup(
     connections: List<MihomoConnection>,
     groupName: String,
     closeConnection: suspend (String) -> Unit,
@@ -1304,7 +1419,7 @@ private fun AppState.mihomoRuntimeConfigKey(backend: MihomoRuntimeBackend): Int 
             mihomoProfiles,
             runMode,
             mihomoMode,
-            connectionTestUnifiedDelay,
+            overrideUnifiedDelay,
             enableGeodataMode,
             mihomoGeodataLoader,
             mihomoFindProcessMode,

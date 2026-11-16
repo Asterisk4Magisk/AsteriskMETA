@@ -241,10 +241,10 @@
     <string name="monitor_network_title">Network status</string>
 
     <!-- Proxy selection -->
-    <string name="mihomo_proxies_delay_done">Complete</string>
     <string name="mihomo_proxies_delay_failed">Failed</string>
     <string name="mihomo_proxies_delay_not_tested">Not tested</string>
     <string name="mihomo_proxies_delay_timeout">Timeout</string>
+    <string name="mihomo_proxies_delay_testing_progress">%1$d/%2$d</string>
     <string name="mihomo_proxies_groups">Proxy groups</string>
     <string name="mihomo_proxies_expand_groups">Show all proxy groups</string>
     <string name="mihomo_proxies_group_test">Test group</string>
@@ -281,9 +281,9 @@
     <string name="connection_test_settings_summary">Tune how the Mihomo URL test measures delay</string>
     <string name="connection_test_settings_title">Connection test</string>
     <string name="connection_test_timeout">Test timeout (ms)</string>
-    <string name="connection_test_unified_delay">Unified delay</string>
-    <string name="connection_test_unified_delay_raw_summary">Overrides disabled; unified delay follows the profile YAML</string>
-    <string name="connection_test_unified_delay_summary">Measure the second request on a kept session, hiding the one-off handshake cost</string>
+    <string name="connection_test_override_unified_delay">Override unified delay</string>
+    <string name="connection_test_override_unified_delay_raw_summary">Overrides disabled; unified delay follows the profile YAML</string>
+    <string name="connection_test_override_unified_delay_summary">Force unified-delay to true; when off, preserve the profile or script value</string>
     <string name="connection_test_url">Test URL</string>
     <string name="connection_test_url_invalid">Enter a valid HTTP or HTTPS URL</string>
 

@@ -17,10 +17,21 @@ internal fun MihomoProxiesState.withDelayResult(
             delayUpdatedAtMillis = testedAtMillis,
         )
     }
+    val missingNodes = result.measurements.values.filter { it.id !in nodeById }.map { measurement ->
+        MihomoProxyNode(
+            id = measurement.id,
+            type = "Proxy",
+            delay = measurement.delay,
+            delayStatus = measurement.status,
+            delayError = measurement.error,
+            delayUpdatedAtMillis = testedAtMillis,
+        )
+    }
+    val allNodes = updatedNodes + missingNodes
     return copy(
-        nodes = updatedNodes,
-        nodeById = updatedNodes.associateBy(MihomoProxyNode::id),
-        updatedAtMillis = System.currentTimeMillis(),
+        nodes = allNodes,
+        nodeById = allNodes.associateBy(MihomoProxyNode::id),
+        updatedAtMillis = testedAtMillis,
     )
 }
 

@@ -248,4 +248,4 @@ private fun JsonObject.stringList(name: String): List<String> {
 }
 
 private val OfficialApiJson = Json { ignoreUnknownKeys = true }
-private const val MihomoOfficialUntestedDelay = 65_535
+internal const val MihomoOfficialUntestedDelay = 65_535

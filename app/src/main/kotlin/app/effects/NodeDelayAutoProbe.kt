@@ -11,17 +11,21 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import app.modes.MihomoModeDirect
 import data.AndroidAppStateStore
+import engine.mihomo.runtime.MihomoProxyNodeId
 import engine.mihomo.runtime.MihomoRuntimeRepository
+import engine.mihomo.runtime.MihomoRuntimeState
 import engine.mihomo.runtime.activeNodeId
 import features.home.toMihomoModeOrNull
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 /**
- * Keeps the active node's latency fresh while the app is in the foreground: it is probed when the
- * service comes up, when the node changes and on every resume. The runtime throttles repeats of
- * the same node and lets any user-started test preempt a probe, so this effect only decides when.
+ * Keeps the active node's latency fresh when the app enters the foreground. It probes only the
+ * first testable active node resolved for that resume; later selector changes are user actions and
+ * must not implicitly start a delay test or reorder the proxy list.
  */
 @Composable
 internal fun NodeDelayAutoProbe(
@@ -31,25 +35,48 @@ internal fun NodeDelayAutoProbe(
     val lifecycleOwner = LocalLifecycleOwner.current
     LaunchedEffect(lifecycleOwner, stateStore, mihomoRuntime) {
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-            mihomoRuntime.state
-                // The state ticks every second for traffic; the proxy snapshot keeps its identity
-                // in between, so the node is resolved only when the snapshot really changes.
-                .map { runtime -> Triple(runtime.running, runtime.configs.mode, runtime.proxies) }
-                .distinctUntilChanged()
-                .map { (running, mode, proxies) ->
-                    val direct = (mode.toMihomoModeOrNull() ?: stateStore.state.value.mihomoMode) == MihomoModeDirect
-                    if (running && !direct) proxies.activeNodeId() else null
-                }
-                .distinctUntilChanged()
-                // A node change cancels the probe of the previous one.
-                .collectLatest { id ->
-                    // Built-in outbounds are not nodes the core can test.
-                    if (id == null || id.providerName == null && id.name.uppercase() in BuiltInOutbounds) {
-                        return@collectLatest
-                    }
+            val selectionRevision = mihomoRuntime.state.value.proxySelectionRevision
+            val id = mihomoRuntime.state.awaitResumeProbeNode(selectionRevision) {
+                stateStore.state.value.mihomoMode
+            } ?: return@repeatOnLifecycle
+            val revision = selectionRevision
+            coroutineScope {
+                val probe = launch {
                     mihomoRuntime.probeProxyDelay(stateStore.state.value, id, SystemClock.elapsedRealtime())
                 }
+                val nodeChange = launch {
+                    mihomoRuntime.state
+                        .first { runtime ->
+                            runtime.proxySelectionRevision != revision ||
+                                runtime.activeProbeNode(stateStore.state.value.mihomoMode) != id
+                        }
+                    probe.cancel()
+                }
+                probe.join()
+                nodeChange.cancelAndJoin()
+            }
         }
+    }
+}
+
+internal suspend fun StateFlow<MihomoRuntimeState>.awaitResumeProbeNode(
+    selectionRevision: Long,
+    fallbackMode: () -> Int,
+): MihomoProxyNodeId? {
+    val runtime = first { runtime ->
+        runtime.proxySelectionRevision != selectionRevision || runtime.activeProbeNode(fallbackMode()) != null
+    }
+    if (runtime.proxySelectionRevision != selectionRevision) return null
+    return runtime.activeProbeNode(fallbackMode())
+}
+
+internal fun MihomoRuntimeState.activeProbeNode(
+    fallbackMode: Int,
+): MihomoProxyNodeId? {
+    val direct = (configs.mode.toMihomoModeOrNull() ?: fallbackMode) == MihomoModeDirect
+    if (!running || direct) return null
+    return proxies.activeNodeId()?.takeUnless { id ->
+        id.providerName == null && id.name.uppercase() in BuiltInOutbounds
     }
 }
 
