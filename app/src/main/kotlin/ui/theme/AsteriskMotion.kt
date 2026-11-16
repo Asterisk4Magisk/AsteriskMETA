@@ -20,6 +20,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.SpringSpec
 import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
@@ -27,6 +28,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MotionScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -41,6 +43,7 @@ internal val LocalReduceMotion = staticCompositionLocalOf { false }
 
 private const val NavigationTransitionDurationMillis = 500
 private const val NavigationSpringStiffness = 146f
+private const val SheetMotionSpeed = 0.8f
 
 // Mirrors the default transition curve used by AsteriskNG's Miuix NavDisplay.
 private val NavigationTransitionEasing = DampedNavigationEasing(
@@ -108,6 +111,39 @@ internal object AsteriskMotion {
 
     internal fun navigationCommitVelocity(remainingDistance: Float, velocity: Float): Float =
         max(velocity, -sqrt(NavigationSpringStiffness) * remainingDistance.coerceAtLeast(0f))
+
+    @Composable
+    fun sheetMotionScheme(): MotionScheme {
+        val base = MaterialTheme.motionScheme
+        val reducedMotion = LocalReduceMotion.current
+        return remember(base, reducedMotion) {
+            object : MotionScheme by base {
+                override fun <T> defaultSpatialSpec(): FiniteAnimationSpec<T> =
+                    sheet(base.defaultSpatialSpec(), reducedMotion)
+
+                override fun <T> defaultEffectsSpec(): FiniteAnimationSpec<T> =
+                    sheet(base.defaultEffectsSpec(), reducedMotion)
+
+                // Material uses fast effects for the sheet's hide translation as well.
+                override fun <T> fastEffectsSpec(): FiniteAnimationSpec<T> =
+                    sheet(base.fastEffectsSpec(), reducedMotion)
+            }
+        }
+    }
+
+    private fun <T> sheet(
+        base: FiniteAnimationSpec<T>,
+        reducedMotion: Boolean,
+    ): FiniteAnimationSpec<T> = when {
+        reducedMotion -> snap()
+        base is SpringSpec<T> -> spring(
+            dampingRatio = base.dampingRatio,
+            // Spring speed scales with the square root of stiffness.
+            stiffness = base.stiffness * SheetMotionSpeed * SheetMotionSpeed,
+            visibilityThreshold = base.visibilityThreshold,
+        )
+        else -> base
+    }
 
     fun <T> effects(reducedMotion: Boolean): FiniteAnimationSpec<T> = if (reducedMotion) {
         snap()

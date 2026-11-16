@@ -46,6 +46,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Velocity
+import ui.theme.AsteriskMotion
 import ui.theme.AsteriskShapeTokens
 import kotlin.math.abs
 
@@ -115,59 +116,64 @@ internal fun AsteriskModalBottomSheet(
     }
 
     if (!renderSheet) return
-    ModalBottomSheet(
-        onDismissRequest = onDismissRequest,
-        // Keep the top inset independent of the sheet offset to avoid changing drag anchors.
-        modifier = modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top)),
-        sheetState = sheetState,
-        sheetGesturesEnabled = dismissEnabled,
-        shape = AsteriskShapeTokens.Sheet,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        dragHandle = { BottomSheetDefaults.DragHandle() },
-        contentWindowInsets = {
-            WindowInsets.safeDrawing
-                .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)
-                .union(WindowInsets.ime)
-        },
-    ) {
-        Column(
-            modifier = Modifier
-                .nestedScroll(contentScrollConnection)
-                .pointerInput(contentScrollConnection) {
-                    awaitEachGesture {
-                        awaitFirstDown(requireUnconsumed = false)
-                        contentScrollConnection.startGesture()
-                        do {
-                            val event = awaitPointerEvent()
-                        } while (event.changes.any { change -> change.pressed })
-                    }
-                },
+    val contentMotionScheme = MaterialTheme.motionScheme
+    MaterialTheme(motionScheme = AsteriskMotion.sheetMotionScheme()) {
+        ModalBottomSheet(
+            onDismissRequest = onDismissRequest,
+            // Keep the top inset independent of the sheet offset to avoid changing drag anchors.
+            modifier = modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top)),
+            sheetState = sheetState,
+            sheetGesturesEnabled = dismissEnabled,
+            shape = AsteriskShapeTokens.Sheet,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            dragHandle = { BottomSheetDefaults.DragHandle() },
+            contentWindowInsets = {
+                WindowInsets.safeDrawing
+                    .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)
+                    .union(WindowInsets.ime)
+            },
         ) {
-            if (title != null || startAction !== EmptySheetAction || endAction !== EmptySheetAction) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+            MaterialTheme(motionScheme = contentMotionScheme) {
+                Column(
+                    modifier = Modifier
+                        .nestedScroll(contentScrollConnection)
+                        .pointerInput(contentScrollConnection) {
+                            awaitEachGesture {
+                                awaitFirstDown(requireUnconsumed = false)
+                                contentScrollConnection.startGesture()
+                                do {
+                                    val event = awaitPointerEvent()
+                                } while (event.changes.any { change -> change.pressed })
+                            }
+                        },
                 ) {
-                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-                        startAction()
-                    }
-                    Box(modifier = Modifier.weight(1.4f), contentAlignment = Alignment.Center) {
-                        title?.let { sheetTitle ->
-                            Text(
-                                text = sheetTitle,
-                                style = MaterialTheme.typography.titleLarge,
-                                textAlign = TextAlign.Center,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
+                    if (title != null || startAction !== EmptySheetAction || endAction !== EmptySheetAction) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                                startAction()
+                            }
+                            Box(modifier = Modifier.weight(1.4f), contentAlignment = Alignment.Center) {
+                                title?.let { sheetTitle ->
+                                    Text(
+                                        text = sheetTitle,
+                                        style = MaterialTheme.typography.titleLarge,
+                                        textAlign = TextAlign.Center,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                            }
+                            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
+                                endAction()
+                            }
                         }
                     }
-                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
-                        endAction()
-                    }
+                    content()
                 }
             }
-            content()
         }
     }
 }
