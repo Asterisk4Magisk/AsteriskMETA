@@ -406,9 +406,10 @@ fun MihomoProxyPage(
         services.appScope.launch(Dispatchers.Main.immediate) {
             services.mihomoRuntime.selectProxy(appState, group.name, node.name)
                 .onSuccess {
-                    if (selectionRequests[group.name] !== request) return@onSuccess
-                    pendingSelections = pendingSelections - group.name
-                    selectionRequests.remove(group.name)
+                    if (selectionRequests[group.name] === request) {
+                        pendingSelections = pendingSelections - group.name
+                        selectionRequests.remove(group.name)
+                    }
                     if (appState.mihomoProxyInterruptConnections && appState.proxyRunning) {
                         // Selection has already been applied locally; connection cleanup must not
                         // delay its feedback or participate in delay-test/sort orchestration.
