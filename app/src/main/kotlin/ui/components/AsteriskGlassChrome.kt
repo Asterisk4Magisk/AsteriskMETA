@@ -77,8 +77,11 @@ internal val LocalTopBarContent = compositionLocalOf { false }
 private const val ChromeTransparency = 0.60f
 
 @Composable
-internal fun chromeStyle(containerColor: Color = MaterialTheme.colorScheme.surface): HazeBlurStyle {
-    val tint = HazeColorEffect.tint(containerColor.copy(alpha = 1f - ChromeTransparency))
+internal fun chromeStyle(
+    containerColor: Color = MaterialTheme.colorScheme.surface,
+    tintOpacity: Float = 1f - ChromeTransparency,
+): HazeBlurStyle {
+    val tint = HazeColorEffect.tint(containerColor.copy(alpha = tintOpacity))
     return HazeBlurStyle {
         backgroundColor(containerColor)
         colorEffects(listOf(tint))
@@ -183,11 +186,14 @@ internal fun AsteriskTopAppBar(
 
 /** Apply behind content: the no-backdrop fallback blurs the node's own content. */
 @Composable
-internal fun Modifier.chromeBackground(containerColor: Color = MaterialTheme.colorScheme.surface): Modifier =
+internal fun Modifier.chromeBackground(
+    containerColor: Color = MaterialTheme.colorScheme.surface,
+    tintOpacity: Float = 1f - ChromeTransparency,
+): Modifier =
     hazeBlur(
         input = LocalChromeBackdrop.current?.let { HazeInput.Sources(it) }
             ?: HazeInput.Content,
-        style = chromeStyle(containerColor),
+        style = chromeStyle(containerColor, tintOpacity),
     )
 
 /** The shared floating glass: shadow, page-backdrop blur and hairline border. */
@@ -197,6 +203,13 @@ internal fun Modifier.floatingChrome(shape: Shape = CircleShape): Modifier =
         .clip(shape)
         .chromeBackground()
         .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f), shape)
+
+/** Apply behind action content so its icon and progress remain sharp. */
+@Composable
+internal fun Modifier.floatingActionChrome(shape: Shape = CircleShape): Modifier =
+    shadow(6.dp, shape)
+        .clip(shape)
+        .chromeBackground(MaterialTheme.colorScheme.primary, tintOpacity = 0.85f)
 
 @Composable
 private fun floatingNavigationContentColor(selected: Boolean): Color {
@@ -220,7 +233,7 @@ internal fun AsteriskFloatingNavigationAction(
     enabled: Boolean = true,
     content: @Composable BoxScope.() -> Unit,
 ) {
-    val contentColor = floatingNavigationContentColor(selected)
+    val contentColor = MaterialTheme.colorScheme.onPrimary
     val interactionSource = remember { MutableInteractionSource() }
     Box(
         modifier = modifier
@@ -234,7 +247,9 @@ internal fun AsteriskFloatingNavigationAction(
             ),
         contentAlignment = Alignment.Center,
     ) {
-        Box(Modifier.matchParentSize().floatingChrome())
+        Box(
+            Modifier.matchParentSize().floatingActionChrome(),
+        )
         Box(
             Modifier
                 .matchParentSize()
