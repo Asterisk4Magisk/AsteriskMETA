@@ -80,7 +80,9 @@ internal fun MihomoProxiesState.delayTestLeaf(id: MihomoProxyNodeId): MihomoProx
     repeat(allGroups.size + 1) {
         if (current.providerName != null) return current
         val group = allGroups.firstOrNull { candidate -> candidate.name == current.name } ?: return current
-        if (!visited.add(group.name) || group.now.isBlank()) return null
+        if (!visited.add(group.name)) return null
+        // LoadBalance has no fixed selection; the core can test the group proxy itself.
+        if (group.now.isBlank()) return current
         current = group.all.firstOrNull { member -> member.name == group.now }
             ?: MihomoProxyNodeId(group.now)
     }
