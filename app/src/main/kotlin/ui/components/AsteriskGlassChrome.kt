@@ -4,6 +4,7 @@
 package ui.components
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.indication
@@ -206,10 +207,38 @@ internal fun Modifier.floatingChrome(shape: Shape = CircleShape): Modifier =
 
 /** Apply behind action content so its icon and progress remain sharp. */
 @Composable
-internal fun Modifier.floatingActionChrome(shape: Shape = CircleShape): Modifier =
-    shadow(6.dp, shape)
+internal fun Modifier.floatingActionChrome(selected: Boolean, shape: Shape = CircleShape): Modifier {
+    val colors = MaterialTheme.colorScheme
+    val containerColor by animateColorAsState(
+        targetValue = if (selected) colors.primary else colors.surface,
+        animationSpec = AsteriskMotion.effects(),
+        label = "floating-action-container-color",
+    )
+    val tintOpacity by animateFloatAsState(
+        targetValue = if (selected) 0.85f else 1f - ChromeTransparency,
+        animationSpec = AsteriskMotion.effects(),
+        label = "floating-action-tint-opacity",
+    )
+    val borderColor by animateColorAsState(
+        targetValue = colors.outlineVariant.copy(alpha = if (selected) 0f else 0.45f),
+        animationSpec = AsteriskMotion.effects(),
+        label = "floating-action-border-color",
+    )
+    return shadow(6.dp, shape)
         .clip(shape)
-        .chromeBackground(MaterialTheme.colorScheme.primary, tintOpacity = 0.85f)
+        .chromeBackground(containerColor, tintOpacity)
+        .border(0.5.dp, borderColor, shape)
+}
+
+@Composable
+internal fun floatingActionContentColor(selected: Boolean): Color {
+    val color by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+        animationSpec = AsteriskMotion.effects(),
+        label = "floating-action-content-color",
+    )
+    return color
+}
 
 @Composable
 private fun floatingNavigationContentColor(selected: Boolean): Color {
@@ -233,7 +262,7 @@ internal fun AsteriskFloatingNavigationAction(
     enabled: Boolean = true,
     content: @Composable BoxScope.() -> Unit,
 ) {
-    val contentColor = MaterialTheme.colorScheme.onPrimary
+    val contentColor = floatingActionContentColor(selected)
     val interactionSource = remember { MutableInteractionSource() }
     Box(
         modifier = modifier
@@ -248,7 +277,7 @@ internal fun AsteriskFloatingNavigationAction(
         contentAlignment = Alignment.Center,
     ) {
         Box(
-            Modifier.matchParentSize().floatingActionChrome(),
+            Modifier.matchParentSize().floatingActionChrome(selected),
         )
         Box(
             Modifier
