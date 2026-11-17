@@ -1139,7 +1139,19 @@ internal class MihomoRuntimeRepository(
                 val configs = runRuntimeRequest { client.getConfigs(control, useBridge) }
                 val mode = configs.getOrNull()?.mode ?: state.value.configs.mode
                 val proxies = runRuntimeRequest {
-                    client.getProxies(control, useBridge, mode, includeProviderNodes)
+                    client.getProxies(control, useBridge, mode, includeProviderNodes) {
+                        runCatching {
+                            val content = if (useBridge) {
+                                AndroidMihomoRuntime.loadedProfileContent()
+                            } else {
+                                java.io.File(appContext.mihomoResourceFilePaths().dataDir, "config.yaml").readText()
+                            }
+                            content?.mihomoProxyGroupSources().orEmpty()
+                        }.getOrElse {
+                            AndroidAppLogger.warn(LogTag, "Group provider sources are unavailable; keeping ambiguous members unresolved")
+                            emptyMap()
+                        }
+                    }
                 }
                 val committed = synchronized(runtimeStateLock) {
                     if (!isRuntimeRequestCurrentLocked(generation, configKey)) {
