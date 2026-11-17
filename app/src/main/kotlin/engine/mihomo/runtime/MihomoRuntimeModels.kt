@@ -107,6 +107,7 @@ internal data class MihomoProxiesState(
     val updatedAtMillis: Long = 0L,
     // Hidden groups remain part of leaf resolution even though the UI does not list them.
     val allGroups: List<MihomoProxyGroup> = groups,
+    val groupSources: Map<String, MihomoProxyGroupSources> = emptyMap(),
 ) {
     fun node(id: MihomoProxyNodeId): MihomoProxyNode {
         return nodeById[id] ?: MihomoProxyNode(id = id, type = "Proxy")

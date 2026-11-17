@@ -193,6 +193,7 @@ internal class MihomoControlClient(
         useBridge: Boolean,
         mode: String,
         includeProviderNodes: Boolean = false,
+        groupSources: () -> Map<String, MihomoProxyGroupSources> = { emptyMap() },
     ): MihomoProxiesState {
         val response = if (useBridge) {
             bridgeProxySnapshot()
@@ -200,7 +201,8 @@ internal class MihomoControlClient(
             request(config, "/proxies")
         }
         val snapshot = parseMihomoOfficialProxySnapshot(response).let { proxies ->
-            if (!includeProviderNodes) proxies else proxies.withProviderNodes(getProxyProviders(config, useBridge))
+            if (!includeProviderNodes) proxies else proxies.copy(groupSources = groupSources())
+                .withProviderNodes(getProxyProviders(config, useBridge))
         }
         val globalProxyNames = snapshot.groups
             .firstOrNull { group -> group.name == MihomoGlobalGroupName }

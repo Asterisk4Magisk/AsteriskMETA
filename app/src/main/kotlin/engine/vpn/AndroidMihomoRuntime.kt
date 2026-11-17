@@ -180,6 +180,13 @@ internal object AndroidMihomoRuntime {
         return loaded
     }
 
+    /** The input already loaded by Standby; reading it must not compile or reload a profile. */
+    fun loadedProfileContent(): String? {
+        val profile = activeProfile ?: return null
+        return profile.content?.toString(Charsets.UTF_8)
+            ?: File(profile.directory, "config.yaml").readText()
+    }
+
     @Synchronized
     fun releaseStandby(): Boolean {
         if (!owner.canLifecycleRelease()) return false
