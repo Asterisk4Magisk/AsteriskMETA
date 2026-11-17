@@ -12,8 +12,6 @@ import features.resources.runtime.AndroidResourceFileDownloadCancellation
 import android.app.Application
 import app.modes.RunModeVpnService
 import features.boot.BootAutoConnect
-import features.quicksettings.quickSettingsTileState
-import features.quicksettings.refreshQuickSettingsTileUnlessShowing
 import features.home.HomeServiceOperationState
 import engine.mihomo.binding.MihomoBridge
 import engine.proxy.LocalProxyRuntime
@@ -57,7 +55,6 @@ import features.mihomo.provider.loadSelectedMihomoProviderUsageState
 import features.subscription.runtime.AndroidMihomoProfilePreparer
 import features.subscription.runtime.AndroidSubscriptionScheduleGateway
 import features.subscription.runtime.SubscriptionScheduler
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -253,25 +250,6 @@ class AsteriskApplication : Application(), SingletonImageLoader.Factory {
         appScope.launch(Dispatchers.IO) { VpnSession.watch(applicationContext) }
     }
 
-    /**
-     * Asks SystemUI to rebind the quick settings tile whenever a state source in this process
-     * changes it; the first collection is the refresh at process start. The language is included
-     * because opening the panel no longer refreshes an active tile. A `proxyRunning` the tile
-     * writes back itself is skipped, since the tile shows it without reading the status again.
-     */
-    private fun refreshQuickSettingsTileOnProxyStateChange() {
-        appScope.launch {
-            // The runtime ticks every second for traffic; only a new proxy snapshot, a mode change
-            // or a start/stop can move the node the tile names.
-            val runtime = mihomoRuntime.state.distinctUntilChanged { old, new ->
-                old.running == new.running && old.configs === new.configs && old.proxies === new.proxies
-            }
-            combine(stateStore.state, runtime) { state, runtimeState -> state.quickSettingsTileState(runtimeState) }
-                .distinctUntilChanged()
-                .collect { tileState -> refreshQuickSettingsTileUnlessShowing(applicationContext, tileState) }
-        }
-    }
-
     private fun ProfileApplyException.tipMessage(): String {
         val detail = cause?.message.orEmpty().ifBlank { cause?.javaClass?.simpleName.orEmpty() }
         return when (failure) {
@@ -301,7 +279,6 @@ class AsteriskApplication : Application(), SingletonImageLoader.Factory {
                 if (result is ResourceFileUpdateResult.Success) runningConfigurationApplier.request()
             }
         }
-        refreshQuickSettingsTileOnProxyStateChange()
         appScope.launch {
             val scheduler = ResourceAutoUpdateScheduler(applicationContext)
             stateStore.state

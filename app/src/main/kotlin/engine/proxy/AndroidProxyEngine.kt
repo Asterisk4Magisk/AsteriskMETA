@@ -285,6 +285,11 @@ internal class AndroidProxyEngine(
         statusUnlocked(preferredRunMode, appState)
     }
 
+    /** Reads ROOT status without adopting the engine or starting runtime monitors. */
+    internal suspend fun readRootStatus(runMode: Int): ProxyEngineStatus = operationMutex.withLock {
+        normalizeRootRuntimeStatus(rootEnginesByRunMode.getValue(runMode).readStatus(), ::rootRunMode)
+    }
+
     internal fun observeRootStatus(runMode: Int): Flow<ProxyEngineStatus> {
         val engine = rootEnginesByRunMode[runMode] ?: return emptyFlow()
         return engine.observeStatus().map { status ->
