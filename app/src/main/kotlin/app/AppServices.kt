@@ -13,6 +13,7 @@ import engine.proxy.VpnPermissionRequester
 import engine.mihomo.runtime.MihomoRuntimeRepository
 import features.mihomo.provider.MihomoProviderUsageStateHolder
 import features.logs.CoreLogRepository
+import features.ipcheck.ProxyIpCheckRepository
 import features.monitoring.MonitoringRepository
 import features.resources.ResourceFileUpdateCoordinator
 import features.resources.ResourceFileUseCase
@@ -50,6 +51,7 @@ internal data class AppServices(
     val mihomoRuntime: MihomoRuntimeRepository,
     val mihomoProviderUsage: MihomoProviderUsageStateHolder,
     val monitoring: MonitoringRepository,
+    val proxyIpCheck: ProxyIpCheckRepository,
     val proxyServiceUseCase: ProxyServiceUseCase,
     val requestVpnPermission: VpnPermissionRequester,
     val switchRunModeUseCase: SwitchRunModeUseCase,

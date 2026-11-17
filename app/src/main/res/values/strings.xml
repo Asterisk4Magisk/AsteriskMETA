@@ -78,6 +78,22 @@
     <string name="home_no_network_activity">No activity yet</string>
     <string name="home_no_proxy">No proxy selected</string>
     <string name="home_no_subscription">No subscription usage is available for this profile</string>
+    <string name="home_proxy_ip_check_checking">Checking</string>
+    <string name="home_proxy_ip_check_copied">%1$s copied to clipboard</string>
+    <string name="home_proxy_ip_check_direct">Direct connection</string>
+    <string name="home_proxy_ip_check_done">Checked</string>
+    <string name="home_proxy_ip_check_entry">Entry IP</string>
+    <string name="home_proxy_ip_check_exit">Exit IP</string>
+    <string name="home_proxy_ip_check_hide_details">Hide sensitive details</string>
+    <string name="home_proxy_ip_check_show_details">Show all details</string>
+    <string name="home_proxy_ip_check_ipv6_unsupported">IPv6 not available</string>
+    <string name="home_proxy_ip_check_no_group">No proxy group</string>
+    <string name="home_proxy_ip_check_pending">Not checked</string>
+    <string name="home_proxy_ip_check_pending_value">Waiting</string>
+    <string name="home_proxy_ip_check_start">Start check</string>
+    <string name="home_proxy_ip_check_strategy">Current check target</string>
+    <string name="home_proxy_ip_check_title">Proxy IP check</string>
+    <string name="home_proxy_ip_check_unknown_network">Country and region / ASN / Organization</string>
     <string name="home_run_mode_bpf2socks" translatable="false">BPF2SOCKS</string>
     <string name="home_run_mode_tproxy" translatable="false">TPROXY</string>
     <string name="home_run_mode_tun" translatable="false">TUN</string>

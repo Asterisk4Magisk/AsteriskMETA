@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The flags of the proxy IP check card are looked up by resource name, so nothing in the code
+    references them statically and resource shrinking would drop them from a release build.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/flag_*" />

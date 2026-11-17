@@ -105,6 +105,19 @@
             ]
         },
         {
+            "uniqueId": "github:HatScripts/circle-flags",
+            "artifactVersion": null,
+            "name": "circle-flags",
+            "description": "A collection of circular SVG country flags, bundled as vector drawables.",
+            "website": "https://github.com/HatScripts/circle-flags",
+            "scm": {
+                "url": "https://github.com/HatScripts/circle-flags"
+            },
+            "licenses": [
+                "MIT"
+            ]
+        },
+        {
             "uniqueId": "io.coil-kt.coil3:coil",
             "artifactVersion": "3.6.3",
             "name": "coil",

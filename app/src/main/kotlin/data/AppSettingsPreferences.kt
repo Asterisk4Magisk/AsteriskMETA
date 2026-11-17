@@ -66,6 +66,10 @@ internal class AppSettingsPreferences(
             networkActivityStyle = normalizeNetworkActivityStyle(
                 preferences.getInt(KeyNetworkActivityStyle, defaults.networkActivityStyle),
             ),
+            hideIpCheckSensitive = preferences.getBoolean(
+                KeyHideIpCheckSensitive,
+                defaults.hideIpCheckSensitive,
+            ),
             languageMode = preferences.getInt(KeyLanguageMode, defaults.languageMode),
             seedIndex = preferences.getInt(KeySeedIndex, defaults.seedIndex),
             hideRecentTasks = preferences.getBoolean(KeyHideRecentTasks, defaults.hideRecentTasks),
@@ -352,6 +356,7 @@ internal class AppSettingsPreferences(
         return putInt(KeyConnectionTestDefaultsVersion, ConnectionTestDefaultsVersion)
             .putInt(KeyColorMode, state.colorMode)
             .putInt(KeyNetworkActivityStyle, state.networkActivityStyle)
+            .putBoolean(KeyHideIpCheckSensitive, state.hideIpCheckSensitive)
             .putInt(KeyLanguageMode, state.languageMode)
             .putInt(KeySeedIndex, state.seedIndex)
             .putBoolean(KeyHideRecentTasks, state.hideRecentTasks)
@@ -600,6 +605,7 @@ internal class AppSettingsPreferences(
 private const val PreferencesName = "asteriskmeta_settings"
 private const val KeyColorMode = "color_mode"
 private const val KeyNetworkActivityStyle = "network_activity_style"
+private const val KeyHideIpCheckSensitive = "hide_ip_check_sensitive"
 private const val KeyLanguageMode = "language_mode"
 private const val KeySeedIndex = "seed_index"
 private const val KeyHideRecentTasks = "hide_recent_tasks"

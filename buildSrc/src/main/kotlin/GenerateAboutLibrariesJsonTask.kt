@@ -130,6 +130,15 @@ abstract class GenerateAboutLibrariesJsonTask : DefaultTask() {
                 listOf("GPL-3.0"),
             ),
             library(
+                "github:HatScripts/circle-flags",
+                null,
+                "circle-flags",
+                "A collection of circular SVG country flags, bundled as vector drawables.",
+                "https://github.com/HatScripts/circle-flags",
+                "https://github.com/HatScripts/circle-flags",
+                listOf("MIT"),
+            ),
+            library(
                 "github:heiher/hev-socks5-tunnel",
                 ProjectConfig.HEV_SOCKS5_TUNNEL_VERSION,
                 "hev-socks5-tunnel",

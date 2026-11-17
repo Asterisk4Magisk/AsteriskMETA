@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    <group>
+        <clip-path android:pathData="M256,0a256,256 0 1,0 0,512a256,256 0 1,0 0,-512z" />
+        <path android:fillColor="#eee" android:pathData="M144 0h223l33 256-33 256H144l-32-256z" />
+        <path android:fillColor="#d80027" android:pathData="M368 0h144v512H368z" />
+        <path android:fillColor="#751a46" android:pathData="M256 174c22 11 12 33 11 34l-2-4c-4-15-13-33-31-18v11q10 1 11 11-11 12-4 26l4 8-13 23 29-7 18 18v-11l11 11 23-11-35-21-2-13c22-2 34 4 51 29 9-83-45-86-64-86Z" />
+        <path android:fillColor="#6da544" android:pathData="M209 183q-5 4-4 12 1 11 10 15c3 2 8 0 10 3 3 3-2 5-4 6q-8 5-9 14 3 10 12 15c2 2 7 4 5 7q-4 2-9-2-12-6-19-19c-2-3-1-10-7-10-7 2-4 10-2 14q8 14 21 23 9 8 20 3 10-6 4-17c-3-6-11-8-14-14-2-3 2-4 4-6q8-4 9-11-2-13-14-15-6 1-7-6c-1-3 3-7 0-11q-2-3-6-1" />
+        <path android:fillColor="#496e2d" android:pathData="M0 0v512h144V0zm164 235a5 5 0 0 0-5 5 97 97 0 0 0 194 0 5 5 0 0 0-5-5 5 5 0 0 0-5 5 87 87 0 1 1-174 0 5 5 0 0 0-5-5m35 25-4 1q-3 4 1 8 23 21 54 24v17h12v-17q31-3 54-24 4-4 1-8-4-3-8 0a78 78 0 0 1-106 0z" />
+        <path android:fillColor="#338af3" android:pathData="M256 316q-21 0-40-13l6-9c20 13 48 13 68 0l7 9q-18 13-41 13" />
+        <path android:fillColor="#ff9811" android:pathData="M250,299H262A11,11 0 0 1 273,310V310A11,11 0 0 1 262,321H250A11,11 0 0 1 239,310V310A11,11 0 0 1 250,299Z" />
+        <path android:fillColor="#ffda44" android:pathData="m234 186-12 11v11l18-9q4-3 1-7zm-62 79a10 10 0 0 0-10 10 10 10 0 0 0 10 10 10 10 0 0 0 10-10 10 10 0 0 0-10-10m169 0a10 10 0 0 0-10 10 10 10 0 0 0 10 10 10 10 0 0 0 10-10 10 10 0 0 0-10-10m-69 4-16 8v5l15-1 4-9zm-83 23a10 10 0 0 0-10 10 10 10 0 0 0 10 10 10 10 0 0 0 10-10 10 10 0 0 0-10-10m135 0a10 10 0 0 0-10 10 10 10 0 0 0 10 10 10 10 0 0 0 10-10 10 10 0 0 0-10-10m-108 21a10 10 0 0 0-10 10 10 10 0 0 0 10 10 10 10 0 0 0 10-10 10 10 0 0 0-10-10m81 0a10 10 0 0 0-10 10 10 10 0 0 0 10 10 10 10 0 0 0 10-10 10 10 0 0 0-10-10" />
+    </group>
+</vector>

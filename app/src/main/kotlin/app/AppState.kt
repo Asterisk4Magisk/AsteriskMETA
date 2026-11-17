@@ -52,6 +52,8 @@ data class AppState(
     val languageMode: Int = LanguageModeSystem,
     val seedIndex: Int = 0,
     val networkActivityStyle: Int = NetworkActivityStyleDotted,
+    /** Whether the proxy IP card hides the parts of an address that identify it. */
+    val hideIpCheckSensitive: Boolean = true,
     val hideRecentTasks: Boolean = false,
     val allowScreenshots: Boolean = true,
     val hideLauncherIcon: Boolean = false,
