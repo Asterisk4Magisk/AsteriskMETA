@@ -33,7 +33,7 @@ import java.io.File
 import system.toAndroidUserId
 import utils.writeAtomically
 
-internal data class VpnServiceStartConfig(
+internal class VpnServiceStartConfig(
     val sessionName: String,
     val mtu: Int = VpnDefaults.MTU,
     val ipv4Address: String = defaultIpv4TunAddress.address,
