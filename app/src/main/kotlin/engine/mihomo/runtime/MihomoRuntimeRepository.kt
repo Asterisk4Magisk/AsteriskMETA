@@ -300,6 +300,14 @@ internal class MihomoRuntimeRepository(
         }
     }
 
+    /** Reads the active node from a running service with no standby core or monitor. */
+    suspend fun readRunningProxyNodeName(appState: AppState): String? = withContext(Dispatchers.IO) {
+        val control = resolveMihomoControlConfig(appState.copy(proxyRunning = true))
+        val mode = client.getConfigs(control, useBridge = false).mode
+        if (mode.equals("direct", ignoreCase = true)) return@withContext null
+        client.getProxies(control, useBridge = false, mode = mode).activeNodeId()?.name?.takeIf(String::isNotBlank)
+    }
+
     override fun resumeForForeground(appState: AppState) {
         start(appState)
     }
