@@ -8,6 +8,7 @@
 package features.mihomo
 
 import android.os.SystemClock
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -150,6 +151,7 @@ import ui.charts.drawSmoothAreaLine
 import ui.charts.rememberDottedWaveformRamp
 import ui.layout.pageContentPaddingWithCutout
 import ui.layout.pageListPadding
+import ui.theme.AsteriskMotion
 import ui.theme.FocusDensity
 import utils.toReadableBytes
 import kotlin.time.Duration.Companion.milliseconds
@@ -462,17 +464,29 @@ private fun HomeControllerCard(
     // card never changes height between running and stopped states.
     val runtimeText = uptime ?: HomeServiceUptimePlaceholder
     val serviceEnabled = controllerState.serviceStatus == HomeServiceStatus.Enabled
+    val colors = MaterialTheme.colorScheme
+    val colorAnimationSpec = AsteriskMotion.effects<Color>()
     // Stopped uses the error scheme so the hero reads as "needs attention".
-    val heroContainer = if (serviceEnabled) {
-        MaterialTheme.colorScheme.primary
-    } else {
-        MaterialTheme.colorScheme.error
-    }
-    val heroContent = if (serviceEnabled) {
-        MaterialTheme.colorScheme.onPrimary
-    } else {
-        MaterialTheme.colorScheme.onError
-    }
+    val heroContainer by animateColorAsState(
+        targetValue = if (serviceEnabled) colors.primary else colors.error,
+        animationSpec = colorAnimationSpec,
+        label = "home-service-container-color",
+    )
+    val heroContent by animateColorAsState(
+        targetValue = if (serviceEnabled) colors.onPrimary else colors.onError,
+        animationSpec = colorAnimationSpec,
+        label = "home-service-content-color",
+    )
+    val modeChipContainer by animateColorAsState(
+        targetValue = if (serviceEnabled) colors.secondaryContainer else colors.onError,
+        animationSpec = colorAnimationSpec,
+        label = "home-service-mode-chip-container-color",
+    )
+    val modeChipContent by animateColorAsState(
+        targetValue = if (serviceEnabled) colors.onSecondaryContainer else colors.error,
+        animationSpec = colorAnimationSpec,
+        label = "home-service-mode-chip-content-color",
+    )
     // The secondary layer is the base card: the accent card sits inside it and
     // the strip below that inner card is the "chin" holding the rows and the mode switch.
     Surface(
@@ -517,18 +531,8 @@ private fun HomeControllerCard(
                 primaryAction = {
                     ServiceModeChip(
                         modeLabel = runModeLabel(controllerState.runMode),
-                        // On the error card a translucent chip washes out, so the
-                        // tag inverts instead: onError fill, error-coloured text.
-                        containerColor = if (serviceEnabled) {
-                            MaterialTheme.colorScheme.secondaryContainer
-                        } else {
-                            MaterialTheme.colorScheme.onError
-                        },
-                        contentColor = if (serviceEnabled) {
-                            MaterialTheme.colorScheme.onSecondaryContainer
-                        } else {
-                            MaterialTheme.colorScheme.error
-                        },
+                        containerColor = modeChipContainer,
+                        contentColor = modeChipContent,
                     )
                 },
                 forcePrimaryActionStacked = shouldStackHomeServiceRuntimeSummary(),
