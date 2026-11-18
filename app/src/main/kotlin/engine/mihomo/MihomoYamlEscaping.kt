@@ -5,7 +5,10 @@ package engine.mihomo
 
 import org.snakeyaml.engine.v2.api.LoadSettings
 
+internal const val MihomoYamlCodePointLimit = MaxMihomoProfileBytes
+
 internal val MihomoYamlLoadSettings: LoadSettings = LoadSettings.builder()
+    .setCodePointLimit(MihomoYamlCodePointLimit)
     .setMaxAliasesForCollections(MihomoYamlMaxCollectionAliases)
     .build()
 

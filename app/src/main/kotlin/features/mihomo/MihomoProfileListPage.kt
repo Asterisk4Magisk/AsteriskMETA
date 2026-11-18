@@ -74,6 +74,7 @@ import app.navigation.Route
 import engine.mihomo.MihomoProviderMetadataCache
 import engine.mihomo.MihomoProfileFactory
 import engine.mihomo.parseMihomoProxyProviderNames
+import engine.mihomo.readMihomoProfileText
 import engine.mihomo.raw.usesRawMihomoConfig
 import features.mihomo.provider.MihomoProviderNamesMetadata
 import features.mihomo.provider.MihomoProviderUsageLoadState
@@ -1269,7 +1270,7 @@ private fun Context.readMihomoProfileFile(
     uri: Uri,
 ): ImportedMihomoProfileFile {
     val content = contentResolver.openInputStream(uri)?.use { input ->
-        input.bufferedReader(Charsets.UTF_8).use { reader -> reader.readText() }
+        input.readMihomoProfileText()
     } ?: error("Unable to open configuration file")
     if (content.isBlank()) {
         error("Configuration file is empty")

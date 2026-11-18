@@ -9,6 +9,7 @@ import data.AndroidAppStateStore
 import engine.mihomo.binding.MihomoBridge as Clash
 import engine.mihomo.binding.model.FetchOptions
 import engine.mihomo.binding.model.FetchStatus
+import engine.mihomo.requireMihomoProfileSize
 import features.logs.AndroidAppLogger
 import features.resources.runtime.prepareMihomoResourceFilePaths
 import features.resources.runtime.skipsBundledCoreConfigCheck
@@ -191,6 +192,7 @@ private fun FetchStatus.toSubscriptionInfo(): MihomoSubscriptionInfo {
 private fun File.readPreparedProfileContent(ageSecretKey: String): String? {
     val file = File(this, ConfigFileName)
     if (!file.isFile) return null
+    requireMihomoProfileSize(file.length())
     return Clash.decryptAge(
         file.readText(Charsets.UTF_8),
         ageSecretKey.trim().takeIf(String::isNotBlank),

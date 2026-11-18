@@ -6,10 +6,14 @@ package engine.mihomo
 import android.content.Context
 import app.MihomoProfileState
 import utils.writeAtomically
+import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.InputStream
 import java.io.Reader
 import java.security.MessageDigest
 import java.util.UUID
+
+internal const val MaxMihomoProfileBytes = 256 * 1024 * 1024
 
 internal data class MihomoProfileContentRef(
     val path: String,
@@ -32,7 +36,9 @@ internal class MihomoProfileContentStore internal constructor(
         if (!profile.hasContent) {
             error(MihomoProfileEmptyErrorMessage)
         }
-        val bytes = File(profile.contentPath).readBytes()
+        val source = File(profile.contentPath)
+        requireMihomoProfileSize(source.length())
+        val bytes = source.readBytes()
         if (bytes.isEmpty() || bytes.toString(Charsets.UTF_8).isBlank()) {
             error(MihomoProfileEmptyErrorMessage)
         }
@@ -50,6 +56,7 @@ internal class MihomoProfileContentStore internal constructor(
         if (!source.isFile || source.length() <= 0L) {
             error(MihomoProfileEmptyErrorMessage)
         }
+        requireMihomoProfileSize(source.length())
         return source.bufferedReader(Charsets.UTF_8).use(block)
     }
 
@@ -122,17 +129,12 @@ internal class MihomoProfileContentStore internal constructor(
     }
 
     private fun writeTo(target: File, content: String): MihomoProfileContentRef {
+        requireMihomoProfileSize(content.length.toLong())
+        if (content.isBlank()) {
+            error(MihomoProfileEmptyErrorMessage)
+        }
         val bytes = content.toByteArray(Charsets.UTF_8)
-        if (bytes.isEmpty() || content.isBlank()) {
-            error(MihomoProfileEmptyErrorMessage)
-        }
-        return writeBytesTo(target, bytes)
-    }
-
-    private fun writeBytesTo(target: File, bytes: ByteArray): MihomoProfileContentRef {
-        if (bytes.isEmpty() || bytes.toString(Charsets.UTF_8).isBlank()) {
-            error(MihomoProfileEmptyErrorMessage)
-        }
+        requireMihomoProfileSize(bytes.size.toLong())
         writeAtomically(target) { output -> output.write(bytes) }
         return MihomoProfileContentRef(
             path = target.absolutePath,
@@ -160,6 +162,22 @@ internal class MihomoProfileContentStore internal constructor(
 
 internal fun Context.mihomoProfileContentStore(): MihomoProfileContentStore {
     return MihomoProfileContentStore(this)
+}
+
+internal fun requireMihomoProfileSize(sizeBytes: Long) {
+    require(sizeBytes <= MaxMihomoProfileBytes) { "Mihomo configuration exceeds 256 MiB" }
+}
+
+internal fun InputStream.readMihomoProfileText(): String {
+    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+    val output = ByteArrayOutputStream(buffer.size)
+    while (true) {
+        val count = read(buffer)
+        if (count < 0) break
+        requireMihomoProfileSize(output.size().toLong() + count)
+        output.write(buffer, 0, count)
+    }
+    return output.toString(Charsets.UTF_8.name())
 }
 
 internal fun String.sha256Hex(): String {

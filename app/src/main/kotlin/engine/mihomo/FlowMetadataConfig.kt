@@ -3,26 +3,16 @@
 
 package engine.mihomo
 
-import android.content.Context
-import app.AppState
 import engine.proxy.FlowMetadataInboundTag
-import engine.proxy.flowMetadataOptions
-import engine.proxy.usesFlowMetadata
+import engine.proxy.LocalProxyOptions
 
-internal fun ByteArray.withFlowMetadata(
-    context: Context,
-    state: AppState,
-    runMode: Int = state.runMode,
-    exposePorts: Boolean = true,
-): ByteArray {
-    if (!exposePorts || !state.usesFlowMetadata(runMode)) return this
+internal fun Map<String, Any?>.withFlowMetadata(options: LocalProxyOptions?): Map<String, Any?> {
+    if (options == null) return this
 
-    val root = requireNotNull(toString(Charsets.UTF_8).loadMihomoProfileObject()).toMutableMap()
-    val options = context.flowMetadataOptions()
-    val listeners = (root["listeners"] as? List<*>).orEmpty().filterNot {
+    val listeners = (this["listeners"] as? List<*>).orEmpty().filterNot {
         (it as? Map<*, *>)?.get("name") == FlowMetadataInboundTag
     }
-    root["listeners"] = listeners + mapOf(
+    val listener = mapOf(
         "name" to FlowMetadataInboundTag,
         "type" to if (BundledCore.id == MeowCoreId) "socks5" else "socks",
         "listen" to options.listenAddress,
@@ -30,5 +20,5 @@ internal fun ByteArray.withFlowMetadata(
         "udp" to true,
         "users" to listOf(mapOf("username" to options.username, "password" to options.password)),
     )
-    return dumpMihomoProfileYaml(root).toByteArray(Charsets.UTF_8)
+    return this + ("listeners" to (listeners + listener))
 }

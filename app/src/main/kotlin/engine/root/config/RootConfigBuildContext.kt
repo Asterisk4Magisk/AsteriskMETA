@@ -14,7 +14,6 @@ import engine.mihomo.prepareMihomoCoreLogPaths
 import engine.mihomo.raw.MihomoRawConfigSnapshot
 import engine.mihomo.raw.runtimeIpv6Enabled
 import engine.mihomo.selectedMihomoProfileOrNull
-import engine.mihomo.withFlowMetadata
 import engine.network.parseCidrAddressOrNull
 import engine.network.toPortOrNull
 import engine.proxy.ProxyEngineStartRequest
@@ -39,9 +38,8 @@ internal class RootConfigBuildContext(
         return appState.toRootStartConfig(
             runtimeEventReceiver = ComponentName(androidContext, QuickSettingsTileRefreshReceiver::class.java)
                 .flattenToString(),
-            mihomoProfileBytes = (
-                preparedMihomoProfileBytes ?: MihomoProfileFactory.buildProfileBytes(androidContext, appState)
-            ).withFlowMetadata(androidContext, appState),
+            mihomoProfileBytes = preparedMihomoProfileBytes
+                ?: MihomoProfileFactory.buildProfileBytes(androidContext, appState),
             resourceFilePaths = resourceFilePaths,
             rawConfig = rawConfig,
         )
@@ -97,10 +95,6 @@ private fun AppState.toRootStartConfig(
         runtimeEventReceiver = runtimeEventReceiver,
         manageProviders = selectedMihomoProfileOrNull()?.disableOverrides != true,
     )
-}
-
-internal fun AppState.tun2SocksInternalProxyPortValue(): Int {
-    return socks5ProxyPort.toPortOrNull() ?: DefaultRootTun2SocksProxyPort
 }
 
 internal fun AppState.bpf2SocksBridgePortValue(): Int {

@@ -3,6 +3,7 @@
 
 package features.mihomo
 
+import engine.mihomo.MihomoYamlCodePointLimit
 import org.snakeyaml.engine.v2.api.DumpSettings
 import org.snakeyaml.engine.v2.api.LoadSettings
 import org.snakeyaml.engine.v2.api.lowlevel.Parse
@@ -16,7 +17,10 @@ import org.snakeyaml.engine.v2.events.Event
 internal fun formatMihomoYaml(source: String): String {
     // Re-emit syntax events rather than loading objects, preserving comments,
     // anchors, scalar styles and quoted values such as numeric passwords.
-    val loadSettings = LoadSettings.builder().setParseComments(true).build()
+    val loadSettings = LoadSettings.builder()
+        .setCodePointLimit(MihomoYamlCodePointLimit)
+        .setParseComments(true)
+        .build()
     val dumpSettings = DumpSettings.builder()
         .setDumpComments(true)
         .setIndent(2)

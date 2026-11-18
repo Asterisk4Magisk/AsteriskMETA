@@ -25,6 +25,9 @@ import app.rootIpv6DataPathEnabled
 import engine.network.isIpv4CidrAddress
 import engine.network.toPortOrNull
 import engine.proxy.LocalProxyLoopbackAddress
+import engine.proxy.LocalProxyOptions
+import engine.proxy.flowMetadataOptions
+import engine.proxy.usesFlowMetadata
 import engine.root.config.resolveRootProxyApplicationUids
 import engine.root.RootModeEngine
 import engine.vpn.VpnDefaults
@@ -71,17 +74,26 @@ internal object MihomoProfileFactory {
         val selectedProfile = appState.selectedMihomoProfileOrNull()
             ?: error(MihomoProfileMissingErrorMessage)
         val sourceBytes = context.mihomoProfileContentStore().readBytes(selectedProfile)
-        return resolveMihomoRuntimeProfileBytes(
+        val includeFlowMetadata = exposePorts && appState.usesFlowMetadata(runMode)
+        val profileBytes = resolveMihomoRuntimeProfileBytes(
             sourceBytes = sourceBytes,
             disableOverrides = selectedProfile.disableOverrides,
         ) { rawContent ->
-            rawContent.trim().withAsteriskRuntimeOverrides(
+            val source = rawContent.trim().loadMihomoProfileObject()
+                ?: error(MihomoProfileObjectRequiredErrorMessage)
+            source.compileMihomoProfile(
                 appState, selectedProfile, runMode, exposePorts,
                 if (runMode == RunModeTun) context.resolveRootProxyApplicationUids(appState.proxyAppListSelectedApps) else emptyList(),
                 useRootProviderPaths,
                 context.mihomoControllerSocket().absolutePath,
-            )
-        }.withFlowMetadata(context, appState, runMode, exposePorts)
+                flowMetadata = if (includeFlowMetadata) context.flowMetadataOptions() else null,
+            ).finalYaml
+        }
+        if (!selectedProfile.disableOverrides || !includeFlowMetadata) return profileBytes
+
+        val rawProfile = requireNotNull(profileBytes.toString(Charsets.UTF_8).loadMihomoProfileObject())
+        return dumpMihomoProfileYaml(rawProfile.withFlowMetadata(context.flowMetadataOptions()))
+            .toByteArray(Charsets.UTF_8)
     }
 
     fun buildProfile(
@@ -147,24 +159,6 @@ internal object MihomoProfileFactory {
 
 }
 
-private fun String.withAsteriskRuntimeOverrides(
-    appState: AppState,
-    selectedProfile: MihomoProfileState?,
-    runMode: Int,
-    exposePorts: Boolean,
-    tunApplicationUids: List<Int>,
-    useRootProviderPaths: Boolean,
-    controllerSocketPath: String,
-): String {
-    // The managed settings replace keys of a parsed object; only raw configuration mode passes
-    // other documents through.
-    val source = loadMihomoProfileObject() ?: error(MihomoProfileObjectRequiredErrorMessage)
-    return source.compileMihomoProfile(
-        appState, selectedProfile, runMode, exposePorts, tunApplicationUids,
-        useRootProviderPaths, controllerSocketPath,
-    ).finalYaml
-}
-
 /** Every stage of one compile, so a preview can show them without running the script again. */
 internal class MihomoProfileCompilation(
     /** The source configuration after the GUI rule override: what the script receives. */
@@ -189,6 +183,7 @@ internal fun Map<String, Any?>.compileMihomoProfile(
     useRootProviderPaths: Boolean,
     controllerSocketPath: String?,
     scriptEngine: MihomoProfileScriptEngine = DefaultMihomoProfileScriptEngine,
+    flowMetadata: LocalProxyOptions? = null,
 ): MihomoProfileCompilation {
     val ruled = applyMihomoRuleOverride(profile.effectiveRuleOverride())
     val scripted = ruled.config.applyMihomoProfileScriptOverride(profile, appState.mihomoOverrideScripts, scriptEngine)
@@ -198,6 +193,7 @@ internal fun Map<String, Any?>.compileMihomoProfile(
         finalYaml = scripted.toAsteriskRuntimeProfileYaml(
             appState, runMode, exposePorts = exposePorts, tunApplicationUids = tunApplicationUids,
             useRootProviderPaths = useRootProviderPaths, controllerSocketPath = controllerSocketPath,
+            flowMetadata = flowMetadata,
         ),
     )
 }
@@ -246,10 +242,11 @@ internal fun Map<String, Any?>.toAsteriskRuntimeProfileYaml(
     tunApplicationUids: List<Int>,
     useRootProviderPaths: Boolean = runMode.isRootRunMode(),
     controllerSocketPath: String? = null,
+    flowMetadata: LocalProxyOptions? = null,
 ): String = dumpMihomoProfileYaml(
     toAsteriskRuntimeProfileObject(
         appState, runMode, forceDns, exposePorts, tunApplicationUids, useRootProviderPaths, controllerSocketPath,
-    ),
+    ).withFlowMetadata(flowMetadata),
 )
 
 /** The settings AsteriskMETA owns, applied over a script's output; [toAsteriskRuntimeProfileYaml] dumps it. */
@@ -367,11 +364,10 @@ internal fun resolveMihomoRuntimeProfileBytes(
     disableOverrides: Boolean,
     normalTransform: (String) -> String,
 ): ByteArray {
-    if (sourceBytes.isEmpty() || sourceBytes.toString(Charsets.UTF_8).isBlank()) {
-        error(MihomoProfileEmptyErrorMessage)
-    }
+    val source = sourceBytes.toString(Charsets.UTF_8)
+    if (source.isBlank()) error(MihomoProfileEmptyErrorMessage)
     if (disableOverrides) return sourceBytes.copyOf()
-    return normalTransform(sourceBytes.toString(Charsets.UTF_8)).toByteArray(Charsets.UTF_8)
+    return normalTransform(source).toByteArray(Charsets.UTF_8)
 }
 
 private fun AppState.requiresMihomoLanAccess(runMode: Int): Boolean {

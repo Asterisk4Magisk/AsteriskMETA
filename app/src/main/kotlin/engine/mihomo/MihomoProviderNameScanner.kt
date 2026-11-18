@@ -152,7 +152,7 @@ private fun Iterator<Event>.nextNodeEvent(): Event? {
 }
 
 private val ProviderNameScanSettings = LoadSettings.builder()
-    .setCodePointLimit(Int.MAX_VALUE)
+    .setCodePointLimit(MihomoYamlCodePointLimit)
     .build()
 
 private const val YamlMergeKey = "<<"

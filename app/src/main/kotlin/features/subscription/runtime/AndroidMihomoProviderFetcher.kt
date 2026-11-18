@@ -8,6 +8,7 @@ import engine.mihomo.binding.MihomoBridge as Clash
 import engine.mihomo.binding.model.FetchOptions
 import engine.mihomo.MihomoProviderType
 import engine.mihomo.mihomoRemoteProviderFiles
+import engine.mihomo.requireMihomoProfileSize
 import features.resources.runtime.prepareMihomoResourceFilePaths
 import utils.writeAtomically
 import java.io.File
@@ -113,8 +114,11 @@ internal fun prepareProcessingProfileDir(
         )
     }
     if (profileContent != null) {
+        requireMihomoProfileSize(profileContent.length.toLong())
+        val bytes = profileContent.toByteArray(Charsets.UTF_8)
+        requireMihomoProfileSize(bytes.size.toLong())
         writeAtomically(File(processingDir, ConfigFileName)) { output ->
-            output.write(profileContent.toByteArray(Charsets.UTF_8))
+            output.write(bytes)
         }
     }
     return if (refreshProxyProviders) {
