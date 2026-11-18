@@ -23,6 +23,7 @@ import engine.root.publication.rootRuntimeLayout
 import engine.root.runtime.RootFailureWatcher
 import engine.root.runtime.RootFailureAnalyzer
 import engine.root.runtime.RootFailureReport
+import engine.root.runtime.RootPrivateDnsException
 import engine.root.runtime.RootRuntimeBusyException
 import engine.root.runtime.RootRuntimeConflictException
 import engine.root.runtime.RootSupervisorController
@@ -110,6 +111,7 @@ internal class RootModeEngine(
         }.getOrElse { error ->
             if (error is CancellationException) throw error
             if (error is RootRuntimeConflictException || error is RootRuntimeBusyException) throw error
+            if (error is RootPrivateDnsException) throw error
             // Diagnostics are best effort; keep the original startup failure as the cause.
             val occurredAt = System.currentTimeMillis()
             val attempt = RootFailureWatcher.currentAttempt()
