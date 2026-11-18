@@ -11,10 +11,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.time.Duration.Companion.milliseconds
+
+private const val DelayPublishIntervalMillis = 100L
 
 /** Owns shared requests independently of any one group waiting for their results. */
 internal class MihomoSharedDelayTasks<K, R> {
@@ -129,6 +134,37 @@ internal suspend fun publishMihomoDelayResults(
     val remaining = result.measurements.filterKeys { id -> id !in published }
     if (remaining.isNotEmpty()) onResult(MihomoDelayResult(remaining))
     return result
+}
+
+internal suspend fun publishBatchedMihomoDelayResults(
+    onResult: (MihomoDelayResult) -> Unit,
+    test: suspend (onResult: (MihomoDelayResult) -> Unit) -> MihomoDelayResult,
+): MihomoDelayResult = coroutineScope {
+    val pending = Channel<MihomoDelayResult>(Channel.UNLIMITED)
+    val finished = CompletableDeferred<Unit>()
+    val publisher = launch {
+        for ((measurements) in pending) {
+            // Timing out a reception can discard an element that was already taken from the channel.
+            withTimeoutOrNull(DelayPublishIntervalMillis.milliseconds) { finished.await() }
+            val batch = LinkedHashMap(measurements)
+            while (true) {
+                val next = pending.tryReceive().getOrNull() ?: break
+                next.measurements.forEach { (id, measurement) ->
+                    val previous = batch[id]
+                    if (previous == null || measurement.sequence > previous.sequence) {
+                        batch[id] = measurement
+                    }
+                }
+            }
+            currentCoroutineContext().ensureActive()
+            onResult(MihomoDelayResult(batch))
+        }
+    }
+    val result = publishMihomoDelayResults({ pending.trySend(it) }, test)
+    pending.close()
+    finished.complete(Unit)
+    publisher.join()
+    result
 }
 
 internal suspend fun <T, R> runMihomoDelayBatch(

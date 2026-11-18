@@ -5,33 +5,43 @@ package engine.mihomo.runtime
 
 internal fun MihomoProxiesState.withDelayResult(
     result: MihomoDelayResult,
-    testedAtMillis: Long = System.currentTimeMillis(),
 ): MihomoProxiesState {
-    if (result.measurements.isEmpty()) return this
+    val measurements = result.measurements.filter { (id, measurement) ->
+        val node = nodeById[id] ?: return@filter true
+        val sequence = node.delayMeasurementSequence
+        if (sequence != null) {
+            measurement.sequence > sequence
+        } else {
+            measurement.measuredAtMillis >= (node.delayUpdatedAtMillis ?: Long.MIN_VALUE)
+        }
+    }
+    if (measurements.isEmpty()) return this
     val updatedNodes = nodes.map { node ->
-        val measurement = result.measurement(node.id) ?: return@map node
+        val measurement = measurements[node.id] ?: return@map node
         node.copy(
             delay = measurement.delay,
             delayStatus = measurement.status,
             delayError = measurement.error,
-            delayUpdatedAtMillis = testedAtMillis,
+            delayUpdatedAtMillis = measurement.measuredAtMillis,
+            delayMeasurementSequence = measurement.sequence,
         )
     }
-    val missingNodes = result.measurements.values.filter { it.id !in nodeById }.map { measurement ->
+    val missingNodes = measurements.values.filter { it.id !in nodeById }.map { measurement ->
         MihomoProxyNode(
             id = measurement.id,
             type = "Proxy",
             delay = measurement.delay,
             delayStatus = measurement.status,
             delayError = measurement.error,
-            delayUpdatedAtMillis = testedAtMillis,
+            delayUpdatedAtMillis = measurement.measuredAtMillis,
+            delayMeasurementSequence = measurement.sequence,
         )
     }
     val allNodes = updatedNodes + missingNodes
     return copy(
         nodes = allNodes,
         nodeById = allNodes.associateBy(MihomoProxyNode::id),
-        updatedAtMillis = testedAtMillis,
+        updatedAtMillis = System.currentTimeMillis(),
     )
 }
 
@@ -51,6 +61,7 @@ internal fun MihomoProxiesState.withPreservedDelays(previous: MihomoProxiesState
                 delayStatus = previousNode.delayStatus,
                 delayError = previousNode.delayError,
                 delayUpdatedAtMillis = previousTime,
+                delayMeasurementSequence = previousNode.delayMeasurementSequence,
             )
         } else {
             node

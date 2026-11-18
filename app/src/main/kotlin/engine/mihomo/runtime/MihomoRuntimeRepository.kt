@@ -851,7 +851,7 @@ internal class MihomoRuntimeRepository(
         }
     }
 
-    private suspend fun prepareRuntime(
+    private fun prepareRuntime(
         appState: AppState,
         backend: MihomoRuntimeBackend,
     ) {
@@ -960,7 +960,7 @@ internal class MihomoRuntimeRepository(
         }
     }
 
-    /** Publish each completed measurement; snapshot reconciliation must not hold the test slot. */
+    /** Finish publishing measurements before releasing the test slot. Reconcile snapshots separately. */
     private suspend fun runInteractiveDelayTest(
         appState: AppState,
         progressGroupName: String? = null,
@@ -986,9 +986,14 @@ internal class MihomoRuntimeRepository(
             fun completed(result: MihomoDelayResult) {
                 applyDelayTestResult(result, generation, configKey, progressGroupName, sharedNodeTest)
             }
-            publishMihomoDelayResults(::completed) { onResult ->
+            suspend fun runTest(onResult: (MihomoDelayResult) -> Unit): MihomoDelayResult =
                 test(control, backend.useBridge(), ::started, onResult)
-            }.also {
+            val result = if (progressGroupName != null) {
+                publishBatchedMihomoDelayResults(::completed, ::runTest)
+            } else {
+                publishMihomoDelayResults(::completed, ::runTest)
+            }
+            result.also {
                 appScope.launch(Dispatchers.IO) {
                     refreshProxySnapshot(control, backend.useBridge(), generation, configKey)
                 }

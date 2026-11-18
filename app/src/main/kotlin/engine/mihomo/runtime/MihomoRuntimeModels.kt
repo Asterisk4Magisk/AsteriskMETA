@@ -4,6 +4,7 @@
 package engine.mihomo.runtime
 
 import engine.mihomo.MihomoControlConfig
+import java.util.concurrent.atomic.AtomicLong
 
 internal data class MihomoTrafficSample(
     val up: Long = 0L,
@@ -65,11 +66,16 @@ internal data class MihomoDelayTest(
     val measuredId: MihomoProxyNodeId = resultId,
 )
 
+// Order measurements before shared requests or publication batches can reorder their delivery.
+private val delayMeasurementSequence = AtomicLong()
+
 internal data class MihomoDelayMeasurement(
     val id: MihomoProxyNodeId,
     val status: MihomoDelayStatus,
     val delay: Int? = null,
     val error: String = "",
+    val measuredAtMillis: Long = System.currentTimeMillis(),
+    val sequence: Long = delayMeasurementSequence.incrementAndGet(),
 )
 
 internal data class MihomoProxyNode(
@@ -82,6 +88,7 @@ internal data class MihomoProxyNode(
     val delayStatus: MihomoDelayStatus? = delay?.let { MihomoDelayStatus.Success },
     val delayError: String = "",
     val delayUpdatedAtMillis: Long? = null,
+    val delayMeasurementSequence: Long? = null,
 ) {
     val name: String
         get() = id.name
