@@ -24,6 +24,7 @@ internal fun MihomoProxyNodeId.toMihomoProxyLazyItemKey(): String {
             append(provider.length).append(':').append(provider)
         }
         append(name.length).append(':').append(name)
+        fallbackGroupName?.let { append(':').append(it) }
     }
 }
 

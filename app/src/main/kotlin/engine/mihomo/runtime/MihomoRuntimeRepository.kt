@@ -50,6 +50,7 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.net.ConnectException
 import kotlin.time.Duration.Companion.milliseconds
 import app.effects.MihomoRuntimeLifecycleTarget
@@ -376,7 +377,7 @@ internal class MihomoRuntimeRepository(
                         if (!appState.usesRawMihomoConfig()) {
                             client.reloadProfile(
                                 config = control,
-                                profilePath = java.io.File(appContext.mihomoResourceFilePaths().dataDir, "config.yaml").absolutePath,
+                                profilePath = publishedProfileFile().absolutePath,
                                 reloadLocally = backend.useBridge(),
                             )
                         }
@@ -792,7 +793,7 @@ internal class MihomoRuntimeRepository(
             val proxies = state.value.proxies
             val measuredId = proxies.delayTestLeaf(proxyId)
                 ?: error("Cannot resolve the selected leaf for ${proxyId.name}")
-            val groupFallbackName = proxies.groupFallbackFor(measuredId)
+            val groupFallbackName = measuredId.fallbackGroupName
             check(!shared || groupFallbackName == null) { "Mihomo node changed before its delay test" }
             val url = testUrl.ifBlank { appState.connectionTestUrl }
             val result = if (groupFallbackName == null) {
@@ -1115,6 +1116,22 @@ internal class MihomoRuntimeRepository(
         }
     }
 
+    private fun publishedProfileFile(): File = File(appContext.mihomoResourceFilePaths().dataDir, "config.yaml")
+
+    private suspend fun loadProxyGroupSources(useBridge: Boolean): Map<String, MihomoProxyGroupSources> {
+        return runRuntimeRequest {
+            val content = if (useBridge) {
+                AndroidMihomoRuntime.loadedProfileContent()
+            } else {
+                publishedProfileFile().readText()
+            }
+            content?.mihomoProxyGroupSources().orEmpty()
+        }.getOrElse {
+            AndroidAppLogger.warn(LogTag, "Group provider sources are unavailable")
+            emptyMap()
+        }
+    }
+
     private suspend fun refreshProxySnapshot(
         control: MihomoControlConfig,
         useBridge: Boolean,
@@ -1139,19 +1156,8 @@ internal class MihomoRuntimeRepository(
                 val configs = runRuntimeRequest { client.getConfigs(control, useBridge) }
                 val mode = configs.getOrNull()?.mode ?: state.value.configs.mode
                 val proxies = runRuntimeRequest {
-                    client.getProxies(control, useBridge, mode, includeProviderNodes) {
-                        runCatching {
-                            val content = if (useBridge) {
-                                AndroidMihomoRuntime.loadedProfileContent()
-                            } else {
-                                java.io.File(appContext.mihomoResourceFilePaths().dataDir, "config.yaml").readText()
-                            }
-                            content?.mihomoProxyGroupSources().orEmpty()
-                        }.getOrElse {
-                            AndroidAppLogger.warn(LogTag, "Group provider sources are unavailable; keeping ambiguous members unresolved")
-                            emptyMap()
-                        }
-                    }
+                    val groupSources = if (includeProviderNodes) loadProxyGroupSources(useBridge) else emptyMap()
+                    client.getProxies(control, useBridge, mode, includeProviderNodes, groupSources)
                 }
                 val committed = synchronized(runtimeStateLock) {
                     if (!isRuntimeRequestCurrentLocked(generation, configKey)) {

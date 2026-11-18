@@ -3,11 +3,24 @@
 
 package engine.mihomo.runtime
 
-/** /proxies omits provider-only nodes. Keep their identities instead of testing a whole group. */
 internal fun MihomoProxiesState.withProviderNodes(
     providers: List<MihomoProxyProviderRuntimeDetail>,
+    groupSources: Map<String, MihomoProxyGroupSources>,
 ): MihomoProxiesState {
-    val providerNodes = providers.flatMap { provider ->
+    val compatibleProviders = providers.filter { it.isCompatible }.associateBy { it.name }
+    val sourcesByGroup = groupSources.mapValues { (groupName, sources) ->
+        // Keep incomplete include-all-proxies information when the backend omits the synthetic provider.
+        val compatible = compatibleProviders[groupName]
+        if (sources.includeAllProxies && compatible != null) {
+            sources.copy(
+                proxyNames = sources.proxyNames + compatible.nodes.map(MihomoProxyProviderNode::name),
+                includeAllProxies = false,
+            )
+        } else {
+            sources
+        }
+    }
+    val providerNodes = providers.filterNot { it.isCompatible }.flatMap { provider ->
         provider.nodes.map { node ->
             MihomoProxyNode(
                 id = MihomoProxyNodeId(node.name, provider.name),
@@ -21,89 +34,76 @@ internal fun MihomoProxiesState.withProviderNodes(
             )
         }
     }
-    val sourcesByGroup = groupSources.mapValues { (name, sources) ->
-        // Include-all-proxies applies the core's filters before building its Compatible provider.
-        // Its snapshot is authoritative; global /proxies membership alone is not.
-        val explicit = providers.firstOrNull { it.name == name && it.vehicleType.equals("Compatible", ignoreCase = true) }
-        if (!sources.includeAllProxies) sources else sources.copy(
-            proxyNames = sources.proxyNames + explicit?.nodes.orEmpty().map(MihomoProxyProviderNode::name),
-            includeAllProxies = false,
-        )
-    }
+    return withResolvedGroupMembers(providerNodes, sourcesByGroup)
+}
+
+internal fun MihomoProxiesState.withPreservedProviderNodes(
+    previous: MihomoProxiesState,
+): MihomoProxiesState = withResolvedGroupMembers(
+    providerNodes = previous.nodes.filter { it.providerName != null },
+    sourcesByGroup = previous.groupSources,
+)
+
+private fun MihomoProxiesState.withResolvedGroupMembers(
+    providerNodes: List<MihomoProxyNode>,
+    sourcesByGroup: Map<String, MihomoProxyGroupSources>,
+): MihomoProxiesState {
     val candidatesByName = providerNodes.groupBy(MihomoProxyNode::name)
-    fun resolve(id: MihomoProxyNodeId, sources: MihomoProxyGroupSources? = null): MihomoProxyNodeId =
-        resolveProviderMember(id, sources, candidatesByName)
-    val resolvedNodes = nodes.map { node ->
-        val id = resolve(node.id)
-        if (id == node.id) node else candidatesByName.getValue(node.name).single()
+    val resolvedGroups = allGroups.map { group ->
+        val sources = sourcesByGroup[group.name]
+        val members = group.all.map { id ->
+            resolveGroupMember(id, group, sources, candidatesByName[id.name].orEmpty())
+        }.distinct()
+        group.copy(all = members)
     }
-    val nodeById = (resolvedNodes + providerNodes).associateBy(MihomoProxyNode::id)
+    val resolvedByName = resolvedGroups.associateBy(MihomoProxyGroup::name)
+    val nodeById = (nodes.filter { it.id in topLevelProxyIds } + providerNodes)
+        .associateByTo(linkedMapOf(), MihomoProxyNode::id)
+    resolvedGroups.forEach { group ->
+        group.all.forEach { id -> nodeById.putIfAbsent(id, node(id)) }
+    }
     return copy(
-        groups = groups.map { group -> group.copy(all = group.all.map { resolve(it, sourcesByGroup[group.name]) }) },
-        allGroups = allGroups.map { group -> group.copy(all = group.all.map { resolve(it, sourcesByGroup[group.name]) }) },
+        groups = groups.map { resolvedByName.getValue(it.name) },
+        allGroups = resolvedGroups,
         groupSources = sourcesByGroup,
         nodes = nodeById.values.toList(),
         nodeById = nodeById,
     )
 }
 
-internal fun MihomoProxiesState.withPreservedProviderNodes(
-    previous: MihomoProxiesState,
-): MihomoProxiesState {
-    val previousProviderNodes = previous.nodes.filter { node -> node.providerName != null }
-    if (previousProviderNodes.isEmpty()) return this
-    val candidatesByName = previousProviderNodes.groupBy(MihomoProxyNode::name)
-    fun resolve(id: MihomoProxyNodeId, sources: MihomoProxyGroupSources? = null): MihomoProxyNodeId =
-        resolveProviderMember(id, sources, candidatesByName)
-    val sources = previous.groupSources + groupSources
-    fun resolveGroup(group: MihomoProxyGroup): MihomoProxyGroup =
-        group.copy(all = group.all.map { resolve(it, sources[group.name]) })
-    val resolvedNodes = nodes.map { node ->
-        val id = resolve(node.id)
-        if (id == node.id) {
-            node
-        } else {
-            // Plain /proxies members are placeholders; keep provider metadata, but let the
-            // timestamp-aware delay reconciliation decide which measurement is newer.
-            previous.nodeById[id]?.copy(
-                delay = node.delay,
-                delayStatus = node.delayStatus,
-                delayError = node.delayError,
-                delayUpdatedAtMillis = node.delayUpdatedAtMillis,
-            ) ?: node.copy(id = id)
-        }
-    }
-    val nodeById = (previousProviderNodes + resolvedNodes).associateBy(MihomoProxyNode::id)
-    return copy(
-        groups = groups.map(::resolveGroup),
-        allGroups = allGroups.map(::resolveGroup),
-        groupSources = sources,
-        nodes = nodeById.values.toList(),
-        nodeById = nodeById,
-    )
-}
-
-private fun MihomoProxiesState.resolveProviderMember(
+private fun MihomoProxiesState.resolveGroupMember(
     id: MihomoProxyNodeId,
+    group: MihomoProxyGroup,
     sources: MihomoProxyGroupSources?,
-    candidatesByName: Map<String, List<MihomoProxyNode>>,
+    candidates: List<MihomoProxyNode>,
 ): MihomoProxyNodeId {
-    if (id.providerName != null) return id
-    val candidates = candidatesByName[id.name].orEmpty()
+    if (id.providerName != null || id.fallbackGroupName != null) return id
+    val unresolved = id.copy(fallbackGroupName = group.name)
+    val topLevel = id in topLevelProxyIds
     if (sources == null) {
-        return if (id in topLevelProxyIds) id else candidates.singleOrNull()?.id ?: id
+        return if (topLevel) id else candidates.singleOrNull()?.id ?: unresolved
     }
-    // Explicit proxies precede provider members in Mihomo's group. A provider-only member may
-    // share a name with a top-level proxy without referring to that top-level object.
-    if (id.name in sources.proxyNames || sources.includeAllProxies && id in topLevelProxyIds) return id
-    return candidates.filter { it.providerName in sources.providerNames }.singleOrNull()?.id ?: id
+    val topLevelAllowed = topLevel && node(id).type.lowercase() !in sources.excludedTypes
+    // The core puts explicit members first, then applies group-wide type exclusions.
+    if (topLevelAllowed && id.name in sources.proxyNames) return id
+
+    val providerMembers = candidates.filter { candidate ->
+        candidate.providerName in sources.providerNames && candidate.type.lowercase() !in sources.excludedTypes
+    }
+    // A sole member matching empty-fallback may be the core's fallback proxy.
+    val couldBeFallback = topLevel && id.name == sources.emptyFallback && group.all.size == 1
+    val couldBeImplicitProxy = topLevelAllowed && sources.includeAllProxies
+    if (couldBeFallback || couldBeImplicitProxy) {
+        return if (providerMembers.isEmpty()) id else unresolved
+    }
+    return providerMembers.singleOrNull()?.id ?: unresolved
 }
 
 internal fun MihomoProxiesState.delayTestLeaf(id: MihomoProxyNodeId): MihomoProxyNodeId? {
     var current = id
     val visited = mutableSetOf<String>()
     repeat(allGroups.size + 1) {
-        if (current.providerName != null) return current
+        if (current.providerName != null || current.fallbackGroupName != null) return current
         val group = allGroups.firstOrNull { candidate -> candidate.name == current.name } ?: return current
         if (!visited.add(group.name)) return null
         // LoadBalance has no fixed selection; the core can test the group proxy itself.
@@ -115,14 +115,14 @@ internal fun MihomoProxiesState.delayTestLeaf(id: MihomoProxyNodeId): MihomoProx
 }
 
 internal fun MihomoProxiesState.canShareProxyDelay(id: MihomoProxyNodeId): Boolean =
-    delayTestLeaf(id)?.let { leaf -> groupFallbackFor(leaf) == null } == true
+    delayTestLeaf(id)?.let { it.fallbackGroupName == null } == true
 
 internal fun MihomoProxiesState.individualDelayTests(groupName: String): List<MihomoDelayTest>? {
     val group = groups.firstOrNull { candidate -> candidate.name == groupName }
         ?.takeIf(MihomoProxyGroup::usesIndividualDelayTests)
         ?: return null
     val tests = group.all.mapNotNull { id ->
-        delayTestLeaf(id)?.takeIf { leaf -> groupFallbackFor(leaf) == null }
+        delayTestLeaf(id)?.takeIf { it.fallbackGroupName == null }
             ?.let { leaf -> MihomoDelayTest(resultId = id, measuredId = leaf) }
     }
     return tests.takeIf { candidates -> candidates.size == group.all.size && candidates.isNotEmpty() }

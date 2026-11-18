@@ -9,9 +9,10 @@ internal data class MihomoProxyGroupSources(
     val providerNames: Set<String>,
     val proxyNames: Set<String>,
     val includeAllProxies: Boolean = false,
+    val excludedTypes: Set<String> = emptySet(),
+    val emptyFallback: String = "COMPATIBLE",
 )
 
-/** Read the configuration already supplied to the core, not a replay of profile scripts. */
 internal fun String.mihomoProxyGroupSources(): Map<String, MihomoProxyGroupSources> {
     val profile = loadMihomoProfileObject() ?: return emptyMap()
     val providerNames = (profile["proxy-providers"] as? Map<*, *>)?.keys
@@ -28,6 +29,9 @@ internal fun String.mihomoProxyGroupSources(): Map<String, MihomoProxyGroupSourc
             },
             proxyNames = (group["proxies"] as? List<*>)?.filterIsInstance<String>()?.toSet().orEmpty(),
             includeAllProxies = includeAll || group["include-all-proxies"] == true,
+            excludedTypes = (group["exclude-type"] as? String)?.takeIf(String::isNotEmpty)
+                ?.lowercase()?.split('|')?.toSet().orEmpty(),
+            emptyFallback = (group["empty-fallback"] as? String)?.takeIf(String::isNotEmpty) ?: "COMPATIBLE",
         )
     }.toMap()
 }
