@@ -42,6 +42,7 @@ internal data class MihomoConfigsState(
 internal data class MihomoProxyNodeId(
     val name: String,
     val providerName: String? = null,
+    val fallbackGroupName: String? = null,
 )
 
 internal enum class MihomoDelayStatus {
@@ -157,7 +158,10 @@ internal data class MihomoProxyProviderRuntimeDetail(
     val expectedStatus: String = "",
     val subscriptionInfo: MihomoProviderSubscriptionInfo? = null,
     val nodes: List<MihomoProxyProviderNode> = emptyList(),
-)
+) {
+    val isCompatible: Boolean
+        get() = vehicleType.equals("Compatible", ignoreCase = true)
+}
 
 internal data class MihomoRuleProviderRuntimeSummary(
     val name: String,

@@ -193,16 +193,22 @@ internal class MihomoControlClient(
         useBridge: Boolean,
         mode: String,
         includeProviderNodes: Boolean = false,
-        groupSources: () -> Map<String, MihomoProxyGroupSources> = { emptyMap() },
+        groupSources: Map<String, MihomoProxyGroupSources> = emptyMap(),
     ): MihomoProxiesState {
         val response = if (useBridge) {
             bridgeProxySnapshot()
         } else {
             request(config, "/proxies")
         }
-        val snapshot = parseMihomoOfficialProxySnapshot(response).let { proxies ->
-            if (!includeProviderNodes) proxies else proxies.copy(groupSources = groupSources())
-                .withProviderNodes(getProxyProviders(config, useBridge))
+        val proxies = parseMihomoOfficialProxySnapshot(response)
+        val snapshot = if (includeProviderNodes) {
+            val compatibleGroupNames = proxies.allGroups.mapNotNull { group ->
+                group.name.takeIf { groupSources[it]?.includeAllProxies == true }
+            }
+            val providers = getProxyProviders(config, useBridge, compatibleGroupNames)
+            proxies.withProviderNodes(providers, groupSources)
+        } else {
+            proxies
         }
         val globalProxyNames = snapshot.groups
             .firstOrNull { group -> group.name == MihomoGlobalGroupName }
@@ -217,11 +223,20 @@ internal class MihomoControlClient(
     private fun getProxyProviders(
         config: MihomoControlConfig,
         useBridge: Boolean,
+        compatibleGroupNames: List<String>,
     ): List<MihomoProxyProviderRuntimeDetail> {
         if (useBridge) {
-            return Clash.queryProviders()
+            val providers = Clash.queryProviders()
                 .filter { provider -> provider.type == Provider.Type.Proxy }
                 .map { provider -> getProxyProvider(config, provider.name, useBridge = true) }
+            // The bridge omits Compatible providers from its list but accepts detail queries.
+            val compatible = compatibleGroupNames.mapNotNull { groupName ->
+                runCatching { getProxyProvider(config, groupName, useBridge = true) }
+                    .onFailure { if (it is CancellationException) throw it }
+                    .getOrNull()
+                    ?.takeIf { it.isCompatible }
+            }
+            return providers + compatible
         }
         val providers = requestJsonObject(config, "/providers/proxies").objectValue("providers")
             ?: error("Invalid Mihomo API proxy provider response")
