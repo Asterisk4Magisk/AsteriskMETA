@@ -188,8 +188,8 @@ internal class RootModeEngine(
         }
         .distinctUntilChanged()
 
-    private fun currentCoreSupportsThisMode(): Boolean {
-        return CoreCapabilitiesStore.current.supportsRunMode(runMode)
+    private suspend fun currentCoreSupportsThisMode(): Boolean {
+        return CoreCapabilitiesStore.await().supportsRunMode(runMode)
     }
 
     companion object {

@@ -9,9 +9,18 @@ import app.ProjectInfo
 import app.modes.RunModeTun
 import engine.mihomo.binding.MihomoBridge
 import features.logs.AndroidAppLogger
+import java.io.File
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import java.io.File
+import kotlin.coroutines.cancellation.CancellationException
 
 internal object BundledCore {
     val id: String
@@ -49,11 +58,44 @@ internal data class CoreCapabilities(
     }
 }
 
+/**
+ * The native query may wait behind another in-process core call. Keep its immutable result cached
+ * so capability reads used to compose a screen never enter JNI.
+ */
 internal object CoreCapabilitiesStore {
     private val json = Json { ignoreUnknownKeys = true }
+    private val started = AtomicBoolean(false)
+    private val loaded = CompletableDeferred<CoreCapabilities>()
+    private val mutableState = MutableStateFlow(
+        CoreCapabilities(rootTun = BundledCore.id == MihomoCoreId),
+    )
+    private lateinit var scope: CoroutineScope
 
-    val current: CoreCapabilities by lazy {
-        json.decodeFromString<CoreCapabilities>(MihomoBridge.capabilities())
+    val state: StateFlow<CoreCapabilities> = mutableState.asStateFlow()
+
+    fun attach(scope: CoroutineScope) {
+        this.scope = scope
+    }
+
+    fun initialize() {
+        check(::scope.isInitialized) { "Core capabilities store is not attached" }
+        if (!started.compareAndSet(false, true)) return
+        scope.launch(Dispatchers.IO) {
+            try {
+                val capabilities = json.decodeFromString<CoreCapabilities>(MihomoBridge.capabilities())
+                mutableState.value = capabilities
+                loaded.complete(capabilities)
+            } catch (error: Throwable) {
+                loaded.completeExceptionally(error)
+                if (error is CancellationException) throw error
+                AndroidAppLogger.error(LogTag, "Failed to load bundled core capabilities", error)
+            }
+        }
+    }
+
+    suspend fun await(): CoreCapabilities {
+        initialize()
+        return loaded.await()
     }
 }
 
