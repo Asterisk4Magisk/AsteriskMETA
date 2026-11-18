@@ -5,7 +5,6 @@ package features.settings.usecase
 
 import android.content.Context
 import app.AppState
-import app.modes.RunModeTun
 import app.modes.isRootRunMode
 import engine.mihomo.BundledCore
 import engine.mihomo.CoreCapabilitiesStore
@@ -104,17 +103,17 @@ internal class RootBootScriptUseCase(
         )
 
     private suspend fun install(state: AppState): RootBootScriptResult {
-        if (state.runMode == RunModeTun && !CoreCapabilitiesStore.await().supportsRunMode(state.runMode)) {
-            AndroidAppLogger.warn(
-                RootBootLogTag,
-                "Removed ROOT TUN boot script because ${BundledCore.displayName} does not support ROOT TUN",
-            )
-            if (controller.ownsRuntime()) {
-                controller.shutdownOwn()
-            }
-            return uninstallUnlocked()
-        }
         return runCatching {
+            if (!CoreCapabilitiesStore.supportsRunMode(state.runMode)) {
+                AndroidAppLogger.warn(
+                    RootBootLogTag,
+                    "Removed ROOT TUN boot script because ${BundledCore.displayName} does not support ROOT TUN",
+                )
+                if (controller.ownsRuntime()) {
+                    controller.shutdownOwn()
+                }
+                return uninstallUnlocked()
+            }
             val request = ProxyEngineStartRequest(state)
             if (state.runMode.isRootRunMode()) {
                 installRootBootScript(state.runMode, request)

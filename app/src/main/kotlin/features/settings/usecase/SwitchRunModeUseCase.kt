@@ -40,13 +40,20 @@ internal class SwitchRunModeUseCase(
         currentState: AppState,
         targetRunMode: Int,
     ): SwitchRunModeResult {
-        val normalizedTargetMode = when (targetRunMode) {
+        val requestedMode = when (targetRunMode) {
             RunModeTproxy -> RunModeTproxy
             RunModeTun -> RunModeTun
             RunModeTun2Socks -> RunModeTun2Socks
             RunModeBpf2Socks -> RunModeBpf2Socks
             else -> RunModeVpnService
-        }.takeIf { runMode -> CoreCapabilitiesStore.await().supportsRunMode(runMode) } ?: RunModeVpnService
+        }
+        val supported = try {
+            CoreCapabilitiesStore.supportsRunMode(requestedMode)
+        } catch (error: Throwable) {
+            if (error is CancellationException) throw error
+            return SwitchRunModeResult.CapabilityCheckFailed(error)
+        }
+        val normalizedTargetMode = if (supported) requestedMode else RunModeVpnService
         if (currentState.runMode == normalizedTargetMode) {
             return SwitchRunModeResult.Success(
                 runMode = currentState.runMode,
@@ -126,6 +133,10 @@ internal sealed interface SwitchRunModeResult {
     ) : SwitchRunModeResult
 
     data class StopFailed(
+        val error: Throwable,
+    ) : SwitchRunModeResult
+
+    data class CapabilityCheckFailed(
         val error: Throwable,
     ) : SwitchRunModeResult
 }

@@ -469,6 +469,10 @@ private fun SettingsContent(
                                     is SwitchRunModeResult.StopFailed -> {
                                         tipNotifier.showError(result.error, serviceStoppedMessage)
                                     }
+
+                                    is SwitchRunModeResult.CapabilityCheckFailed -> {
+                                        tipNotifier.showError(result.error)
+                                    }
                                 }
                             }
                             scope.launch {
