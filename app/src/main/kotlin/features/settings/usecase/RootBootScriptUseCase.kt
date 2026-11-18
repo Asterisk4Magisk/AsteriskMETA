@@ -104,7 +104,7 @@ internal class RootBootScriptUseCase(
         )
 
     private suspend fun install(state: AppState): RootBootScriptResult {
-        if (state.runMode == RunModeTun && !CoreCapabilitiesStore.current.supportsRunMode(state.runMode)) {
+        if (state.runMode == RunModeTun && !CoreCapabilitiesStore.await().supportsRunMode(state.runMode)) {
             AndroidAppLogger.warn(
                 RootBootLogTag,
                 "Removed ROOT TUN boot script because ${BundledCore.displayName} does not support ROOT TUN",

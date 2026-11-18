@@ -16,6 +16,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -169,7 +171,10 @@ private fun SettingsContent(
         stringResource(R.string.option_english),
         stringResource(R.string.option_simplified_chinese),
     )
-    val coreCapabilities = CoreCapabilitiesStore.current
+    val coreCapabilities by CoreCapabilitiesStore.state.collectAsState()
+    LaunchedEffect(Unit) {
+        CoreCapabilitiesStore.initialize()
+    }
     val runModeItems = listOf(
         RunModeVpnService to stringResource(R.string.settings_run_mode_vpn_service),
         RunModeTproxy to stringResource(R.string.settings_run_mode_tproxy),

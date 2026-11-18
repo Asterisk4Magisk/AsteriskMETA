@@ -46,7 +46,7 @@ internal class SwitchRunModeUseCase(
             RunModeTun2Socks -> RunModeTun2Socks
             RunModeBpf2Socks -> RunModeBpf2Socks
             else -> RunModeVpnService
-        }.takeIf(CoreCapabilitiesStore.current::supportsRunMode) ?: RunModeVpnService
+        }.takeIf { runMode -> CoreCapabilitiesStore.await().supportsRunMode(runMode) } ?: RunModeVpnService
         if (currentState.runMode == normalizedTargetMode) {
             return SwitchRunModeResult.Success(
                 runMode = currentState.runMode,
