@@ -25,6 +25,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.R
+import engine.network.isIpv4Address
 import engine.network.ProxyIpProbeException
 import engine.network.ProxyIpProbeRequest
 import engine.network.ProxyIpProbeResponse
@@ -90,9 +91,42 @@ internal fun ProxyIpProbeTargetPicker(
 internal class ProxyIpProbeState {
     private val measurements = mutableStateMapOf<Pair<AddressFamily, ProbeTarget>, Measurement>()
     private val jobs = mutableMapOf<Pair<AddressFamily, ProbeTarget>, Job>()
+    private var entryMeasurements by mutableStateOf(emptyMap<AddressFamily, List<PublicAddressProbeResult>>())
+    private var entryJob: Job? = null
+    var entryRefreshing by mutableStateOf(false)
+        private set
 
     val refreshing: Boolean
-        get() = measurements.values.any { it.refreshing }
+        get() = entryRefreshing || measurements.values.any { it.refreshing }
+
+    fun entry(family: AddressFamily): List<PublicAddressProbeResult>? = entryMeasurements[family]
+
+    fun startEntry(
+        scope: CoroutineScope,
+        family: AddressFamily?,
+        lookup: suspend () -> List<PublicAddressProbeResult>,
+    ) {
+        if (entryJob?.isActive == true) return
+        entryRefreshing = true
+        entryJob = scope.launch {
+            try {
+                val results = try {
+                    withTimeoutOrNull(15_000.milliseconds) { lookup() }.orEmpty()
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (_: Exception) {
+                    emptyList()
+                }
+                val byFamily = results.groupBy {
+                    if (isIpv4Address(it.address)) AddressFamily.Ipv4 else AddressFamily.Ipv6
+                }
+                val families = family?.let(::listOf) ?: AddressFamily.entries
+                entryMeasurements += families.associateWith { byFamily[it].orEmpty() }
+            } finally {
+                entryRefreshing = false
+            }
+        }
+    }
 
     fun measurement(family: AddressFamily, target: ProbeTarget): Measurement =
         measurements[family to target] ?: Measurement(PublicAddressProbeResult(target = target))
@@ -142,6 +176,7 @@ internal class ProxyIpProbeState {
     }
 
     fun cancel() {
+        entryJob?.cancel()
         jobs.values.forEach { it.cancel() }
         jobs.clear()
     }
@@ -182,7 +217,8 @@ internal class ProxyIpProbeState {
                     countryCode = address.countryCode,
                     region = address.region,
                     city = address.city,
-                    isp = listOf(address.isp, address.asn).filter(String::isNotBlank).joinToString(" · "),
+                    isp = address.isp,
+                    asn = address.asn,
                     colo = address.colo,
                     warp = address.warp,
                 ),

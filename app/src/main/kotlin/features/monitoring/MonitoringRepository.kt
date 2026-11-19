@@ -135,6 +135,8 @@ internal class MonitoringRepository(
         }
     }
 
+    suspend fun probeProxyEntry(hosts: List<String>, family: AddressFamily?) = networkMonitor.probeProxyEntry(hosts, family)
+
     fun refreshPublicNetworkProbe(family: AddressFamily? = null) {
         if (!networkPageWasVisible) return
         startPublicNetworkProbe(family)

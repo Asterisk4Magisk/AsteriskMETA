@@ -230,11 +230,14 @@
     <string name="monitor_network_local_ipv4">Local IPv4</string>
     <string name="monitor_network_local_ipv6">Local IPv6</string>
     <string name="monitor_network_privacy">Probe privacy</string>
-    <string name="monitor_network_privacy_body">When you open this page, switch targets, or refresh, the app contacts %1$s through the selected target to check your public IP. Requests omit subscriptions, configuration, device identifiers, account details, and core credentials. Results stay in memory.</string>
+    <string name="monitor_network_privacy_body">The app contacts %1$s through the selected target to check your exit IP. Selecting a proxy group also sends the node IP to GeoJS for an ownership lookup. Results stay in memory.</string>
     <string name="monitor_network_probe_cloudflare">Cloudflare Exit</string>
     <string name="monitor_network_probe_general">General Exit</string>
     <string name="monitor_network_probe_target">Measurement target</string>
     <string name="monitor_network_probe_current">Current network</string>
+    <string name="monitor_network_probe_entry">Entry IP</string>
+    <string name="monitor_network_probe_exit">Exit IP</string>
+    <string name="monitor_network_probe_entry_empty">No entry address</string>
     <string name="monitor_network_probe_unsupported">The running core does not support this test.</string>
     <string name="monitor_network_probe_group_missing">This group is no longer available.</string>
     <string name="monitor_network_probe_runtime_changed">The proxy service changed. Run the test again.</string>

@@ -224,11 +224,14 @@
     <string name="monitor_network_local_ipv4">本地 IPv4</string>
     <string name="monitor_network_local_ipv6">本地 IPv6</string>
     <string name="monitor_network_privacy">探测隐私说明</string>
-    <string name="monitor_network_privacy_body">进入本页、切换目标或刷新时，应用会按所选目标向 %1$s 查询公网 IP。查询请求不包含订阅、配置、设备标识、账号或核心凭据，结果仅保留在内存中。</string>
+    <string name="monitor_network_privacy_body">应用会按所选目标向 %1$s 查询出口 IP。选择策略组时，还会向 GeoJS 发送代理节点 IP 查询归属。结果仅保留在内存中。</string>
     <string name="monitor_network_probe_cloudflare">Cloudflare 节点出口</string>
     <string name="monitor_network_probe_general">通用出口</string>
     <string name="monitor_network_probe_target">测量目标</string>
     <string name="monitor_network_probe_current">当前网络</string>
+    <string name="monitor_network_probe_entry">入口 IP</string>
+    <string name="monitor_network_probe_exit">出口 IP</string>
+    <string name="monitor_network_probe_entry_empty">无入口地址</string>
     <string name="monitor_network_probe_unsupported">当前核心不支持此检测。</string>
     <string name="monitor_network_probe_group_missing">此策略组已不可用。</string>
     <string name="monitor_network_probe_runtime_changed">代理服务已变化，请重新检测。</string>

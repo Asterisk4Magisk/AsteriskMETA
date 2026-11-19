@@ -10,6 +10,8 @@ import app.ruleOverrideRuntimeProjection
 import app.modes.RunModeVpnService
 import app.modes.isRootRunMode
 import engine.mihomo.hasUsableMihomoProfile
+import engine.mihomo.loadMihomoProfileObject
+import engine.mihomo.mihomoProxyServer
 import engine.mihomo.mihomoLogLevelName
 import engine.mihomo.mihomoControlConfig
 import engine.mihomo.mihomoControllerSocket
@@ -614,6 +616,20 @@ internal class MihomoRuntimeRepository(
     suspend fun usesBundledCore(runMode: Int): Boolean = withContext(Dispatchers.IO) {
         !appContext.skipsBundledCoreConfigCheck(runMode)
     }
+
+    suspend fun proxyEntryHosts(appState: AppState, node: MihomoProxyNodeId): List<String> =
+        withContext(Dispatchers.IO) {
+            if (node.fallbackGroupName != null) return@withContext emptyList()
+            val file = publishedProfileFile()
+            val profile = file.readText().loadMihomoProfileObject() ?: return@withContext emptyList()
+            listOfNotNull(profile.mihomoProxyServer(
+                nodeName = node.name,
+                providerName = node.providerName,
+                dataDir = checkNotNull(file.parentFile),
+                rootRuntime = appState.runMode.isRootRunMode(),
+                profileAgeSecretKey = appState.selectedMihomoProfileOrNull()?.ageSecretKey.orEmpty(),
+            ))
+        }
 
     suspend fun probeProxyIp(appState: AppState, request: ProxyIpProbeRequest): ProxyIpProbeResponse =
         withContext(Dispatchers.IO) {

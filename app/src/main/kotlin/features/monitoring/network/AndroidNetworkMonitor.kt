@@ -5,6 +5,8 @@ package features.monitoring.network
 
 import engine.network.withProxyAuthenticator
 import engine.network.ProxyCredentials
+import engine.network.isIpv4Address
+import engine.network.isIpv6Address
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.LinkProperties
@@ -15,8 +17,10 @@ import system.AndroidNetworks
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import java.net.HttpURLConnection
 import java.net.Inet4Address
@@ -36,6 +40,31 @@ internal class AndroidNetworkMonitor(context: Context) {
     fun snapshot(): LocalNetworkSnapshot {
         return connectivityManager.readLocalNetworkSnapshot(networks.snapshot())
     }
+
+    suspend fun probeProxyEntry(hosts: List<String>, family: AddressFamily?): List<PublicAddressProbeResult> {
+        val addresses = withContext(Dispatchers.IO) {
+            val underlying = networks.snapshot().firstOrNull { network ->
+                connectivityManager.getNetworkCapabilities(network)?.let { capabilities ->
+                    capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+                        !capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)
+                } == true
+            }
+            hosts.flatMap { host ->
+                val name = host.trim().removeSurrounding("[", "]")
+                if (name.isEmpty()) return@flatMap emptyList()
+                runCatching {
+                    if (isIpv4Address(name) || isIpv6Address(name)) listOf(InetAddress.getByName(name))
+                    else (underlying?.getAllByName(name) ?: InetAddress.getAllByName(name)).toList()
+                }.getOrDefault(emptyList())
+            }.distinct().filter { address ->
+                family == null || (address is Inet4Address) == (family == AddressFamily.Ipv4)
+            }
+        }
+        val client = PublicNetworkProbeClient()
+        return coroutineScope {
+            addresses.map { address -> async { client.lookupOwnership(address) } }.awaitAll()
+        }
+    }
 }
 
 internal data class PublicProbeProxy(
@@ -51,6 +80,33 @@ internal class PublicNetworkProbeClient(
     private val endpoints: List<PublicProbeEndpoint> = DefaultPublicProbeEndpoints,
     private val proxyProvider: (() -> PublicProbeProxy?)? = null,
 ) {
+    suspend fun lookupOwnership(address: InetAddress): PublicAddressProbeResult {
+        val ip = address.hostAddress.orEmpty().substringBefore('%')
+        val result = PublicAddressProbeResult(address = ip)
+        if (address.isAnyLocalAddress || address.isLoopbackAddress || address.isLinkLocalAddress ||
+            address.isSiteLocalAddress || address.isMulticastAddress ||
+            (address is Inet6Address && (address.address[0].toInt() and 0xfe) == 0xfc)
+        ) return result
+
+        val endpoint = PublicProbeEndpoint(
+            family = if (address is Inet4Address) AddressFamily.Ipv4 else AddressFamily.Ipv6,
+            url = "https://get.geojs.io/v1/ip/geo/$ip.json",
+            host = "get.geojs.io",
+        )
+        val attempt = probeOne(endpoint)
+        return when (attempt) {
+            is PublicProbeAttempt.Success -> {
+                if (InetAddress.getByName(attempt.address) != address) {
+                    return result.copy(error = PublicProbeError.InvalidResponse)
+                }
+                result.applyAttempt(attempt, System.currentTimeMillis()).copy(durationMillis = null)
+            }
+            is PublicProbeAttempt.Failure -> result.copy(
+                error = if (attempt.error == PublicProbeError.Unavailable) PublicProbeError.InvalidResponse else attempt.error,
+            )
+        }
+    }
+
     suspend fun probe(): PublicProbeBatch = coroutineScope {
         val ipv4Endpoint = endpoints.first { it.family == AddressFamily.Ipv4 && it.target == ProbeTarget.General }
         val ipv6Endpoint = endpoints.first { it.family == AddressFamily.Ipv6 && it.target == ProbeTarget.General }
@@ -150,6 +206,7 @@ internal class PublicNetworkProbeClient(
                                         region = parsed.region,
                                         city = parsed.city,
                                         isp = parsed.isp,
+                                        asn = parsed.asn,
                                         colo = parsed.colo,
                                         warp = parsed.warp,
                                     )

@@ -70,6 +70,7 @@ internal sealed interface PublicProbeAttempt {
         val region: String = "",
         val city: String = "",
         val isp: String = "",
+        val asn: String = "",
         val colo: String = "",
         val warp: String = "",
     ) : PublicProbeAttempt
@@ -95,11 +96,11 @@ internal data class PublicAddressProbeResult(
     val region: String = "",
     val city: String = "",
     val isp: String = "",
+    val asn: String = "",
     val colo: String = "",
     val warp: String = "",
 ) {
     fun locationSummary(coloLabel: String): String {
-        val emoji = countryCodeToEmoji(countryCode)
         val parts = mutableListOf<String>()
         if (country.isNotBlank()) parts += country
         val regionAndCity = listOf(region, city)
@@ -110,12 +111,7 @@ internal data class PublicAddressProbeResult(
         if (colo.isNotBlank()) {
             parts += coloLabel
         }
-        if (isp.isNotBlank()) parts += isp
-        if (warp.equals("on", ignoreCase = true)) {
-            parts += "WARP"
-        }
-        val text = parts.joinToString(" · ")
-        return if (emoji.isNotBlank()) "$emoji $text" else text
+        return parts.joinToString(" · ")
     }
 }
 
@@ -329,7 +325,7 @@ internal fun applyPublicProbeAttempt(
     }
 }
 
-private fun PublicAddressProbeResult.applyAttempt(
+internal fun PublicAddressProbeResult.applyAttempt(
     attempt: PublicProbeAttempt,
     completedAtMillis: Long,
 ): PublicAddressProbeResult {
@@ -345,6 +341,7 @@ private fun PublicAddressProbeResult.applyAttempt(
             region = attempt.region,
             city = attempt.city,
             isp = attempt.isp,
+            asn = attempt.asn,
             colo = attempt.colo,
             warp = attempt.warp,
         )
