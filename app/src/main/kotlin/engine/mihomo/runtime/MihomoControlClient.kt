@@ -18,6 +18,9 @@ import engine.mihomo.DefaultMihomoDelayTestUrl
 import engine.mihomo.DefaultMihomoDelayTimeoutMillis
 import engine.mihomo.MihomoAutoSwitchOptions
 import engine.mihomo.MihomoControlConfig
+import engine.network.ProxyIpProbeException
+import engine.network.ProxyIpProbeRequest
+import engine.network.ProxyIpProbeResponse
 import engine.vpn.AndroidMihomoRuntime
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -32,6 +35,7 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
@@ -47,6 +51,7 @@ import java.io.IOException
 import java.io.InputStreamReader
 import java.net.ConnectException
 import java.net.HttpURLConnection
+import java.net.Proxy
 import java.net.SocketException
 import java.net.SocketTimeoutException
 import java.net.URI
@@ -97,6 +102,57 @@ internal class MihomoControlClient(
                 readTimeoutMillis = ApiAvailabilityReadTimeoutMillis,
             )
         }.isSuccess
+    }
+
+    suspend fun probeProxyIp(
+        config: MihomoControlConfig,
+        request: ProxyIpProbeRequest,
+        token: String,
+    ): ProxyIpProbeResponse {
+        val (status, body) = proxyIpExchange(config, RuntimeJson.encodeToString(request), token)
+        if (status != HttpURLConnection.HTTP_OK) {
+            val code = runCatching {
+                RuntimeJson.parseToJsonElement(body).jsonObjectOrNull()?.stringValue("code")
+            }.getOrNull()
+            throw ProxyIpProbeException(
+                code ?: if (status == HttpURLConnection.HTTP_NOT_FOUND) "UNSUPPORTED" else "TRANSPORT_FAILURE",
+            )
+        }
+        return RuntimeJson.decodeFromString(body)
+    }
+
+    private suspend fun proxyIpExchange(
+        config: MihomoControlConfig,
+        body: String,
+        token: String,
+    ): Pair<Int, String> = suspendCancellableCoroutine { continuation ->
+        Dispatchers.IO.dispatch(continuation.context, Runnable {
+            if (!continuation.isActive) return@Runnable
+            continuation.resumeWith(runCatching {
+                val connection = openConnection(
+                    config = config,
+                    path = "/asterisk/proxy-ip-probe",
+                    method = "POST",
+                    readTimeoutMillis = 12_000,
+                    direct = true,
+                )
+                continuation.invokeOnCancellation { connection.disconnect() }
+                try {
+                    if (!continuation.isActive) throw CancellationException()
+                    connection.instanceFollowRedirects = false
+                    connection.setRequestProperty("Connection", "close")
+                    connection.doOutput = true
+                    connection.setRequestProperty("Content-Type", "application/json")
+                    connection.setRequestProperty("X-Asterisk-Probe-Token", token)
+                    connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+                    val status = connection.responseCode
+                    val stream = if (status in 200..299) connection.inputStream else connection.errorStream
+                    status to stream?.bufferedReader()?.use { it.readText() }.orEmpty()
+                } finally {
+                    connection.disconnect()
+                }
+            })
+        })
     }
 
     fun getConfigs(config: MihomoControlConfig, useBridge: Boolean): MihomoConfigsState {
@@ -838,10 +894,11 @@ internal class MihomoControlClient(
         method: String = "GET",
         connectTimeoutMillis: Int = DefaultConnectTimeoutMillis,
         readTimeoutMillis: Int = DefaultReadTimeoutMillis,
+        direct: Boolean = false,
     ): HttpURLConnection {
         val url = URI("${if (config.unixSocketPath != null) "http://localhost" else config.baseUrl}$path").toURL()
         val connection = (config.unixSocketPath?.let { LocalSocketHttpURLConnection(url, it) }
-            ?: url.openConnection() as HttpURLConnection).apply {
+            ?: (if (direct) url.openConnection(Proxy.NO_PROXY) else url.openConnection()) as HttpURLConnection).apply {
             requestMethod = method
             connectTimeout = connectTimeoutMillis
             readTimeout = readTimeoutMillis

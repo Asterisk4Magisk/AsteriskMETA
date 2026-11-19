@@ -12,6 +12,11 @@ import app.modes.isRootRunMode
 import engine.mihomo.hasUsableMihomoProfile
 import engine.mihomo.mihomoLogLevelName
 import engine.mihomo.mihomoControlConfig
+import engine.mihomo.mihomoControllerSocket
+import engine.network.ProxyIpProbeException
+import engine.network.ProxyIpProbeRequest
+import engine.network.ProxyIpProbeResponse
+import engine.network.readOrCreateProxyIpProbeToken
 import engine.mihomo.selectedMihomoProfileOrNull
 import engine.mihomo.toMihomoAutoSwitchOptions
 import engine.mihomo.MihomoControlConfig
@@ -23,7 +28,10 @@ import engine.vpn.VpnSession
 import engine.vpn.AndroidMihomoRuntime
 import engine.vpn.AsteriskVpnService
 import engine.vpn.VpnMihomoConfigFactory
+import engine.vpn.vpnSessionOverride
 import features.resources.runtime.mihomoResourceFilePaths
+import features.resources.runtime.mihomoResourceFilesDir
+import features.resources.runtime.skipsBundledCoreConfigCheck
 import features.logs.AndroidAppLogger
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -180,6 +188,7 @@ internal class MihomoRuntimeRepository(
             mutableState.update { current ->
                 current.copy(
                     running = true,
+                    runtimeEpoch = current.runtimeEpoch + 1L,
                     control = control,
                     traffic = current.traffic.copy(connected = false),
                     proxies = if (resetProxies) MihomoProxiesState() else current.proxies,
@@ -248,6 +257,7 @@ internal class MihomoRuntimeRepository(
             mutableState.update { current ->
                 if (resetSnapshots) {
                     MihomoRuntimeState(
+                        runtimeEpoch = current.runtimeEpoch,
                         device = current.device,
                     )
                 } else {
@@ -383,6 +393,7 @@ internal class MihomoRuntimeRepository(
                         // Raw provider sync updates the active providers; configuration changes
                         // use the explicit restart path with their session controller overrides.
                         if (!appState.usesRawMihomoConfig()) {
+                            mutableState.update { it.copy(runtimeEpoch = it.runtimeEpoch + 1L) }
                             client.reloadProfile(
                                 config = control,
                                 profilePath = publishedProfileFile().absolutePath,
@@ -600,9 +611,40 @@ internal class MihomoRuntimeRepository(
         }
     }
 
+    suspend fun usesBundledCore(runMode: Int): Boolean = withContext(Dispatchers.IO) {
+        !appContext.skipsBundledCoreConfigCheck(runMode)
+    }
+
+    suspend fun probeProxyIp(appState: AppState, request: ProxyIpProbeRequest): ProxyIpProbeResponse =
+        withContext(Dispatchers.IO) {
+            val epoch = state.value.runtimeEpoch
+            val control = localProxyIpProbeControl(appState) ?: throw ProxyIpProbeException("UNSUPPORTED")
+            val token = readOrCreateProxyIpProbeToken(appContext.mihomoResourceFilesDir())
+            if (state.value.runtimeEpoch != epoch || !state.value.running) throw ProxyIpProbeException("RUNTIME_CHANGED")
+            val result = client.probeProxyIp(control, request, token)
+            if (state.value.runtimeEpoch != epoch || !state.value.running) throw ProxyIpProbeException("RUNTIME_CHANGED")
+            result
+        }
+
+    private fun localProxyIpProbeControl(appState: AppState): MihomoControlConfig? {
+        if (!appState.proxyRunning || appContext.skipsBundledCoreConfigCheck(appState.runMode)) return null
+        if (appState.runMode == RunModeVpnService) {
+            if (!VpnSession.isRunning(appContext)) return null
+            if (!appState.usesRawMihomoConfig()) return appState.mihomoControlConfig(appContext)
+            val raw = appContext.loadSelectedRawConfig(appState)?.snapshot ?: return null
+            val override = raw.controller.vpnSessionOverride(appContext.mihomoControllerSocket())
+            val path = override.externalControllerUnix ?: return null
+            if (File(path).canonicalFile.parentFile != appContext.mihomoResourceFilesDir().canonicalFile) return null
+            return MihomoControlConfig(secret = override.secret.orEmpty(), unixSocketPath = path)
+        }
+        return runCatching { resolveMihomoControlConfig(appState) }.getOrNull()
+            ?.takeIf { it.host == "127.0.0.1" || it.host == "::1" }
+    }
+
     // Auto-switch runs inside the service core; these never prepare a standby runtime.
     suspend fun autoSwitchState(appState: AppState): Result<MihomoAutoSwitchState> = runMihomoRuntimeCatching {
         require(appState.proxyRunning) { "Automatic switching runs only while the proxy service is running" }
+        if (!usesBundledCore(appState.runMode)) throw MihomoAutoSwitchUnsupportedException()
         val control = resolveMihomoControlConfig(appState)
         val backend = resolveInteractiveBackend(appState, control)
         withContext(Dispatchers.IO) {
@@ -612,23 +654,14 @@ internal class MihomoRuntimeRepository(
 
     /** Hot-applies saved settings; a raw profile keeps its own asterisk-auto-switch value. */
     suspend fun syncAutoSwitch(appState: AppState): Result<Unit> = runMihomoRuntimeCatching {
-        if (!appState.proxyRunning || appState.usesRawMihomoConfig()) return@runMihomoRuntimeCatching
+        if (!appState.proxyRunning || appState.usesRawMihomoConfig() || !usesBundledCore(appState.runMode)) {
+            return@runMihomoRuntimeCatching
+        }
         val control = resolveMihomoControlConfig(appState)
         val useBridge = resolveInteractiveBackend(appState, control).useBridge()
         val desired = appState.toMihomoAutoSwitchOptions()
         withContext(Dispatchers.IO) {
             val current = client.getAutoSwitchState(control, useBridge).settings
-            // Cores before expected-delay omit it from their settings and would ignore the value.
-            if (desired.enable && (desired.expectedDelayMillis ?: 0) > 0 && current.expectedDelayMillis == null) {
-                throw MihomoAutoSwitchUnsupportedException(
-                    "The running core does not support expected-delay; install an updated AndroidLibClashLite core",
-                )
-            }
-            if (desired.enable && desired.restore == true && current.restore == null) {
-                throw MihomoAutoSwitchUnsupportedException(
-                    "The running core does not support restore; install an updated AndroidLibClashLite core",
-                )
-            }
             // Re-patching identical settings would restart the core's failure counting.
             if (!current.sameAs(desired)) {
                 client.patchAutoSwitch(control, desired, useBridge)

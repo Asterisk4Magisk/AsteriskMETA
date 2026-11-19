@@ -42,6 +42,7 @@ import kotlinx.coroutines.CancellationException
 internal fun SettingsBottomSheetsHost(
     appState: AppState,
     sheetState: SettingsSheetState,
+    showAutoSwitch: Boolean,
     tunStackOptions: List<String>,
     colorModeOptions: List<String>,
     keyColorOptions: List<String>,
@@ -65,7 +66,7 @@ internal fun SettingsBottomSheetsHost(
         },
     )
     AutoSwitchSettingsBottomSheet(
-        show = sheetState.showAutoSwitch,
+        show = showAutoSwitch && sheetState.showAutoSwitch,
         appState = appState,
         overridesEnabled = !appState.usesRawMihomoConfig(),
         draft = sheetState.autoSwitchDraft,

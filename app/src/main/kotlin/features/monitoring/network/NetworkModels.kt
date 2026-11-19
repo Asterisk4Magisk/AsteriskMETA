@@ -6,6 +6,7 @@ package features.monitoring.network
 import engine.network.isIpv4Address
 import engine.network.isIpv6Address
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -156,6 +157,7 @@ internal data class ParsedPublicProbeAddress(
     val isp: String = "",
     val colo: String = "",
     val warp: String = "",
+    val asn: String = "",
 )
 
 internal fun countryCodeToEmoji(countryCode: String?): String {
@@ -243,6 +245,8 @@ internal fun parsePublicProbeOutcome(
             val city = json["city"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
             val isp = (json["organization_name"] ?: json["organization"] ?: json["isp"] ?: json["org"])
                 ?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
+            val asn = (json["asn"] as? JsonPrimitive)?.contentOrNull?.toUIntOrNull()
+                ?.let { "AS$it" }.orEmpty()
 
             PublicProbeParseOutcome.Success(
                 ParsedPublicProbeAddress(
@@ -252,6 +256,7 @@ internal fun parsePublicProbeOutcome(
                     region = region,
                     city = city,
                     isp = isp,
+                    asn = asn,
                 ),
             )
         }.getOrDefault(PublicProbeParseOutcome.Invalid)
@@ -349,7 +354,7 @@ private fun PublicAddressProbeResult.applyAttempt(
             endpointHost = attempt.endpointHost,
             error = attempt.error,
             errorMessage = attempt.message,
-            stale = if (attempt.error == PublicProbeError.Unavailable) false else address.isNotEmpty(),
+            stale = attempt.error != PublicProbeError.Unavailable && address.isNotEmpty(),
         )
     }
 }

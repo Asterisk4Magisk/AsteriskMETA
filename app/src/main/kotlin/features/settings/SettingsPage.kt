@@ -294,6 +294,17 @@ private fun SettingsContent(
         showVpnDns = appState.runMode == RunModeVpnService,
     )
     val sheetState = rememberSettingsSheetState(updateAppState)
+    val rootGeneration by services.proxyEngine.rootStatusWatchGeneration.collectAsState()
+    var showAutoSwitch by remember(appState.runMode, rootGeneration) { mutableStateOf(false) }
+    LaunchedEffect(appState.runMode, rootGeneration) {
+        showAutoSwitch = services.mihomoRuntime.usesBundledCore(appState.runMode)
+        if (!showAutoSwitch) sheetState.showAutoSwitch = false
+    }
+    val openAutoSwitch: (() -> Unit)? = if (showAutoSwitch) {
+        { sheetState.openAutoSwitch(appState) }
+    } else {
+        null
+    }
     val selectedProfile = appState.mihomoProfiles.firstOrNull { it.id == appState.selectedMihomoProfileId }
         ?: appState.mihomoProfiles.firstOrNull()
     val rawConfigState by produceState(
@@ -328,7 +339,7 @@ private fun SettingsContent(
         onOpenTunBypassRuleSets = { sheetState.openTunBypassRuleSets(appState) },
         onOpenDns = { sheetState.openDnsSettings(appState) },
         onOpenConnectionTest = { sheetState.openConnectionTestSettings(appState) },
-        onOpenAutoSwitch = { sheetState.openAutoSwitch(appState) },
+        onOpenAutoSwitch = openAutoSwitch,
         onOpenSniffer = { sheetState.openSnifferSettings(appState) },
         onOpenOther = { sheetState.openOtherSettings(appState) },
         onOpenLocalProxy = { sheetState.openLocalProxySettings(appState) },
@@ -349,6 +360,7 @@ private fun SettingsContent(
         languageOptions = languageOptions,
         languageMode = appState.languageMode,
         rawConfigEnabled = rawConfigState.enabled,
+        showAutoSwitch = showAutoSwitch,
         coreLogLevel = appState.coreLogLevel,
         runModeOptions = runModeOptions,
         selectedRunModeIndex = selectedRunModeIndex,
@@ -404,7 +416,7 @@ private fun SettingsContent(
                     enableLocalDns = appState.enableLocalDns,
                     onOpenDnsSettings = { sheetState.openDnsSettings(appState) },
                     onOpenConnectionTest = { sheetState.openConnectionTestSettings(appState) },
-                    onOpenAutoSwitch = { sheetState.openAutoSwitch(appState) },
+                    onOpenAutoSwitch = openAutoSwitch,
                     onOpenSnifferSettings = { sheetState.openSnifferSettings(appState) },
                     onOpenApps = { navigator.push(Route.ProxyAppList) },
                     onOpenResourceManagement = { navigator.push(Route.ResourceManagement) },
@@ -706,6 +718,7 @@ private fun SettingsContent(
         SettingsBottomSheetsHost(
             appState = appState,
             sheetState = sheetState,
+            showAutoSwitch = showAutoSwitch,
             tunStackOptions = tunStackOptions,
             colorModeOptions = colorModeOptions,
             keyColorOptions = keyColorOptions,

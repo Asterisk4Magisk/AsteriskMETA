@@ -159,7 +159,7 @@ internal fun SettingsCoreSection(
     onOpenDnsSettings: () -> Unit,
     onOpenSnifferSettings: () -> Unit,
     onOpenConnectionTest: () -> Unit,
-    onOpenAutoSwitch: () -> Unit,
+    onOpenAutoSwitch: (() -> Unit)?,
     onOpenApps: () -> Unit,
     onOpenResourceManagement: () -> Unit,
     onOpenOtherSettings: () -> Unit,
@@ -240,13 +240,15 @@ internal fun SettingsCoreSection(
             onClick = onOpenConnectionTest,
             accent = IconAccent.MaskBlue,
         )
-        ArrowPreference(
-            title = stringResource(R.string.settings_auto_switch),
-            summary = stringResource(R.string.settings_auto_switch_summary),
-            icon = Icons.Rounded.Sync,
-            accent = IconAccent.MaskGreen,
-            onClick = onOpenAutoSwitch,
-        )
+        if (onOpenAutoSwitch != null) {
+            ArrowPreference(
+                title = stringResource(R.string.settings_auto_switch),
+                summary = stringResource(R.string.settings_auto_switch_summary),
+                icon = Icons.Rounded.Sync,
+                accent = IconAccent.MaskGreen,
+                onClick = onOpenAutoSwitch,
+            )
+        }
         if (!rawEnabled) {
             ArrowPreference(
                 title = stringResource(R.string.settings_other),

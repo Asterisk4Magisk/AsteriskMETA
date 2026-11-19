@@ -4,6 +4,7 @@
 package engine.mihomo
 
 import android.content.Context
+import features.resources.runtime.skipsBundledCoreConfigCheck
 import app.AppState
 import app.withCompatibleProxyAppListMode
 import app.MihomoProfileState
@@ -82,7 +83,7 @@ internal object MihomoProfileFactory {
             val source = rawContent.trim().loadMihomoProfileObject()
                 ?: error(MihomoProfileObjectRequiredErrorMessage)
             source.compileMihomoProfile(
-                appState, selectedProfile, runMode, exposePorts,
+                appState.forMihomoCore(context, runMode), selectedProfile, runMode, exposePorts,
                 if (runMode == RunModeTun) context.resolveRootProxyApplicationUids(appState.proxyAppListSelectedApps) else emptyList(),
                 useRootProviderPaths,
                 context.mihomoControllerSocket().absolutePath,
@@ -121,7 +122,7 @@ internal object MihomoProfileFactory {
         val source = sourceContent.trim().loadMihomoProfileObject()
             ?: error(MihomoProfileObjectRequiredErrorMessage)
         return source.compileMihomoProfile(
-            appState, profile, runMode, exposePorts = true,
+            appState.forMihomoCore(context, runMode), profile, runMode, exposePorts = true,
             if (runMode == RunModeTun) context.resolveRootProxyApplicationUids(appState.proxyAppListSelectedApps) else emptyList(),
             useRootProviderPaths = runMode.isRootRunMode(),
             context.mihomoControllerSocket().absolutePath,
@@ -140,13 +141,21 @@ internal object MihomoProfileFactory {
         val tunApplicationUids =
             if (runMode == RunModeTun) context.resolveRootProxyApplicationUids(appState.proxyAppListSelectedApps) else emptyList()
         val controllerSocketPath = context.mihomoControllerSocket().absolutePath
+        val runtimeState = appState.forMihomoCore(context, runMode)
         return { scripted ->
             scripted.toAsteriskRuntimeProfileObject(
-                appState, runMode, exposePorts = true, tunApplicationUids = tunApplicationUids,
+                runtimeState, runMode, exposePorts = true, tunApplicationUids = tunApplicationUids,
                 useRootProviderPaths = runMode.isRootRunMode(), controllerSocketPath = controllerSocketPath,
             )
         }
     }
+
+    private fun AppState.forMihomoCore(context: Context, runMode: Int): AppState =
+        if (autoSwitch.enabled && context.skipsBundledCoreConfigCheck(runMode)) {
+            copy(autoSwitch = autoSwitch.copy(enabled = false))
+        } else {
+            this
+        }
 
     fun tunStack(appState: AppState): String {
         return when (appState.mihomoTunStack) {
@@ -198,7 +207,7 @@ internal fun Map<String, Any?>.compileMihomoProfile(
     )
 }
 
-/** The rule override a compile applies; raw configuration mode keeps the stored one unused. */
+/** The rule override a compiled applies; raw configuration mode keeps the stored one unused. */
 internal fun MihomoProfileState?.effectiveRuleOverride(): MihomoRuleOverrideState =
     this?.takeUnless(MihomoProfileState::disableOverrides)?.ruleOverride ?: MihomoRuleOverrideState()
 
@@ -349,8 +358,7 @@ private fun MutableMap<String, Any?>.putAsteriskRuntimeOverrides(
     if (appState.overrideMihomoExternalUi) {
         putMihomoExternalUiOverrides(appState)
     }
-    // Standby cores only serve the UI and must never change a selection. The key is omitted while
-    // disabled, so an uploaded official core receives exactly the configuration it would without it.
+    // Standby cores only serve the UI and must never change a selection.
     appState.toMihomoAutoSwitchOptions(active = exposePorts).takeIf { it.enable }?.let { options ->
         put(MihomoAutoSwitchConfigKey, options.toYamlMap())
     }

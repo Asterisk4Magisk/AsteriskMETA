@@ -191,6 +191,7 @@ internal data class MihomoDelayProgress(
 
 internal data class MihomoRuntimeState(
     val running: Boolean = false,
+    val runtimeEpoch: Long = 0L,
     val control: MihomoControlConfig = MihomoControlConfig(),
     val traffic: MihomoTrafficState = MihomoTrafficState(),
     val memory: MihomoMemoryState = MihomoMemoryState(),

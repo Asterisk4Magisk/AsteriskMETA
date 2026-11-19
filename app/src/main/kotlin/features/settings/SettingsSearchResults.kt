@@ -61,6 +61,7 @@ internal fun settingsTopLevelSearchItems(
     languageOptions: List<String>,
     languageMode: Int,
     rawConfigEnabled: Boolean,
+    showAutoSwitch: Boolean,
     coreLogLevel: Int,
     runModeOptions: List<String>,
     selectedRunModeIndex: Int,
@@ -136,7 +137,13 @@ internal fun settingsTopLevelSearchItems(
         ),
         SettingsSearchItem(SettingsSectionId.Core, stringResource(R.string.settings_sniffer), snifferSummary),
         SettingsSearchItem(SettingsSectionId.Core, stringResource(R.string.connection_test_settings_title), stringResource(R.string.connection_test_settings_summary)),
-        SettingsSearchItem(SettingsSectionId.Core, stringResource(R.string.settings_auto_switch), stringResource(R.string.settings_auto_switch_summary)),
+        if (showAutoSwitch) {
+            SettingsSearchItem(
+                SettingsSectionId.Core,
+                stringResource(R.string.settings_auto_switch),
+                stringResource(R.string.settings_auto_switch_summary),
+            )
+        } else null,
         // Raw configuration shows Geodata as read-only rows; otherwise it lives in the Other sheet.
         if (rawConfigEnabled) {
             SettingsSearchItem(
@@ -289,7 +296,7 @@ internal fun settingsNestedSearchEntries(
     onOpenSniffer: () -> Unit,
     onOpenOther: () -> Unit,
     onOpenConnectionTest: () -> Unit,
-    onOpenAutoSwitch: () -> Unit,
+    onOpenAutoSwitch: (() -> Unit)?,
     onOpenLocalProxy: () -> Unit,
     onOpenTun: () -> Unit,
     onOpenExternalInterfaces: () -> Unit,
@@ -404,7 +411,9 @@ internal fun settingsNestedSearchEntries(
 
     return buildList {
         connectionTestItems.forEach { add(SettingsSearchEntry(it, connectionTest, Icons.Rounded.Speed, IconAccent.MaskBlue, onOpenConnectionTest)) }
-        autoSwitchItems.forEach { add(SettingsSearchEntry(it, autoSwitch, Icons.Rounded.Sync, IconAccent.MaskGreen, onOpenAutoSwitch)) }
+        if (onOpenAutoSwitch != null) {
+            autoSwitchItems.forEach { add(SettingsSearchEntry(it, autoSwitch, Icons.Rounded.Sync, IconAccent.MaskGreen, onOpenAutoSwitch)) }
+        }
         dnsItems.forEach { add(SettingsSearchEntry(it, dns, Icons.Rounded.Dns, IconAccent.MaskBlueVariant, onOpenDns)) }
         snifferItems.forEach { add(SettingsSearchEntry(it, sniffer, Icons.Rounded.TravelExplore, IconAccent.MaskGreen, onOpenSniffer)) }
         otherItems.forEach { add(SettingsSearchEntry(it, other, Icons.Rounded.Widgets, IconAccent.MaskGrey, onOpenOther)) }
