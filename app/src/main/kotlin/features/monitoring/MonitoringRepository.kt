@@ -529,22 +529,16 @@ internal class MonitoringRepository(
                 val batch = if (family == null) publicNetworkProbeClient.probe() else null
                 val single = family?.let { selected -> publicNetworkProbeClient.probe(selected) }
                 if (generation != publicProbeGeneration || !networkPageWasVisible) return@launch
-                val completedAt = System.currentTimeMillis()
                 mutableState.update { current ->
                     val next = current.copy(
                         network = current.network.copy(
                             publicProbe = if (family == null) {
-                                applyPublicProbeAttempts(
-                                    previous = current.network.publicProbe,
-                                    batch = checkNotNull(batch),
-                                    completedAtMillis = completedAt,
-                                )
+                                applyPublicProbeAttempts(checkNotNull(batch))
                             } else {
                                 applyPublicProbeAttempt(
                                     previous = current.network.publicProbe,
                                     family = family,
                                     batch = checkNotNull(single),
-                                    completedAtMillis = completedAt,
                                 )
                             },
                         ),

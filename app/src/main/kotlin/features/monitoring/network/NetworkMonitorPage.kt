@@ -296,20 +296,23 @@ private fun PublicAddressFamilyCard(
                     onCopy = { onCopy(familyLabel, it) },
                 )
             } else {
+                val entries = entryResults.ifEmpty {
+                    listOfNotNull(generalResult.takeIf { !entryRefreshing && it.address.isNotBlank() })
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     Column(
                         modifier = Modifier.weight(1f),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         ProbeSectionTitle(stringResource(R.string.monitor_network_probe_entry))
-                        if (entryResults.isEmpty()) {
+                        if (entries.isEmpty()) {
                             Text(
                                 text = if (entryRefreshing) "—" else stringResource(R.string.monitor_network_probe_entry_empty),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-                        entryResults.forEach { entry ->
+                        entries.forEach { entry ->
                             PublicAddressValues(entry, family) { onCopy(familyLabel, it) }
                         }
                     }
@@ -416,9 +419,6 @@ private fun PublicAddressValues(
                 style = typography.bodySmall,
                 color = scheme.error,
             )
-            if (result.stale) {
-                Text(stringResource(R.string.monitor_data_stale), style = typography.bodySmall)
-            }
         }
     }
 }

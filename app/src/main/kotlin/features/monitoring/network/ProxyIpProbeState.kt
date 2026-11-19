@@ -129,7 +129,7 @@ internal class ProxyIpProbeState {
     }
 
     fun measurement(family: AddressFamily, target: ProbeTarget): Measurement =
-        measurements[family to target] ?: Measurement(PublicAddressProbeResult(target = target))
+        measurements[family to target] ?: Measurement(PublicAddressProbeResult())
 
     fun start(
         scope: CoroutineScope,
@@ -187,7 +187,7 @@ internal class ProxyIpProbeState {
         val message: Int? = null,
     ) {
         fun failed(error: PublicProbeError, message: Int? = null): Measurement = Measurement(
-            result = result.copy(error = error, stale = result.address.isNotEmpty()),
+            result = PublicAddressProbeResult(error = error),
             message = message,
         )
 
@@ -211,8 +211,6 @@ internal class ProxyIpProbeState {
                 PublicAddressProbeResult(
                     address = address.address,
                     durationMillis = durationMillis,
-                    endpointHost = endpoint.host,
-                    target = endpoint.target,
                     country = address.country,
                     countryCode = address.countryCode,
                     region = address.region,

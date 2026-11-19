@@ -58,13 +58,9 @@ internal enum class PublicProbeError {
 }
 
 internal sealed interface PublicProbeAttempt {
-    val endpointHost: String
-
     data class Success(
         val address: String,
         val durationMillis: Long,
-        override val endpointHost: String,
-        val target: ProbeTarget = ProbeTarget.General,
         val country: String = "",
         val countryCode: String = "",
         val region: String = "",
@@ -78,19 +74,14 @@ internal sealed interface PublicProbeAttempt {
     data class Failure(
         val error: PublicProbeError,
         val message: String,
-        override val endpointHost: String,
     ) : PublicProbeAttempt
 }
 
 internal data class PublicAddressProbeResult(
     val address: String = "",
     val durationMillis: Long? = null,
-    val endpointHost: String = "",
-    val updatedAtMillis: Long = 0L,
     val error: PublicProbeError? = null,
     val errorMessage: String = "",
-    val stale: Boolean = false,
-    val target: ProbeTarget = ProbeTarget.General,
     val country: String = "",
     val countryCode: String = "",
     val region: String = "",
@@ -116,12 +107,11 @@ internal data class PublicAddressProbeResult(
 }
 
 internal data class PublicNetworkProbeState(
-    val ipv4: PublicAddressProbeResult = PublicAddressProbeResult(target = ProbeTarget.General),
-    val ipv6: PublicAddressProbeResult = PublicAddressProbeResult(target = ProbeTarget.General),
-    val cloudflareIpv4: PublicAddressProbeResult = PublicAddressProbeResult(target = ProbeTarget.Cloudflare),
-    val cloudflareIpv6: PublicAddressProbeResult = PublicAddressProbeResult(target = ProbeTarget.Cloudflare),
+    val ipv4: PublicAddressProbeResult = PublicAddressProbeResult(),
+    val ipv6: PublicAddressProbeResult = PublicAddressProbeResult(),
+    val cloudflareIpv4: PublicAddressProbeResult = PublicAddressProbeResult(),
+    val cloudflareIpv6: PublicAddressProbeResult = PublicAddressProbeResult(),
     val refreshing: Boolean = false,
-    val lastCompletedAtMillis: Long = 0L,
 )
 
 internal object PublicNetworkProbeMemoryCache {
@@ -288,73 +278,53 @@ internal data class FamilyProbeBatch(
     val cloudflare: PublicProbeAttempt,
 )
 
-internal fun applyPublicProbeAttempts(
-    previous: PublicNetworkProbeState,
-    batch: PublicProbeBatch,
-    completedAtMillis: Long,
-): PublicNetworkProbeState {
-    return PublicNetworkProbeState(
-        ipv4 = previous.ipv4.applyAttempt(batch.ipv4, completedAtMillis),
-        ipv6 = previous.ipv6.applyAttempt(batch.ipv6, completedAtMillis),
-        cloudflareIpv4 = previous.cloudflareIpv4.applyAttempt(batch.cloudflareIpv4, completedAtMillis),
-        cloudflareIpv6 = previous.cloudflareIpv6.applyAttempt(batch.cloudflareIpv6, completedAtMillis),
-        refreshing = false,
-        lastCompletedAtMillis = completedAtMillis,
+internal fun applyPublicProbeAttempts(batch: PublicProbeBatch): PublicNetworkProbeState =
+    PublicNetworkProbeState(
+        ipv4 = batch.ipv4.toResult(),
+        ipv6 = batch.ipv6.toResult(),
+        cloudflareIpv4 = batch.cloudflareIpv4.toResult(),
+        cloudflareIpv6 = batch.cloudflareIpv6.toResult(),
     )
-}
 
 internal fun applyPublicProbeAttempt(
     previous: PublicNetworkProbeState,
     family: AddressFamily,
     batch: FamilyProbeBatch,
-    completedAtMillis: Long,
 ): PublicNetworkProbeState {
     return when (family) {
         AddressFamily.Ipv4 -> previous.copy(
-            ipv4 = previous.ipv4.applyAttempt(batch.general, completedAtMillis),
-            cloudflareIpv4 = previous.cloudflareIpv4.applyAttempt(batch.cloudflare, completedAtMillis),
+            ipv4 = batch.general.toResult(),
+            cloudflareIpv4 = batch.cloudflare.toResult(),
             refreshing = false,
-            lastCompletedAtMillis = completedAtMillis,
         )
         AddressFamily.Ipv6 -> previous.copy(
-            ipv6 = previous.ipv6.applyAttempt(batch.general, completedAtMillis),
-            cloudflareIpv6 = previous.cloudflareIpv6.applyAttempt(batch.cloudflare, completedAtMillis),
+            ipv6 = batch.general.toResult(),
+            cloudflareIpv6 = batch.cloudflare.toResult(),
             refreshing = false,
-            lastCompletedAtMillis = completedAtMillis,
         )
     }
 }
 
-internal fun PublicAddressProbeResult.applyAttempt(
-    attempt: PublicProbeAttempt,
-    completedAtMillis: Long,
-): PublicAddressProbeResult {
-    return when (attempt) {
+internal fun PublicProbeAttempt.toResult(): PublicAddressProbeResult =
+    when (this) {
         is PublicProbeAttempt.Success -> PublicAddressProbeResult(
-            address = attempt.address,
-            durationMillis = attempt.durationMillis,
-            endpointHost = attempt.endpointHost,
-            updatedAtMillis = completedAtMillis,
-            target = attempt.target,
-            country = attempt.country,
-            countryCode = attempt.countryCode,
-            region = attempt.region,
-            city = attempt.city,
-            isp = attempt.isp,
-            asn = attempt.asn,
-            colo = attempt.colo,
-            warp = attempt.warp,
+            address = address,
+            durationMillis = durationMillis,
+            country = country,
+            countryCode = countryCode,
+            region = region,
+            city = city,
+            isp = isp,
+            asn = asn,
+            colo = colo,
+            warp = warp,
         )
 
-        is PublicProbeAttempt.Failure -> copy(
-            address = if (attempt.error == PublicProbeError.Unavailable) "" else address,
-            endpointHost = attempt.endpointHost,
-            error = attempt.error,
-            errorMessage = attempt.message,
-            stale = attempt.error != PublicProbeError.Unavailable && address.isNotEmpty(),
+        is PublicProbeAttempt.Failure -> PublicAddressProbeResult(
+            error = error,
+            errorMessage = message,
         )
     }
-}
 
 internal val DefaultPublicProbeEndpoints = listOf(
     PublicProbeEndpoint(
