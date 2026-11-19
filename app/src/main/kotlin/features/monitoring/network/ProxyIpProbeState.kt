@@ -3,6 +3,7 @@
 
 package features.monitoring.network
 
+import android.os.SystemClock
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -111,13 +112,15 @@ internal class ProxyIpProbeState {
             measurements[key] = previous.copy(refreshing = true)
             jobs[key] = scope.launch {
                 measurements[key] = try {
+                    val startedAt = SystemClock.elapsedRealtime()
                     val response = withTimeoutOrNull(15_000.milliseconds) { probe(request) }
                     if (response == null) {
                         previous.failed(PublicProbeError.Timeout)
                     } else if (response.outboundTag != tag) {
                         previous.failed(PublicProbeError.InvalidResponse)
                     } else {
-                        previous.withResponse(response, endpoint)
+                        val durationMillis = SystemClock.elapsedRealtime() - startedAt
+                        previous.withResponse(response, endpoint, durationMillis)
                     }
                 } catch (error: CancellationException) {
                     throw error
@@ -153,7 +156,11 @@ internal class ProxyIpProbeState {
             message = message,
         )
 
-        fun withResponse(response: ProxyIpProbeResponse, endpoint: PublicProbeEndpoint): Measurement {
+        fun withResponse(
+            response: ProxyIpProbeResponse,
+            endpoint: PublicProbeEndpoint,
+            durationMillis: Long,
+        ): Measurement {
             when (response.status) {
                 "timeout" -> return failed(PublicProbeError.Timeout)
                 "unreachable" -> return failed(PublicProbeError.Network)
@@ -168,6 +175,7 @@ internal class ProxyIpProbeState {
             return Measurement(
                 PublicAddressProbeResult(
                     address = address.address,
+                    durationMillis = durationMillis,
                     endpointHost = endpoint.host,
                     target = endpoint.target,
                     country = address.country,
