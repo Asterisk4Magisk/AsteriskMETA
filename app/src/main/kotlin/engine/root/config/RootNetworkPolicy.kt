@@ -4,6 +4,7 @@
 package engine.root.config
 
 import android.content.Context
+import android.os.Process
 import app.AppState
 import app.withCompatibleProxyAppListMode
 import app.modes.ProxyAppListModeGlobal
@@ -48,6 +49,7 @@ internal fun RootIptablesConfig.withAppSettings(
         proxyPrivateIpv6Cidrs = proxyPrivateCidrs.ipv6Cidrs(),
         bypassPrivateIpv4Cidrs = bypassPrivateCidrs.ipv4Cidrs(),
         bypassPrivateIpv6Cidrs = bypassPrivateCidrs.ipv6Cidrs(),
+        forcedBypassUids = listOf(Process.myUid()),
         enableEbpfRules = appState.enableRootEbpfRules,
         enableEbpfDirectCidrBypass = appState.enableRootEbpfDirectCidrBypass,
         proxyAppListMode = appListMode,

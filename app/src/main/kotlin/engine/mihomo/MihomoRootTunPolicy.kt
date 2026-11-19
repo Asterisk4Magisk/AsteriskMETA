@@ -14,18 +14,17 @@ internal fun mihomoRootTunPolicy(
     sharedInterfaces: List<String>,
     bypassRuleSetTags: List<String>,
     ruleProviders: Any?,
+    selfUid: Int,
 ): Map<String, Any?> = linkedMapOf<String, Any?>().apply {
     // lo keeps local OUTPUT capture, but prevents an empty selector from capturing all forwarding.
     val interfaces = sharedInterfaces.toTrimmedNonEmptyDistinctList().filterNot { it == "lo" }
     require(interfaces.all(::isMihomoTunSharedInterface)) { "TUN shared interfaces must be exact interface names" }
     put("include-interface", (listOf("lo") + interfaces).distinct())
-    val uids = applicationUids.distinct().sorted()
-    when (appListMode) {
-        ProxyAppListModeBlacklist -> if (uids.isNotEmpty()) put("exclude-uid", uids)
-        ProxyAppListModeWhitelist -> {
-            // Preserve Android system DNS capture from the existing ROOT whitelist policy.
-            put("include-uid", (uids + RootProxyAppWhitelistSystemUids).distinct().sorted())
-        }
+    val excludedUids = if (appListMode == ProxyAppListModeBlacklist) applicationUids + selfUid else listOf(selfUid)
+    put("exclude-uid", excludedUids.distinct().sorted())
+    if (appListMode == ProxyAppListModeWhitelist) {
+        // Preserve Android system DNS capture from the existing ROOT whitelist policy.
+        put("include-uid", (applicationUids + RootProxyAppWhitelistSystemUids).distinct().sorted())
     }
     val usable = usableMihomoTunBypassRuleSets(ruleProviders)
     val selected = bypassRuleSetTags.toTrimmedNonEmptyDistinctList().filter { it in usable }

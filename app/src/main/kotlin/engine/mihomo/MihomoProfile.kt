@@ -4,6 +4,7 @@
 package engine.mihomo
 
 import android.content.Context
+import android.os.Process
 import features.resources.runtime.skipsBundledCoreConfigCheck
 import app.AppState
 import app.withCompatibleProxyAppListMode
@@ -572,6 +573,7 @@ internal fun AppState.toMihomoTunListenerYamlMap(
             withCompatibleProxyAppListMode().proxyAppListMode,
             applicationUids, tunSharedNetworkInterfaces,
             tunBypassRuleSetTags, ruleProviders,
+            selfUid = Process.myUid(),
         ))
         effectiveMihomoTunCongestionController.takeIf(String::isNotEmpty)?.let {
             put("congestion-controller", it)
