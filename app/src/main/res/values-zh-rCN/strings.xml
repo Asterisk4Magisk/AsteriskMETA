@@ -914,7 +914,6 @@
     <string name="settings_sniffer_summary_disabled">已关闭</string>
     <string name="settings_sniffer_summary_enabled">已启用</string>
     <string name="settings_sniffer_summary_enabled_with_options">已启用，%1$s</string>
-    <string name="settings_sniffer_summary_follow_profile">跟随配置</string>
     <string name="settings_sniffer_summary_option_separator">、</string>
     <string name="settings_sniffer_tls_override_destination">TLS 覆写目标地址</string>
     <string name="settings_sniffer_tls_ports">TLS 端口</string>
@@ -1128,6 +1127,7 @@
     </plurals>
     <string name="settings_search_no_results">没有匹配的设置项</string>
     <string name="settings_search_results">搜索结果</string>
+    <string name="settings_summary_follow_profile">跟随配置</string>
     <string name="settings_title">设置</string>
 
     <!-- Appearance and language -->

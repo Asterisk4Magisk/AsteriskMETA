@@ -65,6 +65,7 @@ internal fun settingsTopLevelSearchItems(
     coreLogLevel: Int,
     runModeOptions: List<String>,
     selectedRunModeIndex: Int,
+    dnsSummary: String,
     snifferSummary: String,
     localProxySummary: String,
     overrideScriptSummary: String,
@@ -133,7 +134,8 @@ internal fun settingsTopLevelSearchItems(
         SettingsSearchItem(
             SettingsSectionId.Core,
             stringResource(R.string.settings_dns),
-            stringResource(R.string.settings_dns_summary),
+            dnsSummary,
+            optionText = listOf(stringResource(R.string.settings_dns_summary)),
         ),
         SettingsSearchItem(SettingsSectionId.Core, stringResource(R.string.settings_sniffer), snifferSummary),
         SettingsSearchItem(SettingsSectionId.Core, stringResource(R.string.connection_test_settings_title), stringResource(R.string.connection_test_settings_summary)),

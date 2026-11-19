@@ -40,7 +40,7 @@ internal fun snifferSettingsSummary(
     snifferQuicPorts: List<String>,
 ): String {
     if (!overrideSniffer) {
-        return stringResource(R.string.settings_sniffer_summary_follow_profile)
+        return stringResource(R.string.settings_summary_follow_profile)
     }
     if (!enableSniffer) {
         return stringResource(R.string.settings_sniffer_summary_disabled)

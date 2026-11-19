@@ -932,7 +932,6 @@
     <string name="settings_sniffer_summary_disabled">Disabled</string>
     <string name="settings_sniffer_summary_enabled">Enabled</string>
     <string name="settings_sniffer_summary_enabled_with_options">Enabled, %1$s</string>
-    <string name="settings_sniffer_summary_follow_profile">Follows the profile</string>
     <string name="settings_sniffer_summary_option_separator">, </string>
     <string name="settings_sniffer_tls_override_destination">TLS override destination</string>
     <string name="settings_sniffer_tls_ports">TLS ports</string>
@@ -1148,6 +1147,7 @@
     </plurals>
     <string name="settings_search_no_results">No matching settings</string>
     <string name="settings_search_results">Search results</string>
+    <string name="settings_summary_follow_profile">Follows the profile</string>
     <string name="settings_title">Settings</string>
 
     <!-- Appearance and language -->

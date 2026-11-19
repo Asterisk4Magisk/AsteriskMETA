@@ -275,6 +275,9 @@ private fun SettingsContent(
     } else externalInterfacesSummary(appState.externalInterfaces)
     val ignoredInterfacesSummary = ignoredInterfacesSummary(appState.ignoredInterfaces)
     val privateAddressCidrsSummary = privateAddressCidrsSummary(appState.privateAddressCidrs)
+    val dnsSummary = stringResource(
+        if (appState.overrideDns) R.string.settings_dns_summary else R.string.settings_summary_follow_profile,
+    )
     val snifferSummary = snifferSettingsSummary(
         overrideSniffer = appState.overrideSniffer,
         enableSniffer = appState.enableSniffer,
@@ -364,6 +367,7 @@ private fun SettingsContent(
         coreLogLevel = appState.coreLogLevel,
         runModeOptions = runModeOptions,
         selectedRunModeIndex = selectedRunModeIndex,
+        dnsSummary = dnsSummary,
         snifferSummary = snifferSummary,
         localProxySummary = localProxySettingsSummary,
         overrideScriptSummary = overrideScriptSummary,
@@ -411,6 +415,7 @@ private fun SettingsContent(
             }
             item(key = "settings_core") {
                 SettingsCoreSection(
+                    dnsSettingsSummary = dnsSummary,
                     snifferSettingsSummary = snifferSummary,
                     coreLogLevel = appState.coreLogLevel,
                     enableLocalDns = appState.enableLocalDns,

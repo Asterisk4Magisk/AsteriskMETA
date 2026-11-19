@@ -153,6 +153,7 @@ private fun HideLauncherIconPreference(
 
 @Composable
 internal fun SettingsCoreSection(
+    dnsSettingsSummary: String,
     snifferSettingsSummary: String,
     coreLogLevel: Int,
     enableLocalDns: Boolean,
@@ -184,7 +185,8 @@ internal fun SettingsCoreSection(
                 title = stringResource(R.string.settings_dns),
                 accent = IconAccent.MaskBlueVariant,
                 icon = Icons.Rounded.Dns,
-                summary = stringResource(R.string.settings_dns_summary),
+                summary = dnsSettingsSummary,
+                optionText = listOf(stringResource(R.string.settings_dns_summary)),
                 onClick = onOpenDnsSettings,
             )
             ArrowPreference(
