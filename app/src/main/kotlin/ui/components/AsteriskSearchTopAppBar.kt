@@ -94,7 +94,8 @@ internal fun AsteriskSearchTopAppBar(
                 if (searchSettled && searchActive && searchAvailable) focusRequester.requestFocus()
             }
             AsteriskTopAppBar(
-                modifier = modifier,
+                // Keep the translucent field above the backdrop's fading edge.
+                modifier = modifier.padding(bottom = TopBarEdgeFade),
                 scrollBehavior = scrollBehavior,
                 navigationIcon = {
                     IconButton(onClick = { closeSearch() }) {

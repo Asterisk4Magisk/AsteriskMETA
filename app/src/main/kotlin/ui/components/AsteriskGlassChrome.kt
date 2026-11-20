@@ -112,9 +112,7 @@ internal fun AsteriskScaffold(
     Scaffold(
         modifier = modifier,
         topBar = {
-            // The blurred backdrop ends where the bar ends, which shows up as a hard seam over a
-            // card that scrolls under it. Feather the last few dp into the page — on the blur only,
-            // so a second row or a search field inside the bar keeps full opacity.
+            // Fade the backdrop into the scrolling page without fading the controls.
             Box(Modifier.fillMaxWidth()) {
                 Box(
                     Modifier
@@ -381,4 +379,4 @@ internal fun RowScope.AsteriskFloatingNavigationItem(
 }
 
 /** Height of the soft edge that blends the top bar's blur into the page. */
-private val TopBarEdgeFade = 14.dp
+internal val TopBarEdgeFade = 14.dp
