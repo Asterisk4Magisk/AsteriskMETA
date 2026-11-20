@@ -498,7 +498,7 @@ internal class MonitoringRepository(
             mutableState.update { current ->
                 current.copy(
                     network = current.network.copy(
-                        publicProbe = current.network.publicProbe.copy(refreshing = false),
+                        publicProbe = current.network.publicProbe.copy(refreshingFamilies = emptyList()),
                     ),
                 )
             }
@@ -519,7 +519,9 @@ internal class MonitoringRepository(
         mutableState.update { current ->
             current.copy(
                 network = current.network.copy(
-                    publicProbe = current.network.publicProbe.copy(refreshing = true),
+                    publicProbe = current.network.publicProbe.copy(
+                        refreshingFamilies = family?.let(::listOf) ?: AddressFamily.entries,
+                    ),
                 ),
             )
         }
@@ -553,7 +555,7 @@ internal class MonitoringRepository(
                     mutableState.update { current ->
                         current.copy(
                             network = current.network.copy(
-                                publicProbe = current.network.publicProbe.copy(refreshing = false),
+                                publicProbe = current.network.publicProbe.copy(refreshingFamilies = emptyList()),
                             ),
                         )
                     }

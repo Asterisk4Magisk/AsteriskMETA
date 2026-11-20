@@ -31,8 +31,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -135,7 +137,7 @@ internal fun NetworkMonitorPage(padding: PaddingValues) {
                 enabled = !refreshing,
             ) {
                 if (refreshing) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.5.dp)
+                    NetworkRefreshIndicator()
                 } else {
                     Icon(Icons.Rounded.Refresh, stringResource(R.string.monitor_refresh))
                 }
@@ -169,26 +171,33 @@ internal fun NetworkMonitorPage(padding: PaddingValues) {
                             val isIpv4 = family == AddressFamily.Ipv4
                             val general = target?.let { strategyProbe.measurement(family, ProbeTarget.General) }
                             val cloudflare = target?.let { strategyProbe.measurement(family, ProbeTarget.Cloudflare) }
+                            val entryRefreshing = family in strategyProbe.entryRefreshingFamilies
                             val familyRefreshing = if (target == null) {
-                                network.publicProbe.refreshing
+                                family in network.publicProbe.refreshingFamilies
                             } else {
-                                strategyProbe.entryRefreshing || general?.refreshing == true || cloudflare?.refreshing == true
+                                entryRefreshing || general?.refreshing == true || cloudflare?.refreshing == true
                             }
-                            PublicAddressFamilyCard(
-                                family = family,
-                                generalResult = general?.displayResult()
-                                    ?: if (isIpv4) network.publicProbe.ipv4 else network.publicProbe.ipv6,
-                                cloudflareResult = cloudflare?.displayResult()
-                                    ?: if (isIpv4) network.publicProbe.cloudflareIpv4 else network.publicProbe.cloudflareIpv6,
-                                entryResults = target?.let { strategyProbe.entry(family).orEmpty() },
-                                entryRefreshing = strategyProbe.entryRefreshing,
-                                refreshing = familyRefreshing,
-                                onCopy = ::copy,
-                                onRetry = {
-                                    if (target == null) services.monitoring.refreshPublicNetworkProbe(family)
-                                    else refreshStrategy(family)
-                                },
-                            )
+                            key(strategyProbe, family) {
+                                PublicAddressFamilyCard(
+                                    family = family,
+                                    results = AddressFamilyProbeResults(
+                                        general = general?.displayResult()
+                                            ?: if (isIpv4) network.publicProbe.ipv4 else network.publicProbe.ipv6,
+                                        cloudflare = cloudflare?.displayResult()
+                                            ?: if (isIpv4) network.publicProbe.cloudflareIpv4 else network.publicProbe.cloudflareIpv6,
+                                        entries = target?.let { strategyProbe.entry(family).orEmpty() },
+                                    ),
+                                    entryRefreshing = entryRefreshing,
+                                    refreshing = familyRefreshing,
+                                    retryEnabled = if (target == null) !network.publicProbe.refreshing
+                                        else strategyProbe.entryRefreshingFamilies.isEmpty(),
+                                    onCopy = ::copy,
+                                    onRetry = {
+                                        if (target == null) services.monitoring.refreshPublicNetworkProbe(family)
+                                        else refreshStrategy(family)
+                                    },
+                                )
+                            }
                         }
                     }
                 }
@@ -241,24 +250,45 @@ internal fun NetworkMonitorPage(padding: PaddingValues) {
 }
 
 @Composable
+private fun NetworkRefreshIndicator() {
+    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.5.dp)
+}
+
+@Composable
 private fun ProxyIpProbeState.Measurement.displayResult(): PublicAddressProbeResult = result.copy(
     errorMessage = message?.let { stringResource(it) }.orEmpty(),
 )
 
+private data class AddressFamilyProbeResults(
+    val general: PublicAddressProbeResult,
+    val cloudflare: PublicAddressProbeResult,
+    val entries: List<PublicAddressProbeResult>?,
+) {
+    val hasRetryableError: Boolean
+        get() = general.hasRetryableError || cloudflare.hasRetryableError ||
+            entries?.any { it.hasRetryableError } == true
+}
+
 @Composable
 private fun PublicAddressFamilyCard(
     family: AddressFamily,
-    generalResult: PublicAddressProbeResult,
-    cloudflareResult: PublicAddressProbeResult,
-    entryResults: List<PublicAddressProbeResult>?,
+    results: AddressFamilyProbeResults,
     entryRefreshing: Boolean,
     refreshing: Boolean,
+    retryEnabled: Boolean,
     onCopy: (String, String) -> Unit,
     onRetry: () -> Unit,
 ) {
     val familyLabel = stringResource(
         if (family == AddressFamily.Ipv4) R.string.common_ipv4 else R.string.common_ipv6
     )
+    // Keep the full card steady until all requests for this family finish.
+    var settledResults by remember { mutableStateOf(results) }
+    if (!refreshing) SideEffect { settledResults = results }
+    val retrying = refreshing && settledResults.hasRetryableError
+    val displayed = if (retrying) settledResults else results
+    val (generalResult, cloudflareResult, entryResults) = displayed
+    val waitingForEntry = entryRefreshing && !retrying
     Card(
         // Nested inside MonitoringSectionCard, so it stays one step below it.
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
@@ -278,16 +308,20 @@ private fun PublicAddressFamilyCard(
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
-                if (generalResult.hasRetryableError || cloudflareResult.hasRetryableError ||
-                    entryResults?.any { it.hasRetryableError } == true
-                ) {
+                if (displayed.hasRetryableError) {
                     // Keep the retry button's touch target without changing the title row height.
                     Box(
                         modifier = Modifier.matchParentSize()
                             .wrapContentSize(Alignment.CenterEnd, unbounded = true),
                     ) {
-                        TextButton(onClick = onRetry, enabled = !refreshing) {
-                            Text(stringResource(R.string.common_retry))
+                        if (retrying) {
+                            Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                                NetworkRefreshIndicator()
+                            }
+                        } else {
+                            TextButton(onClick = onRetry, enabled = retryEnabled && !refreshing) {
+                                Text(stringResource(R.string.common_retry))
+                            }
                         }
                     }
                 }
@@ -302,7 +336,7 @@ private fun PublicAddressFamilyCard(
                 )
             } else {
                 val entries = entryResults.ifEmpty {
-                    listOfNotNull(generalResult.takeIf { !entryRefreshing && it.address.isNotBlank() })
+                    listOfNotNull(generalResult.takeIf { !waitingForEntry && it.address.isNotBlank() })
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     Column(
@@ -312,7 +346,7 @@ private fun PublicAddressFamilyCard(
                         ProbeSectionTitle(stringResource(R.string.monitor_network_probe_entry))
                         if (entries.isEmpty()) {
                             Text(
-                                text = if (entryRefreshing) "—" else stringResource(R.string.monitor_network_probe_entry_empty),
+                                text = if (waitingForEntry) "—" else stringResource(R.string.monitor_network_probe_entry_empty),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )

@@ -100,11 +100,11 @@ internal class ProxyIpProbeState {
     private val jobs = mutableMapOf<Pair<AddressFamily, ProbeTarget>, Job>()
     private var entryMeasurements by mutableStateOf(emptyMap<AddressFamily, List<PublicAddressProbeResult>>())
     private var entryJob: Job? = null
-    var entryRefreshing by mutableStateOf(false)
+    var entryRefreshingFamilies by mutableStateOf(emptyList<AddressFamily>())
         private set
 
     val refreshing: Boolean
-        get() = entryRefreshing || measurements.values.any { it.refreshing }
+        get() = entryRefreshingFamilies.isNotEmpty() || measurements.values.any { it.refreshing }
 
     fun entry(family: AddressFamily): List<PublicAddressProbeResult>? = entryMeasurements[family]
 
@@ -114,7 +114,8 @@ internal class ProxyIpProbeState {
         lookup: suspend () -> List<PublicAddressProbeResult>,
     ) {
         if (entryJob?.isActive == true) return
-        entryRefreshing = true
+        val families = family?.let(::listOf) ?: AddressFamily.entries
+        entryRefreshingFamilies = families
         entryJob = scope.launch {
             try {
                 val results = try {
@@ -127,10 +128,9 @@ internal class ProxyIpProbeState {
                 val byFamily = results.groupBy {
                     if (isIpv4Address(it.address)) AddressFamily.Ipv4 else AddressFamily.Ipv6
                 }
-                val families = family?.let(::listOf) ?: AddressFamily.entries
                 entryMeasurements += families.associateWith { byFamily[it].orEmpty() }
             } finally {
-                entryRefreshing = false
+                entryRefreshingFamilies = emptyList()
             }
         }
     }

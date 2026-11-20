@@ -111,19 +111,22 @@ internal data class PublicNetworkProbeState(
     val ipv6: PublicAddressProbeResult = PublicAddressProbeResult(),
     val cloudflareIpv4: PublicAddressProbeResult = PublicAddressProbeResult(),
     val cloudflareIpv6: PublicAddressProbeResult = PublicAddressProbeResult(),
-    val refreshing: Boolean = false,
-)
+    val refreshingFamilies: List<AddressFamily> = emptyList(),
+) {
+    val refreshing: Boolean
+        get() = refreshingFamilies.isNotEmpty()
+}
 
 internal object PublicNetworkProbeMemoryCache {
     private var state = PublicNetworkProbeState()
     private var lastPageSessionId: String? = null
 
     @Synchronized
-    fun read(): PublicNetworkProbeState = state.copy(refreshing = false)
+    fun read(): PublicNetworkProbeState = state
 
     @Synchronized
     fun write(next: PublicNetworkProbeState) {
-        state = next.copy(refreshing = false)
+        state = next.copy(refreshingFamilies = emptyList())
     }
 
     @Synchronized
@@ -295,12 +298,12 @@ internal fun applyPublicProbeAttempt(
         AddressFamily.Ipv4 -> previous.copy(
             ipv4 = batch.general.toResult(),
             cloudflareIpv4 = batch.cloudflare.toResult(),
-            refreshing = false,
+            refreshingFamilies = emptyList(),
         )
         AddressFamily.Ipv6 -> previous.copy(
             ipv6 = batch.general.toResult(),
             cloudflareIpv6 = batch.cloudflare.toResult(),
-            refreshing = false,
+            refreshingFamilies = emptyList(),
         )
     }
 }
