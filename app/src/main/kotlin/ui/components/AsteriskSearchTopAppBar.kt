@@ -94,8 +94,7 @@ internal fun AsteriskSearchTopAppBar(
                 if (searchSettled && searchActive && searchAvailable) focusRequester.requestFocus()
             }
             AsteriskTopAppBar(
-                // Keep the translucent field above the backdrop's fading edge.
-                modifier = modifier.padding(bottom = TopBarEdgeFade),
+                modifier = modifier,
                 scrollBehavior = scrollBehavior,
                 navigationIcon = {
                     IconButton(onClick = { closeSearch() }) {
@@ -106,7 +105,12 @@ internal fun AsteriskSearchTopAppBar(
                     }
                 },
                 title = {
-                    searchField(Modifier.fillMaxWidth().focusRequester(focusRequester))
+                    searchField(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(end = 8.dp)
+                            .focusRequester(focusRequester),
+                    )
                 },
             )
         } else {
@@ -138,6 +142,8 @@ private fun AsteriskSearchTopBarTransition(
     val transition = updateTransition(targetState = searchActive, label = "search-top-bar")
     val searchSettled = transition.currentState && transition.targetState && !transition.isRunning
     transition.AnimatedContent(
+        // Reserve the feathered backdrop in both states so search does not move the page.
+        modifier = Modifier.padding(bottom = TopBarEdgeFade),
         transitionSpec = { fadeTransition().using(null) },
     ) { showSearch ->
         content(showSearch, searchSettled)
