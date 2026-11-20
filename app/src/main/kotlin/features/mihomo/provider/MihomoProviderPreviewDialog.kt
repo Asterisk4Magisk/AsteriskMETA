@@ -118,9 +118,9 @@ private fun ProviderPreviewBinaryContent(
             .fillMaxSize()
             .verticalScroll(rememberScrollState()),
     ) {
-        AsteriskStatusCard(status = metadata.takeIf { it.isNotBlank() }) {
+        AsteriskStatusCard {
             Column(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
@@ -136,6 +136,14 @@ private fun ProviderPreviewBinaryContent(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                 )
+                if (metadata.isNotBlank()) {
+                    Text(
+                        text = metadata,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                    )
+                }
                 val lastError = content?.lastError.orEmpty()
                 if (lastError.isNotBlank()) {
                     Text(

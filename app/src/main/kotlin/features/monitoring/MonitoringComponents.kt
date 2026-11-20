@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.LocalNavigator
 import app.R
@@ -133,12 +134,14 @@ internal fun MonitoringStatusHeader(
     controls: @Composable RowScope.() -> Unit = {},
     metrics: @Composable RowScope.() -> Unit = {},
     titleAction: @Composable ((Modifier) -> Unit)? = null,
+    statusRowOffset: Dp = 0.dp,
 ) {
     AsteriskStatusCard(
         modifier = modifier,
         status = summary,
         compactStatus = compactStatus,
         controls = controls,
+        statusRowOffset = statusRowOffset,
     ) {
         AsteriskStatusCardHeader(action = titleAction) {
             Text(

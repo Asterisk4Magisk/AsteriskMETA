@@ -417,6 +417,7 @@ private fun ConnectionsMonitorStatus(
         value = state.activeCount?.toString() ?: "—",
         summary = summary,
         modifier = ContentWidthModifier,
+        statusRowOffset = 4.dp,
         titleAction = { buttonModifier ->
             IconButton(onClick = onTogglePaused, modifier = buttonModifier) {
                 Icon(

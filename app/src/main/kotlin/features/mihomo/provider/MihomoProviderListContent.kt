@@ -12,9 +12,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -35,6 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -180,61 +183,16 @@ private fun ProxyProviderStatusCard(
     state: ProxyProviderFocusState,
     modifier: Modifier = Modifier,
 ) {
-    val title = stringResource(
-        when (state.readiness) {
-            ProviderReadiness.Loading -> R.string.mihomo_provider_focus_loading
-            ProviderReadiness.Ready -> R.string.mihomo_provider_focus_ready
-            ProviderReadiness.Empty -> R.string.mihomo_provider_focus_empty
-            ProviderReadiness.Error -> R.string.mihomo_provider_focus_error
-        },
-    )
-    val updated = if (state.updatedAtMillis > 0L) {
-        stringResource(
-            R.string.mihomo_provider_focus_updated,
-            state.updatedAtMillis.toReadableDateTimeOrDash(),
-        )
-    } else {
-        null
-    }
-    AsteriskStatusCard(
+    ProviderStatusCard(
+        icon = Icons.Rounded.CloudSync,
+        readiness = state.readiness,
+        providerCount = state.providerCount,
+        readyCount = state.readyCount,
+        status = providerUpdatedStatus(state.updatedAtMillis),
+        count = stringResource(R.string.mihomo_provider_proxies_count)
+            .formatTemplate("count" to state.nodeCount),
         modifier = modifier,
-        status = updated,
-        controls = {
-            Text(
-                text = stringResource(R.string.mihomo_provider_proxies_count)
-                    .formatTemplate("count" to state.nodeCount),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-            )
-        },
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.CloudSync,
-                contentDescription = null,
-                modifier = Modifier.size(24.dp),
-                tint = MaterialTheme.colorScheme.primary,
-            )
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.weight(1f),
-            )
-            AsteriskInfoChip(
-                text = pluralStringResource(
-                    R.plurals.mihomo_provider_focus_progress,
-                    state.readyCount,
-                    state.readyCount,
-                    state.providerCount,
-                ),
-            )
-        }
-    }
+    )
 }
 
 @Composable
@@ -247,12 +205,51 @@ private fun RuleProviderStatusCard(
     modifier: Modifier = Modifier,
 ) {
     val runtimeIncomplete = !loading && providerCount > 0 && summaries.size < providerCount
+    val retryAvailable = error.isNotBlank() || runtimeIncomplete
     val readiness = when {
-        error.isNotBlank() || runtimeIncomplete -> ProviderReadiness.Error
+        retryAvailable -> ProviderReadiness.Error
         loading -> ProviderReadiness.Loading
         providerCount == 0 -> ProviderReadiness.Empty
         else -> ProviderReadiness.Ready
     }
+    val updatedAtMillis = summaries.maxOfOrNull(MihomoRuleProviderRuntimeSummary::updatedAtMillis) ?: 0L
+    val ruleCount = summaries.sumOf(MihomoRuleProviderRuntimeSummary::ruleCount)
+    ProviderStatusCard(
+        icon = Icons.Rounded.Description,
+        readiness = readiness,
+        providerCount = providerCount,
+        readyCount = summaries.size.coerceAtMost(providerCount),
+        status = if (retryAvailable) {
+            stringResource(R.string.mihomo_rule_provider_runtime_unavailable)
+        } else {
+            providerUpdatedStatus(updatedAtMillis)
+        },
+        count = pluralStringResource(R.plurals.mihomo_rule_provider_rules_count, ruleCount, ruleCount),
+        modifier = modifier,
+        onRetry = onRetry.takeIf { retryAvailable },
+    )
+}
+
+@Composable
+private fun providerUpdatedStatus(updatedAtMillis: Long): String? {
+    if (updatedAtMillis <= 0L) return null
+    return stringResource(
+        R.string.mihomo_provider_focus_updated,
+        updatedAtMillis.toReadableDateTimeOrDash(),
+    )
+}
+
+@Composable
+private fun ProviderStatusCard(
+    icon: ImageVector,
+    readiness: ProviderReadiness,
+    providerCount: Int,
+    readyCount: Int,
+    status: String?,
+    count: String,
+    modifier: Modifier = Modifier,
+    onRetry: (() -> Unit)? = null,
+) {
     val title = stringResource(
         when (readiness) {
             ProviderReadiness.Loading -> R.string.mihomo_provider_focus_loading
@@ -261,35 +258,29 @@ private fun RuleProviderStatusCard(
             ProviderReadiness.Error -> R.string.mihomo_provider_focus_error
         },
     )
-    val updatedAtMillis = summaries.maxOfOrNull(MihomoRuleProviderRuntimeSummary::updatedAtMillis) ?: 0L
-    val status = when {
-        error.isNotBlank() || runtimeIncomplete -> stringResource(R.string.mihomo_rule_provider_runtime_unavailable)
-        updatedAtMillis > 0L -> stringResource(
-            R.string.mihomo_provider_focus_updated,
-            updatedAtMillis.toReadableDateTimeOrDash(),
-        )
-        else -> null
-    }
-    val readyCount = summaries.size.coerceAtMost(providerCount)
-    val ruleCount = summaries.sumOf(MihomoRuleProviderRuntimeSummary::ruleCount)
     AsteriskStatusCard(
         modifier = modifier,
         status = status,
+        compactStatus = true,
         controls = {
-            Text(
-                text = pluralStringResource(
-                    R.plurals.mihomo_rule_provider_rules_count,
-                    ruleCount,
-                    ruleCount,
-                ),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-            )
-            if (error.isNotBlank() || runtimeIncomplete) {
-                TextButton(onClick = onRetry) {
+            if (onRetry != null) {
+                TextButton(
+                    onClick = onRetry,
+                    // Keep the retry button centered without making the compact row taller.
+                    modifier = Modifier
+                        .align(Alignment.CenterVertically)
+                        .height(ProviderStatusRowHeight)
+                        .wrapContentHeight(unbounded = true),
+                ) {
                     Text(stringResource(R.string.common_retry))
                 }
             }
+            Text(
+                text = count,
+                modifier = Modifier.heightIn(min = ProviderStatusRowHeight).alignByBaseline(),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
         },
     ) {
         Row(
@@ -298,7 +289,7 @@ private fun RuleProviderStatusCard(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
-                imageVector = Icons.Rounded.Description,
+                imageVector = icon,
                 contentDescription = null,
                 modifier = Modifier.size(24.dp),
                 tint = MaterialTheme.colorScheme.primary,
@@ -320,6 +311,8 @@ private fun RuleProviderStatusCard(
         }
     }
 }
+
+private val ProviderStatusRowHeight = 24.dp
 
 @Composable
 private fun MihomoProxyProviderCard(

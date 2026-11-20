@@ -21,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -29,6 +30,7 @@ internal fun AsteriskStatusCard(
     status: String? = null,
     compactStatus: Boolean = false,
     controls: @Composable RowScope.() -> Unit = EmptyStatusCardControls,
+    statusRowOffset: Dp = 0.dp,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     AsteriskPageCard(modifier = modifier.fillMaxWidth()) {
@@ -39,7 +41,10 @@ internal fun AsteriskStatusCard(
             content()
             if (status != null || controls !== EmptyStatusCardControls) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().heightIn(min = if (compactStatus) 0.dp else 40.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = if (compactStatus) 0.dp else 40.dp)
+                        .offset(y = statusRowOffset),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = if (compactStatus) Alignment.Bottom else Alignment.CenterVertically,
                 ) {
@@ -48,7 +53,11 @@ internal fun AsteriskStatusCard(
                     } else {
                         Text(
                             text = status,
-                            modifier = Modifier.weight(1f),
+                            modifier = if (compactStatus) {
+                                Modifier.weight(1f).alignByBaseline()
+                            } else {
+                                Modifier.weight(1f)
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
