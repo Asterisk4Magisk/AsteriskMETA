@@ -76,40 +76,50 @@ internal fun String.hasMihomoProviders(): Boolean {
     }
 }
 
-internal fun Map<String, Any?>.mihomoProxyServer(
+internal fun Map<String, Any?>.mihomoProxyServers(
     nodeName: String,
     providerName: String?,
     dataDir: File,
     rootRuntime: Boolean,
     profileAgeSecretKey: String,
-): String? {
-    if (providerName == null) return mihomoServerIn(this["proxies"], nodeName)
+): List<String> {
+    if (providerName == null) return mihomoServersIn(this["proxies"], nodeName)
     val provider = this["proxy-providers"].asProviderMap()[providerName]
         .asProviderMap().normalizedProviderMap()
     val override = provider["override"].asProviderMap()
     // A provider expression can alter both the address and the node identity.
-    if ("override-expr" in override || "proxy-name" in override) return null
+    if ("override-expr" in override || "proxy-name" in override) return emptyList()
     val prefix = override["additional-prefix"] as? String ?: ""
     val suffix = override["additional-suffix"] as? String ?: ""
     if (!nodeName.startsWith(prefix) || !nodeName.endsWith(suffix) || nodeName.length <= prefix.length + suffix.length) {
-        return null
+        return emptyList()
     }
     val originalName = nodeName.removeSurrounding(prefix, suffix)
-    if (provider["type"] == "inline") return mihomoServerIn(provider["payload"], originalName)
+    if (provider["type"] == "inline") return mihomoServersIn(provider["payload"], originalName)
     val root = dataDir.canonicalFile.toPath()
     val file = provider.providerFileCandidates(dataDir, MihomoProviderType.Proxy, rootRuntime)
         .map { it.canonicalFile }
-        .firstOrNull { it.toPath().startsWith(root) && it.isFile } ?: return null
+        .firstOrNull { it.toPath().startsWith(root) && it.isFile } ?: return emptyList()
     val key = provider["age-secret-key"].asProviderTextOrNull() ?: profileAgeSecretKey
     val content = MihomoBridge.decryptAge(file.readText(), key.takeIf(String::isNotBlank))
-    return mihomoServerIn(content.loadMihomoProfileObject()?.get("proxies"), originalName)
+    val proxies = runCatching { content.loadMihomoProfileObject()?.get("proxies") }.getOrNull()
+    return if (proxies != null) {
+        mihomoServersIn(proxies, originalName)
+    } else {
+        listOfNotNull(content.mihomoProviderShareLinkServer(originalName))
+    }
 }
 
-private fun mihomoServerIn(proxies: Any?, nodeName: String): String? =
-    (proxies as? List<*>).orEmpty().asSequence()
+private fun mihomoServersIn(proxies: Any?, nodeName: String): List<String> {
+    val proxy = (proxies as? List<*>).orEmpty().asSequence()
         .map { it.asProviderMap().normalizedProviderMap() }
-        .firstOrNull { it["name"] == nodeName }
-        ?.get("server").asProviderTextOrNull()
+        .firstOrNull { it["name"] == nodeName } ?: return emptyList()
+    val peers = proxy["peers"] as? List<*>
+    if (proxy["type"] == "wireguard" && !peers.isNullOrEmpty()) {
+        return peers.mapNotNull { it.asProviderMap()["server"].asProviderTextOrNull() }.distinct()
+    }
+    return listOfNotNull(proxy["server"].asProviderTextOrNull())
+}
 
 internal fun String.mihomoRemoteProviderFiles(
     dataDir: File,

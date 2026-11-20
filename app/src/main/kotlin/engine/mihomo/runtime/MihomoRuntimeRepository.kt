@@ -11,7 +11,7 @@ import app.modes.RunModeVpnService
 import app.modes.isRootRunMode
 import engine.mihomo.hasUsableMihomoProfile
 import engine.mihomo.loadMihomoProfileObject
-import engine.mihomo.mihomoProxyServer
+import engine.mihomo.mihomoProxyServers
 import engine.mihomo.mihomoLogLevelName
 import engine.mihomo.mihomoControlConfig
 import engine.mihomo.mihomoControllerSocket
@@ -622,13 +622,13 @@ internal class MihomoRuntimeRepository(
             if (node.fallbackGroupName != null) return@withContext emptyList()
             val file = publishedProfileFile()
             val profile = file.readText().loadMihomoProfileObject() ?: return@withContext emptyList()
-            listOfNotNull(profile.mihomoProxyServer(
+            profile.mihomoProxyServers(
                 nodeName = node.name,
                 providerName = node.providerName,
                 dataDir = checkNotNull(file.parentFile),
                 rootRuntime = appState.runMode.isRootRunMode(),
                 profileAgeSecretKey = appState.selectedMihomoProfileOrNull()?.ageSecretKey.orEmpty(),
-            ))
+            )
         }
 
     suspend fun probeProxyIp(appState: AppState, request: ProxyIpProbeRequest): ProxyIpProbeResponse =
