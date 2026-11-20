@@ -7,6 +7,8 @@ import engine.network.withProxyAuthenticator
 import engine.network.ProxyCredentials
 import engine.network.isIpv4Address
 import engine.network.isIpv6Address
+import engine.proxy.LocalProxyLoopbackAddress
+import engine.proxy.LocalProxyRuntime
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.LinkProperties
@@ -26,6 +28,7 @@ import java.net.HttpURLConnection
 import java.net.Inet4Address
 import java.net.Inet6Address
 import java.net.InetAddress
+import java.net.InetSocketAddress
 import java.net.Proxy
 import java.net.URI
 import java.util.concurrent.atomic.AtomicReference
@@ -36,6 +39,7 @@ import kotlin.time.Duration.Companion.milliseconds
 internal class AndroidNetworkMonitor(context: Context) {
     private val connectivityManager = context.applicationContext.getSystemService(ConnectivityManager::class.java)
     private val networks = AndroidNetworks.get(context)
+    private val entryProbeClient = PublicNetworkProbeClient(proxyProvider = ::resolveEntryProbeProxy)
 
     fun snapshot(): LocalNetworkSnapshot {
         return connectivityManager.readLocalNetworkSnapshot(networks.snapshot())
@@ -60,11 +64,22 @@ internal class AndroidNetworkMonitor(context: Context) {
                 family == null || (address is Inet4Address) == (family == AddressFamily.Ipv4)
             }
         }
-        val client = PublicNetworkProbeClient()
         return coroutineScope {
-            addresses.map { address -> async { client.lookupOwnership(address) } }.awaitAll()
+            addresses.map { address -> async { entryProbeClient.lookupOwnership(address) } }.awaitAll()
         }
     }
+}
+
+private fun resolveEntryProbeProxy(): PublicProbeProxy {
+    val options = LocalProxyRuntime.current() ?: return PublicProbeProxy(proxy = Proxy.NO_PROXY)
+    val host = LocalProxyLoopbackAddress
+    return PublicProbeProxy(
+        proxy = Proxy(Proxy.Type.SOCKS, InetSocketAddress(host, options.port)),
+        host = host,
+        port = options.port,
+        username = options.username,
+        password = options.password,
+    )
 }
 
 internal data class PublicProbeProxy(
