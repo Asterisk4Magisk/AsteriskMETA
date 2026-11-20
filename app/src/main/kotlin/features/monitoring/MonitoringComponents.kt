@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import app.LocalNavigator
 import app.R
 import ui.components.AsteriskStatusCard
+import ui.components.AsteriskStatusCardHeader
 import ui.components.AsteriskValueRow
 import ui.icons.AsteriskIcons as Icons
 
@@ -131,6 +132,7 @@ internal fun MonitoringStatusHeader(
     compactStatus: Boolean = false,
     controls: @Composable RowScope.() -> Unit = {},
     metrics: @Composable RowScope.() -> Unit = {},
+    titleAction: @Composable ((Modifier) -> Unit)? = null,
 ) {
     AsteriskStatusCard(
         modifier = modifier,
@@ -138,11 +140,13 @@ internal fun MonitoringStatusHeader(
         compactStatus = compactStatus,
         controls = controls,
     ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        AsteriskStatusCardHeader(action = titleAction) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,

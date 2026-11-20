@@ -15,7 +15,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -33,8 +33,10 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -215,22 +217,6 @@ internal fun ConnectionsMonitorPage(padding: PaddingValues) {
         title = stringResource(R.string.monitor_connections_title),
         outerPadding = padding,
         actions = {
-            IconButton(
-                onClick = {
-                    if (!paused) {
-                        frozenConnections = connections
-                        frozenPageSnapshot = pageSnapshot
-                    }
-                    paused = !paused
-                },
-            ) {
-                Icon(
-                    imageVector = if (paused) Icons.Rounded.PlayArrow else Icons.Rounded.Pause,
-                    contentDescription = stringResource(
-                        if (paused) R.string.monitor_connections_resume else R.string.monitor_connections_pause,
-                    ),
-                )
-            }
             Box {
                 IconButton(
                     onClick = { showMenu = true },
@@ -282,6 +268,13 @@ internal fun ConnectionsMonitorPage(padding: PaddingValues) {
                         ),
                     ),
                     paused = paused,
+                    onTogglePaused = {
+                        if (!paused) {
+                            frozenConnections = connections
+                            frozenPageSnapshot = pageSnapshot
+                        }
+                        paused = !paused
+                    },
                     showClosed = showClosed,
                     onShowClosedChange = { showClosed = it; selected = null },
                 )
@@ -393,6 +386,7 @@ internal fun ConnectionsMonitorPage(padding: PaddingValues) {
 private fun ConnectionsMonitorStatus(
     state: MonitoringConnectionsFocusState,
     paused: Boolean,
+    onTogglePaused: () -> Unit,
     showClosed: Boolean,
     onShowClosedChange: (Boolean) -> Unit,
 ) {
@@ -423,26 +417,41 @@ private fun ConnectionsMonitorStatus(
         value = state.activeCount?.toString() ?: "—",
         summary = summary,
         modifier = ContentWidthModifier,
+        titleAction = { buttonModifier ->
+            IconButton(onClick = onTogglePaused, modifier = buttonModifier) {
+                Icon(
+                    imageVector = if (paused) Icons.Rounded.PlayArrow else Icons.Rounded.Pause,
+                    contentDescription = stringResource(
+                        if (paused) R.string.monitor_connections_resume else R.string.monitor_connections_pause,
+                    ),
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
         controls = {
-            TextButton(
-                onClick = { showStateMenu = true },
-                modifier = Modifier.heightIn(min = 48.dp),
-            ) {
-                Text(text = if (showClosed) closedLabel else activeLabel, maxLines = 1)
-                Spacer(Modifier.width(4.dp))
-                AsteriskDropdownAnchor(
-                    expanded = showStateMenu,
-                    onDismissRequest = { showStateMenu = false },
+            CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 40.dp) {
+                TextButton(
+                    onClick = { showStateMenu = true },
+                    // Align the arrow with the header icon while keeping the button padding symmetric.
+                    modifier = Modifier.offset(x = 12.dp),
                 ) {
-                    listOf(false, true).forEach { closed ->
-                        AsteriskDropdownMenuItem(
-                            text = if (closed) closedLabel else activeLabel,
-                            selected = closed == showClosed,
-                            onClick = {
-                                showStateMenu = false
-                                onShowClosedChange(closed)
-                            },
-                        )
+                    Text(text = if (showClosed) closedLabel else activeLabel, maxLines = 1)
+                    Spacer(Modifier.width(4.dp))
+                    AsteriskDropdownAnchor(
+                        expanded = showStateMenu,
+                        onDismissRequest = { showStateMenu = false },
+                    ) {
+                        listOf(false, true).forEach { closed ->
+                            AsteriskDropdownMenuItem(
+                                text = if (closed) closedLabel else activeLabel,
+                                selected = closed == showClosed,
+                                onClick = {
+                                    showStateMenu = false
+                                    onShowClosedChange(closed)
+                                },
+                            )
+                        }
                     }
                 }
             }

@@ -4,6 +4,7 @@
 package ui.components
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -11,7 +12,10 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -53,6 +57,32 @@ internal fun AsteriskStatusCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+internal fun AsteriskStatusCardHeader(
+    action: @Composable ((Modifier) -> Unit)?,
+    content: @Composable RowScope.() -> Unit,
+) {
+    if (action == null) {
+        Row(content = content)
+        return
+    }
+    // Shift the button and its touch target together, with the title staying at the card inset.
+    Box(modifier = Modifier.fillMaxWidth().offset(x = 12.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().offset(x = (-12).dp).padding(end = 48.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            content = content,
+        )
+        action(
+            Modifier
+                .matchParentSize()
+                .wrapContentSize(Alignment.CenterEnd, unbounded = true)
+                .size(48.dp),
+        )
     }
 }
 
