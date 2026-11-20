@@ -757,14 +757,14 @@ private fun connectionSortLabel(sort: ConnectionSort): String = stringResource(
 )
 
 private fun formatConnectionRate(connection: MihomoConnection): String {
-    val down = connection.downloadBytesPerSecond
     val up = connection.uploadBytesPerSecond
-    return formatRatePair(down, up)
+    val down = connection.downloadBytesPerSecond
+    return formatRatePair(upload = up, download = down)
 }
 
-private fun formatRatePair(download: Long?, upload: Long?): String {
-    if (download == null && upload == null) return "—"
-    return "↓ ${(download ?: 0L).toReadableBytes()}/s · ↑ ${(upload ?: 0L).toReadableBytes()}/s"
+private fun formatRatePair(upload: Long?, download: Long?): String {
+    if (upload == null && download == null) return "—"
+    return "↑ ${(upload ?: 0L).toReadableBytes()}/s · ↓ ${(download ?: 0L).toReadableBytes()}/s"
 }
 
 private fun formatDuration(startedAtMillis: Long?, endedAtMillis: Long? = null): String {
