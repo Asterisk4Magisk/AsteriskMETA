@@ -889,7 +889,15 @@ private fun MihomoProxyGroupCard(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = "${group.type.displayMihomoProtocolName()} · ${group.all.size}",
+                    text = if (testing && testingTotal > 0) {
+                        stringResource(
+                            R.string.mihomo_proxies_delay_testing_progress,
+                            testingCompleted.coerceAtMost(testingTotal),
+                            testingTotal,
+                        )
+                    } else {
+                        "${group.type.displayMihomoProtocolName()} · ${group.all.size}"
+                    },
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -913,19 +921,7 @@ private fun MihomoProxyGroupCard(
                 }
                 Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
                     if (testing) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                            if (testingTotal > 0) {
-                                Text(
-                                    text = stringResource(
-                                        R.string.mihomo_proxies_delay_testing_progress,
-                                        testingCompleted.coerceAtMost(testingTotal),
-                                        testingTotal,
-                                    ),
-                                    style = MaterialTheme.typography.labelSmall,
-                                )
-                            }
-                        }
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
                     } else {
                         IconButton(onClick = onDelayTest, enabled = delayTestEnabled) {
                             Icon(Icons.Rounded.Speed, stringResource(R.string.mihomo_proxies_group_test))

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -153,6 +154,7 @@ internal fun ResourceOverviewCard(
             TextButton(
                 onClick = { sourceMenuExpanded = true },
                 enabled = actionsEnabled && !updating,
+                modifier = Modifier.offset(x = 12.dp),
             ) {
                 Text(stringResource(R.string.settings_resource_files_source))
                 Spacer(Modifier.width(4.dp))

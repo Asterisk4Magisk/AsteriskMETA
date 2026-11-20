@@ -6,15 +6,18 @@ package features.monitoring.network
 import android.content.ClipData
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -265,10 +268,9 @@ private fun PublicAddressFamilyCard(
             modifier = Modifier.fillMaxWidth().padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
+            Box(
+                modifier = Modifier.fillMaxWidth().heightIn(min = 28.dp),
+                contentAlignment = Alignment.CenterStart,
             ) {
                 Text(
                     text = familyLabel,
@@ -279,11 +281,14 @@ private fun PublicAddressFamilyCard(
                 if (generalResult.hasRetryableError || cloudflareResult.hasRetryableError ||
                     entryResults?.any { it.hasRetryableError } == true
                 ) {
-                    TextButton(
-                        onClick = onRetry,
-                        enabled = !refreshing,
+                    // Keep the retry button's touch target without changing the title row height.
+                    Box(
+                        modifier = Modifier.matchParentSize()
+                            .wrapContentSize(Alignment.CenterEnd, unbounded = true),
                     ) {
-                        Text(stringResource(R.string.common_retry))
+                        TextButton(onClick = onRetry, enabled = !refreshing) {
+                            Text(stringResource(R.string.common_retry))
+                        }
                     }
                 }
             }
