@@ -105,14 +105,9 @@ internal class AndroidResourceFileStore(
 
     fun replace(kind: ResourceFileKind, uri: Uri) {
         require(kind != ResourceFileKind.MihomoCore) { "${BundledCore.displayName} core must be replaced through the locked publisher" }
-        dataDir.mkdirs()
-        val replaceTempFile = file(kind).resolveSibling("${kind.fileName}.replace.tmp")
         appContext.contentResolver.openInputStream(uri)?.use { input ->
-            replaceTempFile.outputStream().use { output -> input.copyTo(output) }
+            writeAtomically(file(kind)) { output -> input.copyTo(output) }
         } ?: throw FileNotFoundException(uri.toString())
-
-        replaceFile(replaceTempFile, file(kind))
-        kind.applyPermissions(file(kind))
     }
 
     fun stageMihomoCoreCandidate(uri: Uri): File {
@@ -326,22 +321,6 @@ private fun File.extractGzip(target: File): Boolean {
     }.onFailure { error ->
         AndroidResourceFileLogger.warn("Failed to extract gzip $absolutePath", error)
     }.getOrDefault(false)
-}
-
-private fun replaceFile(source: File, target: File) {
-    if (source.length() <= 0) {
-        source.delete()
-        error("${target.name} is empty")
-    }
-    if (target.exists()) {
-        target.delete()
-    }
-    if (!source.renameTo(target)) {
-        source.inputStream().use { input ->
-            writeAtomically(target) { output -> input.copyTo(output) }
-        }
-        source.delete()
-    }
 }
 
 private fun ResourceFileKind.applyPermissions(file: File) {

@@ -35,6 +35,7 @@ import app.ResourceFileKind
 import features.resources.runtime.managedByCurrentCore
 import app.ResourceFilesStatus
 import app.collectAppState
+import app.navigation.Route
 import app.resourceFileUpdateSource
 import app.statusOf
 import kotlinx.coroutines.CompletableDeferred
@@ -265,6 +266,11 @@ fun ResourceManagementPage(
                             ResourceFileUpdateTarget.BuiltIn(kind),
                         ),
                         actionsEnabled = !resourceActionRunning,
+                        onModify = if (kind.isDirectCidrResource() && status.statusOf(kind).exists) {
+                            { navigator.push(Route.ResourceCidrEdit(kind)) }
+                        } else {
+                            null
+                        },
                         onUpdate = { updateResourceFile(kind) },
                         onReplace = {
                             runResourceFileAction(

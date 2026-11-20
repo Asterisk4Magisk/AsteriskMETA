@@ -30,6 +30,12 @@ class ResourceFileUseCase(
 
     suspend fun hasCustomMihomoCore(): Boolean = repository.hasCustomMihomoCore()
 
+    internal suspend fun readCidrText(kind: ResourceFileKind): String =
+        repository.readCidrText(kind)
+
+    internal suspend fun saveCidrText(kind: ResourceFileKind, original: String, content: String) =
+        repository.saveCidrText(kind, original, content)
+
     suspend fun restoreBundledDefaults(resourceFileSource: Int): ResourceFilesStatus {
         return repository.restoreBundledDefaults(resourceFileSource)
     }

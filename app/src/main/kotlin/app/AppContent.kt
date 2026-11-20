@@ -82,6 +82,7 @@ import features.mihomo.MihomoProxyPage
 import features.mihomo.provider.MihomoProviderManagementPage
 import features.mihomo.provider.MihomoProxyProviderDetailPage
 import features.proxy.app.ProxyAppListPage
+import features.resources.ResourceCidrEditorPage
 import features.resources.ResourceManagementPage
 import features.settings.SettingsPage
 import ui.layout.pageWindowPadding
@@ -198,6 +199,9 @@ fun AppContent(
                 }
                 entry<Route.ResourceManagement> {
                     ResourceManagementPage(padding = padding)
+                }
+                entry<Route.ResourceCidrEdit> { route ->
+                    ResourceCidrEditorPage(padding = padding, kind = route.kind)
                 }
                 entry<Route.ResourceMonitor> {
                     ResourceMonitorPage(padding = padding)

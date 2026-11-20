@@ -21,11 +21,15 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import features.resources.ResourceFileUpdateOptions
+import features.resources.CidrResourceChangedException
+import features.resources.isDirectCidrResource
+import features.resources.requireValidCidrResource
 import engine.root.publication.RootCoreRemovalCommand
 import system.AndroidRootShellGateway
 import system.RootShellGateway
 import system.ShellExecOptions
 import java.io.File
+import utils.writeAtomically
 
 internal class AndroidResourceFileRepository(
     context: Context,
@@ -44,6 +48,23 @@ internal class AndroidResourceFileRepository(
     suspend fun hasCustomMihomoCore(): Boolean = withContext(Dispatchers.IO) {
         store.hasCustomMihomoCore()
     }
+
+    suspend fun readCidrText(kind: ResourceFileKind): String = withContext(Dispatchers.IO) {
+        require(kind.isDirectCidrResource())
+        store.file(kind).readText()
+    }
+
+    suspend fun saveCidrText(kind: ResourceFileKind, original: String, content: String) =
+        withContext(Dispatchers.IO) {
+            requireValidCidrResource(kind, content)
+            val target = store.file(kind)
+            writeAtomically(target) { output ->
+                if (!target.isFile || target.readText() != original) {
+                    throw CidrResourceChangedException(target.name)
+                }
+                output.write(content.toByteArray())
+            }
+        }
 
     suspend fun restoreBundledDefaults(resourceFileSource: Int): ResourceFilesStatus = withContext(Dispatchers.IO) {
         store.restoreBundledDefaults(resourceFileSource)

@@ -186,9 +186,25 @@ internal fun YamlCodeEditor(
 }
 
 @Composable
+internal fun PlainTextCodeEditor(
+    state: MihomoCodeEditorState,
+    modifier: Modifier = Modifier,
+    readOnly: Boolean = false,
+    searchState: AsteriskCodeSearchState? = null,
+) {
+    SoraCodeEditor(
+        state = state,
+        language = null,
+        readOnly = readOnly,
+        searchState = searchState,
+        modifier = modifier,
+    )
+}
+
+@Composable
 private fun SoraCodeEditor(
     state: MihomoCodeEditorState,
-    language: MihomoCodeLanguage,
+    language: MihomoCodeLanguage?,
     readOnly: Boolean,
     modifier: Modifier = Modifier,
     searchState: AsteriskCodeSearchState? = null,
@@ -252,7 +268,7 @@ private fun SoraCodeEditor(
                 },
                 modifier = Modifier.fillMaxSize(),
             )
-            if (!readOnly && showFormatButton) {
+            if (!readOnly && showFormatButton && language != null) {
                 Surface(
                     modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp),
                     shape = AsteriskShapeTokens.InnerContainer,
@@ -360,15 +376,15 @@ private class MihomoSoraEditor(context: Context) : CodeEditor(context) {
         state?.attach(this)
     }
 
-    fun updateLanguage(language: MihomoCodeLanguage) {
+    fun updateLanguage(language: MihomoCodeLanguage?) {
         if (this.language == language) return
         this.language = language
-        setEditorLanguage(MihomoSoraLanguage(language))
+        setEditorLanguage(language?.let(::MihomoSoraLanguage) ?: EmptyLanguage())
     }
 }
 
 private fun MihomoSoraEditor.configure(
-    language: MihomoCodeLanguage,
+    language: MihomoCodeLanguage?,
     colors: CodeEditorColors,
     colorScheme: EditorColorScheme,
 ) {

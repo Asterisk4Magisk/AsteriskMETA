@@ -12,6 +12,7 @@ import features.resources.runtime.managedByCurrentCore
 internal enum class ResourceDisplayAction {
     Update,
     Replace,
+    Modify,
     Restore,
 }
 

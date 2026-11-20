@@ -1056,8 +1056,16 @@
     <string name="settings_resource_files_auto_update_title">资源自动更新</string>
     <string name="settings_resource_files_core_files">核心文件</string>
     <string name="settings_resource_files_files">资源文件</string>
+    <string name="settings_resource_cidr_editor_hint">每行填写一个同地址族的 CIDR，使用 # 添加注释。</string>
+    <string name="settings_resource_cidr_editor_unavailable">此资源文件不可用</string>
+    <string name="settings_resource_cidr_editor_empty">资源文件不能为空白</string>
+    <string name="settings_resource_cidr_editor_invalid_line">第 %1$d 行的 CIDR 格式或地址族不正确</string>
+    <string name="settings_resource_cidr_editor_changed">文件在打开后已发生变化，请重新打开再保存。</string>
+    <string name="settings_resource_cidr_editor_save_failed">无法保存此资源文件</string>
+    <string name="settings_resource_cidr_editor_saved">已保存 %1$s</string>
     <string name="settings_resource_files_last_check">最近检查 {time}</string>
     <string name="settings_resource_files_missing">缺失</string>
+    <string name="settings_resource_files_modify">修改</string>
     <string name="settings_resource_files_overview">资源就绪情况</string>
     <plurals name="settings_resource_files_overview_ready">
         <item quantity="other">%1$d/%2$d 已就绪 · %3$s</item>

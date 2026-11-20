@@ -258,12 +258,14 @@ internal fun ResourceFileCard(
     updateState: ResourceFileUpdateDisplayState = ResourceFileUpdateDisplayState.Idle,
     onUpdate: (() -> Unit)? = null,
     onRestore: (() -> Unit)? = null,
+    onModify: (() -> Unit)? = null,
     description: String? = null,
     actionsEnabled: Boolean = true,
 ) {
     val actions = buildList {
         onUpdate?.let { add(ResourceMenuEntry(ResourceDisplayAction.Update, it)) }
         add(ResourceMenuEntry(ResourceDisplayAction.Replace, onReplace))
+        onModify?.let { add(ResourceMenuEntry(ResourceDisplayAction.Modify, it)) }
         onRestore?.let { add(ResourceMenuEntry(ResourceDisplayAction.Restore, it)) }
     }
     ResourceFileCardSurface(
@@ -430,6 +432,7 @@ private fun ResourceVisualKind.icon(): ImageVector {
 
 private fun ResourceDisplayAction.icon(): ImageVector {
     return when (this) {
+        ResourceDisplayAction.Modify -> Icons.Rounded.Code
         ResourceDisplayAction.Update -> Icons.Rounded.Refresh
         ResourceDisplayAction.Replace -> Icons.Rounded.FileUpload
         ResourceDisplayAction.Restore -> Icons.Rounded.History
@@ -440,6 +443,7 @@ private fun ResourceDisplayAction.icon(): ImageVector {
 private fun ResourceDisplayAction.label(): String {
     return stringResource(
         when (this) {
+            ResourceDisplayAction.Modify -> R.string.settings_resource_files_modify
             ResourceDisplayAction.Update -> R.string.common_update
             ResourceDisplayAction.Replace -> R.string.common_replace
             ResourceDisplayAction.Restore -> R.string.common_restore
