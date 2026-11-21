@@ -12,6 +12,7 @@ import engine.mihomo.raw.loadSelectedRawConfig
 import engine.mihomo.raw.usesRawMihomoConfig
 import engine.mihomo.runtime.MihomoConnection
 import engine.mihomo.runtime.MihomoConnectionsState
+import engine.mihomo.runtime.MihomoRulesState
 import engine.mihomo.runtime.MihomoRuntimeRepository
 import engine.mihomo.runtime.connectionCounts
 import engine.proxy.LocalProxyLoopbackAddress
@@ -169,6 +170,47 @@ internal class MonitoringRepository(
         val result = mihomoRuntime.closeAllConnections(stateStore.state.value)
         if (result.isSuccess) refreshConnections()
         return result
+    }
+
+    suspend fun refreshRules(): Result<Unit> {
+        val appState = stateStore.state.value
+        if (!appState.proxyRunning) {
+            mutableState.update { current ->
+                current.copy(rules = MonitoringRulesSummary(status = ConnectionMonitorStatus.ServiceStopped))
+            }
+            return Result.success(Unit)
+        }
+        mutableState.update { current ->
+            if (current.rules.rules.isEmpty() && current.rules.status != ConnectionMonitorStatus.Loading) {
+                current.copy(rules = current.rules.copy(status = ConnectionMonitorStatus.Loading, error = ""))
+            } else {
+                current
+            }
+        }
+        return mihomoRuntime.getRules(appState)
+            .map { state ->
+                mutableState.update { current ->
+                    current.copy(
+                        rules = MonitoringRulesSummary(
+                            rules = state.rules,
+                            outbounds = state.outbounds,
+                            status = ConnectionMonitorStatus.Available,
+                        ),
+                    )
+                }
+            }
+            .onFailure { error ->
+                if (error is CancellationException) throw error
+                mutableState.update { current ->
+                    current.copy(
+                        rules = current.rules.copy(
+                            status = ConnectionMonitorStatus.Error,
+                            error = error.message.orEmpty(),
+                            stale = current.rules.rules.isNotEmpty(),
+                        ),
+                    )
+                }
+            }
     }
 
     private fun refreshRuntimeSummary(running: Boolean) {

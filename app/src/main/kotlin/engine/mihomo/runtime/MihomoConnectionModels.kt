@@ -3,6 +3,7 @@
 
 package engine.mihomo.runtime
 
+import utils.intValue
 import utils.longValue
 import utils.arrayValue
 import utils.objectValue
@@ -41,6 +42,45 @@ internal data class MihomoConnectionsState(
     val connections: List<MihomoConnection> = emptyList(),
     val updatedAtMillis: Long = 0L,
 )
+
+internal data class MihomoRuleRuntimeItem(
+    val type: String,
+    val payload: String,
+    val proxy: String = "",
+    val ruleCount: Int = 0,
+    val hits: Long = 0L,
+    val lastHitAtMillis: Long? = null,
+    val misses: Long = 0L,
+    val lastMissAtMillis: Long? = null,
+)
+
+internal data class MihomoRulesState(
+    val rules: List<MihomoRuleRuntimeItem> = emptyList(),
+    val outbounds: Map<String, List<MihomoRuleOutbound>> = emptyMap(),
+)
+
+internal fun parseMihomoRulesJson(content: String): List<MihomoRuleRuntimeItem> {
+    val root = ConnectionJson.parseToJsonElement(content) as? JsonObject
+        ?: error("Invalid Mihomo rules response")
+    return root.arrayValue("rules").orEmpty().mapNotNull { element ->
+        val rule = element as? JsonObject ?: return@mapNotNull null
+        // Match statistics live in the nested "extra" object; the top-level "hits" field
+        // only exists on older cores and stays at zero there, so prefer "extra".
+        val extra = rule.objectValue("extra")
+        fun JsonObject.zeroTimeToNull(name: String): Long? =
+            stringValue(name)?.toRfc3339MillisOrNull()?.takeIf { it > 0L }
+        MihomoRuleRuntimeItem(
+            type = rule.stringValue("type").orEmpty(),
+            payload = rule.stringValue("payload").orEmpty(),
+            proxy = rule.stringValue("proxy").orEmpty(),
+            ruleCount = (rule.intValue("size") ?: 0).takeIf { it > 0 } ?: 0,
+            hits = extra?.longValue("hitCount") ?: rule.longValue("hits") ?: 0L,
+            lastHitAtMillis = extra?.zeroTimeToNull("hitAt"),
+            misses = extra?.longValue("missCount") ?: 0L,
+            lastMissAtMillis = extra?.zeroTimeToNull("missAt"),
+        )
+    }
+}
 
 internal fun parseMihomoConnectionsJson(
     content: String,

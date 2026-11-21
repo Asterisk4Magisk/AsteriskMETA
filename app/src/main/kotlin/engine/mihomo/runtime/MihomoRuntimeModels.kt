@@ -84,6 +84,7 @@ internal data class MihomoProxyNode(
     val title: String = id.name,
     val subtitle: String = type,
     val udp: Boolean = false,
+    val icon: String = "",
     val delay: Int? = null,
     val delayStatus: MihomoDelayStatus? = delay?.let { MihomoDelayStatus.Success },
     val delayError: String = "",
@@ -124,6 +125,32 @@ internal data class MihomoProxiesState(
     fun node(name: String): MihomoProxyNode {
         return node(MihomoProxyNodeId(name))
     }
+}
+
+/** One link of a rule's outbound chain: a group or the leaf node, with its icon. */
+internal data class MihomoRuleOutbound(
+    val name: String,
+    val icon: String = "",
+)
+
+/**
+ * Follows a rule policy down its group selection chain, keeping every level so the UI can
+ * show the full path (for example Leak Netfish -> Node Selection -> HK 1). The hop limit
+ * stops selection cycles; the leaf node keeps its own icon.
+ */
+internal fun MihomoProxiesState.resolveRuleOutboundChain(policyName: String): List<MihomoRuleOutbound> {
+    var name = policyName
+    val chain = mutableListOf<MihomoRuleOutbound>()
+    repeat(8) {
+        val group = allGroups.firstOrNull { candidate -> candidate.name == name } ?: return@repeat
+        chain += MihomoRuleOutbound(name, group.icon)
+        val selected = group.now
+        if (selected.isBlank() || selected == name) return chain
+        name = selected
+    }
+    val leafIcon = nodeById[MihomoProxyNodeId(name)]?.icon.orEmpty()
+    chain += MihomoRuleOutbound(name, leafIcon)
+    return chain
 }
 
 /**
