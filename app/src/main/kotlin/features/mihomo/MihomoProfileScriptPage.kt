@@ -93,6 +93,7 @@ import ui.components.AsteriskExtendedFab
 import ui.components.AsteriskListRow
 import ui.layout.pageContentPaddingWithCutout
 import ui.layout.pageListPadding
+import ui.layout.singleColumnPageWidth
 import ui.text.formatTemplate
 import ui.theme.AsteriskMotion
 import ui.theme.ExpressiveShapeRole
@@ -174,7 +175,7 @@ fun MihomoOverrideScriptListPage(
         val listPadding = pageListPadding(contentPadding)
 
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.singleColumnPageWidth().fillMaxSize(),
             contentPadding = listPadding,
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {

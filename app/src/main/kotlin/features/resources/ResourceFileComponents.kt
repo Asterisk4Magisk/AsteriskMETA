@@ -3,6 +3,8 @@
 
 package features.resources
 
+import ui.layout.LocalAdaptiveWindow
+import androidx.compose.ui.platform.LocalDensity
 import ui.components.AsteriskCancelButton
 import ui.components.AsteriskDropdownAnchor
 import ui.components.AsteriskDropdownMenuItem
@@ -95,11 +97,39 @@ internal fun ResourceOverviewCard(
     val sourceText = stringResource(R.string.settings_resource_files_source_value, sourceOptions[safeSource])
     val lastCheckText = stringResource(R.string.settings_resource_files_last_check)
         .formatTemplate("time" to lastUpdatedAtMillis.toReadableDateTimeOrDash())
+    val wideContent = LocalAdaptiveWindow.current.supportsWideContent
+    val inlineSource = wideContent && LocalDensity.current.fontScale <= 1.3f
+    val sourceAction: @Composable (Modifier) -> Unit = { actionModifier ->
+        TextButton(
+            onClick = { sourceMenuExpanded = true },
+            enabled = actionsEnabled && !updating,
+            modifier = actionModifier,
+        ) {
+            Text(stringResource(R.string.settings_resource_files_source))
+            Spacer(Modifier.width(4.dp))
+            AsteriskDropdownAnchor(
+                expanded = sourceMenuExpanded,
+                onDismissRequest = { sourceMenuExpanded = false },
+            ) {
+                sourceOptions.forEachIndexed { index, option ->
+                    AsteriskDropdownMenuItem(
+                        text = option,
+                        selected = index == safeSource,
+                        onClick = {
+                            sourceMenuExpanded = false
+                            onSourceChange(index)
+                        },
+                    )
+                }
+            }
+        }
+    }
     AsteriskStatusCard(
         modifier = modifier,
         status = "$sourceText\n$lastCheckText",
-        statusRowOffset = 3.dp,
+        statusRowOffset = if (wideContent) 0.dp else 3.dp,
         controls = {
+            if (inlineSource) sourceAction(Modifier)
             if (updating) {
                 AsteriskTonalButton(
                     text = stringResource(R.string.common_cancel),
@@ -154,29 +184,9 @@ internal fun ResourceOverviewCard(
         if (updating) {
             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
-        Box(modifier = Modifier.align(Alignment.End)) {
-            TextButton(
-                onClick = { sourceMenuExpanded = true },
-                enabled = actionsEnabled && !updating,
-                modifier = Modifier.offset(x = 12.dp),
-            ) {
-                Text(stringResource(R.string.settings_resource_files_source))
-                Spacer(Modifier.width(4.dp))
-                AsteriskDropdownAnchor(
-                    expanded = sourceMenuExpanded,
-                    onDismissRequest = { sourceMenuExpanded = false },
-                ) {
-                    sourceOptions.forEachIndexed { index, option ->
-                        AsteriskDropdownMenuItem(
-                            text = option,
-                            selected = index == safeSource,
-                            onClick = {
-                                sourceMenuExpanded = false
-                                onSourceChange(index)
-                            },
-                        )
-                    }
-                }
+        if (!inlineSource) {
+            Box(Modifier.align(Alignment.End)) {
+                sourceAction(if (wideContent) Modifier else Modifier.offset(x = 12.dp))
             }
         }
     }

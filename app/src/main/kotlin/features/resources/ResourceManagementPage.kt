@@ -6,7 +6,6 @@ package features.resources
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import ui.components.SectionedLazyColumn
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material3.Icon
@@ -14,13 +13,13 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -32,18 +31,20 @@ import app.LocalNavigator
 import app.LocalUpdateAppState
 import app.R
 import app.ResourceFileKind
-import features.resources.runtime.managedByCurrentCore
 import app.ResourceFilesStatus
 import app.collectAppState
 import app.navigation.Route
 import app.resourceFileUpdateSource
 import app.statusOf
+import features.resources.runtime.managedByCurrentCore
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.launch
 import ui.components.AsteriskScaffold
 import ui.components.AsteriskTopAppBar
+import ui.components.SectionedLazyColumn
 import ui.layout.pageContentPaddingWithCutout
 import ui.layout.pageListPadding
+import ui.layout.pageReadableWidth
 import ui.text.formatTemplate
 import kotlin.coroutines.cancellation.CancellationException
 import ui.icons.AsteriskIcons as Icons
@@ -189,8 +190,81 @@ fun ResourceManagementPage(
             isWideScreen = isWideScreen,
         )
         val listPadding = pageListPadding(contentPadding)
+        val useResourceGrid = useWideResourceLayout()
+        val builtInFiles = ResourceFileKind.entries.filter {
+            (useResourceGrid || it != ResourceFileKind.MihomoCore) && it.managedByCurrentCore()
+        }
+
+        @Composable
+        fun CoreFileCard(modifier: Modifier = Modifier) {
+            val kind = ResourceFileKind.MihomoCore
+            ResourceFileCard(
+                modifier = modifier,
+                fileName = kind.displayName,
+                status = status.statusOf(kind),
+                actionsEnabled = !resourceActionRunning,
+                description = stringResource(R.string.settings_resource_files_root_only),
+                onReplace = {
+                    runResourceFileAction(
+                        action = {
+                            resourceFileUseCase.replace(kind)?.also {
+                                services.refreshMihomoCoreBoot(appState)
+                            }
+                        },
+                        successMessage = replacedMessage.formatTemplate("name" to kind.displayName),
+                    )
+                },
+                onRestore = {
+                    runResourceFileAction(
+                        action = {
+                            services.restoreSharedMihomoCore(
+                                state = appState,
+                                onRootStopped = { updateAppState { it.copy(proxyRunning = false) } },
+                            )
+                        },
+                        successMessage = restoredMessage.formatTemplate("name" to kind.displayName),
+                    )
+                },
+            )
+        }
+
+        @Composable
+        fun BuiltInFileCard(kind: ResourceFileKind, modifier: Modifier = Modifier) {
+            if (kind == ResourceFileKind.MihomoCore) {
+                CoreFileCard(modifier)
+                return
+            }
+            ResourceFileCard(
+                modifier = modifier,
+                fileName = kind.displayName,
+                status = status.statusOf(kind),
+                updateState = updateQueueState.displayStateOf(
+                    ResourceFileUpdateTarget.BuiltIn(kind),
+                ),
+                actionsEnabled = !resourceActionRunning,
+                onModify = if (kind.isDirectCidrResource() && status.statusOf(kind).exists) {
+                    { navigator.push(Route.ResourceCidrEdit(kind)) }
+                } else {
+                    null
+                },
+                onUpdate = { updateResourceFile(kind) },
+                onReplace = {
+                    runResourceFileAction(
+                        action = { resourceFileUseCase.replace(kind) },
+                        successMessage = replacedMessage.formatTemplate("name" to kind.displayName),
+                    )
+                },
+                onRestore = {
+                    runResourceFileAction(
+                        action = { resourceFileUseCase.restoreBundled(kind) },
+                        successMessage = restoredMessage.formatTemplate("name" to kind.displayName),
+                    )
+                },
+            )
+        }
 
         SectionedLazyColumn(
+            modifier = Modifier.pageReadableWidth(),
             contentPadding = listPadding,
             itemSpacing = 10.dp,
         ) {
@@ -221,70 +295,30 @@ fun ResourceManagementPage(
                     onSettings = { showResourceAutoUpdateSheet = true },
                 )
             }
-            sectionTitleItem(key = "resource_core_section") {
-                ResourceSectionTitle(stringResource(R.string.settings_resource_files_core_files))
-            }
-            item(key = ResourceFileKind.MihomoCore.fileName) {
-                val kind = ResourceFileKind.MihomoCore
-                ResourceFileCard(
-                    fileName = kind.displayName,
-                    status = status.statusOf(kind),
-                    actionsEnabled = !resourceActionRunning,
-                    description = stringResource(R.string.settings_resource_files_root_only),
-                    onReplace = {
-                        runResourceFileAction(
-                            action = {
-                                resourceFileUseCase.replace(kind)?.also {
-                                    services.refreshMihomoCoreBoot(appState)
-                                }
-                            },
-                            successMessage = replacedMessage.formatTemplate("name" to kind.displayName),
-                        )
-                    },
-                    onRestore = {
-                        runResourceFileAction(
-                            action = {
-                                services.restoreSharedMihomoCore(
-                                    state = appState,
-                                    onRootStopped = { updateAppState { it.copy(proxyRunning = false) } },
-                                )
-                            },
-                            successMessage = restoredMessage.formatTemplate("name" to kind.displayName),
-                        )
-                    },
-                )
+            if (!useResourceGrid) {
+                sectionTitleItem(key = "resource_core_section") {
+                    ResourceSectionTitle(stringResource(R.string.settings_resource_files_core_files))
+                }
+
+                item(key = ResourceFileKind.MihomoCore.fileName) {
+                    CoreFileCard()
+                }
             }
             sectionTitleItem(key = "resource_rules_section") {
                 ResourceSectionTitle(stringResource(R.string.settings_resource_files_files))
             }
-            ResourceFileKind.entries.filter { it != ResourceFileKind.MihomoCore && it.managedByCurrentCore() }.forEach { kind ->
-                item(key = kind.fileName) {
-                    ResourceFileCard(
-                        fileName = kind.displayName,
-                        status = status.statusOf(kind),
-                        updateState = updateQueueState.displayStateOf(
-                            ResourceFileUpdateTarget.BuiltIn(kind),
-                        ),
-                        actionsEnabled = !resourceActionRunning,
-                        onModify = if (kind.isDirectCidrResource() && status.statusOf(kind).exists) {
-                            { navigator.push(Route.ResourceCidrEdit(kind)) }
-                        } else {
-                            null
-                        },
-                        onUpdate = { updateResourceFile(kind) },
-                        onReplace = {
-                            runResourceFileAction(
-                                action = { resourceFileUseCase.replace(kind) },
-                                successMessage = replacedMessage.formatTemplate("name" to kind.displayName),
-                            )
-                        },
-                        onRestore = {
-                            runResourceFileAction(
-                                action = { resourceFileUseCase.restoreBundled(kind) },
-                                successMessage = restoredMessage.formatTemplate("name" to kind.displayName),
-                            )
-                        },
-                    )
+            if (useResourceGrid) {
+                item(key = "built_in_resource_grid") {
+                    ResourceFileGrid(
+                        itemCount = builtInFiles.size,
+                        key = { builtInFiles[it].fileName },
+                    ) { index, cardModifier ->
+                        BuiltInFileCard(builtInFiles[index], cardModifier)
+                    }
+                }
+            } else {
+                builtInFiles.forEach { kind ->
+                    item(key = kind.fileName) { BuiltInFileCard(kind) }
                 }
             }
 

@@ -102,6 +102,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import ui.layout.pageContentPaddingWithCutout
 import ui.layout.pageListPadding
+import ui.layout.pageReadableWidth
 import ui.components.AsteriskInfoChip
 import ui.components.AsteriskChipTone
 import ui.components.AsteriskExtendedFab
@@ -734,7 +735,7 @@ fun MihomoProfileListPage(
             isWideScreen = isWideScreen,
         )
         val listPadding = pageListPadding(contentPadding, bottomExtra = 88.dp)
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.pageReadableWidth().fillMaxSize()) {
             LazyColumn(
                 modifier = Modifier.weight(1f),
                 contentPadding = listPadding,

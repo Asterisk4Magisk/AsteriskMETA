@@ -7,9 +7,11 @@ import android.content.ClipData
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -44,6 +46,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.TextStyle
@@ -60,11 +63,13 @@ import features.monitoring.MonitoringValueRow
 import features.monitoring.ObserveMonitoring
 import kotlinx.coroutines.launch
 import app.R
+import ui.layout.LocalAdaptiveWindow
 import ui.layout.rememberPageGutter
 import java.util.UUID
 import java.util.Locale
 import ui.icons.AsteriskIcons as Icons
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun NetworkMonitorPage(padding: PaddingValues) {
     val horizontalPadding = rememberPageGutter()
@@ -167,36 +172,48 @@ internal fun NetworkMonitorPage(padding: PaddingValues) {
                                 }
                             }
                         }
-                        AddressFamily.entries.forEach { family ->
-                            val isIpv4 = family == AddressFamily.Ipv4
-                            val general = target?.let { strategyProbe.measurement(family, ProbeTarget.General) }
-                            val cloudflare = target?.let { strategyProbe.measurement(family, ProbeTarget.Cloudflare) }
-                            val entryRefreshing = family in strategyProbe.entryRefreshingFamilies
-                            val familyRefreshing = if (target == null) {
-                                family in network.publicProbe.refreshingFamilies
-                            } else {
-                                entryRefreshing || general?.refreshing == true || cloudflare?.refreshing == true
-                            }
-                            key(strategyProbe, family) {
-                                PublicAddressFamilyCard(
-                                    family = family,
-                                    results = AddressFamilyProbeResults(
-                                        general = general?.displayResult()
-                                            ?: if (isIpv4) network.publicProbe.ipv4 else network.publicProbe.ipv6,
-                                        cloudflare = cloudflare?.displayResult()
-                                            ?: if (isIpv4) network.publicProbe.cloudflareIpv4 else network.publicProbe.cloudflareIpv6,
-                                        entries = target?.let { strategyProbe.entry(family).orEmpty() },
-                                    ),
-                                    entryRefreshing = entryRefreshing,
-                                    refreshing = familyRefreshing,
-                                    retryEnabled = if (target == null) !network.publicProbe.refreshing
-                                        else strategyProbe.entryRefreshingFamilies.isEmpty(),
-                                    onCopy = ::copy,
-                                    onRetry = {
-                                        if (target == null) services.monitoring.refreshPublicNetworkProbe(family)
-                                        else refreshStrategy(family)
-                                    },
-                                )
+                        BoxWithConstraints(Modifier.fillMaxWidth()) {
+                            val sideBySide = LocalAdaptiveWindow.current.supportsWideContent &&
+                                target == null && maxWidth >= 620.dp * LocalDensity.current.fontScale
+                            FlowRow(
+                                maxItemsInEachRow = if (sideBySide) 2 else 1,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                AddressFamily.entries.forEach { family ->
+                                    val isIpv4 = family == AddressFamily.Ipv4
+                                    val general = target?.let { strategyProbe.measurement(family, ProbeTarget.General) }
+                                    val cloudflare = target?.let { strategyProbe.measurement(family, ProbeTarget.Cloudflare) }
+                                    val entryRefreshing = family in strategyProbe.entryRefreshingFamilies
+                                    val familyRefreshing = if (target == null) {
+                                        family in network.publicProbe.refreshingFamilies
+                                    } else {
+                                        entryRefreshing || general?.refreshing == true || cloudflare?.refreshing == true
+                                    }
+                                    key(strategyProbe, family) {
+                                        Box(Modifier.weight(1f)) {
+                                            PublicAddressFamilyCard(
+                                                family = family,
+                                                results = AddressFamilyProbeResults(
+                                                    general = general?.displayResult()
+                                                        ?: if (isIpv4) network.publicProbe.ipv4 else network.publicProbe.ipv6,
+                                                    cloudflare = cloudflare?.displayResult()
+                                                        ?: if (isIpv4) network.publicProbe.cloudflareIpv4 else network.publicProbe.cloudflareIpv6,
+                                                    entries = target?.let { strategyProbe.entry(family).orEmpty() },
+                                                ),
+                                                entryRefreshing = entryRefreshing,
+                                                refreshing = familyRefreshing,
+                                                retryEnabled = if (target == null) !network.publicProbe.refreshing
+                                                    else strategyProbe.entryRefreshingFamilies.isEmpty(),
+                                                onCopy = ::copy,
+                                                onRetry = {
+                                                    if (target == null) services.monitoring.refreshPublicNetworkProbe(family)
+                                                    else refreshStrategy(family)
+                                                },
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -269,6 +286,7 @@ private data class AddressFamilyProbeResults(
             entries?.any { it.hasRetryableError } == true
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun PublicAddressFamilyCard(
     family: AddressFamily,
@@ -338,29 +356,37 @@ private fun PublicAddressFamilyCard(
                 val entries = entryResults.ifEmpty {
                     listOfNotNull(generalResult.takeIf { !waitingForEntry && it.address.isNotBlank() })
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                BoxWithConstraints(Modifier.fillMaxWidth()) {
+                    val sideBySide = !LocalAdaptiveWindow.current.supportsWideContent ||
+                        maxWidth >= 540.dp * LocalDensity.current.fontScale
+                    FlowRow(
+                        maxItemsInEachRow = if (sideBySide) 2 else 1,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        ProbeSectionTitle(stringResource(R.string.monitor_network_probe_entry))
-                        if (entries.isEmpty()) {
-                            Text(
-                                text = if (waitingForEntry) "—" else stringResource(R.string.monitor_network_probe_entry_empty),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            ProbeSectionTitle(stringResource(R.string.monitor_network_probe_entry))
+                            if (entries.isEmpty()) {
+                                Text(
+                                    text = if (waitingForEntry) "—" else stringResource(R.string.monitor_network_probe_entry_empty),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            entries.forEach { entry ->
+                                PublicAddressValues(entry, family) { onCopy(familyLabel, it) }
+                            }
                         }
-                        entries.forEach { entry ->
-                            PublicAddressValues(entry, family) { onCopy(familyLabel, it) }
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            ProbeSectionTitle(stringResource(R.string.monitor_network_probe_exit))
+                            PublicAddressValues(generalResult, family) { onCopy(familyLabel, it) }
                         }
-                    }
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        ProbeSectionTitle(stringResource(R.string.monitor_network_probe_exit))
-                        PublicAddressValues(generalResult, family) { onCopy(familyLabel, it) }
                     }
                 }
             }
@@ -515,7 +541,7 @@ private fun publicProbeErrorLabel(error: PublicProbeError): String = stringResou
     },
 )
 
-private val NetworkContentModifier = Modifier.fillMaxWidth().widthIn(max = 840.dp)
+private val NetworkContentModifier = Modifier.widthIn(max = 960.dp).fillMaxWidth()
 
 @Composable
 internal fun formatCloudflareColo(colo: String): String {

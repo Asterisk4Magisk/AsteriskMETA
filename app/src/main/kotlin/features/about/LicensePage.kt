@@ -36,6 +36,8 @@ import features.about.license.Library
 import features.about.license.decodeAboutLibraries
 import ui.layout.pageContentPaddingWithCutout
 import ui.layout.pageListPadding
+import ui.layout.SingleColumnPageMaxWidth
+import ui.layout.singleColumnPageWidth
 import ui.components.AsteriskContentHeader
 
 private sealed interface LicenseLoadState {
@@ -77,6 +79,7 @@ fun LicensePage(
                     query = query,
                     onQueryChange = { query = it },
                     placeholder = stringResource(R.string.common_search),
+                    searchContentMaxWidth = SingleColumnPageMaxWidth,
                     title = { Text(stringResource(R.string.license_title)) },
                     navigationIcon = {
                         IconButton(onClick = { navigator.pop() }) {
@@ -98,6 +101,7 @@ fun LicensePage(
             ),
         )
         LazyColumn(
+            modifier = Modifier.singleColumnPageWidth(),
             contentPadding = contentPadding,
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {

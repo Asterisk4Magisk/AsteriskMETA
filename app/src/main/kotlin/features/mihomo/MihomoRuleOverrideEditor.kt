@@ -3,6 +3,7 @@
 
 package features.mihomo
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,6 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
@@ -82,6 +84,8 @@ import ui.components.draggedCardLift
 import ui.components.longPressReorderDragHandle
 import ui.components.rememberAsteriskReorderableLazyListState
 import ui.layout.pageContentPaddingWithCutout
+import ui.layout.LocalAdaptiveWindow
+import ui.layout.avoidFold
 import ui.layout.pageListPadding
 import ui.icons.AsteriskIcons as Icons
 import ui.theme.AsteriskShapeTokens
@@ -138,6 +142,7 @@ internal fun MihomoRuleOverrideEditorDialog(
         if (from.region == to.region) draft = draft.moveRule(from.region, from.rule.id, to.rule.id)
     }
 
+    val window = LocalAdaptiveWindow.current
     Dialog(
         onDismissRequest = ::requestDismiss,
         properties = DialogProperties(
@@ -147,7 +152,10 @@ internal fun MihomoRuleOverrideEditorDialog(
         ),
     ) {
         AsteriskScaffold(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize()
+                .background(MaterialTheme.colorScheme.surface)
+                .avoidFold(window)
+                .clipToBounds(),
             topBar = {
                 AsteriskTopAppBar(
                     title = {

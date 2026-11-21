@@ -6,6 +6,7 @@ package features.monitoring.traffic
 import android.text.format.DateUtils
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -25,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -35,6 +37,8 @@ import features.monitoring.MonitoringScaffold
 import features.monitoring.MonitoringSectionCard
 import features.monitoring.MonitoringValueRow
 import features.monitoring.ObserveMonitoring
+import ui.layout.LocalAdaptiveWindow
+import ui.layout.pageReadableWidth
 import ui.layout.rememberPageGutter
 import utils.toReadableBytes
 
@@ -50,83 +54,107 @@ internal fun TrafficMonitorPage(padding: PaddingValues) {
         title = stringResource(R.string.monitor_traffic_title),
         outerPadding = padding,
     ) { contentPadding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(
-                start = horizontalPadding,
-                top = contentPadding.calculateTopPadding() + 8.dp,
-                end = horizontalPadding,
-                bottom = contentPadding.calculateBottomPadding() + 20.dp,
-            ),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            item("today") {
-                MonitoringSectionCard(stringResource(R.string.monitor_traffic_today), TrafficContentModifier) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            traffic.today.total.toReadableBytes(),
-                            style = MaterialTheme.typography.displaySmall,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        MonitoringValueRow(
-                            stringResource(R.string.monitor_connections_download),
-                            traffic.today.download.toReadableBytes(),
-                        )
-                        MonitoringValueRow(
-                            stringResource(R.string.monitor_connections_upload),
-                            traffic.today.upload.toReadableBytes(),
-                        )
-                    }
+        val todayCard: @Composable () -> Unit = {
+            MonitoringSectionCard(stringResource(R.string.monitor_traffic_today)) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        traffic.today.total.toReadableBytes(),
+                        style = MaterialTheme.typography.displaySmall,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    MonitoringValueRow(
+                        stringResource(R.string.monitor_connections_download),
+                        traffic.today.download.toReadableBytes(),
+                    )
+                    MonitoringValueRow(
+                        stringResource(R.string.monitor_connections_upload),
+                        traffic.today.upload.toReadableBytes(),
+                    )
                 }
             }
-            item("session") {
-                MonitoringSectionCard(stringResource(R.string.monitor_traffic_session), TrafficContentModifier) {
-                    Column {
-                        MonitoringValueRow(
-                            stringResource(R.string.monitor_traffic_session_total),
-                            combinedBytes(traffic.sessionDownloadBytes, traffic.sessionUploadBytes),
-                        )
-                        MonitoringValueRow(
-                            stringResource(R.string.monitor_connections_download),
-                            traffic.sessionDownloadBytes?.toReadableBytes() ?: "—",
-                        )
-                        MonitoringValueRow(
-                            stringResource(R.string.monitor_connections_upload),
-                            traffic.sessionUploadBytes?.toReadableBytes() ?: "—",
-                        )
-                        MonitoringValueRow(
-                            stringResource(R.string.monitor_traffic_runtime),
-                            monitoring.resource.uptimeMillis?.let { DateUtils.formatElapsedTime(it / 1_000L) } ?: "—",
-                        )
-                    }
+        }
+        val sessionCard: @Composable () -> Unit = {
+            MonitoringSectionCard(stringResource(R.string.monitor_traffic_session)) {
+                val uptime = monitoring.resource.uptimeMillis
+                Column {
+                    MonitoringValueRow(
+                        stringResource(R.string.monitor_traffic_session_total),
+                        combinedBytes(traffic.sessionDownloadBytes, traffic.sessionUploadBytes),
+                    )
+                    MonitoringValueRow(
+                        stringResource(R.string.monitor_connections_download),
+                        traffic.sessionDownloadBytes?.toReadableBytes() ?: "—",
+                    )
+                    MonitoringValueRow(
+                        stringResource(R.string.monitor_connections_upload),
+                        traffic.sessionUploadBytes?.toReadableBytes() ?: "—",
+                    )
+                    MonitoringValueRow(
+                        stringResource(R.string.monitor_traffic_runtime),
+                        uptime?.let { DateUtils.formatElapsedTime(it / 1_000L) } ?: "—",
+                    )
                 }
             }
-            item("seven_days") {
-                SevenDayTrafficCard(traffic.dailyTotals, traffic.sevenDays)
+        }
+        val sevenDayCard: @Composable (Boolean) -> Unit = { showZeroValues ->
+            SevenDayTrafficCard(traffic.dailyTotals, traffic.sevenDays, showZeroValues)
+        }
+        val thirtyDayCard: @Composable () -> Unit = {
+            MonitoringSectionCard(stringResource(R.string.monitor_traffic_30_days)) {
+                Column {
+                    MonitoringValueRow(
+                        stringResource(R.string.monitor_traffic_total),
+                        traffic.thirtyDays.total.toReadableBytes(),
+                    )
+                    MonitoringValueRow(
+                        stringResource(R.string.monitor_connections_download),
+                        traffic.thirtyDays.download.toReadableBytes(),
+                    )
+                    MonitoringValueRow(
+                        stringResource(R.string.monitor_connections_upload),
+                        traffic.thirtyDays.upload.toReadableBytes(),
+                    )
+                    Text(
+                        stringResource(R.string.monitor_traffic_local_notice),
+                        modifier = Modifier.padding(top = 8.dp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
-            item("thirty_days") {
-                MonitoringSectionCard(stringResource(R.string.monitor_traffic_30_days), TrafficContentModifier) {
-                    Column {
-                        MonitoringValueRow(
-                            stringResource(R.string.monitor_traffic_total),
-                            traffic.thirtyDays.total.toReadableBytes(),
-                        )
-                        MonitoringValueRow(
-                            stringResource(R.string.monitor_connections_download),
-                            traffic.thirtyDays.download.toReadableBytes(),
-                        )
-                        MonitoringValueRow(
-                            stringResource(R.string.monitor_connections_upload),
-                            traffic.thirtyDays.upload.toReadableBytes(),
-                        )
-                        Text(
-                            stringResource(R.string.monitor_traffic_local_notice),
-                            modifier = Modifier.padding(top = 8.dp),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+        }
+        BoxWithConstraints(Modifier.pageReadableWidth(maxWidth = 1008.dp).fillMaxSize()) {
+            val twoColumns = LocalAdaptiveWindow.current.supportsWideContent &&
+                maxWidth - horizontalPadding * 2 >= 680.dp &&
+                LocalDensity.current.fontScale <= 1.3f
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    start = horizontalPadding,
+                    top = contentPadding.calculateTopPadding() + 8.dp,
+                    end = horizontalPadding,
+                    bottom = contentPadding.calculateBottomPadding() + 20.dp,
+                ),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                if (twoColumns) {
+                    item("traffic-columns") {
+                        Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                                todayCard()
+                                sevenDayCard(false)
+                            }
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                                sessionCard()
+                                thirtyDayCard()
+                            }
+                        }
                     }
+                } else {
+                    item("today") { todayCard() }
+                    item("session") { sessionCard() }
+                    item("week") { sevenDayCard(true) }
+                    item("month") { thirtyDayCard() }
                 }
             }
         }
@@ -134,50 +162,57 @@ internal fun TrafficMonitorPage(padding: PaddingValues) {
 }
 
 @Composable
-private fun SevenDayTrafficCard(dailyTotals: Map<String, TrafficBytes>, total: TrafficBytes) {
+private fun SevenDayTrafficCard(
+    dailyTotals: Map<String, TrafficBytes>,
+    total: TrafficBytes,
+    showZeroValues: Boolean,
+) {
     val today = localTrafficDay(System.currentTimeMillis())
     val days = localTrafficDaysEndingAt(today, 7)
     val values = days.map { day -> dailyTotals[day] ?: TrafficBytes() }
+    val hasTraffic = values.any { it.total > 0L }
     val downloadColor = MaterialTheme.colorScheme.primary
     val uploadColor = MaterialTheme.colorScheme.tertiary
-    MonitoringSectionCard(stringResource(R.string.monitor_traffic_7_days), TrafficContentModifier) {
+    MonitoringSectionCard(stringResource(R.string.monitor_traffic_7_days)) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(total.total.toReadableBytes(), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
-            Canvas(Modifier.fillMaxWidth().height(170.dp)) {
-                val max = maxOf(1L, values.maxOfOrNull { it.total } ?: 0L).toFloat()
-                val groupWidth = size.width / values.size.coerceAtLeast(1)
-                val barWidth = groupWidth * 0.26f
-                values.forEachIndexed { index, bytes ->
-                    val center = groupWidth * (index + 0.5f)
-                    val downloadHeight = size.height * (bytes.download / max)
-                    val uploadHeight = size.height * (bytes.upload / max)
-                    drawLine(
-                        downloadColor,
-                        Offset(center - barWidth * 0.65f, size.height),
-                        Offset(center - barWidth * 0.65f, size.height - downloadHeight),
-                        strokeWidth = barWidth,
-                        cap = StrokeCap.Round,
-                    )
-                    drawLine(
-                        uploadColor,
-                        Offset(center + barWidth * 0.65f, size.height),
-                        Offset(center + barWidth * 0.65f, size.height - uploadHeight),
-                        strokeWidth = barWidth,
-                        cap = StrokeCap.Round,
-                    )
+            if (showZeroValues || hasTraffic) {
+                Canvas(Modifier.fillMaxWidth().height(170.dp)) {
+                    val max = maxOf(1L, values.maxOfOrNull { it.total } ?: 0L).toFloat()
+                    val groupWidth = size.width / values.size.coerceAtLeast(1)
+                    val barWidth = groupWidth * 0.26f
+                    values.forEachIndexed { index, bytes ->
+                        val center = groupWidth * (index + 0.5f)
+                        val downloadHeight = size.height * (bytes.download / max)
+                        val uploadHeight = size.height * (bytes.upload / max)
+                        if (showZeroValues || bytes.download > 0L) drawLine(
+                            downloadColor,
+                            Offset(center - barWidth * 0.65f, size.height),
+                            Offset(center - barWidth * 0.65f, size.height - downloadHeight),
+                            strokeWidth = barWidth,
+                            cap = StrokeCap.Round,
+                        )
+                        if (showZeroValues || bytes.upload > 0L) drawLine(
+                            uploadColor,
+                            Offset(center + barWidth * 0.65f, size.height),
+                            Offset(center + barWidth * 0.65f, size.height - uploadHeight),
+                            strokeWidth = barWidth,
+                            cap = StrokeCap.Round,
+                        )
+                    }
                 }
-            }
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
-                days.forEach { day ->
-                    Text(day.takeLast(5), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
+                    days.forEach { day ->
+                        Text(day.takeLast(5), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(18.dp, Alignment.End),
-            ) {
-                TrafficLegend(downloadColor, stringResource(R.string.monitor_connections_download))
-                TrafficLegend(uploadColor, stringResource(R.string.monitor_connections_upload))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(18.dp, Alignment.End),
+                ) {
+                    TrafficLegend(downloadColor, stringResource(R.string.monitor_connections_download))
+                    TrafficLegend(uploadColor, stringResource(R.string.monitor_connections_upload))
+                }
             }
         }
     }
@@ -200,5 +235,3 @@ private fun combinedBytes(download: Long?, upload: Long?): String {
     val total = if (Long.MAX_VALUE - safeDownload < safeUpload) Long.MAX_VALUE else safeDownload + safeUpload
     return total.toReadableBytes()
 }
-
-private val TrafficContentModifier = Modifier.fillMaxWidth().widthIn(max = 840.dp)

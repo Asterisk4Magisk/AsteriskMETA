@@ -4,11 +4,26 @@
 package features.mihomo.provider
 
 import android.content.Context
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -16,24 +31,29 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.PrimaryTabRow
-import ui.components.AsteriskScaffold
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
-import ui.components.AsteriskTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import app.LocalAppServices
 import app.LocalAppStateStore
@@ -59,7 +79,11 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import ui.components.AsteriskScaffold
+import ui.components.AsteriskTopAppBar
+import ui.layout.LocalAdaptiveWindow
 import ui.layout.pageContentPaddingWithCutout
+import ui.layout.pageReadableWidth
 import ui.theme.AsteriskMotion
 import java.io.File
 import ui.icons.AsteriskIcons as Icons
@@ -119,6 +143,9 @@ fun MihomoProviderManagementPage(
     var reloadToken by remember { mutableIntStateOf(0) }
     var ruleRuntimeReloadToken by remember { mutableIntStateOf(0) }
     var previewState by remember { mutableStateOf(MihomoProviderPreviewState()) }
+    var previewType by remember { mutableStateOf<MihomoProviderType?>(null) }
+    var selectedProxyName by rememberSaveable { mutableStateOf<String?>(null) }
+    val useDetailPane = LocalAdaptiveWindow.current.showTwoColumns && LocalDensity.current.fontScale <= 1.3f
     val proxyProviders = providerStates[MihomoProviderType.Proxy]?.providers.orEmpty()
     val ruleProviders = providerStates[MihomoProviderType.Rule]?.providers.orEmpty()
     val proxyProviderNames = proxyProviders.map(MihomoProviderDeclaration::name)
@@ -129,13 +156,19 @@ fun MihomoProviderManagementPage(
     val pagerSpatialMotion = AsteriskMotion.spatial<Float>()
     val providerPagerScope = rememberCoroutineScope()
     val selectProviderTab: (MihomoProviderManagementTab) -> Unit = { tab ->
-        selectedTab = tab
-        if (providerPagerState.targetPage != tab.ordinal) {
-            providerPagerScope.launch {
-                providerPagerState.animateScrollToPage(
-                    page = tab.ordinal,
-                    animationSpec = pagerSpatialMotion,
-                )
+        if (selectedTab != tab) {
+            val detailOpen = useDetailPane && (selectedProxyName != null || previewState.providerName.isNotBlank())
+            selectedTab = tab
+            if (detailOpen) {
+                // The pager's available width changes as the detail pane closes.
+                providerPagerState.requestScrollToPage(tab.ordinal)
+            } else if (providerPagerState.targetPage != tab.ordinal) {
+                providerPagerScope.launch {
+                    providerPagerState.animateScrollToPage(
+                        page = tab.ordinal,
+                        animationSpec = pagerSpatialMotion,
+                    )
+                }
             }
         }
     }
@@ -294,7 +327,14 @@ fun MihomoProviderManagementPage(
         }
     }
 
+    fun closePreview() {
+        previewState = dismissMihomoProviderPreview(previewState)
+        previewType = null
+    }
+
     fun previewProvider(provider: MihomoProviderDeclaration) {
+        selectedProxyName = null
+        previewType = provider.providerType
         val pendingState = beginMihomoProviderPreview(previewState, provider.name)
         previewState = pendingState
         val requestId = pendingState.requestId
@@ -375,8 +415,31 @@ fun MihomoProviderManagementPage(
         refreshingAllTypes = refreshingAllTypes,
         ruleRuntimeLoading = ruleRuntimeLoading,
     )
+    val activeProxyName = selectedProxyName?.takeIf { selectedTab.providerType == MihomoProviderType.Proxy }
+    val showPreview = previewState.providerName.isNotBlank() && selectedTab.providerType == previewType
+    val proxyDetailContent = remember {
+        movableContentOf { name: String, detailPadding: PaddingValues ->
+            key(name) {
+                MihomoProxyProviderDetailPage(
+                    padding = detailPadding,
+                    providerName = name,
+                    onClose = { selectedProxyName = null },
+                )
+            }
+        }
+    }
+    BackHandler(enabled = activeProxyName != null || (useDetailPane && showPreview)) {
+        if (activeProxyName != null) selectedProxyName = null else closePreview()
+    }
+    if (!useDetailPane && activeProxyName != null) {
+        proxyDetailContent(activeProxyName, padding)
+        return
+    }
+    val detailVisible = useDetailPane && (activeProxyName != null || showPreview)
+    val detailSpatial = AsteriskMotion.fastSpatial<IntSize>()
+    val detailEffects = AsteriskMotion.fastEffects<Float>()
     AsteriskScaffold(
-            topBar = {
+        topBar = {
             Column {
                 AsteriskTopAppBar(
                     title = { Text(stringResource(R.string.mihomo_provider_management_title)) },
@@ -411,23 +474,12 @@ fun MihomoProviderManagementPage(
                         }
                     },
                 )
-                PrimaryTabRow(selectedTabIndex = selectedTab.ordinal, containerColor = androidx.compose.ui.graphics.Color.Transparent) {
-                    MihomoProviderManagementTab.entries.forEach { tab ->
-                        Tab(
-                            selected = selectedTab == tab,
-                            onClick = { selectProviderTab(tab) },
-                            text = {
-                                Text(
-                                    stringResource(
-                                        when (tab) {
-                                            MihomoProviderManagementTab.Proxy -> R.string.mihomo_proxy_providers_tab
-                                            MihomoProviderManagementTab.Rule -> R.string.mihomo_rule_providers_tab
-                                        },
-                                    ),
-                                )
-                            },
-                        )
-                    }
+                if (!useDetailPane) {
+                    MihomoProviderTabs(
+                        selectedTab = selectedTab,
+                        onSelectTab = selectProviderTab,
+                        modifier = Modifier.pageReadableWidth(maxWidth = ProviderPageMaxWidth),
+                    )
                 }
             }
         },
@@ -437,53 +489,137 @@ fun MihomoProviderManagementPage(
             outerPadding = padding,
             isWideScreen = isWideScreen,
         )
-        HorizontalPager(
-            state = providerPagerState,
-            modifier = Modifier.fillMaxSize(),
-            verticalAlignment = Alignment.Top,
-        ) { page ->
-            val tab = mihomoProviderManagementTabForPage(page)
-            MihomoProviderManagementList(
-                tab = tab,
-                state = providerStates[tab.providerType] ?: ProviderDeclarationsState(loading = true),
-                hasUsableProfile = appState.hasUsableMihomoProfile(),
-                proxyRuntimeDetails = proxyRuntimeDetails,
-                ruleRuntimeSummaries = ruleRuntimeSummaries,
-                ruleRuntimeLoading = ruleRuntimeLoading,
-                ruleRuntimeError = ruleRuntimeError,
-                refreshingNames = refreshingNamesByType[tab.providerType].orEmpty(),
-                refreshEnabled = !isProviderTypeBusy(
-                    type = tab.providerType,
-                    refreshingNamesByType = refreshingNamesByType,
-                    refreshingAllTypes = refreshingAllTypes,
-                    ruleRuntimeLoading = ruleRuntimeLoading,
-                ),
-                contentPadding = contentPadding,
-                listState = if (tab == MihomoProviderManagementTab.Proxy) proxyListState else ruleListState,
-                onRetryDeclarations = { reloadToken += 1 },
-                onRetryRuleRuntime = {
-                    ruleRuntimeLoaded = false
-                    ruleRuntimeReloadToken += 1
-                },
-                onOpenProxy = { provider ->
-                    navigator.push(Route.MihomoProxyProviderDetail(provider.name))
-                },
-                onPreview = ::previewProvider,
-                onRefresh = ::refreshProvider,
+        val layoutDirection = LocalLayoutDirection.current
+        val listPadding = if (useDetailPane) {
+            PaddingValues(
+                start = contentPadding.calculateStartPadding(layoutDirection),
+                end = contentPadding.calculateEndPadding(layoutDirection),
+                bottom = contentPadding.calculateBottomPadding(),
             )
+        } else {
+            contentPadding
+        }
+        BoxWithConstraints(Modifier.pageReadableWidth(maxWidth = ProviderPageMaxWidth).fillMaxSize()) {
+            val detailWidth = maxWidth * ProviderDetailWidthFraction
+            Row(Modifier.fillMaxSize()) {
+                Column(Modifier.weight(1f).fillMaxHeight()) {
+                    if (useDetailPane) {
+                        MihomoProviderTabs(
+                            selectedTab = selectedTab,
+                            onSelectTab = selectProviderTab,
+                            modifier = Modifier.padding(top = contentPadding.calculateTopPadding()),
+                        )
+                    }
+                    HorizontalPager(
+                        state = providerPagerState,
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                        userScrollEnabled = !useDetailPane || (activeProxyName == null && !showPreview),
+                        verticalAlignment = Alignment.Top,
+                    ) { page ->
+                        val tab = mihomoProviderManagementTabForPage(page)
+                        MihomoProviderManagementList(
+                            tab = tab,
+                            state = providerStates[tab.providerType] ?: ProviderDeclarationsState(loading = true),
+                            hasUsableProfile = appState.hasUsableMihomoProfile(),
+                            proxyRuntimeDetails = proxyRuntimeDetails,
+                            ruleRuntimeSummaries = ruleRuntimeSummaries,
+                            ruleRuntimeLoading = ruleRuntimeLoading,
+                            ruleRuntimeError = ruleRuntimeError,
+                            refreshingNames = refreshingNamesByType[tab.providerType].orEmpty(),
+                            refreshEnabled = !isProviderTypeBusy(
+                                type = tab.providerType,
+                                refreshingNamesByType = refreshingNamesByType,
+                                refreshingAllTypes = refreshingAllTypes,
+                                ruleRuntimeLoading = ruleRuntimeLoading,
+                            ),
+                            contentPadding = listPadding,
+                            listState = if (tab == MihomoProviderManagementTab.Proxy) proxyListState else ruleListState,
+                            onRetryDeclarations = { reloadToken += 1 },
+                            onRetryRuleRuntime = {
+                                ruleRuntimeLoaded = false
+                                ruleRuntimeReloadToken += 1
+                            },
+                            onOpenProxy = { provider ->
+                                if (useDetailPane) {
+                                    closePreview()
+                                    selectedProxyName = provider.name
+                                } else {
+                                    navigator.push(Route.MihomoProxyProviderDetail(provider.name))
+                                }
+                            },
+                            onPreview = ::previewProvider,
+                            onRefresh = ::refreshProvider,
+                        )
+                    }
+                }
+                AnimatedVisibility(
+                    visible = detailVisible,
+                    enter = expandHorizontally(detailSpatial, expandFrom = Alignment.End) + fadeIn(detailEffects),
+                    exit = shrinkHorizontally(detailSpatial, shrinkTowards = Alignment.End) + fadeOut(detailEffects),
+                ) {
+                    Box(
+                        Modifier.width(detailWidth).fillMaxHeight()
+                            .padding(contentPadding)
+                            .consumeWindowInsets(contentPadding),
+                    ) {
+                        if (activeProxyName != null) {
+                            proxyDetailContent(activeProxyName, PaddingValues())
+                        } else if (showPreview) {
+                            MihomoProviderPreviewDialog(
+                                providerName = previewState.providerName,
+                                loading = previewState.loading,
+                                rawContent = previewState.rawContent,
+                                onDismissRequest = ::closePreview,
+                                embedded = true,
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
-    if (previewState.providerName.isNotBlank()) {
+    if (!useDetailPane && showPreview) {
         MihomoProviderPreviewDialog(
             providerName = previewState.providerName,
             loading = previewState.loading,
             rawContent = previewState.rawContent,
-            onDismissRequest = {
-                previewState = dismissMihomoProviderPreview(previewState)
-            },
+            onDismissRequest = ::closePreview,
         )
     }
 }
+
+@Composable
+private fun MihomoProviderTabs(
+    selectedTab: MihomoProviderManagementTab,
+    onSelectTab: (MihomoProviderManagementTab) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    PrimaryTabRow(
+        selectedTabIndex = selectedTab.ordinal,
+        modifier = modifier,
+        containerColor = Color.Transparent,
+    ) {
+        MihomoProviderManagementTab.entries.forEach { tab ->
+            Tab(
+                selected = selectedTab == tab,
+                onClick = { onSelectTab(tab) },
+                text = {
+                    Text(
+                        stringResource(
+                            when (tab) {
+                                MihomoProviderManagementTab.Proxy -> R.string.mihomo_proxy_providers_tab
+                                MihomoProviderManagementTab.Rule -> R.string.mihomo_rule_providers_tab
+                            },
+                        ),
+                    )
+                },
+            )
+        }
+    }
+}
+
+private val ProviderPageMaxWidth = 1260.dp
+private const val ProviderDetailWidthFraction = 0.48f
 
 internal suspend fun loadProxyProviderDeclarations(
     context: Context,

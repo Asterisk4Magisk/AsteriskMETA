@@ -9,10 +9,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -31,10 +33,12 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
+import app.LocalIsWideScreen
 import app.R
 import ui.layout.pageHorizontalPadding
 import ui.layout.rememberPageGutter
@@ -52,6 +56,7 @@ internal fun AsteriskSearchTopAppBar(
     actions: @Composable RowScope.() -> Unit = {},
     scrollBehavior: TopAppBarScrollBehavior? = null,
     searchAvailable: Boolean = true,
+    searchContentMaxWidth: Dp? = null,
     searchField: @Composable (Modifier) -> Unit = { fieldModifier ->
         AsteriskSearchField(
             query = query,
@@ -66,6 +71,11 @@ internal fun AsteriskSearchTopAppBar(
     var searchActive by rememberSaveable { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
+    val searchFieldWidth = if (searchContentMaxWidth != null && LocalIsWideScreen.current) {
+        searchContentMaxWidth - rememberPageGutter() * 2
+    } else {
+        null
+    }
     fun closeSearch() {
         searchActive = false
         onQueryChange("")
@@ -95,6 +105,7 @@ internal fun AsteriskSearchTopAppBar(
             }
             AsteriskTopAppBar(
                 modifier = modifier,
+                centerTitle = searchFieldWidth != null,
                 scrollBehavior = scrollBehavior,
                 navigationIcon = {
                     IconButton(onClick = { closeSearch() }) {
@@ -104,13 +115,17 @@ internal fun AsteriskSearchTopAppBar(
                         )
                     }
                 },
+                actions = {
+                    // Reserve the same width as the back button when space is limited.
+                    if (searchFieldWidth != null) Spacer(Modifier.width(48.dp))
+                },
                 title = {
-                    searchField(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(end = 8.dp)
-                            .focusRequester(focusRequester),
-                    )
+                    val fieldModifier = if (searchFieldWidth != null) {
+                        Modifier.width(searchFieldWidth)
+                    } else {
+                        Modifier.fillMaxWidth().padding(end = 8.dp)
+                    }
+                    searchField(fieldModifier.focusRequester(focusRequester))
                 },
             )
         } else {

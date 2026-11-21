@@ -13,6 +13,7 @@ import ui.components.AsteriskScaffold
 import androidx.compose.material3.Text
 import ui.components.AsteriskTopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import app.LocalIsWideScreen
 import app.LocalNavigator
@@ -20,6 +21,7 @@ import app.R
 import androidx.compose.ui.res.stringResource
 import ui.layout.pageContentPaddingWithCutout
 import ui.layout.pageListPadding
+import ui.layout.singleColumnPageWidth
 
 @Composable
 fun AboutPage(
@@ -51,6 +53,7 @@ fun AboutPage(
             ),
         )
         LazyColumn(
+            modifier = Modifier.singleColumnPageWidth(),
             contentPadding = contentPadding,
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {

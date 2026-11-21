@@ -417,4 +417,4 @@ private const val ResourceCpuScaleFloorPercent = 5.0
 
 private val ResourceChartHeight = 160.dp
 private val ResourceChartLineWidth = 2.dp
-private val ResourceContentModifier = Modifier.fillMaxWidth().widthIn(max = 840.dp)
+private val ResourceContentModifier = Modifier.widthIn(max = 960.dp).fillMaxWidth()

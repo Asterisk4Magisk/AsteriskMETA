@@ -27,13 +27,16 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 
-private val ReadablePageMaxWidth = 1120.dp
-
-fun Modifier.pageReadableWidth(): Modifier = this
+fun Modifier.pageReadableWidth(maxWidth: Dp = 1120.dp): Modifier = this
     .fillMaxWidth()
     .wrapContentWidth(Alignment.CenterHorizontally)
-    .widthIn(max = ReadablePageMaxWidth)
+    .widthIn(max = maxWidth)
     .fillMaxWidth()
+
+internal val SingleColumnPageMaxWidth = 760.dp
+
+internal fun Modifier.singleColumnPageWidth(): Modifier =
+    pageReadableWidth(maxWidth = SingleColumnPageMaxWidth)
 
 @Composable
 fun Modifier.pageHorizontalPadding(): Modifier = pageReadableWidth()

@@ -3,6 +3,9 @@
 
 package features.mihomo
 
+import ui.layout.pageReadableWidth
+import ui.layout.EditorListPane
+import ui.layout.EditorListItem
 import ui.components.AsteriskCancelButton
 import ui.layout.rememberCodeEditorFocusState
 import androidx.activity.compose.BackHandler
@@ -535,137 +538,148 @@ fun MihomoProfileEditPage(
                 isWideScreen = isWideScreen,
             )
 
-            if (!isNew && targetProfile == null) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(contentPadding)
-                        .padding(horizontal = 12.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = stringResource(R.string.mihomo_profile_missing),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            } else {
-                key(targetProfile?.id, profileType, editsContent) {
-                    val scrollModifier = if (!editsContent) {
-                        Modifier.verticalScroll(rememberScrollState())
-                    } else {
-                        Modifier
-                    }
-                    Column(
+            val profileEntries = remember(appState.mihomoProfiles) {
+                appState.mihomoProfiles.map { EditorListItem(it.id, it.name) }
+            }
+            EditorListPane(
+                title = stringResource(R.string.mihomo_profiles_title),
+                entries = profileEntries,
+                selectedId = targetProfile?.id,
+                padding = contentPadding,
+                show = !editorFocus.expanded,
+            ) {
+                if (!isNew && targetProfile == null) {
+                    Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .then(scrollModifier)
                             .padding(contentPadding)
-                            .padding(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 12.dp),
+                            .padding(horizontal = 12.dp),
+                        contentAlignment = Alignment.Center,
                     ) {
-                        if (!editsContent) {
-                            OutlinedTextField(
-                                shape = AsteriskShapeTokens.InnerContainer,
-                                state = nameState,
-                                enabled = !saving,
-                                label = { Text(stringResource(R.string.mihomo_profile_name)) },
-                                placeholder = { Text(stringResource(R.string.mihomo_profile_name_placeholder)) },
-                                lineLimits = TextFieldLineLimits.SingleLine,
-                                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                            )
-                            UrlProfileFields(
-                                enabled = !saving,
-                                urlState = urlState,
-                                userAgentState = userAgentState,
-                                hwidState = hwidState,
-                                ageSecretKeyState = ageSecretKeyState,
-                                updateIntervalState = updateIntervalState,
-                                updateViaProxy = updateViaProxy,
-                                onUpdateViaProxyChange = { updateViaProxy = it },
-                                overrideScriptOptions = overrideScriptOptions,
-                                selectedOverrideScriptIndex = selectedOverrideScriptIndex,
-                                onSelectedOverrideScriptIndexChange = { index ->
-                                    overrideScriptId = if (index == 0) {
-                                        DefaultMihomoOverrideScriptId
-                                    } else {
-                                        appState.mihomoOverrideScripts.getOrNull(index - 1)?.id
-                                            ?: DefaultMihomoOverrideScriptId
-                                    }
-                                },
-                                advancedExpanded = showAdvancedOptions,
-                                onAdvancedExpandedChange = { showAdvancedOptions = it },
-                                ruleOverride = ruleOverrideDraft,
-                                onOpenRuleOverride = ::openRuleOverrideEditor,
-                                disableOverrides = disableOverrides,
-                                rawReadiness = rawCheck?.readiness,
-                                rawSnapshot = rawParseResult?.snapshot,
-                                runMode = appState.runMode,
-                                onDisableOverridesChange = { enabled ->
-                                    if (enabled) showRawModeConfirmation = true else disableOverrides = false
-                                },
-                            )
+                        Text(
+                            text = stringResource(R.string.mihomo_profile_missing),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                } else {
+                    key(targetProfile?.id, profileType, editsContent) {
+                        val scrollModifier = if (!editsContent) {
+                            Modifier.pageReadableWidth(maxWidth = 800.dp).verticalScroll(rememberScrollState())
                         } else {
-                            AnimatedVisibility(
-                                visible = !editorFocus.expanded,
-                                enter = AsteriskMotion.contentEnter(),
-                                exit = AsteriskMotion.contentExit(),
-                            ) {
-                                Column {
-                                    if (editsUrlContent) Text(
-                                        text = stringResource(R.string.mihomo_profile_edit_url_content_hint),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                                    ) else Surface(
-                                        onClick = { showFileProperties = true },
-                                        enabled = !saving,
-                                        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                                        shape = MaterialTheme.shapes.large,
-                                        color = MaterialTheme.colorScheme.surfaceContainer,
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
+                            Modifier
+                        }
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .then(scrollModifier)
+                                .padding(contentPadding)
+                                .padding(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 12.dp),
+                        ) {
+                            if (!editsContent) {
+                                OutlinedTextField(
+                                    shape = AsteriskShapeTokens.InnerContainer,
+                                    state = nameState,
+                                    enabled = !saving,
+                                    label = { Text(stringResource(R.string.mihomo_profile_name)) },
+                                    placeholder = { Text(stringResource(R.string.mihomo_profile_name_placeholder)) },
+                                    lineLimits = TextFieldLineLimits.SingleLine,
+                                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                                )
+                                UrlProfileFields(
+                                    enabled = !saving,
+                                    urlState = urlState,
+                                    userAgentState = userAgentState,
+                                    hwidState = hwidState,
+                                    ageSecretKeyState = ageSecretKeyState,
+                                    updateIntervalState = updateIntervalState,
+                                    updateViaProxy = updateViaProxy,
+                                    onUpdateViaProxyChange = { updateViaProxy = it },
+                                    overrideScriptOptions = overrideScriptOptions,
+                                    selectedOverrideScriptIndex = selectedOverrideScriptIndex,
+                                    onSelectedOverrideScriptIndexChange = { index ->
+                                        overrideScriptId = if (index == 0) {
+                                            DefaultMihomoOverrideScriptId
+                                        } else {
+                                            appState.mihomoOverrideScripts.getOrNull(index - 1)?.id
+                                                ?: DefaultMihomoOverrideScriptId
+                                        }
+                                    },
+                                    advancedExpanded = showAdvancedOptions,
+                                    onAdvancedExpandedChange = { showAdvancedOptions = it },
+                                    ruleOverride = ruleOverrideDraft,
+                                    onOpenRuleOverride = ::openRuleOverrideEditor,
+                                    disableOverrides = disableOverrides,
+                                    rawReadiness = rawCheck?.readiness,
+                                    rawSnapshot = rawParseResult?.snapshot,
+                                    runMode = appState.runMode,
+                                    onDisableOverridesChange = { enabled ->
+                                        if (enabled) showRawModeConfirmation = true else disableOverrides = false
+                                    },
+                                )
+                            } else {
+                                AnimatedVisibility(
+                                    visible = !editorFocus.expanded,
+                                    enter = AsteriskMotion.contentEnter(),
+                                    exit = AsteriskMotion.contentExit(),
+                                ) {
+                                    Column {
+                                        if (editsUrlContent) Text(
+                                            text = stringResource(R.string.mihomo_profile_edit_url_content_hint),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                                        ) else Surface(
+                                            onClick = { showFileProperties = true },
+                                            enabled = !saving,
+                                            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                                            shape = MaterialTheme.shapes.large,
+                                            color = MaterialTheme.colorScheme.surfaceContainer,
                                         ) {
-                                            Icon(
-                                                imageVector = Icons.Rounded.Tune,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.primary,
-                                            )
-                                            Spacer(Modifier.width(14.dp))
-                                            Column(modifier = Modifier.weight(1f)) {
-                                                Text(
-                                                    text = stringResource(R.string.mihomo_profile_properties),
-                                                    style = MaterialTheme.typography.titleMedium,
+                                            Row(
+                                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Rounded.Tune,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.primary,
                                                 )
-                                                Text(
-                                                    text = nameState.text.toString().ifBlank {
-                                                        stringResource(R.string.mihomo_profile_name)
-                                                    },
-                                                    style = MaterialTheme.typography.bodyMedium,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                    maxLines = 1,
+                                                Spacer(Modifier.width(14.dp))
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(
+                                                        text = stringResource(R.string.mihomo_profile_properties),
+                                                        style = MaterialTheme.typography.titleMedium,
+                                                    )
+                                                    Text(
+                                                        text = nameState.text.toString().ifBlank {
+                                                            stringResource(R.string.mihomo_profile_name)
+                                                        },
+                                                        style = MaterialTheme.typography.bodyMedium,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        maxLines = 1,
+                                                    )
+                                                }
+                                                Icon(
+                                                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                                                    contentDescription = null,
                                                 )
                                             }
-                                            Icon(
-                                                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                                                contentDescription = null,
-                                            )
                                         }
                                     }
                                 }
+                                YamlCodeEditor(
+                                    state = contentEditorState,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .weight(1f)
+                                        .imePadding()
+                                        .then(editorModifier),
+                                    readOnly = saving,
+                                    searchState = codeSearch,
+                                    showFormatButton = false,
+                                )
                             }
-                            YamlCodeEditor(
-                                state = contentEditorState,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .weight(1f)
-                                    .imePadding()
-                                    .then(editorModifier),
-                                readOnly = saving,
-                                searchState = codeSearch,
-                                showFormatButton = false,
-                            )
                         }
                     }
                 }

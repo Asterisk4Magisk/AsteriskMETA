@@ -3,7 +3,9 @@
 
 package ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.animation.AnimatedVisibility
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -20,12 +22,14 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -38,6 +42,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import ui.clipboard.setPlainText
+import ui.layout.LocalAdaptiveWindow
+import ui.layout.avoidFold
 import ui.layout.pageListPadding
 import ui.layout.CodeEditorFocusState
 import ui.theme.AsteriskMotion
@@ -51,6 +57,7 @@ internal fun AsteriskCodePreviewDialog(
     searchAvailable: Boolean = true,
     keepSearchButtonVisible: Boolean = false,
     focusState: CodeEditorFocusState? = null,
+    embedded: Boolean = false,
     actions: @Composable RowScope.() -> Unit = {},
     topBarContent: @Composable ColumnScope.() -> Unit = {},
     content: @Composable (searchState: AsteriskCodeSearchState, editorModifier: Modifier) -> Unit,
@@ -63,23 +70,21 @@ internal fun AsteriskCodePreviewDialog(
             else -> onDismissRequest()
         }
     }
-    Dialog(
-        onDismissRequest = onBack,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false,
-            dismissOnClickOutside = false,
-        ),
-    ) {
+    val window = LocalAdaptiveWindow.current
+    val preview: @Composable () -> Unit = {
         AsteriskCodeSearchHost(
             state = searchState,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize()
+                .background(MaterialTheme.colorScheme.surface)
+                .then(if (embedded) Modifier else Modifier.avoidFold(window))
+                .clipToBounds(),
             enabled = searchAvailable,
             showSearchButton = keepSearchButtonVisible || searchAvailable,
         ) { searchButton, editorModifier, backdrop ->
             AsteriskScaffold(
                 backdrop = backdrop,
-                contentWindowInsets = WindowInsets.systemBars.union(WindowInsets.displayCutout),
+                contentWindowInsets = if (embedded) WindowInsets(0, 0, 0, 0)
+                else WindowInsets.systemBars.union(WindowInsets.displayCutout),
                 topBar = {
                     Column {
                         AsteriskTopAppBar(
@@ -106,6 +111,20 @@ internal fun AsteriskCodePreviewDialog(
                 }
             }
         }
+    }
+    if (embedded) {
+        BackHandler(enabled = searchState.active, onBack = onBack)
+        preview()
+    } else {
+        Dialog(
+            onDismissRequest = onBack,
+            properties = DialogProperties(
+                usePlatformDefaultWidth = false,
+                decorFitsSystemWindows = false,
+                dismissOnClickOutside = false,
+            ),
+            content = preview,
+        )
     }
 }
 

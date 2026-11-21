@@ -49,6 +49,7 @@ internal fun MihomoProviderPreviewDialog(
     loading: Boolean,
     rawContent: MihomoProviderRawContent?,
     onDismissRequest: () -> Unit,
+    embedded: Boolean = false,
 ) {
     val textContent = rawContent as? MihomoProviderRawContent.Text
     val content = textContent?.content.orEmpty()
@@ -59,6 +60,7 @@ internal fun MihomoProviderPreviewDialog(
     AsteriskCodePreviewDialog(
         title = providerName.ifBlank { ProviderPreviewFallbackName },
         onDismissRequest = onDismissRequest,
+        embedded = embedded,
         searchAvailable = searchAvailable,
         actions = { if (searchAvailable) AsteriskCodeCopyButton(editorState::snapshotText) },
         topBarContent = {

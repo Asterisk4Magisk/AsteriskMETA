@@ -7,7 +7,12 @@
 
 package features.mihomo
 
+import androidx.compose.foundation.layout.fillMaxHeight
 import android.os.SystemClock
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
@@ -106,6 +111,7 @@ import engine.mihomo.selectedMihomoProfileOrNull
 import features.home.HomeControllerState
 import features.home.HomeMonitoringOverviewState
 import features.home.HomeNetworkActivityState
+import features.home.HomeServiceOperation
 import features.home.HomeNetworkRowKind
 import features.home.HomeNetworkSampleLimit
 import features.home.HomePrimaryRowKind
@@ -139,6 +145,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import ui.layout.LocalAdaptiveWindow
 import ui.components.AsteriskFocusSurface
 import ui.components.AsteriskPageCard
 import ui.components.AsteriskScaffold
@@ -178,6 +185,7 @@ private fun AppServices.homeTrafficPresentationSnapshot(): HomeTrafficPresentati
 private fun AppServices.homeMonitoringOverviewSnapshot() =
     buildHomeMonitoringOverviewState(monitoring.state.value)
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun MihomoDashboardPage(
     padding: PaddingValues,
@@ -313,20 +321,42 @@ fun MihomoDashboardPage(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            item("controller") {
-                HomeControllerCard(
-                    controllerState = controllerState,
-                    operationInProgress = operationInProgress,
-                    onModeSelected = ::changeMode,
-                    onOpenConfiguration = { mainDestinationState?.select(MainDestination.Configurations) },
-                    onOpenNode = { mainDestinationState?.select(MainDestination.Proxies) },
-                )
-            }
-            item("network_activity") {
-                NetworkActivityCard(
-                    networkActivityState = networkActivityState,
-                    chartStyle = appState.networkActivityStyle,
-                )
+            item("overview") {
+                BoxWithConstraints(HomeContentModifier) {
+                    val sideBySide = LocalAdaptiveWindow.current.showTwoColumns &&
+                        maxWidth >= 690.dp && LocalDensity.current.fontScale <= 1.3f
+                    val stackActivityHeading = sideBySide && maxWidth < NetworkActivityInlineHeadingWidth
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth()
+                            .animateContentSize(animationSpec = AsteriskMotion.contentSize()),
+                        maxItemsInEachRow = if (sideBySide) 2 else 1,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(if (isWideScreen) 12.dp else 16.dp),
+                    ) {
+                        val tileModifier = Modifier.weight(1f)
+                            .then(if (sideBySide) Modifier.fillMaxRowHeight() else Modifier)
+                        Box(tileModifier) {
+                            HomeControllerCard(
+                                fillRow = sideBySide,
+                                controllerState = controllerState,
+                                operationInProgress = operationInProgress,
+                                onModeSelected = ::changeMode,
+                                onOpenConfiguration = { mainDestinationState?.select(MainDestination.Configurations) },
+                                onOpenNode = { mainDestinationState?.select(MainDestination.Proxies) },
+                            )
+                        }
+                        Box(tileModifier) {
+                            NetworkActivityCard(
+                                fillRow = sideBySide,
+                                networkActivityState = networkActivityState,
+                                chartStyle = appState.networkActivityStyle,
+                                stackHeading = stackActivityHeading,
+                                awaitingSamples = appState.proxyRunning ||
+                                    serviceControl.operation == HomeServiceOperation.Starting,
+                            )
+                        }
+                    }
+                }
             }
             item("monitoring") {
                 // Equal row weights use the tallest card's intrinsic height for all four cards.
@@ -453,6 +483,7 @@ fun MihomoDashboardPage(
 
 @Composable
 private fun HomeControllerCard(
+    fillRow: Boolean,
     controllerState: HomeControllerState,
     operationInProgress: Boolean,
     onModeSelected: (Int) -> Unit,
@@ -490,7 +521,7 @@ private fun HomeControllerCard(
     // The secondary layer is the base card: the accent card sits inside it and
     // the strip below that inner card is the "chin" holding the rows and the mode switch.
     Surface(
-        modifier = HomeContentModifier,
+        modifier = HomeContentModifier.then(if (fillRow) Modifier.fillMaxHeight() else Modifier),
         shape = RoundedCornerShape(HomeChinOuterRadius),
         color = homeChinBaseColor(),
         contentColor = MaterialTheme.colorScheme.onSurface,
@@ -758,87 +789,119 @@ private fun homeChinBaseColor(): Color = lerp(
 private fun NetworkActivityCard(
     networkActivityState: HomeNetworkActivityState,
     chartStyle: Int,
+    fillRow: Boolean,
+    stackHeading: Boolean,
+    awaitingSamples: Boolean,
 ) {
-    // The card wraps its content and only the plot has a fixed height, so a large font scale grows
-    // the card instead of squeezing the chart away.
-    AsteriskPageCard(modifier = HomeContentModifier) {
+    val cardModifier = if (fillRow) {
+        val minimumHeight = if (stackHeading) 216.dp else 184.dp
+        HomeContentModifier.fillMaxHeight().heightIn(min = minimumHeight)
+    } else {
+        HomeContentModifier
+    }
+    AsteriskPageCard(modifier = cardModifier) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .then(if (fillRow) Modifier.fillMaxHeight() else Modifier)
                 .padding(horizontal = 20.dp, vertical = 16.dp),
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Top,
-            ) {
-                Text(
-                    text = stringResource(R.string.home_network_activity),
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    // Never let the caption stack one glyph per line when the rates get wide.
-                    maxLines = 1,
-                    softWrap = false,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Spacer(Modifier.width(12.dp))
-                // Live speeds keep their heading size and sit side by side in the
-                // card's top-right corner; the plot below spans the full width. The group may
-                // take more room than the caption, and the values shrink to fit instead of
-                // ellipsizing or pushing the caption into a single-glyph column.
+            if (stackHeading) {
+                NetworkActivityTitle()
+                Spacer(Modifier.height(4.dp))
+                NetworkActivityRates(state = networkActivityState)
+            } else {
                 Row(
-                    modifier = Modifier.weight(1.6f),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.End,
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.Top,
                 ) {
-                    NetworkSpeedValue(
-                        icon = Icons.Rounded.ArrowUpward,
-                        iconDescription = stringResource(R.string.monitor_connections_upload),
-                        tint = MaterialTheme.colorScheme.tertiary,
-                        value = formatHomeSpeed(networkActivityState.uploadBytesPerSecond),
-                        modifier = Modifier.weight(1f, fill = false),
-                    )
-                    Spacer(Modifier.width(NetworkSpeedPairSpacing))
-                    NetworkSpeedValue(
-                        icon = Icons.Rounded.ArrowDownward,
-                        iconDescription = stringResource(R.string.monitor_connections_download),
-                        tint = MaterialTheme.colorScheme.primary,
-                        value = formatHomeSpeed(networkActivityState.downloadBytesPerSecond),
-                        modifier = Modifier.weight(1f, fill = false),
+                    NetworkActivityTitle(modifier = Modifier.weight(1f))
+                    Spacer(Modifier.width(12.dp))
+                    NetworkActivityRates(
+                        state = networkActivityState,
+                        modifier = Modifier.weight(1.6f),
+                        arrangement = Arrangement.End,
                     )
                 }
             }
             Spacer(Modifier.height(8.dp))
-            if (networkActivityState.hasNetworkSamples) {
-                val chartModifier = Modifier
-                    .fillMaxWidth()
-                    .height(NetworkActivityChartHeight)
-                if (chartStyle == NetworkActivityStyleLines) {
-                    NetworkActivityLineChart(
-                        state = networkActivityState,
-                        modifier = chartModifier,
-                    )
-                } else {
-                    NetworkActivityChart(
-                        state = networkActivityState,
-                        modifier = chartModifier,
-                    )
-                }
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(NetworkActivityChartHeight),
+            val plotModifier = Modifier.fillMaxWidth().then(
+                if (fillRow) Modifier.weight(1f)
+                else Modifier.height(
+                    if (LocalIsWideScreen.current && !networkActivityState.hasNetworkSamples) 80.dp
+                    else NetworkActivityChartHeight,
+                ),
+            )
+            when {
+                !networkActivityState.hasNetworkSamples -> Box(
+                    modifier = plotModifier,
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = stringResource(R.string.home_no_network_activity),
+                        text = stringResource(
+                            if (fillRow && awaitingSamples) R.string.home_waiting_for_network_samples
+                            else R.string.home_no_network_activity,
+                        ),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 }
+
+                chartStyle == NetworkActivityStyleLines -> NetworkActivityLineChart(
+                    state = networkActivityState,
+                    reserveAxisSpace = fillRow,
+                    modifier = plotModifier,
+                )
+
+                else -> NetworkActivityChart(
+                    state = networkActivityState,
+                    reserveAxisSpace = fillRow,
+                    modifier = plotModifier,
+                )
             }
         }
+    }
+}
+
+@Composable
+private fun NetworkActivityTitle(modifier: Modifier = Modifier) {
+    Text(
+        text = stringResource(R.string.home_network_activity),
+        modifier = modifier,
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.SemiBold,
+        maxLines = 1,
+        softWrap = false,
+        overflow = TextOverflow.Ellipsis,
+    )
+}
+
+@Composable
+private fun NetworkActivityRates(
+    state: HomeNetworkActivityState,
+    modifier: Modifier = Modifier,
+    arrangement: Arrangement.Horizontal = Arrangement.Start,
+) {
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = arrangement,
+    ) {
+        NetworkSpeedValue(
+            icon = Icons.Rounded.ArrowUpward,
+            iconDescription = stringResource(R.string.monitor_connections_upload),
+            tint = MaterialTheme.colorScheme.tertiary,
+            value = formatHomeSpeed(state.uploadBytesPerSecond),
+            modifier = Modifier.weight(1f, fill = false),
+        )
+        Spacer(Modifier.width(NetworkSpeedPairSpacing))
+        NetworkSpeedValue(
+            icon = Icons.Rounded.ArrowDownward,
+            iconDescription = stringResource(R.string.monitor_connections_download),
+            tint = MaterialTheme.colorScheme.primary,
+            value = formatHomeSpeed(state.downloadBytesPerSecond),
+            modifier = Modifier.weight(1f, fill = false),
+        )
     }
 }
 
@@ -850,6 +913,7 @@ private fun NetworkActivityCard(
 @Composable
 private fun NetworkActivityLineChart(
     state: HomeNetworkActivityState,
+    reserveAxisSpace: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val samples = state.networkSamples
@@ -861,6 +925,7 @@ private fun NetworkActivityLineChart(
         // It gets a thin row of its own so the plot keeps the full card width.
         NetworkActivityAxisLabel(
             scaleBytes = bands.scaleBytes,
+            reserveSpace = reserveAxisSpace,
             modifier = Modifier.align(Alignment.End),
         )
         Canvas(
@@ -911,6 +976,7 @@ private fun NetworkSpeedValue(
 @Composable
 private fun NetworkActivityChart(
     state: HomeNetworkActivityState,
+    reserveAxisSpace: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val samples = state.networkSamples
@@ -920,6 +986,7 @@ private fun NetworkActivityChart(
     Column(modifier = modifier) {
         NetworkActivityAxisLabel(
             scaleBytes = waveform.downloadScaleBytes,
+            reserveSpace = reserveAxisSpace,
             modifier = Modifier.align(Alignment.End),
         )
         Canvas(
@@ -950,6 +1017,7 @@ private fun NetworkActivityChart(
         // inherits the download range.
         NetworkActivityAxisLabel(
             scaleBytes = waveform.uploadScaleBytes,
+            reserveSpace = reserveAxisSpace,
             modifier = Modifier.align(Alignment.End),
         )
     }
@@ -958,11 +1026,12 @@ private fun NetworkActivityChart(
 @Composable
 private fun NetworkActivityAxisLabel(
     scaleBytes: Long,
+    reserveSpace: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    if (scaleBytes <= 0L) return
+    if (scaleBytes <= 0L && !reserveSpace) return
     Text(
-        text = formatHomeSpeed(scaleBytes),
+        text = if (scaleBytes > 0L) formatHomeSpeed(scaleBytes) else "",
         modifier = modifier.heightIn(min = NetworkActivityAxisLabelHeight),
         style = MaterialTheme.typography.labelSmall,
         fontWeight = FontWeight.Medium,
@@ -1431,6 +1500,7 @@ private const val NetworkActivityVerticalPitchScale = 2.6f
 private val HomeMonitoringTileHeight = 132.dp
 
 private val NetworkActivityChartHeight = 120.dp
+private val NetworkActivityInlineHeadingWidth = 852.dp
 
 /** One thin row per axis label; the plot keeps everything else. */
 private val NetworkActivityAxisLabelHeight = 14.dp
@@ -1443,8 +1513,8 @@ private const val NetworkActivityDownloadDirection = -1f
 private const val NetworkActivityUploadDirection = 1f
 
 private val HomeContentModifier = Modifier
+    .widthIn(max = 1120.dp)
     .fillMaxWidth()
-    .widthIn(max = 840.dp)
 
 // The secondary base card, the accent card nested inside it, and the inset
 // that leaves the chin strip visible below the inner card.

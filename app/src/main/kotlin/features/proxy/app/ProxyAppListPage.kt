@@ -3,6 +3,7 @@
 
 package features.proxy.app
 
+import ui.layout.pageReadableWidth
 import android.content.pm.PackageManager
 import android.os.SystemClock
 import androidx.compose.foundation.background
@@ -83,7 +84,7 @@ import ui.components.AsteriskSearchTopAppBar
 import ui.components.ImportModeDialog
 import ui.layout.cutoutHorizontalPadding
 import ui.layout.pageContentPaddingWithCutout
-import ui.layout.pageHorizontalPadding
+import ui.layout.rememberPageGutter
 import ui.layout.pageListPadding
 import ui.text.formatTemplate
 import kotlin.time.Duration.Companion.milliseconds
@@ -370,8 +371,9 @@ fun ProxyAppListPage(
                         }
                     },
                     modifier = Modifier
+                        .pageReadableWidth(maxWidth = ProxyAppListContentWidth)
                         .cutoutHorizontalPadding()
-                        .pageHorizontalPadding()
+                        .padding(horizontal = rememberPageGutter())
                         .padding(bottom = 8.dp),
                 )
 
@@ -381,8 +383,9 @@ fun ProxyAppListPage(
                         selectedUserId = selectedUserId,
                         onSelectedUserIdChange = { userId -> pageState.selectedUserId = userId },
                         modifier = Modifier
+                            .pageReadableWidth(maxWidth = ProxyAppListContentWidth)
                             .cutoutHorizontalPadding()
-                            .pageHorizontalPadding()
+                            .padding(horizontal = rememberPageGutter())
                             .padding(bottom = 8.dp),
                     )
                 }
@@ -499,6 +502,7 @@ private fun ProxyAppListTopBar(
         query = searchValue,
         onQueryChange = onSearchValueChange,
         placeholder = stringResource(R.string.proxy_app_list_search_label),
+        searchContentMaxWidth = ProxyAppListContentWidth,
         title = { Text(stringResource(R.string.proxy_app_list_title)) },
         navigationIcon = {
             onBack?.let { navigateBack ->
@@ -570,8 +574,7 @@ private fun ProxyAppListContent(
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize(),
+        modifier = Modifier.pageReadableWidth(maxWidth = ProxyAppListContentWidth).fillMaxSize(),
     ) {
         AsteriskPullToRefreshBox(
             isRefreshing = pageState.refreshingApps,
@@ -705,3 +708,5 @@ private fun Throwable.proxyAppListClipboardImportMessage(
         else -> unsupportedFormat
     }
 }
+
+private val ProxyAppListContentWidth = 840.dp

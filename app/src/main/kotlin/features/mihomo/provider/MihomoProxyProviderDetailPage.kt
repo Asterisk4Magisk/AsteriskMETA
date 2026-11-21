@@ -95,6 +95,7 @@ private data class ProviderDelayRuntime(
 fun MihomoProxyProviderDetailPage(
     padding: PaddingValues,
     providerName: String,
+    onClose: (() -> Unit)? = null,
 ) {
     val isWideScreen = LocalIsWideScreen.current
     val navigator = LocalNavigator.current
@@ -262,7 +263,7 @@ fun MihomoProxyProviderDetailPage(
                     placeholder = stringResource(R.string.mihomo_provider_proxies_search),
                     title = { Text(provider?.name ?: providerName, maxLines = 1) },
                     navigationIcon = {
-                        IconButton(onClick = { navigator.pop() }) {
+                        IconButton(onClick = onClose ?: { navigator.pop() }) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                                 contentDescription = stringResource(R.string.common_back),

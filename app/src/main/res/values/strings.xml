@@ -76,6 +76,7 @@
     <string name="home_more_actions">More actions</string>
     <string name="home_network_activity">Network activity</string>
     <string name="home_no_network_activity">No activity yet</string>
+    <string name="home_waiting_for_network_samples">Waiting for traffic data</string>
     <string name="home_no_proxy">No proxy selected</string>
     <string name="home_no_subscription">No subscription usage is available for this profile</string>
     <string name="home_run_mode_bpf2socks" translatable="false">BPF2SOCKS</string>

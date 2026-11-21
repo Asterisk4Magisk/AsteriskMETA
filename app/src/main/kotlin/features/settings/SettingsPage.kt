@@ -4,13 +4,17 @@
 package features.settings
 
 import android.net.VpnService
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
@@ -26,8 +30,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.LocalAppServices
@@ -67,9 +74,12 @@ import ui.KeyColors
 import ui.components.AsteriskContentHeader
 import ui.components.AsteriskScaffold
 import ui.components.AsteriskSearchTopAppBar
+import ui.layout.LocalAdaptiveWindow
 import ui.layout.pageContentPaddingWithCutout
 import ui.layout.pageHorizontalPadding
+import ui.layout.rememberPageGutter
 import ui.layout.pageListPadding
+import ui.layout.pageReadableWidth
 import ui.layout.pageScrollModifiers
 import ui.text.formatTemplate
 
@@ -89,6 +99,12 @@ fun SettingsPage(
     AsteriskScaffold(
         topBar = {
             AsteriskSearchTopAppBar(
+                modifier = if (LocalIsWideScreen.current) {
+                    Modifier.pageReadableWidth()
+                        .padding(horizontal = (rememberPageGutter() - 16.dp).coerceAtLeast(0.dp))
+                } else {
+                    Modifier
+                },
                 query = searchQuery,
                 onQueryChange = { searchQuery = it },
                 placeholder = stringResource(R.string.common_search),
@@ -139,7 +155,14 @@ private fun SettingsContent(
     val proxyServiceUseCase = services.proxyServiceUseCase
     val tipNotifier = services.tipNotifier
     val scope = rememberCoroutineScope()
-    val lazyListState = rememberLazyListState()
+    val gridState = rememberLazyGridState()
+    val wideGridState = rememberLazyGridState()
+    val searchGridState = rememberLazyGridState()
+    val hasSearch = searchQuery.isNotBlank()
+    val wideSearch = isWideScreen && hasSearch
+    LaunchedEffect(searchQuery, wideSearch) {
+        if (wideSearch) searchGridState.scrollToItem(0)
+    }
     var runModeSwitchInProgress by rememberSaveable { mutableStateOf(false) }
     var rootBootScriptSwitchInProgress by rememberSaveable { mutableStateOf(false) }
     var rootEbpfSwitchInProgress by rememberSaveable { mutableStateOf(false) }
@@ -386,34 +409,33 @@ private fun SettingsContent(
 
     SettingsRawConfigProvider(rawConfigState) {
     SettingsSearchProvider(searchQuery) {
-    Box {
-        LazyColumn(
-            state = lazyListState,
-            modifier = Modifier.pageScrollModifiers(
-                topAppBarScrollBehavior,
-            ),
-            contentPadding = listPadding,
-        ) {
-            if (searchQuery.isNotBlank()) {
-                item(key = "settings_search_status") {
-                    SettingsSearchStatus(
-                        state = searchFocusState,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .pageHorizontalPadding()
-                            .padding(vertical = 8.dp),
-                    )
-                }
-            }
-            if (searchQuery.isNotBlank() && !rawConfigState.enabled) {
-                item(key = "settings_nested_search_results") {
-                    SettingsNestedSearchResults(
-                        query = searchQuery,
-                        entries = nestedSearchEntries,
-                    )
-                }
-            }
-            item(key = "settings_core") {
+    BoxWithConstraints(Modifier.pageReadableWidth()) {
+        val direction = LocalLayoutDirection.current
+        val availableWidth = maxWidth - listPadding.calculateStartPadding(direction) -
+            listPadding.calculateEndPadding(direction)
+        val useTwoColumns = LocalAdaptiveWindow.current.showTwoColumns && availableWidth >= 720.dp &&
+            LocalDensity.current.fontScale <= 1.3f && !hasSearch
+        val gridPadding = if (isWideScreen) {
+            PaddingValues(
+                start = listPadding.calculateStartPadding(direction),
+                end = listPadding.calculateEndPadding(direction),
+                bottom = listPadding.calculateBottomPadding(),
+            )
+        } else {
+            listPadding
+        }
+        val gridModifier = if (isWideScreen) {
+            Modifier.padding(top = listPadding.calculateTopPadding()).clipToBounds()
+        } else {
+            Modifier
+        }
+        val activeGridState = when {
+            wideSearch -> searchGridState
+            useTwoColumns -> wideGridState
+            else -> gridState
+        }
+        val sections = SettingsPageSections().apply {
+            settingsSection("settings_core") {
                 SettingsCoreSection(
                     dnsSettingsSummary = dnsSummary,
                     snifferSettingsSummary = snifferSummary,
@@ -441,7 +463,7 @@ private fun SettingsContent(
                     },
                 )
             }
-            item(key = "settings_run_mode") {
+            settingsSection("settings_run_mode") {
                 SettingsAdvancedSection(
                     enableBroadcastControl = appState.enableBroadcastControl,
                     enableIpv6 = appState.enableIpv6,
@@ -503,7 +525,7 @@ private fun SettingsContent(
                     },
                 )
             }
-            item(key = "settings_proxy") {
+            settingsSection("settings_proxy") {
                 SettingsProxyModeSections(
                     runMode = appState.runMode,
                     localProxySettingsSummary = localProxySettingsSummary,
@@ -644,7 +666,7 @@ private fun SettingsContent(
                     onOpenPrivateAddresses = { sheetState.openPrivateAddresses(appState) },
                 )
             }
-            item(key = "settings_privacy") {
+            settingsSection("settings_privacy") {
                 SettingsPrivacySection(
                     hideRecentTasks = appState.hideRecentTasks,
                     onHideRecentTasksChange = { hidden -> updateAppState { it.copy(hideRecentTasks = hidden) } },
@@ -654,7 +676,7 @@ private fun SettingsContent(
                     onHideLauncherIconChange = { hidden -> updateAppState { it.copy(hideLauncherIcon = hidden) } },
                 )
             }
-            item(key = "settings_app") {
+            settingsSection("settings_app") {
                 SettingsAppSection(
                     languageOptions = languageOptions,
                     languageMode = appState.languageMode,
@@ -665,7 +687,7 @@ private fun SettingsContent(
                     onOpenPersonalization = { sheetState.showPersonalizationSettings = true },
                 )
             }
-            item(key = "settings_backup_restore") {
+            settingsSection("settings_backup_restore") {
                 SettingsBackupRestoreSection(
                     progressText = backupRestoreProgressText,
                     onBackupUserData = {
@@ -707,18 +729,46 @@ private fun SettingsContent(
                     },
                 )
             }
-            item(key = "settings_logs") {
+            settingsSection("settings_logs") {
                 SettingsLogsSection(
                     onOpenCoreLogs = { navigator.push(Route.CoreLogs) },
                     onOpenLogcatLogs = { navigator.push(Route.LogcatLogs) },
                 )
             }
-            item(key = "settings_about") {
+            settingsSection("settings_about") {
                 SettingsAboutSection(
                     onOpenAbout = { navigator.push(Route.About) },
                     onOpenLicenses = { navigator.push(Route.License) },
                 )
             }
+        }
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(1),
+            state = activeGridState,
+            modifier = gridModifier.pageScrollModifiers(topAppBarScrollBehavior),
+            contentPadding = gridPadding,
+        ) {
+            if (searchQuery.isNotBlank()) {
+                item(key = "settings_search_status", span = { GridItemSpan(maxLineSpan) }) {
+                    SettingsSearchStatus(
+                        state = searchFocusState,
+                        modifier = if (isWideScreen) {
+                            Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
+                        } else {
+                            Modifier.fillMaxWidth().pageHorizontalPadding().padding(vertical = 8.dp)
+                        },
+                    )
+                }
+            }
+            if (searchQuery.isNotBlank() && !rawConfigState.enabled) {
+                item(key = "settings_nested_search_results", span = { GridItemSpan(maxLineSpan) }) {
+                    SettingsNestedSearchResults(
+                        query = searchQuery,
+                        entries = nestedSearchEntries,
+                    )
+                }
+            }
+            sections.addTo(this, useTwoColumns)
         }
         SettingsBottomSheetsHost(
             appState = appState,

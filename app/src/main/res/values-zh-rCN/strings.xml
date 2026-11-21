@@ -76,6 +76,7 @@
     <string name="home_more_actions">更多操作</string>
     <string name="home_network_activity">网络活动</string>
     <string name="home_no_network_activity">暂无活动</string>
+    <string name="home_waiting_for_network_samples">正在等待流量数据</string>
     <string name="home_no_proxy">尚未选择节点</string>
     <string name="home_no_subscription">当前配置暂无订阅用量信息</string>
     <string name="home_service_disabled">服务未启用</string>
