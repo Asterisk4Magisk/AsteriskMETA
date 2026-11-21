@@ -39,7 +39,7 @@ import features.mihomo.PlainTextCodeEditor
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import ui.components.AsteriskCodeSearchHost
-import ui.components.AsteriskSaveButton
+import ui.components.AsteriskCodeActionButton
 import ui.components.AsteriskScaffold
 import ui.components.AsteriskTopAppBar
 import ui.components.rememberAsteriskCodeSearchState
@@ -122,8 +122,7 @@ internal fun ResourceCidrEditorPage(padding: PaddingValues, kind: ResourceFileKi
         state = codeSearch,
         modifier = Modifier.fillMaxSize(),
         enabled = original != null && !saving,
-        editorTools = { searchButton -> searchButton() },
-    ) { _, editorModifier, backdrop ->
+    ) { searchButton, editorModifier, backdrop ->
         AsteriskScaffold(
             backdrop = backdrop,
             topBar = {
@@ -144,7 +143,10 @@ internal fun ResourceCidrEditorPage(padding: PaddingValues, kind: ResourceFileKi
                         }
                     },
                     actions = {
-                        AsteriskSaveButton(
+                        searchButton()
+                        AsteriskCodeActionButton(
+                            icon = Icons.Rounded.Save,
+                            label = stringResource(R.string.common_save),
                             onClick = ::save,
                             enabled = original != null && !saving,
                             loading = saving,

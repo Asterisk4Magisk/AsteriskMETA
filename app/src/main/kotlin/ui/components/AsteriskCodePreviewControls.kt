@@ -3,6 +3,9 @@
 
 package ui.components
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -19,7 +22,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import ui.theme.AsteriskMotion
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,14 +36,30 @@ internal fun AsteriskCodeActionButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    loading: Boolean = false,
 ) {
     TooltipBox(
         positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Below),
         tooltip = { PlainTooltip { Text(label) } },
         state = rememberTooltipState(),
     ) {
-        IconButton(onClick = onClick, modifier = modifier, enabled = enabled) {
-            Icon(icon, contentDescription = label)
+        IconButton(
+            onClick = onClick,
+            modifier = modifier.semantics { contentDescription = label },
+            enabled = enabled && !loading,
+        ) {
+            val loadingMotion = AsteriskMotion.fastEffects<Float>()
+            AnimatedContent(
+                targetState = loading,
+                transitionSpec = AsteriskMotion.fadeThrough(loadingMotion),
+                label = "code-action-loading",
+            ) { isLoading ->
+                if (isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                } else {
+                    Icon(icon, contentDescription = null)
+                }
+            }
         }
     }
 }
