@@ -29,7 +29,6 @@ import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -39,7 +38,6 @@ import androidx.compose.material3.OutlinedTextField
 import ui.components.AsteriskScaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import ui.components.AsteriskTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -526,37 +524,20 @@ fun MihomoOverrideScriptEditPage(
                         }
                     },
                     actions = {
-                        TextButton(
+                        AsteriskCodeActionButton(
+                            icon = Icons.Rounded.BugReport,
+                            label = stringResource(
+                                if (debugRunning) R.string.mihomo_override_script_debug_running
+                                else R.string.mihomo_override_script_debug_run,
+                            ),
                             onClick = ::runScriptDebug,
-                            enabled = !debugRunning,
-                        ) {
-                            if (debugRunning) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(18.dp),
-                                    strokeWidth = 2.dp,
-                                )
-                                Spacer(Modifier.width(6.dp))
-                            } else {
-                                Icon(Icons.Rounded.BugReport, contentDescription = null)
-                                Spacer(Modifier.width(6.dp))
-                            }
-                            Text(
-                                stringResource(
-                                    if (debugRunning) {
-                                        R.string.mihomo_override_script_debug_running
-                                    } else {
-                                        R.string.mihomo_override_script_debug_run
-                                    },
-                                ),
-                            )
-                        }
-                        TextButton(
+                            loading = debugRunning,
+                        )
+                        AsteriskCodeActionButton(
+                            icon = Icons.Rounded.Save,
+                            label = stringResource(R.string.common_save),
                             onClick = ::saveScript,
-                        ) {
-                            Icon(Icons.Rounded.Save, contentDescription = null)
-                            Spacer(Modifier.width(6.dp))
-                            Text(stringResource(R.string.common_save))
-                        }
+                        )
                     },
                 )
             },

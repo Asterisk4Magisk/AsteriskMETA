@@ -104,6 +104,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import ui.components.AsteriskActionButton
+import ui.components.AsteriskCodeActionButton
 import ui.components.AsteriskCodeSearchHost
 import ui.components.rememberAsteriskCodeSearchState
 import ui.components.AsteriskExpansionIndicator
@@ -518,14 +519,12 @@ fun MihomoProfileEditPage(
                         }
                     },
                     actions = {
-                        TextButton(
+                        AsteriskCodeActionButton(
+                            icon = Icons.Rounded.Save,
+                            label = stringResource(R.string.common_save),
                             onClick = ::onSave,
                             enabled = !saving && (profileType != MihomoProfileType.Url || updateIntervalValid),
-                        ) {
-                            Icon(Icons.Rounded.Save, contentDescription = null)
-                            Spacer(Modifier.width(6.dp))
-                            Text(stringResource(R.string.common_save))
-                        }
+                        )
                     },
                 )
             },

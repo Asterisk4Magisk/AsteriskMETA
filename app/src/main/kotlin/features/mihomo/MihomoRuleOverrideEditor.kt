@@ -64,6 +64,7 @@ import kotlinx.coroutines.withContext
 import sh.calvin.reorderable.ReorderableItem
 import ui.components.AsteriskActionButton
 import ui.components.AsteriskCancelButton
+import ui.components.AsteriskCodeActionButton
 import ui.components.AsteriskScaffold
 import ui.components.AsteriskTopAppBar
 import ui.components.SectionCardColor
@@ -162,15 +163,15 @@ internal fun MihomoRuleOverrideEditorDialog(
                         }
                     },
                     actions = {
-                        AsteriskActionButton(
-                            text = stringResource(R.string.mihomo_rule_override_preview),
+                        AsteriskCodeActionButton(
                             icon = Icons.Rounded.Visibility,
+                            label = stringResource(R.string.mihomo_rule_override_preview),
                             onClick = { showPreview = true },
                             enabled = source.status == RuleSourceStatus.Ready,
                         )
-                        AsteriskActionButton(
-                            text = stringResource(R.string.common_complete),
+                        AsteriskCodeActionButton(
                             icon = Icons.Rounded.Check,
+                            label = stringResource(R.string.common_complete),
                             onClick = { onConfirm(draft.normalized()) },
                         )
                     },
