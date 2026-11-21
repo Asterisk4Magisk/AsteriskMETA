@@ -372,7 +372,7 @@ fun ProxyAppListPage(
                     modifier = Modifier
                         .cutoutHorizontalPadding()
                         .pageHorizontalPadding()
-                        .padding(top = 8.dp, bottom = 12.dp),
+                        .padding(bottom = 8.dp),
                 )
 
                 if (pageState.userTabs.size > 1) {
