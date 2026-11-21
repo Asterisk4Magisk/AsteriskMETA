@@ -45,6 +45,7 @@ internal fun parseMihomoOfficialProxySnapshot(json: String): MihomoProxiesState 
             title = item.string("title").ifBlank { name },
             subtitle = item.string("subtitle").ifBlank { type },
             udp = item.boolean("udp") ?: false,
+            icon = item.string("icon"),
             delay = measuredDelay,
             delayStatus = when {
                 latestDelay == null -> null

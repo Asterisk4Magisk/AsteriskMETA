@@ -330,6 +330,13 @@ internal class MihomoControlClient(
             .toMihomoRuleProviderRuntimeSummaries()
     }
 
+    fun getRules(config: MihomoControlConfig): List<MihomoRuleRuntimeItem> {
+        // The embedded bridge has no rules snapshot; /rules on the external controller is the
+        // single source for the loaded configuration, which the rules monitor only reads while
+        // the runtime is queryable.
+        return parseMihomoRulesJson(request(config, "/rules"))
+    }
+
     suspend fun updateProxyProvider(
         config: MihomoControlConfig,
         providerName: String,

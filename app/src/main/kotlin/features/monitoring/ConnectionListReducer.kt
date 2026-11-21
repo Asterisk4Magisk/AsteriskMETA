@@ -14,6 +14,9 @@ internal enum class ConnectionRouteFilter {
     App,
     Proxy,
     Direct,
+
+    /** Shows the rules of the loaded configuration instead of connections. */
+    Rules,
 }
 
 /** Whether the filter narrows connections by their route instead of regrouping them. */
@@ -71,6 +74,8 @@ internal fun reduceConnections(
             ConnectionRouteFilter.App -> true
             ConnectionRouteFilter.Proxy -> resolvedRoute == ConnectionRouteKind.Proxy
             ConnectionRouteFilter.Direct -> resolvedRoute == ConnectionRouteKind.Direct
+            ConnectionRouteFilter.Rules -> true
+            ConnectionRouteFilter.App -> true
         }
         val matchesQuery = normalizedQuery.isEmpty() || connection.searchableText().contains(normalizedQuery)
         matchesRoute && matchesQuery
