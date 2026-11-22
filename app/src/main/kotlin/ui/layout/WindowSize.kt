@@ -30,6 +30,7 @@ internal data class AdaptiveWindow(
     val width: Dp = 0.dp,
     val height: Dp = 0.dp,
     val foldPadding: PaddingValues = PaddingValues(),
+    val hasSeparatingFold: Boolean = false,
 ) {
     val showNavigationRail: Boolean
         get() = width >= 840.dp || (width >= 600.dp && height / width < 1.2f)
@@ -50,9 +51,7 @@ internal fun rememberAdaptiveWindow(): AdaptiveWindow {
     val size = LocalWindowInfo.current.containerSize
     val direction = LocalLayoutDirection.current
     val density = LocalDensity.current
-    val pane = windowLayoutInfo?.displayFeatures?.asSequence()?.filterIsInstance<FoldingFeature>()
-        ?.mapNotNull { it.usablePane(size, direction) }
-        ?.firstOrNull() ?: IntRect(0, 0, size.width, size.height)
+    val pane = usableWindowPane(windowLayoutInfo, size, direction)
 
     return with(density) {
         val left = pane.left.toDp()
@@ -66,9 +65,15 @@ internal fun rememberAdaptiveWindow(): AdaptiveWindow {
                 end = if (direction == LayoutDirection.Ltr) right else left,
                 bottom = (size.height - pane.bottom).toDp(),
             ),
+            hasSeparatingFold = pane.width < size.width || pane.height < size.height,
         )
     }
 }
+
+internal fun usableWindowPane(info: WindowLayoutInfo?, size: IntSize, direction: LayoutDirection): IntRect =
+    info?.displayFeatures?.asSequence()?.filterIsInstance<FoldingFeature>()
+        ?.mapNotNull { it.usablePane(size, direction) }
+        ?.firstOrNull() ?: IntRect(0, 0, size.width, size.height)
 
 private fun FoldingFeature.usablePane(size: IntSize, direction: LayoutDirection): IntRect? {
     if (!isSeparating && occlusionType != FoldingFeature.OcclusionType.FULL) return null

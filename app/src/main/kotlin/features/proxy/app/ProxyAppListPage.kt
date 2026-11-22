@@ -11,11 +11,15 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import ui.layout.LocalAdaptiveWindow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -573,9 +577,9 @@ private fun ProxyAppListContent(
         }
     }
 
-    Box(
-        modifier = Modifier.pageReadableWidth(maxWidth = ProxyAppListContentWidth).fillMaxSize(),
-    ) {
+    val wide = LocalAdaptiveWindow.current.showTwoColumns && LocalDensity.current.fontScale <= 1.3f
+    val maxListWidth = if (wide) 1180.dp else ProxyAppListContentWidth
+    Box(Modifier.pageReadableWidth(maxWidth = maxListWidth).fillMaxSize()) {
         AsteriskPullToRefreshBox(
             isRefreshing = pageState.refreshingApps,
             onRefresh = pageState::requestRefresh,
@@ -596,6 +600,7 @@ private fun ProxyAppListContent(
                     iconSizePx = iconSizePx,
                     listPadding = pagerListPadding,
                     onAppCheckedChange = onAppCheckedChange,
+                    wide = wide,
                 )
             }
         }
@@ -639,6 +644,7 @@ private fun ProxyAppListUserPage(
     selectedAppKeys: Set<String>,
     modeIndex: Int,
     iconSizePx: Int,
+    wide: Boolean,
     listPadding: PaddingValues,
     onAppCheckedChange: (ProxyAppListItem, Boolean) -> Unit,
 ) {
@@ -646,20 +652,72 @@ private fun ProxyAppListUserPage(
     val visibleApps = userId?.let { id ->
         pageState.preparedAppListData.visibleItemsByUser[id]
     }.orEmpty()
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val showSelected = wide && maxWidth >= 760.dp
+        Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            ProxyAppListRows(
+                apps = visibleApps,
+                selectedAppKeys = selectedAppKeys,
+                modeIndex = modeIndex,
+                iconSizePx = iconSizePx,
+                listPadding = listPadding,
+                onAppCheckedChange = onAppCheckedChange,
+                modifier = Modifier.weight(1.15f).fillMaxHeight(),
+            )
+            if (showSelected) {
+                val allApps = pageState.preparedAppListData.allItemsByUser[userId].orEmpty()
+                val selectedApps = remember(allApps, selectedAppKeys) {
+                    allApps.filter { app -> app.selectionKeys.any { it in selectedAppKeys } }
+                }
+                ProxyAppListRows(
+                    apps = selectedApps,
+                    selectedAppKeys = selectedAppKeys,
+                    modeIndex = modeIndex,
+                    iconSizePx = iconSizePx,
+                    listPadding = listPadding,
+                    onAppCheckedChange = onAppCheckedChange,
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    selectedTitle = stringResource(R.string.proxy_app_list_selected_apps, selectedApps.size),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProxyAppListRows(
+    apps: List<ProxyAppListItem>,
+    selectedAppKeys: Set<String>,
+    modeIndex: Int,
+    iconSizePx: Int,
+    listPadding: PaddingValues,
+    onAppCheckedChange: (ProxyAppListItem, Boolean) -> Unit,
+    modifier: Modifier,
+    selectedTitle: String? = null,
+) {
     val lazyListState = rememberLazyListState()
 
     LazyColumn(
         state = lazyListState,
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier,
         contentPadding = listPadding,
     ) {
+        if (selectedTitle != null) {
+            item(key = "selected_apps_title", contentType = "title") {
+                Text(
+                    text = selectedTitle,
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                )
+            }
+        }
         when {
-            visibleApps.isEmpty() -> item(key = "app_empty", contentType = "empty") {
+            apps.isEmpty() -> item(key = "app_empty", contentType = "empty") {
                 ProxyAppListEmptyState()
             }
 
             else -> items(
-                items = visibleApps,
+                items = apps,
                 key = { item -> item.key },
                 contentType = { "app" },
             ) { item ->

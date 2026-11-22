@@ -46,12 +46,16 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import ui.components.AsteriskTopAppBar
 import androidx.compose.runtime.Composable
+import ui.components.WarningConfirmDialog
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -133,9 +137,11 @@ fun MihomoProfileEditPage(
     val updateAppState = LocalUpdateAppState.current
     val services = LocalAppServices.current
     val scope = rememberCoroutineScope()
-    val isNew = profileId <= 0
-    val targetProfile = remember(appState.mihomoProfiles, profileId) {
-        appState.mihomoProfiles.firstOrNull { profile -> profile.id == profileId }
+    val focusManager = LocalFocusManager.current
+    var activeProfileId by rememberSaveable(profileId) { mutableIntStateOf(profileId) }
+    val isNew = activeProfileId <= 0
+    val targetProfile = remember(appState.mihomoProfiles, activeProfileId) {
+        appState.mihomoProfiles.firstOrNull { profile -> profile.id == activeProfileId }
     }
     val profileType = targetProfile?.type ?: MihomoProfileType.fromStorageValue(type)
     // A URL profile's stored configuration can be edited like a local file; the next
@@ -153,43 +159,44 @@ fun MihomoProfileEditPage(
     val saveFailedMessage = stringResource(R.string.mihomo_profile_save_failed)
     val profileSaveUseCase = rememberMihomoProfileSaveUseCase()
 
-    var saving by remember { mutableStateOf(false) }
-    var syncStage by remember { mutableStateOf<MihomoProfileSyncStage?>(null) }
-    var saveJob by remember { mutableStateOf<Job?>(null) }
-    var failedSave by remember { mutableStateOf<FailedMihomoProfileSave?>(null) }
-    val nameState = rememberTextFieldState(initialText = targetProfile?.name.orEmpty())
-    val urlState = rememberTextFieldState(initialText = targetProfile?.url ?: "")
-    val userAgentState = rememberTextFieldState(
-        initialText = targetProfile?.userAgent ?: app.DefaultMihomoProfileUserAgent,
-    )
-    val hwidState = rememberTextFieldState(initialText = targetProfile?.hwid.orEmpty())
+    var saving by remember(activeProfileId) { mutableStateOf(false) }
+    var syncStage by remember(activeProfileId) { mutableStateOf<MihomoProfileSyncStage?>(null) }
+    var saveJob by remember(activeProfileId) { mutableStateOf<Job?>(null) }
+    var failedSave by remember(activeProfileId) { mutableStateOf<FailedMihomoProfileSave?>(null) }
+    var pendingSwitchId by remember(activeProfileId) { mutableStateOf<Int?>(null) }
+    val nameState = key(activeProfileId) { rememberTextFieldState(initialText = targetProfile?.name.orEmpty()) }
+    val urlState = key(activeProfileId) { rememberTextFieldState(initialText = targetProfile?.url.orEmpty()) }
+    val initialUserAgent = targetProfile?.userAgent ?: app.DefaultMihomoProfileUserAgent
+    val userAgentState = key(activeProfileId) { rememberTextFieldState(initialText = initialUserAgent) }
+    val hwidState = key(activeProfileId) { rememberTextFieldState(initialText = targetProfile?.hwid.orEmpty()) }
     val invalidHwidMessage = stringResource(R.string.subscription_hwid_invalid)
-    val ageSecretKeyState = rememberTextFieldState(initialText = targetProfile?.ageSecretKey.orEmpty())
-    val updateIntervalState = rememberTextFieldState(
-        initialText = targetProfile?.updateInterval ?: DefaultMihomoProfileUpdateInterval,
-    )
+    val ageSecretKeyState = key(activeProfileId) {
+        rememberTextFieldState(initialText = targetProfile?.ageSecretKey.orEmpty())
+    }
+    val initialUpdateInterval = targetProfile?.updateInterval ?: DefaultMihomoProfileUpdateInterval
+    val updateIntervalState = key(activeProfileId) { rememberTextFieldState(initialText = initialUpdateInterval) }
     val updateIntervalValid = isValidSubscriptionIntervalInput(updateIntervalState.text.toString())
-    var updateViaProxy by remember(targetProfile?.id, isNew) {
+    var updateViaProxy by remember(activeProfileId) {
         mutableStateOf(targetProfile?.updateViaProxy ?: false)
     }
-    val contentEditorState = remember(targetProfile?.id, isNew) {
+    val contentEditorState = remember(activeProfileId) {
         MihomoCodeEditorState()
     }
-    var overrideScriptId by remember(targetProfile?.id, isNew) {
+    var overrideScriptId by remember(activeProfileId) {
         mutableIntStateOf(targetProfile?.overrideScriptId ?: DefaultMihomoOverrideScriptId)
     }
-    var disableOverrides by remember(targetProfile?.id, isNew) {
+    var disableOverrides by remember(activeProfileId) {
         mutableStateOf(targetProfile?.disableOverrides ?: false)
     }
     // The rule override is edited on a copy and only stored by this page's Save.
-    var ruleOverrideDraft by remember(targetProfile?.id, isNew) {
+    var ruleOverrideDraft by remember(activeProfileId) {
         mutableStateOf(targetProfile?.ruleOverride ?: MihomoRuleOverrideState())
     }
     // The source configuration the open rule override editor works on; `null` while it is closed.
-    var ruleOverrideEditorSource by remember { mutableStateOf<String?>(null) }
+    var ruleOverrideEditorSource by remember(activeProfileId) { mutableStateOf<String?>(null) }
     val context = LocalContext.current
-    var showRawModeConfirmation by remember { mutableStateOf(false) }
-    var rawContentForCheck by remember(targetProfile?.id, isNew) { mutableStateOf("") }
+    var showRawModeConfirmation by remember(activeProfileId) { mutableStateOf(false) }
+    var rawContentForCheck by remember(activeProfileId) { mutableStateOf("") }
     val selectedOverrideScript = appState.mihomoOverrideScripts.firstOrNull { script ->
         script.id == overrideScriptId
     }
@@ -201,20 +208,22 @@ fun MihomoProfileEditPage(
     val nameRequiredMessage = stringResource(R.string.mihomo_profile_name_required)
     val invalidUrlMessage = stringResource(R.string.mihomo_profile_invalid_subscription_url)
     val invalidAgeSecretKeyMessage = stringResource(R.string.mihomo_profile_invalid_age_secret_key)
-    var showHttpSubscriptionWarning by remember { mutableStateOf(false) }
-    var showAdvancedOptions by remember { mutableStateOf(false) }
-    var showFileProperties by remember { mutableStateOf(false) }
-    var rawParseResult by remember(targetProfile?.id, isNew) {
+    var showHttpSubscriptionWarning by remember(activeProfileId) { mutableStateOf(false) }
+    var showAdvancedOptions by remember(activeProfileId) { mutableStateOf(false) }
+    var showFileProperties by remember(activeProfileId) { mutableStateOf(false) }
+    var rawParseResult by remember(activeProfileId) {
         mutableStateOf<MihomoRawConfigParseResult?>(null)
     }
 
-    val codeSearch = rememberAsteriskCodeSearchState()
-    val editorFocus = rememberCodeEditorFocusState(
-        editorFocused = contentEditorState.isFocused,
-        clearEditorFocus = codeSearch::clearEditorFocus,
-        searchActive = codeSearch.active,
-        backEnabled = !saving,
-    )
+    val codeSearch = key(activeProfileId) { rememberAsteriskCodeSearchState() }
+    val editorFocus = key(activeProfileId) {
+        rememberCodeEditorFocusState(
+            editorFocused = contentEditorState.isFocused,
+            clearEditorFocus = codeSearch::clearEditorFocus,
+            searchActive = codeSearch.active,
+            backEnabled = !saving,
+        )
+    }
 
     BackHandler(enabled = saving) {}
 
@@ -490,6 +499,37 @@ fun MihomoProfileEditPage(
         )
     }
 
+    fun switchToProfile(targetId: Int) {
+        if (stateStore.state.value.mihomoProfiles.none { it.id == targetId }) return
+        codeSearch.close()
+        contentEditorState.clearFocus()
+        focusManager.clearFocus(force = true)
+        pendingSwitchId = null
+        activeProfileId = targetId
+    }
+
+    fun requestProfileSwitch(targetId: Int) {
+        if (saving || targetId == activeProfileId) return
+        val dirty = nameState.text.toString() != targetProfile?.name.orEmpty() ||
+            urlState.text.toString() != targetProfile?.url.orEmpty() ||
+            userAgentState.text.toString() != initialUserAgent ||
+            hwidState.text.toString() != targetProfile?.hwid.orEmpty() ||
+            ageSecretKeyState.text.toString() != targetProfile?.ageSecretKey.orEmpty() ||
+            updateIntervalState.text.toString() != initialUpdateInterval ||
+            updateViaProxy != (targetProfile?.updateViaProxy ?: false) ||
+            overrideScriptId != (targetProfile?.overrideScriptId ?: DefaultMihomoOverrideScriptId) ||
+            disableOverrides != (targetProfile?.disableOverrides ?: false) ||
+            ruleOverrideDraft != (targetProfile?.ruleOverride ?: MihomoRuleOverrideState()) ||
+            (editsContent && contentEditorState.snapshotText() != rawContentForCheck)
+        if (dirty) {
+            pendingSwitchId = targetId
+        } else {
+            switchToProfile(targetId)
+        }
+    }
+
+    val currentProfileSwitch by rememberUpdatedState { targetId: Int -> requestProfileSwitch(targetId) }
+
     AsteriskCodeSearchHost(
         state = codeSearch,
         modifier = Modifier.fillMaxSize(),
@@ -547,6 +587,8 @@ fun MihomoProfileEditPage(
                 selectedId = targetProfile?.id,
                 padding = contentPadding,
                 show = !editorFocus.expanded,
+                onSelect = { targetId -> currentProfileSwitch(targetId) },
+                selectionEnabled = !saving,
             ) {
                 if (!isNew && targetProfile == null) {
                     Box(
@@ -756,6 +798,20 @@ fun MihomoProfileEditPage(
                 },
             )
         }
+    }
+    pendingSwitchId?.let { targetId ->
+        WarningConfirmDialog(
+            show = true,
+            title = stringResource(R.string.editor_switch_unsaved_title),
+            summary = stringResource(R.string.editor_switch_unsaved_message),
+            dismissText = stringResource(R.string.editor_switch_cancel),
+            confirmText = stringResource(R.string.editor_switch_discard),
+            onDismissRequest = { pendingSwitchId = null },
+            onConfirm = {
+                pendingSwitchId = null
+                switchToProfile(targetId)
+            },
+        )
     }
 }
 

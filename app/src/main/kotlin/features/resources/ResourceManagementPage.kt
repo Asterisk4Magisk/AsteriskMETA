@@ -263,65 +263,66 @@ fun ResourceManagementPage(
             )
         }
 
-        SectionedLazyColumn(
-            modifier = Modifier.pageReadableWidth(),
-            contentPadding = listPadding,
-            itemSpacing = 10.dp,
-        ) {
-            item(key = "resource_overview") {
-                ResourceOverviewCard(
-                    overview = overview,
-                    sourceOptions = sourceOptions,
-                    selectedSource = appState.resourceFileSource,
-                    lastUpdatedAtMillis = lastUpdatedAtMillis,
-                    updating = updateQueueState.isBusy,
-                    actionsEnabled = !resourceActionRunning,
-                    onSourceChange = { index ->
-                        if (index == ResourceFileSourceCustom) {
-                            openCustomSourceEditor()
-                        } else {
-                            updateAppState { state -> state.copy(resourceFileSource = index) }
-                        }
-                    },
-                    onUpdate = {
-                        resourceFileUpdateCoordinator.enqueue(
-                            ResourceFileUpdateRequest.All(
-                                source = appState.resourceFileUpdateSource(),
-                                options = appState.resourceFileUpdateOptions(),
-                            ),
-                        )
-                    },
-                    onCancel = resourceFileUpdateCoordinator::cancelAll,
-                    onSettings = { showResourceAutoUpdateSheet = true },
-                )
+        @Composable
+        fun OverviewCard() {
+            ResourceOverviewCard(
+                overview = overview,
+                sourceOptions = sourceOptions,
+                selectedSource = appState.resourceFileSource,
+                lastUpdatedAtMillis = lastUpdatedAtMillis,
+                updating = updateQueueState.isBusy,
+                actionsEnabled = !resourceActionRunning,
+                onSourceChange = { index ->
+                    if (index == ResourceFileSourceCustom) {
+                        openCustomSourceEditor()
+                    } else {
+                        updateAppState { state -> state.copy(resourceFileSource = index) }
+                    }
+                },
+                onUpdate = {
+                    resourceFileUpdateCoordinator.enqueue(
+                        ResourceFileUpdateRequest.All(
+                            source = appState.resourceFileUpdateSource(),
+                            options = appState.resourceFileUpdateOptions(),
+                        ),
+                    )
+                },
+                onCancel = resourceFileUpdateCoordinator::cancelAll,
+                onSettings = { showResourceAutoUpdateSheet = true },
+            )
+        }
+
+        if (useResourceGrid) {
+            ResourceFileGrid(
+                contentPadding = listPadding,
+                modifier = Modifier.pageReadableWidth(),
+            ) {
+                resourceGridHeader("resource_overview") { OverviewCard() }
+                resourceGridHeader("resource_rules_section") {
+                    ResourceSectionTitle(stringResource(R.string.settings_resource_files_files))
+                }
+                items(builtInFiles.size, key = { builtInFiles[it].fileName }) { index ->
+                    BuiltInFileCard(builtInFiles[index])
+                }
             }
-            if (!useResourceGrid) {
+        } else {
+            SectionedLazyColumn(
+                modifier = Modifier.pageReadableWidth(),
+                contentPadding = listPadding,
+                itemSpacing = 10.dp,
+            ) {
+                item(key = "resource_overview") { OverviewCard() }
                 sectionTitleItem(key = "resource_core_section") {
                     ResourceSectionTitle(stringResource(R.string.settings_resource_files_core_files))
                 }
-
-                item(key = ResourceFileKind.MihomoCore.fileName) {
-                    CoreFileCard()
+                item(key = ResourceFileKind.MihomoCore.fileName) { CoreFileCard() }
+                sectionTitleItem(key = "resource_rules_section") {
+                    ResourceSectionTitle(stringResource(R.string.settings_resource_files_files))
                 }
-            }
-            sectionTitleItem(key = "resource_rules_section") {
-                ResourceSectionTitle(stringResource(R.string.settings_resource_files_files))
-            }
-            if (useResourceGrid) {
-                item(key = "built_in_resource_grid") {
-                    ResourceFileGrid(
-                        itemCount = builtInFiles.size,
-                        key = { builtInFiles[it].fileName },
-                    ) { index, cardModifier ->
-                        BuiltInFileCard(builtInFiles[index], cardModifier)
-                    }
-                }
-            } else {
                 builtInFiles.forEach { kind ->
                     item(key = kind.fileName) { BuiltInFileCard(kind) }
                 }
             }
-
         }
         ResourceAutoUpdateSheet(
             show = showResourceAutoUpdateSheet,

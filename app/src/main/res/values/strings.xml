@@ -28,6 +28,10 @@
     <string name="common_all">All</string>
     <string name="common_back">Back</string>
     <string name="common_basic">Basic</string>
+    <string name="editor_switch_unsaved_title">Unsaved changes</string>
+    <string name="editor_switch_unsaved_message">Save or discard your changes before switching to another entry.</string>
+    <string name="editor_switch_discard">Discard and switch</string>
+    <string name="editor_switch_cancel">Keep editing</string>
     <string name="common_cancel">Cancel</string>
     <string name="common_clear">Clear</string>
     <string name="common_clipboard_empty">Clipboard is empty</string>
@@ -1067,6 +1071,7 @@
     <string name="proxy_app_list_scan_china_skipped_global">Skipped in all-app mode</string>
     <string name="proxy_app_list_search_label">Search apps</string>
     <string name="proxy_app_list_show_system_apps">Show system apps</string>
+    <string name="proxy_app_list_selected_apps">Selected apps (%1$d)</string>
     <string name="proxy_app_list_title">Proxy app list</string>
     <string name="settings_app_management_summary">Choose which installed apps use the proxy and how</string>
 

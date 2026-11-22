@@ -4,6 +4,8 @@
 package ui.layout
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -16,16 +18,26 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -40,6 +52,8 @@ internal fun EditorListPane(
     selectedId: Int?,
     padding: PaddingValues,
     show: Boolean = true,
+    onSelect: ((Int) -> Unit)? = null,
+    selectionEnabled: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     val visible = show && entries.isNotEmpty() && LocalAdaptiveWindow.current.showTwoColumns
@@ -61,7 +75,8 @@ internal fun EditorListPane(
                     .width(268.dp)
                     .padding(top = padding.calculateTopPadding() + 8.dp, bottom = padding.calculateBottomPadding())
                     .padding(start = 16.dp, end = 8.dp)
-                    .background(colors.surfaceContainerLow, shape),
+                    .background(colors.surfaceContainerLow, shape)
+                    .then(if (onSelect != null) Modifier.selectableGroup() else Modifier),
                 contentPadding = PaddingValues(12.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
@@ -78,9 +93,22 @@ internal fun EditorListPane(
                     Text(
                         text = item.title,
                         modifier = Modifier.fillMaxWidth()
+                            .clip(shape)
                             .then(
-                                if (selected) Modifier.background(colors.secondaryContainer, shape)
+                                if (selected) Modifier.background(colors.secondaryContainer)
                                 else Modifier,
+                            )
+                            .then(
+                                if (onSelect != null) {
+                                    Modifier.heightIn(min = 48.dp).selectable(
+                                        selected = selected,
+                                        enabled = selectionEnabled && visible,
+                                        role = Role.Button,
+                                        onClick = { onSelect(item.id) },
+                                    )
+                                } else {
+                                    Modifier
+                                },
                             )
                             .padding(horizontal = 12.dp, vertical = 12.dp),
                         style = MaterialTheme.typography.bodyMedium,
@@ -92,7 +120,21 @@ internal fun EditorListPane(
             }
         }
         Box(Modifier.weight(1f).fillMaxHeight()) {
-            content()
+            var previousId by remember { mutableStateOf(selectedId) }
+            val detailVisibility = remember(selectedId) {
+                val animate = visible && onSelect != null && selectedId != previousId
+                MutableTransitionState(!animate).apply { targetState = true }
+            }
+            SideEffect { previousId = selectedId }
+
+            androidx.compose.animation.AnimatedVisibility(
+                visibleState = detailVisibility,
+                enter = fadeIn(fadeMotion),
+                exit = ExitTransition.None,
+                label = "editorEntryChange",
+            ) {
+                content()
+            }
         }
     }
 }

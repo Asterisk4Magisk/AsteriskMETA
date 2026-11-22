@@ -54,7 +54,7 @@ internal class AndroidQrCodeScanRequester(
                         ScanOptions().apply {
                             setDesiredBarcodeFormats(ScanOptions.QR_CODE)
                             setCaptureActivity(PortraitQrCaptureActivity::class.java)
-                            setOrientationLocked(true)
+                            setOrientationLocked(false)
                             setBeepEnabled(false)
                             setPrompt("")
                         },

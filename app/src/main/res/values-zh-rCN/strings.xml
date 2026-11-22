@@ -28,6 +28,10 @@
     <string name="common_all">全部</string>
     <string name="common_back">返回</string>
     <string name="common_basic">基础</string>
+    <string name="editor_switch_unsaved_title">有未保存的修改</string>
+    <string name="editor_switch_unsaved_message">切换到其他条目前，请保存或放弃当前修改。</string>
+    <string name="editor_switch_discard">放弃修改并切换</string>
+    <string name="editor_switch_cancel">继续编辑</string>
     <string name="common_cancel">取消</string>
     <string name="common_clear">清除</string>
     <string name="common_clipboard_empty">剪贴板为空</string>
@@ -1049,6 +1053,7 @@
     <string name="proxy_app_list_scan_china_skipped_global">全应用模式下已跳过</string>
     <string name="proxy_app_list_search_label">搜索应用名称</string>
     <string name="proxy_app_list_show_system_apps">显示系统应用</string>
+    <string name="proxy_app_list_selected_apps">已选应用（%1$d）</string>
     <string name="proxy_app_list_title">分应用代理</string>
     <string name="settings_app_management_summary">选择哪些应用使用代理以及代理方式</string>
 
