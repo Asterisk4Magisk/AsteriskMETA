@@ -273,7 +273,9 @@ internal fun ConnectionsMonitorPage(padding: PaddingValues) {
             }
         },
         toolbar = {
-            AsteriskTopBarControls {
+            AsteriskTopBarControls(
+                modifier = if (showRules) Modifier.pageReadableWidth(RulesMonitorPageMaxWidth) else Modifier,
+            ) {
                 ConnectionControls(
                     route = route,
                     onRouteChange = { next ->
@@ -289,6 +291,16 @@ internal fun ConnectionsMonitorPage(padding: PaddingValues) {
             }
         },
     ) { contentPadding ->
+        if (showRules) {
+            RulesMonitorContent(
+                state = rulesState,
+                filteredRules = filteredRules,
+                searching = rulesQuery.isNotBlank(),
+                listState = rulesListState,
+                contentPadding = contentPadding,
+            )
+            return@MonitoringScaffold
+        }
         BoxWithConstraints(Modifier.pageReadableWidth(maxWidth = 1260.dp).fillMaxSize()) {
             val split = LocalAdaptiveWindow.current.supportsWideContent &&
                 maxWidth >= 760.dp && LocalDensity.current.fontScale <= 1.3f
@@ -298,7 +310,7 @@ internal fun ConnectionsMonitorPage(padding: PaddingValues) {
             val effects = AsteriskMotion.fastEffects<Float>()
             Row(Modifier.fillMaxSize()) {
                 LazyColumn(
-                    state = if (showRules) rulesListState else listState,
+                    state = listState,
                     modifier = Modifier.weight(1f).fillMaxHeight(),
                     contentPadding = PaddingValues(
                         start = horizontalPadding,
@@ -309,10 +321,6 @@ internal fun ConnectionsMonitorPage(padding: PaddingValues) {
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    if (showRules) {
-                        rulesMonitorContent(rulesState, filteredRules, searching = rulesQuery.isNotBlank())
-                        return@LazyColumn
-                    }
                     item("status") {
                         ConnectionsMonitorStatus(
                             state = buildMonitoringConnectionsFocusState(
@@ -398,7 +406,7 @@ internal fun ConnectionsMonitorPage(padding: PaddingValues) {
                     }
                 }
                 AnimatedVisibility(
-                    visible = !showRules && split && selectedConnection != null,
+                    visible = split && selectedConnection != null,
                     enter = expandHorizontally(spatial, expandFrom = Alignment.End) + fadeIn(effects),
                     exit = shrinkHorizontally(spatial, shrinkTowards = Alignment.End) + fadeOut(effects),
                 ) {
@@ -866,7 +874,7 @@ private fun formatDuration(startedAtMillis: Long?, endedAtMillis: Long? = null):
     return DateUtils.formatElapsedTime(elapsed / 1_000L)
 }
 
-internal val ContentWidthModifier = Modifier.widthIn(max = 960.dp).fillMaxWidth()
+private val ContentWidthModifier = Modifier.widthIn(max = 960.dp).fillMaxWidth()
 
 /** Inset applied to the connections listed under their application. */
 private val NestedConnectionModifier = Modifier.padding(start = 12.dp)
