@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -173,43 +174,37 @@ internal fun NetworkMonitorPage(padding: PaddingValues) {
                         BoxWithConstraints(Modifier.fillMaxWidth()) {
                             val sideBySide = LocalAdaptiveWindow.current.supportsWideContent &&
                                 target == null && maxWidth >= 620.dp * LocalDensity.current.fontScale
-                            FlowRow(
-                                maxItemsInEachRow = if (sideBySide) 2 else 1,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                verticalArrangement = Arrangement.spacedBy(12.dp),
-                            ) {
-                                AddressFamily.entries.forEach { family ->
-                                    val isIpv4 = family == AddressFamily.Ipv4
-                                    val general = target?.let { strategyProbe.measurement(family, ProbeTarget.General) }
-                                    val cloudflare = target?.let { strategyProbe.measurement(family, ProbeTarget.Cloudflare) }
-                                    val entryRefreshing = family in strategyProbe.entryRefreshingFamilies
-                                    val familyRefreshing = if (target == null) {
-                                        family in network.publicProbe.refreshingFamilies
-                                    } else {
-                                        entryRefreshing || general?.refreshing == true || cloudflare?.refreshing == true
-                                    }
-                                    key(strategyProbe, family) {
-                                        Box(Modifier.weight(1f)) {
-                                            PublicAddressFamilyCard(
-                                                family = family,
-                                                results = AddressFamilyProbeResults(
-                                                    general = general?.displayResult()
-                                                        ?: if (isIpv4) network.publicProbe.ipv4 else network.publicProbe.ipv6,
-                                                    cloudflare = cloudflare?.displayResult()
-                                                        ?: if (isIpv4) network.publicProbe.cloudflareIpv4 else network.publicProbe.cloudflareIpv6,
-                                                    entries = target?.let { strategyProbe.entry(family).orEmpty() },
-                                                ),
-                                                entryRefreshing = entryRefreshing,
-                                                refreshing = familyRefreshing,
-                                                retryEnabled = if (target == null) !network.publicProbe.refreshing
-                                                    else strategyProbe.entryRefreshingFamilies.isEmpty(),
-                                                onCopy = ::copy,
-                                                onRetry = {
-                                                    if (target == null) services.monitoring.refreshPublicNetworkProbe(family)
-                                                    else refreshStrategy(family)
-                                                },
-                                            )
-                                        }
+                            PublicAddressFamilyLayout(sideBySide) { family, cardModifier ->
+                                val isIpv4 = family == AddressFamily.Ipv4
+                                val general = target?.let { strategyProbe.measurement(family, ProbeTarget.General) }
+                                val cloudflare = target?.let { strategyProbe.measurement(family, ProbeTarget.Cloudflare) }
+                                val entryRefreshing = family in strategyProbe.entryRefreshingFamilies
+                                val familyRefreshing = if (target == null) {
+                                    family in network.publicProbe.refreshingFamilies
+                                } else {
+                                    entryRefreshing || general?.refreshing == true || cloudflare?.refreshing == true
+                                }
+                                key(strategyProbe, family) {
+                                    Box(cardModifier) {
+                                        PublicAddressFamilyCard(
+                                            family = family,
+                                            results = AddressFamilyProbeResults(
+                                                general = general?.displayResult()
+                                                    ?: if (isIpv4) network.publicProbe.ipv4 else network.publicProbe.ipv6,
+                                                cloudflare = cloudflare?.displayResult()
+                                                    ?: if (isIpv4) network.publicProbe.cloudflareIpv4 else network.publicProbe.cloudflareIpv6,
+                                                entries = target?.let { strategyProbe.entry(family).orEmpty() },
+                                            ),
+                                            entryRefreshing = entryRefreshing,
+                                            refreshing = familyRefreshing,
+                                            retryEnabled = if (target == null) !network.publicProbe.refreshing
+                                                else strategyProbe.entryRefreshingFamilies.isEmpty(),
+                                            onCopy = ::copy,
+                                            onRetry = {
+                                                if (target == null) services.monitoring.refreshPublicNetworkProbe(family)
+                                                else refreshStrategy(family)
+                                            },
+                                        )
                                     }
                                 }
                             }
@@ -260,6 +255,30 @@ internal fun NetworkMonitorPage(padding: PaddingValues) {
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun PublicAddressFamilyLayout(
+    sideBySide: Boolean,
+    content: @Composable (AddressFamily, Modifier) -> Unit,
+) {
+    // A proxy target card uses BoxWithConstraints. Use layouts that measure
+    // it directly instead of asking for the intrinsic size of a weighted child.
+    if (sideBySide) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            AddressFamily.entries.forEach { family -> content(family, Modifier.weight(1f)) }
+        }
+    } else {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            AddressFamily.entries.forEach { family -> content(family, Modifier.fillMaxWidth()) }
         }
     }
 }
