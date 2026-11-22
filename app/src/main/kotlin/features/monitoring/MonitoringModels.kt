@@ -4,9 +4,8 @@
 package features.monitoring
 
 import engine.mihomo.runtime.MihomoConnectionsState
-import engine.mihomo.runtime.MihomoRuleOutbound
-import engine.mihomo.runtime.MihomoRuleRuntimeItem
 import engine.mihomo.runtime.connectionCounts
+import engine.proxy.RuntimeRouteRule
 import features.monitoring.resource.ProcessStatsSample
 import features.monitoring.resource.ProcessStatsSourceKind
 import features.monitoring.network.LocalNetworkSnapshot
@@ -48,8 +47,7 @@ internal data class MonitoringConnectionsSummary(
 )
 
 internal data class MonitoringRulesSummary(
-    val rules: List<MihomoRuleRuntimeItem> = emptyList(),
-    val outbounds: Map<String, List<MihomoRuleOutbound>> = emptyMap(),
+    val rules: List<RuntimeRouteRule> = emptyList(),
     val status: ConnectionMonitorStatus = ConnectionMonitorStatus.ServiceStopped,
     val error: String = "",
     val stale: Boolean = false,

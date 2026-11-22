@@ -172,9 +172,8 @@
     <string name="monitor_rules_empty">No rules</string>
     <string name="monitor_rules_hits">Hits %1$d</string>
     <string name="monitor_rules_hits_total">Total hits</string>
+    <string name="monitor_rules_hits_unavailable">Hit statistics unavailable</string>
     <string name="monitor_rules_last_hit">Last hit %1$s</string>
-    <string name="monitor_rules_last_miss">Last miss %1$s</string>
-    <string name="monitor_rules_misses">Misses %1$d</string>
     <string name="monitor_rules_never_hit">Never hit</string>
     <string name="monitor_rules_no_match">No matching rules</string>
     <string name="monitor_rules_search">Search rules</string>

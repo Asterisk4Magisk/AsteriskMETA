@@ -19,6 +19,7 @@ import engine.network.ProxyIpProbeException
 import engine.network.ProxyIpProbeRequest
 import engine.network.ProxyIpProbeResponse
 import engine.network.readOrCreateProxyIpProbeToken
+import engine.proxy.RuntimeRouteRule
 import engine.mihomo.selectedMihomoProfileOrNull
 import engine.mihomo.toMihomoAutoSwitchOptions
 import engine.mihomo.MihomoControlConfig
@@ -444,22 +445,27 @@ internal class MihomoRuntimeRepository(
         }
     }
 
-    suspend fun getRules(appState: AppState): Result<MihomoRulesState> {
-        return runCatching {
-            require(appState.proxyRunning) { "Proxy service is not running" }
-            require(appState.hasUsableMihomoProfile()) { "Mihomo profile is not configured" }
+    suspend fun getRules(appState: AppState): Result<List<RuntimeRouteRule>> = runCatching {
+        require(appState.proxyRunning) { "Proxy service is not running" }
+        require(appState.hasUsableMihomoProfile()) { "Mihomo profile is not configured" }
+        withContext(Dispatchers.IO) {
             val control = resolveMihomoControlConfig(appState)
-            val backend = resolveInteractiveBackend(appState, control)
-            withContext(Dispatchers.IO) {
-                ensureInteractiveRuntime(appState, backend)
-                val rules = client.getRules(control)
-                // Resolve each policy to its current leaf outbound for the rules monitor.
-                val proxies = state.value.proxies
-                MihomoRulesState(
-                    rules = rules,
-                    outbounds = rules.associate { rule ->
-                        rule.proxy to proxies.resolveRuleOutboundChain(rule.proxy)
-                    },
+            ensureInteractiveRuntime(appState, resolveInteractiveBackend(appState, control))
+            val rules = client.getRules(control)
+            val providerSizes = if (rules.any(RuntimeRouteRule::needsRuleProviderSize)) {
+                runCatching { client.getRuleProviders(control, useBridge = false) }
+                    .onFailure { if (it is CancellationException) throw it }
+                    .getOrDefault(emptyMap())
+            } else {
+                emptyMap()
+            }
+            val proxies = state.value.proxies
+            val outbounds = rules.mapTo(linkedSetOf(), RuntimeRouteRule::policy)
+                .associateWith(proxies::resolveRuleOutboundChain)
+            rules.map { rule ->
+                rule.copy(
+                    size = if (rule.needsRuleProviderSize) providerSizes[rule.payload]?.ruleCount else rule.size,
+                    outbound = outbounds[rule.policy].orEmpty(),
                 )
             }
         }
@@ -1446,6 +1452,9 @@ private fun saturatedTrafficAdd(previous: Long, increment: Long): Long {
     if (previous < 0L || increment <= 0L) return previous.coerceAtLeast(0L)
     return if (Long.MAX_VALUE - previous < increment) Long.MAX_VALUE else previous + increment
 }
+
+private val RuntimeRouteRule.needsRuleProviderSize: Boolean
+    get() = size == null && (type.equals("RuleSet", ignoreCase = true) || type.equals("RULE-SET", ignoreCase = true))
 
 internal suspend fun closeMihomoConnectionsForGroup(
     connections: List<MihomoConnection>,

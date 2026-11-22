@@ -3,6 +3,8 @@
 
 package engine.mihomo.runtime
 
+import engine.proxy.RuntimeRuleOutbound
+
 internal fun MihomoProxiesState.withProviderNodes(
     providers: List<MihomoProxyProviderRuntimeDetail>,
     groupSources: Map<String, MihomoProxyGroupSources>,
@@ -99,6 +101,23 @@ private fun MihomoProxiesState.resolveGroupMember(
     return providerMembers.singleOrNull()?.id ?: unresolved
 }
 
+/** Resolves the current group selection and keeps provider identity at every step. */
+internal fun MihomoProxiesState.resolveRuleOutboundChain(policy: String): List<RuntimeRuleOutbound> = buildList {
+    if (policy.isBlank()) return@buildList
+    var current = MihomoProxyNodeId(policy)
+    val visited = mutableSetOf<MihomoProxyNodeId>()
+    while (visited.add(current)) {
+        val group = current.takeIf { it.providerName == null && it.fallbackGroupName == null }
+            ?.let { id -> allGroups.firstOrNull { it.name == id.name } }
+        add(RuntimeRuleOutbound(current.name, group?.icon ?: nodeById[current]?.icon.orEmpty()))
+        if (group == null || group.now.isBlank()) break
+        current = group.selectedMemberId()
+    }
+}
+
+private fun MihomoProxyGroup.selectedMemberId(): MihomoProxyNodeId =
+    all.firstOrNull { it.name == now } ?: MihomoProxyNodeId(now)
+
 internal fun MihomoProxiesState.delayTestLeaf(id: MihomoProxyNodeId): MihomoProxyNodeId? {
     var current = id
     val visited = mutableSetOf<String>()
@@ -108,8 +127,7 @@ internal fun MihomoProxiesState.delayTestLeaf(id: MihomoProxyNodeId): MihomoProx
         if (!visited.add(group.name)) return null
         // LoadBalance has no fixed selection; the core can test the group proxy itself.
         if (group.now.isBlank()) return current
-        current = group.all.firstOrNull { member -> member.name == group.now }
-            ?: MihomoProxyNodeId(group.now)
+        current = group.selectedMemberId()
     }
     return null
 }
