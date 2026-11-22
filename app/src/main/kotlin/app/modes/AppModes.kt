@@ -24,7 +24,6 @@ const val MihomoModeRule = 0
 const val MihomoModeGlobal = 1
 const val MihomoModeDirect = 2
 
-const val MihomoTunStackSystem = 0
 const val MihomoTunStackGvisor = 1
 const val MihomoTunStackMixed = 2
 const val MihomoTunStackMips = 3

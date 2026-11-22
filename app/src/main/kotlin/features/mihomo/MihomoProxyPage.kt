@@ -116,7 +116,7 @@ import engine.mihomo.MihomoProfileFactory
 import engine.mihomo.MihomoProviderMetadataCache
 import engine.mihomo.hasUsableMihomoProfile
 import engine.mihomo.selectedMihomoProfileOrNull
-import engine.mihomo.sha256Hex
+import utils.sha256Hex
 import engine.mihomo.runtime.MihomoProxiesState
 import engine.mihomo.runtime.MihomoDelayProgress
 import engine.mihomo.runtime.MihomoDelayTarget

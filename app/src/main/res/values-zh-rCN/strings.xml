@@ -1014,7 +1014,6 @@
     <string name="settings_traffic_stats_notification_summary">在通知和状态栏中显示当前速度和累计流量</string>
 
     <!-- Quick settings tile -->
-    <string name="quick_settings_tile_label">AsteriskMETA</string>
     <string name="quick_settings_tile_processing">正在处理…</string>
     <string name="quick_settings_tile_running">代理运行中</string>
     <string name="quick_settings_tile_stopped">代理已停止</string>
@@ -1205,7 +1204,6 @@
     <!-- Logs -->
     <string name="core_logs_title">核心日志</string>
     <string name="error_log_export_launcher_missing">日志导出请求器未注册</string>
-    <string name="logcat_logs_title">Logcat</string>
     <string name="logs_clear_message">此操作会永久移除当前日志中的全部条目。</string>
     <string name="logs_clear_title">清除日志？</string>
     <string name="logs_copied_to_clipboard">已复制到剪贴板</string>

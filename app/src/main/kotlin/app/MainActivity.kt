@@ -28,9 +28,7 @@ import data.AppSettingsPreferences
 import engine.mihomo.MihomoProfileContentStore
 import engine.vpn.AndroidVpnPermissionRequester
 import features.boot.BootAutoConnect
-import features.logs.AndroidLogFileCreator
 import features.qr.AndroidQrCodeScanRequester
-import features.resources.runtime.AndroidResourceFilePicker
 import features.settings.locale.localizedAppContext
 import features.subscription.SubscriptionInstallConfigUseCase
 import features.subscription.isSubscriptionInstallConfigUri
@@ -38,8 +36,8 @@ import features.subscription.runtime.AndroidMihomoProfilePreparer
 import features.subscription.toSubscriptionInstallConfigOrNull
 import features.subscription.usecase.subscriptionUpdateMessage
 import kotlinx.coroutines.launch
+import system.AndroidDocumentLauncher
 import system.AndroidLauncherIcon
-import system.applyScreenshotProtection
 import system.setRecentTasksHidden
 import ui.feedback.AndroidToastTipNotifier
 
@@ -62,24 +60,24 @@ class MainActivity : ComponentActivity() {
         },
     )
 
-    private val resourceFilePicker = AndroidResourceFilePicker(
+    private val resourceFilePicker = AndroidDocumentLauncher<Array<String>>(
         missingLauncherMessage = {
             appString(R.string.error_resource_file_picker_missing)
         },
     )
 
-    private val mihomoProfileFilePicker = AndroidResourceFilePicker(
+    private val mihomoProfileFilePicker = AndroidDocumentLauncher<Array<String>>(
         missingLauncherMessage = {
             appString(R.string.error_resource_file_picker_missing)
         },
     )
 
-    private val logFileCreator = AndroidLogFileCreator(
+    private val logFileCreator = AndroidDocumentLauncher<String>(
         missingLauncherMessage = {
             appString(R.string.error_log_export_launcher_missing)
         },
     )
-    private val backupFileCreator = AndroidLogFileCreator(
+    private val backupFileCreator = AndroidDocumentLauncher<String>(
         missingLauncherMessage = {
             appString(R.string.error_backup_file_creator_missing)
         },
@@ -218,10 +216,6 @@ class MainActivity : ComponentActivity() {
         applyAppStateWhileStarted(AppState::hideRecentTasks) { value -> setRecentTasksHidden(value) }
     }
 
-    private fun observeScreenshotProtection() {
-        applyAppStateWhileStarted(AppState::allowScreenshots) { value -> applyScreenshotProtection(value) }
-    }
-
     private fun observeLauncherIconVisibility() {
         applyAppStateWhileStarted(AppState::hideLauncherIcon) { hidden ->
             AndroidLauncherIcon.setHidden(applicationContext, hidden)
@@ -242,13 +236,9 @@ class MainActivity : ComponentActivity() {
         qrCodeScanRequester.completeScan(null)
         qrCodeScanRequester.registerPermissionLauncher(null)
         qrCodeScanRequester.registerScanLauncher(null)
-        resourceFilePicker.complete(null)
         resourceFilePicker.registerLauncher(null)
-        mihomoProfileFilePicker.complete(null)
         mihomoProfileFilePicker.registerLauncher(null)
-        logFileCreator.complete(null)
         logFileCreator.registerLauncher(null)
-        backupFileCreator.complete(null)
         backupFileCreator.registerLauncher(null)
         super.onDestroy()
     }
@@ -278,11 +268,11 @@ class MainActivity : ComponentActivity() {
             App(
                 padding = WindowInsets.systemBars.union(WindowInsets.displayCutout).asPaddingValues(),
                 qrCodeScanner = qrCodeScanRequester::scan,
-                resourceFilePicker = { resourceFilePicker.pick() },
-                mihomoProfileFilePicker = { mihomoProfileFilePicker.pick() },
-                backupFilePicker = { resourceFilePicker.pick(BackupFileMimeTypes) },
-                backupFileCreator = backupFileCreator::create,
-                logFileCreator = logFileCreator::create,
+                resourceFilePicker = { resourceFilePicker.request(arrayOf("*/*")) },
+                mihomoProfileFilePicker = { mihomoProfileFilePicker.request(arrayOf("*/*")) },
+                backupFilePicker = { resourceFilePicker.request(BackupFileMimeTypes) },
+                backupFileCreator = backupFileCreator::request,
+                logFileCreator = logFileCreator::request,
                 requestVpnPermission = vpnPermissionRequester::request,
             )
         }

@@ -25,7 +25,6 @@ import features.subscription.runtime.AndroidMihomoProviderFetcher
 import features.subscription.runtime.AndroidMihomoProfilePreparer
 import kotlinx.coroutines.CoroutineScope
 import features.home.HomeServiceOperationState
-import system.AndroidNetworkInterfaceProvider
 import system.AndroidPackageProvider
 import system.AndroidRootShellGateway
 import system.AndroidUserSpaceProvider
@@ -38,7 +37,6 @@ internal data class AppServices(
     val rootAccess: AndroidRootShellGateway,
     val userSpaces: AndroidUserSpaceProvider,
     val packageCatalog: AndroidPackageProvider,
-    val networkInterfaces: AndroidNetworkInterfaceProvider,
     val resourceFileUseCase: ResourceFileUseCase,
     val resourceFileUpdateCoordinator: ResourceFileUpdateCoordinator,
     val appBackupUseCase: AppBackupUseCase,

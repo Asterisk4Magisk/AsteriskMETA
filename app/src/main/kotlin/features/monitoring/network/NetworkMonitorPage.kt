@@ -8,7 +8,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -69,7 +68,6 @@ import java.util.UUID
 import java.util.Locale
 import ui.icons.AsteriskIcons as Icons
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun NetworkMonitorPage(padding: PaddingValues) {
     val horizontalPadding = rememberPageGutter()
@@ -286,7 +284,6 @@ private data class AddressFamilyProbeResults(
             entries?.any { it.hasRetryableError } == true
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun PublicAddressFamilyCard(
     family: AddressFamily,

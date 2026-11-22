@@ -94,7 +94,7 @@ import engine.mihomo.raw.MihomoRawConfigParser
 import engine.mihomo.raw.MihomoRawConfigSnapshot
 import engine.mihomo.raw.RawConfigReadiness
 import engine.mihomo.raw.check
-import engine.mihomo.sha256Hex
+import utils.sha256Hex
 import features.settings.SettingsActionRow
 import features.settings.SettingsDropdownRow
 import features.subscription.isValidSubscriptionHwid

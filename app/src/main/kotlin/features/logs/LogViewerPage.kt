@@ -82,7 +82,7 @@ fun LogcatLogsPage(
     val services = LocalAppServices.current
     LogViewerPage(
         padding = padding,
-        title = stringResource(R.string.logcat_logs_title),
+        title = stringResource(R.string.settings_logcat),
         repository = services.logcatRepository,
     )
 }

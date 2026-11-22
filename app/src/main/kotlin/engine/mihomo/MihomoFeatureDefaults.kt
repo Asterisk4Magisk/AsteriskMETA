@@ -3,21 +3,14 @@
 
 package engine.mihomo
 
-const val MihomoDnsModeNormal = 0
 const val MihomoDnsModeFakeIp = 1
 const val MihomoDnsModeRedirHost = 2
-const val MihomoDnsModeHosts = 3
 val MihomoDnsModeValues = listOf("normal", "fake-ip", "redir-host", "hosts")
 
 const val MihomoGeodataLoaderStandard = 0
-const val MihomoGeodataLoaderMemconservative = 1
 val MihomoGeodataLoaderValues = listOf("standard", "memconservative")
 
-/** Leaves the profile's find-process-mode untouched; the others are written as [MihomoFindProcessModeValues]. */
-const val MihomoFindProcessModeFollowProfile = 0
-const val MihomoFindProcessModeOff = 1
 const val MihomoFindProcessModeStrict = 2
-const val MihomoFindProcessModeAlways = 3
 val MihomoFindProcessModeValues = listOf("", "off", "strict", "always")
 
 const val MihomoSnifferProtocolOverrideFollowGlobal = 0

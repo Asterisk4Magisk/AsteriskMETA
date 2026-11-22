@@ -3,6 +3,7 @@
 
 package engine.mihomo
 
+import utils.sha256Hex
 import android.content.Context
 import app.MihomoProfileState
 import utils.writeAtomically
@@ -10,7 +11,6 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.InputStream
 import java.io.Reader
-import java.security.MessageDigest
 import java.util.UUID
 
 internal const val MaxMihomoProfileBytes = 256 * 1024 * 1024
@@ -178,15 +178,6 @@ internal fun InputStream.readMihomoProfileText(): String {
         output.write(buffer, 0, count)
     }
     return output.toString(Charsets.UTF_8.name())
-}
-
-internal fun String.sha256Hex(): String {
-    return toByteArray(Charsets.UTF_8).sha256Hex()
-}
-
-internal fun ByteArray.sha256Hex(): String {
-    val digest = MessageDigest.getInstance("SHA-256").digest(this)
-    return digest.joinToString(separator = "") { byte -> "%02x".format(byte.toInt() and 0xff) }
 }
 
 private const val ProfilesDirName = "mihomo-profiles"

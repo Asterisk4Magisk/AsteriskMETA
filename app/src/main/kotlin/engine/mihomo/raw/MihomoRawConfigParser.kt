@@ -6,7 +6,7 @@ package engine.mihomo.raw
 import engine.mihomo.MihomoControlConfig
 import engine.mihomo.MihomoYamlLoadSettings
 import engine.mihomo.MihomoTunCongestionControllers
-import engine.mihomo.sha256Hex
+import utils.sha256Hex
 import engine.network.isCidrAddress
 import engine.network.toPortOrNull
 import org.snakeyaml.engine.v2.api.Load

@@ -6,7 +6,6 @@ package ui.components
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
@@ -19,32 +18,16 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.unit.Dp
 import sh.calvin.reorderable.ReorderableCollectionItemScope
-import sh.calvin.reorderable.ReorderableLazyGridState
 import sh.calvin.reorderable.ReorderableLazyListState
-import sh.calvin.reorderable.rememberReorderableLazyGridState
 import sh.calvin.reorderable.rememberReorderableLazyListState
-
-internal class AsteriskReorderableLazyGridState(
-    val reorderableState: ReorderableLazyGridState,
-    val hapticFeedback: HapticFeedback,
-)
 
 internal class AsteriskReorderableLazyListState(
     val reorderableState: ReorderableLazyListState,
     val hapticFeedback: HapticFeedback,
 )
 
-internal fun verticalReorderScrollThresholdPadding(
-    contentPadding: PaddingValues,
-    bottomPadding: Dp = contentPadding.calculateBottomPadding(),
-): PaddingValues = PaddingValues(
-    top = contentPadding.calculateTopPadding(),
-    bottom = bottomPadding,
-)
-
-internal fun translateAsteriskReorderableLazyGridMove(
+private fun translateAsteriskReorderableMove(
     fromIndex: Int,
     toIndex: Int,
     itemCount: Int,
@@ -63,31 +46,6 @@ internal fun translateAsteriskReorderableLazyGridMove(
 }
 
 @Composable
-internal fun rememberAsteriskReorderableLazyGridState(
-    lazyGridState: LazyGridState,
-    itemCount: Int,
-    indexOffset: Int = 0,
-    scrollThresholdPadding: PaddingValues = PaddingValues(),
-    onMove: (fromIndex: Int, toIndex: Int) -> Unit,
-): AsteriskReorderableLazyGridState {
-    val hapticFeedback = LocalHapticFeedback.current
-    val reorderableState = rememberReorderableLazyGridState(
-        lazyGridState = lazyGridState,
-        scrollThresholdPadding = scrollThresholdPadding,
-    ) { from, to ->
-        val (fromIndex, toIndex) = translateAsteriskReorderableLazyGridMove(
-            fromIndex = from.index,
-            toIndex = to.index,
-            itemCount = itemCount,
-            indexOffset = indexOffset,
-        ) ?: return@rememberReorderableLazyGridState
-        onMove(fromIndex, toIndex)
-        hapticFeedback.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
-    }
-    return AsteriskReorderableLazyGridState(reorderableState, hapticFeedback)
-}
-
-@Composable
 internal fun rememberAsteriskReorderableLazyListState(
     lazyListState: LazyListState,
     itemCount: Int,
@@ -100,7 +58,7 @@ internal fun rememberAsteriskReorderableLazyListState(
         lazyListState = lazyListState,
         scrollThresholdPadding = scrollThresholdPadding,
     ) { from, to ->
-        val (fromIndex, toIndex) = translateAsteriskReorderableLazyGridMove(
+        val (fromIndex, toIndex) = translateAsteriskReorderableMove(
             fromIndex = from.index,
             toIndex = to.index,
             itemCount = itemCount,
@@ -111,15 +69,6 @@ internal fun rememberAsteriskReorderableLazyListState(
     }
     return AsteriskReorderableLazyListState(reorderableState, hapticFeedback)
 }
-
-@Composable
-internal fun Modifier.longPressReorderDragHandle(
-    scope: ReorderableCollectionItemScope,
-    enabled: Boolean,
-    state: AsteriskReorderableLazyGridState,
-    onDragStarted: () -> Unit = {},
-    onDragStopped: () -> Unit = {},
-): Modifier = longPressReorderDragHandle(scope, enabled, state.hapticFeedback, onDragStarted, onDragStopped)
 
 @Composable
 internal fun Modifier.longPressReorderDragHandle(

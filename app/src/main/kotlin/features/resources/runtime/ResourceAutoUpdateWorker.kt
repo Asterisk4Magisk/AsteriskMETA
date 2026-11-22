@@ -23,7 +23,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import java.security.MessageDigest
+import utils.sha256Hex
 import kotlin.time.Duration.Companion.milliseconds
 
 internal class ResourceAutoUpdateWorker(context: Context, parameters: WorkerParameters) :
@@ -60,7 +60,7 @@ internal class ResourceAutoUpdateWorker(context: Context, parameters: WorkerPara
             }
             // A changed URL/name must be fetched even when the previous target completed before a retry.
             val identity = "$target|${all.source}"
-            identity.sha256() to request
+            identity.sha256Hex() to request
         }
         val runner = ResourceAutoUpdateRunner(
             completed = progress::completed,
@@ -106,9 +106,6 @@ internal class ResourceAutoUpdateWorker(context: Context, parameters: WorkerPara
         }
     }
 }
-
-private fun String.sha256(): String = MessageDigest.getInstance("SHA-256")
-    .digest(toByteArray()).joinToString("") { "%02x".format(it) }
 
 private class ResourceAutoUpdateProgress(context: Context, private val workId: String) {
     private val preferences = context.getSharedPreferences("resource_auto_update_progress", Context.MODE_PRIVATE)

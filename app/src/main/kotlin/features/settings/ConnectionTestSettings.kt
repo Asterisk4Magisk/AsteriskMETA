@@ -3,9 +3,10 @@
 
 package features.settings
 
+import engine.network.NetworkDefaults
 import app.AppState
 
-const val DefaultConnectionTestUrl = "https://www.gstatic.com/generate_204"
+const val DefaultConnectionTestUrl = NetworkDefaults.CONNECTIVITY_CHECK_URL
 const val DefaultConnectionTestConcurrent = 8
 const val DefaultConnectionTestTimeoutMillis = 5000
 const val DefaultConnectionTestOverrideUnifiedDelay = true

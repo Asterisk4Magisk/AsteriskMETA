@@ -21,7 +21,7 @@ import engine.mihomo.prepareMihomoCoreLogPaths
 import engine.mihomo.raw.MihomoRawControllerConfig
 import engine.mihomo.raw.runtimeIpv6Enabled
 import engine.mihomo.selectedMihomoProfileOrNull
-import engine.mihomo.sha256Hex
+import utils.sha256Hex
 import engine.proxy.LocalProxyLoopbackAddress
 import engine.proxy.LocalProxyOptions
 import engine.proxy.ProxyEngineStartRequest
