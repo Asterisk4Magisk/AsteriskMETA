@@ -12,7 +12,6 @@ import engine.mihomo.raw.loadSelectedRawConfig
 import engine.mihomo.raw.usesRawMihomoConfig
 import engine.mihomo.runtime.MihomoConnection
 import engine.mihomo.runtime.MihomoConnectionsState
-import engine.mihomo.runtime.MihomoRulesState
 import engine.mihomo.runtime.MihomoRuntimeRepository
 import engine.mihomo.runtime.connectionCounts
 import engine.proxy.LocalProxyLoopbackAddress
@@ -44,10 +43,12 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
@@ -118,6 +119,15 @@ internal class MonitoringRepository(
                         plan.connectionIntervalMillis?.let { interval ->
                             launch { collectConnections(interval, plan.collectConnectionDetails) }
                         }
+                        plan.ruleIntervalMillis?.let { interval ->
+                            launch {
+                                try {
+                                    collectRules(interval)
+                                } finally {
+                                    mutableState.update { it.copy(rules = MonitoringRulesSummary()) }
+                                }
+                            }
+                        }
                         plan.trafficIntervalMillis?.let { interval ->
                             launch { collectTrafficStats(interval) }
                         }
@@ -172,43 +182,36 @@ internal class MonitoringRepository(
         return result
     }
 
-    suspend fun refreshRules(): Result<Unit> {
-        val appState = stateStore.state.value
-        if (!appState.proxyRunning) {
-            mutableState.update { current ->
-                current.copy(rules = MonitoringRulesSummary(status = ConnectionMonitorStatus.ServiceStopped))
-            }
-            return Result.success(Unit)
-        }
-        mutableState.update { current ->
-            if (current.rules.rules.isEmpty() && current.rules.status != ConnectionMonitorStatus.Loading) {
-                current.copy(rules = current.rules.copy(status = ConnectionMonitorStatus.Loading, error = ""))
-            } else {
-                current
-            }
-        }
-        return mihomoRuntime.getRules(appState)
-            .map { state ->
-                mutableState.update { current ->
-                    current.copy(
-                        rules = MonitoringRulesSummary(
-                            rules = state.rules,
-                            outbounds = state.outbounds,
-                            status = ConnectionMonitorStatus.Available,
-                        ),
-                    )
-                }
-            }
-            .onFailure { error ->
-                if (error is CancellationException) throw error
-                mutableState.update { current ->
-                    current.copy(
-                        rules = current.rules.copy(
-                            status = ConnectionMonitorStatus.Error,
-                            error = error.message.orEmpty(),
-                            stale = current.rules.rules.isNotEmpty(),
-                        ),
-                    )
+    private suspend fun collectRules(intervalMillis: Long) {
+        val running = stateStore.state.map { it.proxyRunning }.distinctUntilChanged()
+        val epoch = mihomoRuntime.state.map { it.runtimeEpoch }.distinctUntilChanged()
+        combine(running, epoch) { isRunning, runtimeEpoch -> runtimeEpoch.takeIf { isRunning } }
+            .distinctUntilChanged()
+            .collectLatest { session ->
+                val status = if (session == null) ConnectionMonitorStatus.ServiceStopped else ConnectionMonitorStatus.Loading
+                mutableState.update { it.copy(rules = MonitoringRulesSummary(status = status)) }
+                if (session == null) return@collectLatest
+                while (currentCoroutineContext().isActive) {
+                    val result = mihomoRuntime.getRules(stateStore.state.value)
+                    result.exceptionOrNull()?.let { if (it is CancellationException) throw it }
+                    currentCoroutineContext().ensureActive()
+                    mutableState.update { current ->
+                        current.copy(
+                            rules = result.fold(
+                                onSuccess = { rules ->
+                                    MonitoringRulesSummary(rules = rules, status = ConnectionMonitorStatus.Available)
+                                },
+                                onFailure = { error ->
+                                    current.rules.copy(
+                                        status = ConnectionMonitorStatus.Error,
+                                        error = error.message.orEmpty(),
+                                        stale = current.rules.status == ConnectionMonitorStatus.Available || current.rules.stale,
+                                    )
+                                },
+                            ),
+                        )
+                    }
+                    delay(intervalMillis.milliseconds)
                 }
             }
     }

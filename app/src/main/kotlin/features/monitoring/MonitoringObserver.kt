@@ -13,6 +13,7 @@ import app.LocalAppServices
 internal enum class MonitoringIntent {
     Home,
     Connections,
+    Rules,
     Resource,
     Traffic,
     Network,
@@ -21,6 +22,7 @@ internal enum class MonitoringIntent {
 internal data class MonitoringPlan(
     val observeRuntimeSummary: Boolean = false,
     val connectionIntervalMillis: Long? = null,
+    val ruleIntervalMillis: Long? = null,
     val resourceIntervalMillis: Long? = null,
     val trafficIntervalMillis: Long? = null,
     val collectConnectionDetails: Boolean = false,
@@ -37,7 +39,8 @@ internal fun resolveMonitoringPlan(counts: Map<MonitoringIntent, Int>): Monitori
     val resource = observes(MonitoringIntent.Resource)
     val traffic = observes(MonitoringIntent.Traffic)
     val network = observes(MonitoringIntent.Network)
-    val any = home || connections || resource || traffic || network
+    val rules = observes(MonitoringIntent.Rules)
+    val any = home || connections || rules || resource || traffic || network
 
     return MonitoringPlan(
         observeRuntimeSummary = any,
@@ -48,6 +51,7 @@ internal fun resolveMonitoringPlan(counts: Map<MonitoringIntent, Int>): Monitori
             home || resource -> HomeMonitoringIntervalMillis
             else -> null
         },
+        ruleIntervalMillis = RuleMonitoringIntervalMillis.takeIf { rules },
         resourceIntervalMillis = when {
             resource || traffic -> DetailMonitoringIntervalMillis
             home -> HomeMonitoringIntervalMillis
@@ -129,5 +133,6 @@ internal fun ObserveMonitoring(intent: MonitoringIntent, pageSessionId: String? 
     }
 }
 
+private const val RuleMonitoringIntervalMillis = 4_000L
 private const val DetailMonitoringIntervalMillis = 1_000L
 private const val HomeMonitoringIntervalMillis = 4_000L

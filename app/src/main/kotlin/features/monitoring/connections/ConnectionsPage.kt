@@ -15,17 +15,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -78,8 +73,6 @@ import app.R
 import app.collectAppState
 import coil3.compose.AsyncImage
 import engine.mihomo.runtime.MihomoConnection
-import engine.mihomo.runtime.MihomoRuleOutbound
-import engine.mihomo.runtime.MihomoRuleRuntimeItem
 import features.monitoring.ConnectionMonitorStatus
 import features.monitoring.ConnectionRouteFilter
 import features.monitoring.ConnectionSort
@@ -98,8 +91,6 @@ import features.monitoring.resolveDisplayedConnections
 import features.monitoring.restrictsRoute
 import features.proxy.app.model.ProxyAppIconRequest
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
-import java.util.Locale
 import system.ANDROID_APP_ICON_SIZE_DP
 import ui.components.AsteriskActionButton
 import ui.components.AsteriskCancelButton
@@ -127,10 +118,13 @@ internal fun ConnectionsMonitorPage(padding: PaddingValues) {
     val context = LocalContext.current
     val iconSizePx = with(LocalDensity.current) { ANDROID_APP_ICON_SIZE_DP.dp.roundToPx() }
     var query by rememberSaveable { mutableStateOf("") }
+    var rulesQuery by rememberSaveable { mutableStateOf("") }
     var route by rememberSaveable { mutableStateOf(ConnectionRouteFilter.App) }
+    val showRules = route == ConnectionRouteFilter.Rules
     var sort by rememberSaveable { mutableStateOf(ConnectionSort.Traffic) }
     var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
     val listState = rememberLazyListState()
+    val rulesListState = rememberLazyListState()
     var expandedAppKeys by remember { mutableStateOf(emptySet<String>()) }
     var showMenu by rememberSaveable { mutableStateOf(false) }
     var showCloseAllConfirmation by rememberSaveable { mutableStateOf(false) }
@@ -170,7 +164,7 @@ internal fun ConnectionsMonitorPage(padding: PaddingValues) {
     val liveIds = pageSnapshot.active.mapTo(HashSet(), MihomoConnection::id)
     val closeFailed = stringResource(R.string.monitor_connections_close_failed)
     val closeAllFailed = stringResource(R.string.monitor_connections_close_all_failed)
-    ObserveMonitoring(MonitoringIntent.Connections)
+    ObserveMonitoring(if (showRules) MonitoringIntent.Rules else MonitoringIntent.Connections)
 
     val displayedConnections = resolveDisplayedConnections(
         latest = connections,
@@ -178,7 +172,7 @@ internal fun ConnectionsMonitorPage(padding: PaddingValues) {
         paused = paused,
     )
     val visibleConnections = remember(listedConnections, query, route, sort) {
-        reduceConnections(
+        if (showRules) emptyList() else reduceConnections(
             connections = listedConnections,
             query = query,
             route = route,
@@ -196,17 +190,14 @@ internal fun ConnectionsMonitorPage(padding: PaddingValues) {
     val appRows = remember(appGroups, expandedAppKeys) {
         buildConnectionAppRows(appGroups, expandedAppKeys)
     }
-    val rulesState = monitoring.rules
-    val showRules = route == ConnectionRouteFilter.Rules
-    LaunchedEffect(showRules, appState.proxyRunning) {
-        if (!showRules || !appState.proxyRunning) return@LaunchedEffect
-        while (true) {
-            services.monitoring.refreshRules()
-            delay(RulesRefreshIntervalMillis)
-        }
+    val rulesState = when {
+        !appState.proxyRunning -> MonitoringRulesSummary()
+        monitoring.rules.status == ConnectionMonitorStatus.ServiceStopped ->
+            MonitoringRulesSummary(status = ConnectionMonitorStatus.Loading)
+        else -> monitoring.rules
     }
-    val filteredRules = remember(rulesState.rules, query) {
-        reduceRules(rulesState.rules, query)
+    val filteredRules = remember(rulesState.rules, rulesQuery) {
+        filterRules(rulesState.rules, rulesQuery)
     }
 
     fun closeConnection(connection: MihomoConnection) {
@@ -252,30 +243,32 @@ internal fun ConnectionsMonitorPage(padding: PaddingValues) {
     }
 
     MonitoringScaffold(
-        searchQuery = query,
-        onSearchQueryChange = { query = it },
+        searchQuery = if (showRules) rulesQuery else query,
+        onSearchQueryChange = { value -> if (showRules) rulesQuery = value else query = value },
         searchPlaceholder = stringResource(
             if (showRules) R.string.monitor_rules_search else R.string.monitor_connections_search,
         ),
         title = stringResource(R.string.monitor_connections_title),
         outerPadding = padding,
         actions = {
-            Box {
-                IconButton(
-                    onClick = { showMenu = true },
-                    enabled = appState.proxyRunning && liveIds.isNotEmpty() && !operationInProgress,
-                ) {
-                    Icon(Icons.Rounded.MoreVert, stringResource(R.string.home_more_actions))
-                }
-                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.monitor_connections_close_all)) },
-                        leadingIcon = { Icon(Icons.Rounded.LinkOff, contentDescription = null) },
-                        onClick = {
-                            showMenu = false
-                            showCloseAllConfirmation = true
-                        },
-                    )
+            if (!showRules) {
+                Box {
+                    IconButton(
+                        onClick = { showMenu = true },
+                        enabled = appState.proxyRunning && liveIds.isNotEmpty() && !operationInProgress,
+                    ) {
+                        Icon(Icons.Rounded.MoreVert, stringResource(R.string.home_more_actions))
+                    }
+                    DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.monitor_connections_close_all)) },
+                            leadingIcon = { Icon(Icons.Rounded.LinkOff, contentDescription = null) },
+                            onClick = {
+                                showMenu = false
+                                showCloseAllConfirmation = true
+                            },
+                        )
+                    }
                 }
             }
         },
@@ -283,10 +276,15 @@ internal fun ConnectionsMonitorPage(padding: PaddingValues) {
             AsteriskTopBarControls {
                 ConnectionControls(
                     route = route,
-                    onRouteChange = { route = it },
+                    onRouteChange = { next ->
+                        route = next
+                        if (next == ConnectionRouteFilter.Rules) {
+                            showMenu = false
+                            showCloseAllConfirmation = false
+                        }
+                    },
                     sort = sort,
                     onSortChange = { sort = it },
-                    showSort = !showRules,
                 )
             }
         },
@@ -300,7 +298,7 @@ internal fun ConnectionsMonitorPage(padding: PaddingValues) {
             val effects = AsteriskMotion.fastEffects<Float>()
             Row(Modifier.fillMaxSize()) {
                 LazyColumn(
-                    state = listState,
+                    state = if (showRules) rulesListState else listState,
                     modifier = Modifier.weight(1f).fillMaxHeight(),
                     contentPadding = PaddingValues(
                         start = horizontalPadding,
@@ -311,69 +309,35 @@ internal fun ConnectionsMonitorPage(padding: PaddingValues) {
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
+                    if (showRules) {
+                        rulesMonitorContent(rulesState, filteredRules, searching = rulesQuery.isNotBlank())
+                        return@LazyColumn
+                    }
                     item("status") {
-                        if (showRules) {
-                            RulesMonitorStatus(rulesState)
-                        } else {
-                            ConnectionsMonitorStatus(
-                                state = buildMonitoringConnectionsFocusState(
-                                    displayedConnections.copy(
-                                        status = if (showClosed) ConnectionMonitorStatus.Available else displayedConnections.status,
-                                        activeCount = if (showClosed) listedConnections.size else displayedConnections.activeCount,
-                                        snapshot = displayedConnections.snapshot.copy(connections = listedConnections),
-                                    ),
+                        ConnectionsMonitorStatus(
+                            state = buildMonitoringConnectionsFocusState(
+                                displayedConnections.copy(
+                                    status = if (showClosed) ConnectionMonitorStatus.Available else displayedConnections.status,
+                                    activeCount = if (showClosed) listedConnections.size else displayedConnections.activeCount,
+                                    snapshot = displayedConnections.snapshot.copy(connections = listedConnections),
                                 ),
-                                paused = paused,
-                                onTogglePaused = {
-                                    if (!paused) {
-                                        frozenConnections = connections
-                                        frozenPageSnapshot = pageSnapshot
-                                    }
-                                    paused = !paused
-                                },
-                                showClosed = showClosed,
-                                onShowClosedChange = { closed ->
-                                    showClosed = closed
-                                    selectedId = null
-                                },
-                            )
-                        }
+                            ),
+                            paused = paused,
+                            onTogglePaused = {
+                                if (!paused) {
+                                    frozenConnections = connections
+                                    frozenPageSnapshot = pageSnapshot
+                                }
+                                paused = !paused
+                            },
+                            showClosed = showClosed,
+                            onShowClosedChange = { closed ->
+                                showClosed = closed
+                                selectedId = null
+                            },
+                        )
                     }
                     when {
-                        showRules -> when {
-                            rulesState.status == ConnectionMonitorStatus.ServiceStopped -> item("stopped") {
-                                StatusCard(stringResource(R.string.monitor_service_not_enabled))
-                            }
-                            rulesState.status == ConnectionMonitorStatus.Loading -> item("loading") {
-                                StatusCard(stringResource(R.string.monitor_loading), loading = true)
-                            }
-                            rulesState.status == ConnectionMonitorStatus.Error && filteredRules.isEmpty() &&
-                                rulesState.rules.isEmpty() -> item("error") {
-                                StatusCard(rulesState.error.ifBlank { stringResource(R.string.monitor_data_unavailable) })
-                            }
-                            filteredRules.isEmpty() -> item("empty") {
-                                StatusCard(
-                                    if (query.isBlank()) {
-                                        stringResource(R.string.monitor_rules_empty)
-                                    } else {
-                                        stringResource(R.string.monitor_rules_no_match)
-                                    },
-                                )
-                            }
-                            else -> {
-                                if (rulesState.stale) item("stale") {
-                                    StatusCard(stringResource(R.string.monitor_data_stale))
-                                }
-                                items(filteredRules.size, key = { index -> "rule-$index" }) { index ->
-                                    val rule = filteredRules[index]
-                                    RuleCard(
-                                        rule = rule,
-                                        index = index + 1,
-                                        outbound = rulesState.outbounds[rule.proxy],
-                                    )
-                                }
-                            }
-                        }
                         !showClosed && displayedConnections.status == ConnectionMonitorStatus.ServiceStopped -> item("stopped") {
                             StatusCard(stringResource(R.string.monitor_service_not_enabled))
                         }
@@ -434,7 +398,7 @@ internal fun ConnectionsMonitorPage(padding: PaddingValues) {
                     }
                 }
                 AnimatedVisibility(
-                    visible = split && selectedConnection != null,
+                    visible = !showRules && split && selectedConnection != null,
                     enter = expandHorizontally(spatial, expandFrom = Alignment.End) + fadeIn(effects),
                     exit = shrinkHorizontally(spatial, shrinkTowards = Alignment.End) + fadeOut(effects),
                 ) {
@@ -454,7 +418,7 @@ internal fun ConnectionsMonitorPage(padding: PaddingValues) {
         }
     }
 
-    if (showCloseAllConfirmation) {
+    if (!showRules && showCloseAllConfirmation) {
         AlertDialog(
             onDismissRequest = { showCloseAllConfirmation = false },
             title = { Text(stringResource(R.string.monitor_connections_close_all)) },
@@ -576,71 +540,11 @@ private fun ConnectionsMonitorStatus(
 }
 
 @Composable
-private fun RulesMonitorStatus(state: MonitoringRulesSummary) {
-    // The core resets rule statistics on every profile load, so the numbers below restart
-    // when the proxy starts and stay frozen with the last snapshot while it is stopped.
-    val totalHits = state.rules.sumOf(MihomoRuleRuntimeItem::hits)
-    Card(
-        modifier = ContentWidthModifier,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-        shape = MaterialTheme.shapes.extraLarge,
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(IntrinsicSize.Min)
-                .padding(18.dp),
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(R.string.monitor_rules_total),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    text = state.rules.size.toString(),
-                    style = MaterialTheme.typography.headlineMedium.copy(
-                        fontWeight = FontWeight.SemiBold,
-                        fontFeatureSettings = "tnum",
-                    ),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            Box(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .width(1.dp)
-                    .padding(vertical = 10.dp)
-                    .background(MaterialTheme.colorScheme.outlineVariant),
-            )
-            Column(modifier = Modifier.weight(1f).padding(start = 18.dp)) {
-                Text(
-                    text = stringResource(R.string.monitor_rules_hits_total),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    text = totalHits.toString(),
-                    style = MaterialTheme.typography.headlineMedium.copy(
-                        fontWeight = FontWeight.SemiBold,
-                        fontFeatureSettings = "tnum",
-                    ),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-    }
-}
-
-@Composable
 private fun ConnectionControls(
     route: ConnectionRouteFilter,
     onRouteChange: (ConnectionRouteFilter) -> Unit,
     sort: ConnectionSort,
     onSortChange: (ConnectionSort) -> Unit,
-    showSort: Boolean,
 ) {
     var showSortMenu by rememberSaveable { mutableStateOf(false) }
     Row(
@@ -655,7 +559,7 @@ private fun ConnectionControls(
                 label = connectionRouteLabel(option),
             )
         }
-        if (showSort) {
+        if (route != ConnectionRouteFilter.Rules) {
             Box {
                 AsteriskFilterChip(
                     selected = false,
@@ -910,7 +814,7 @@ private fun DetailRow(label: String, value: String) {
 }
 
 @Composable
-private fun StatusCard(message: String, loading: Boolean = false) {
+internal fun StatusCard(message: String, loading: Boolean = false) {
     Card(
         modifier = ContentWidthModifier,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
@@ -923,129 +827,6 @@ private fun StatusCard(message: String, loading: Boolean = false) {
             if (loading) CircularProgressIndicator(modifier = Modifier.padding(end = 12.dp))
             Text(message, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun RuleCard(
-    rule: MihomoRuleRuntimeItem,
-    index: Int,
-    outbound: List<MihomoRuleOutbound>?,
-) {
-    Card(
-        modifier = ContentWidthModifier,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-        shape = MaterialTheme.shapes.large,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 16.dp, top = 14.dp, end = 16.dp, bottom = 14.dp),
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = index.toString(),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.widthIn(min = 28.dp),
-                )
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        text = buildString {
-                            append(rule.type)
-                            append(" : ")
-                            append(rule.payload)
-                            if (rule.ruleCount > 0) append(" (${rule.ruleCount})")
-                        },
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = ruleHitSummary(rule),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-            if (rule.proxy.isNotBlank()) {
-                val chain = outbound?.takeIf { it.isNotEmpty() }
-                    ?: listOf(MihomoRuleOutbound(rule.proxy))
-                Spacer(Modifier.height(10.dp))
-                Box(
-                    modifier = Modifier
-                        .padding(start = 28.dp)
-                        .clip(AsteriskShapeTokens.SmallContainer)
-                        .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-                        .padding(horizontal = 10.dp, vertical = 4.dp),
-                ) {
-                    // The full policy path: every group on the selection chain followed by the
-                    // leaf node, each with its icon when the core provides one.
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalArrangement = Arrangement.spacedBy(2.dp),
-                    ) {
-                        chain.forEachIndexed { position, link ->
-                            if (position > 0) {
-                                Text(
-                                    text = "→",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                            if (link.icon.isNotBlank()) {
-                                AsyncImage(
-                                    model = link.icon,
-                                    contentDescription = null,
-                                    modifier = Modifier
-                                        .size(18.dp)
-                                        .clip(AsteriskShapeTokens.SmallContainer),
-                                    contentScale = ContentScale.Fit,
-                                )
-                                Spacer(Modifier.width(4.dp))
-                            }
-                            Text(
-                                text = link.name,
-                                style = MaterialTheme.typography.labelLarge,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ruleHitSummary(rule: MihomoRuleRuntimeItem): String {
-    val hits = stringResource(R.string.monitor_rules_hits, rule.hits)
-    return when {
-        rule.hits > 0L -> when (val lastHit = rule.lastHitAtMillis) {
-            null -> listOf(hits, stringResource(R.string.monitor_rules_unknown_hit)).joinToString(" · ")
-            else -> listOf(
-                hits,
-                stringResource(
-                    R.string.monitor_rules_last_hit,
-                    java.text.DateFormat.getDateTimeInstance().format(java.util.Date(lastHit)),
-                ),
-            ).joinToString(" · ")
-        }
-        rule.misses > 0L -> stringResource(R.string.monitor_rules_never_hit)
-        else -> stringResource(R.string.monitor_rules_never_hit)
-    }
-}
-
-private fun reduceRules(rules: List<MihomoRuleRuntimeItem>, query: String): List<MihomoRuleRuntimeItem> {
-    val normalizedQuery = query.trim().lowercase(Locale.ROOT)
-    if (normalizedQuery.isEmpty()) return rules
-    return rules.filter { rule ->
-        rule.payload.lowercase(Locale.ROOT).contains(normalizedQuery) ||
-            rule.type.lowercase(Locale.ROOT).contains(normalizedQuery) ||
-            rule.proxy.lowercase(Locale.ROOT).contains(normalizedQuery)
     }
 }
 
@@ -1085,12 +866,10 @@ private fun formatDuration(startedAtMillis: Long?, endedAtMillis: Long? = null):
     return DateUtils.formatElapsedTime(elapsed / 1_000L)
 }
 
-private val ContentWidthModifier = Modifier.widthIn(max = 960.dp).fillMaxWidth()
+internal val ContentWidthModifier = Modifier.widthIn(max = 960.dp).fillMaxWidth()
 
 /** Inset applied to the connections listed under their application. */
 private val NestedConnectionModifier = Modifier.padding(start = 12.dp)
-
-private const val RulesRefreshIntervalMillis = 4_000L
 
 private fun Set<String>.toggleAppGroup(key: String): Set<String> =
     if (key in this) this - key else this + key

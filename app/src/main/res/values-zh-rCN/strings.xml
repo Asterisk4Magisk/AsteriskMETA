@@ -166,9 +166,8 @@
     <string name="monitor_rules_empty">暂无规则</string>
     <string name="monitor_rules_hits">命中 %1$d 次</string>
     <string name="monitor_rules_hits_total">命中次数</string>
+    <string name="monitor_rules_hits_unavailable">命中统计不可用</string>
     <string name="monitor_rules_last_hit">最后命中 %1$s</string>
-    <string name="monitor_rules_last_miss">最后未命中 %1$s</string>
-    <string name="monitor_rules_misses">未命中 %1$d 次</string>
     <string name="monitor_rules_never_hit">未命中</string>
     <string name="monitor_rules_no_match">无匹配规则</string>
     <string name="monitor_rules_search">搜索规则</string>

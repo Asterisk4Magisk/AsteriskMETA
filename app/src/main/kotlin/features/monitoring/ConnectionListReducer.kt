@@ -71,11 +71,9 @@ internal fun reduceConnections(
     val filtered = connections.filter { connection ->
         val resolvedRoute = connection.resolvedConnectionRoute()
         val matchesRoute = when (route) {
-            ConnectionRouteFilter.App -> true
+            ConnectionRouteFilter.App, ConnectionRouteFilter.Rules -> true
             ConnectionRouteFilter.Proxy -> resolvedRoute == ConnectionRouteKind.Proxy
             ConnectionRouteFilter.Direct -> resolvedRoute == ConnectionRouteKind.Direct
-            ConnectionRouteFilter.Rules -> true
-            ConnectionRouteFilter.App -> true
         }
         val matchesQuery = normalizedQuery.isEmpty() || connection.searchableText().contains(normalizedQuery)
         matchesRoute && matchesQuery

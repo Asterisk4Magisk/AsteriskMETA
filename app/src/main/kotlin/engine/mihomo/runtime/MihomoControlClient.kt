@@ -21,6 +21,7 @@ import engine.mihomo.MihomoControlConfig
 import engine.network.ProxyIpProbeException
 import engine.network.ProxyIpProbeRequest
 import engine.network.ProxyIpProbeResponse
+import engine.proxy.RuntimeRouteRule
 import engine.vpn.AndroidMihomoRuntime
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -330,7 +331,7 @@ internal class MihomoControlClient(
             .toMihomoRuleProviderRuntimeSummaries()
     }
 
-    fun getRules(config: MihomoControlConfig): List<MihomoRuleRuntimeItem> {
+    fun getRules(config: MihomoControlConfig): List<RuntimeRouteRule> {
         // The embedded bridge has no rules snapshot; /rules on the external controller is the
         // single source for the loaded configuration, which the rules monitor only reads while
         // the runtime is queryable.

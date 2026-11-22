@@ -3,15 +3,16 @@
 
 package engine.mihomo.runtime
 
-import utils.intValue
-import utils.longValue
-import utils.arrayValue
-import utils.objectValue
-import utils.stringValue
+import engine.proxy.RuntimeRouteRule
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
+import utils.arrayValue
+import utils.intValue
+import utils.longValue
+import utils.objectValue
+import utils.stringValue
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -43,41 +44,21 @@ internal data class MihomoConnectionsState(
     val updatedAtMillis: Long = 0L,
 )
 
-internal data class MihomoRuleRuntimeItem(
-    val type: String,
-    val payload: String,
-    val proxy: String = "",
-    val ruleCount: Int = 0,
-    val hits: Long = 0L,
-    val lastHitAtMillis: Long? = null,
-    val misses: Long = 0L,
-    val lastMissAtMillis: Long? = null,
-)
-
-internal data class MihomoRulesState(
-    val rules: List<MihomoRuleRuntimeItem> = emptyList(),
-    val outbounds: Map<String, List<MihomoRuleOutbound>> = emptyMap(),
-)
-
-internal fun parseMihomoRulesJson(content: String): List<MihomoRuleRuntimeItem> {
+internal fun parseMihomoRulesJson(content: String): List<RuntimeRouteRule> {
     val root = ConnectionJson.parseToJsonElement(content) as? JsonObject
         ?: error("Invalid Mihomo rules response")
-    return root.arrayValue("rules").orEmpty().mapNotNull { element ->
-        val rule = element as? JsonObject ?: return@mapNotNull null
-        // Match statistics live in the nested "extra" object; the top-level "hits" field
-        // only exists on older cores and stays at zero there, so prefer "extra".
+    val rules = root.arrayValue("rules") ?: error("Invalid Mihomo rules response")
+    return rules.mapIndexed { position, element ->
+        val rule = element as? JsonObject ?: error("Invalid Mihomo rule at index $position")
         val extra = rule.objectValue("extra")
-        fun JsonObject.zeroTimeToNull(name: String): Long? =
-            stringValue(name)?.toRfc3339MillisOrNull()?.takeIf { it > 0L }
-        MihomoRuleRuntimeItem(
+        RuntimeRouteRule(
+            index = rule.intValue("index") ?: position,
             type = rule.stringValue("type").orEmpty(),
             payload = rule.stringValue("payload").orEmpty(),
-            proxy = rule.stringValue("proxy").orEmpty(),
-            ruleCount = (rule.intValue("size") ?: 0).takeIf { it > 0 } ?: 0,
-            hits = extra?.longValue("hitCount") ?: rule.longValue("hits") ?: 0L,
-            lastHitAtMillis = extra?.zeroTimeToNull("hitAt"),
-            misses = extra?.longValue("missCount") ?: 0L,
-            lastMissAtMillis = extra?.zeroTimeToNull("missAt"),
+            policy = rule.stringValue("proxy").orEmpty(),
+            size = rule.intValue("size")?.takeIf { it >= 0 },
+            hits = extra?.longValue("hitCount") ?: rule.longValue("hits"),
+            lastHitAtMillis = extra?.stringValue("hitAt")?.toRfc3339MillisOrNull()?.takeIf { it > 0L },
         )
     }
 }
