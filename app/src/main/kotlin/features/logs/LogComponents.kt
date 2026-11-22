@@ -4,10 +4,12 @@
 package features.logs
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -20,6 +22,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalDensity
+import ui.layout.LocalAdaptiveWindow
 import app.R
 import ui.components.AsteriskChipTone
 import ui.components.AsteriskInfoChip
@@ -64,25 +68,46 @@ internal fun LogEntryCard(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
     ) {
-        Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = formatCoreLogTime(entry.timestampMillis),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                LogLevelChip(entry.level)
-            }
+        val aligned = LocalAdaptiveWindow.current.showTwoColumns && LocalDensity.current.fontScale <= 1.3f
+        val time: @Composable (Modifier) -> Unit = { textModifier ->
+            Text(
+                text = formatCoreLogTime(entry.timestampMillis),
+                modifier = textModifier,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        val message: @Composable (Modifier) -> Unit = { textModifier ->
             Text(
                 text = entry.message,
+                modifier = textModifier,
                 style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
                 color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(top = 8.dp),
             )
+        }
+        val padding = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp)
+        if (aligned) {
+            Row(
+                modifier = padding,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.Top,
+            ) {
+                time(Modifier.width(124.dp))
+                Box(Modifier.width(88.dp)) { LogLevelChip(entry.level) }
+                message(Modifier.weight(1f))
+            }
+        } else {
+            Column(modifier = padding) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    time(Modifier)
+                    LogLevelChip(entry.level)
+                }
+                message(Modifier.padding(top = 8.dp))
+            }
         }
     }
 }

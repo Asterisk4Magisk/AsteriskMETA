@@ -6,7 +6,9 @@ package features.monitoring.resource
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -29,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import android.text.format.DateUtils
@@ -47,6 +50,9 @@ import ui.charts.ChartAxisLabelSpacing
 import ui.charts.drawSmoothAreaLine
 import ui.components.AsteriskSegmentItem
 import ui.components.AsteriskSegmentedControl
+import ui.layout.LocalAdaptiveWindow
+import ui.layout.pageListPadding
+import ui.layout.pageReadableWidth
 import ui.layout.rememberPageGutter
 import utils.toReadableBytes
 
@@ -73,72 +79,87 @@ internal fun ResourceMonitorPage(padding: PaddingValues) {
         title = stringResource(R.string.monitor_resource_title),
         outerPadding = padding,
     ) { contentPadding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(
-                start = horizontalPadding,
-                top = contentPadding.calculateTopPadding() + 8.dp,
-                end = horizontalPadding,
-                bottom = contentPadding.calculateBottomPadding() + 20.dp,
-            ),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            if (!monitoring.serviceRunning) {
-                item("status") {
-                    MonitoringStatusHeader(
-                        title = stringResource(R.string.monitor_resource_cpu),
-                        value = "—",
-                        summary = stringResource(R.string.monitor_service_not_enabled),
-                        modifier = ResourceContentModifier,
-                        compactStatus = true,
-                    )
+        val cpuCard: @Composable (Modifier) -> Unit = { modifier ->
+            ResourceMetricCard(
+                title = stringResource(R.string.monitor_resource_card_cpu),
+                value = resource.cpuPercent?.let { "%.1f%%".format(it) } ?: "—",
+                amplitudes = chart.cpu,
+                scaleLabel = chart.cpuScaleLabel,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = modifier,
+            )
+        }
+        val memoryCard: @Composable (Modifier) -> Unit = { modifier ->
+            ResourceMetricCard(
+                title = stringResource(R.string.monitor_resource_card_memory),
+                value = resource.memoryBytes?.toReadableBytes() ?: "—",
+                amplitudes = chart.memory,
+                scaleLabel = chart.memoryScaleLabel,
+                color = MaterialTheme.colorScheme.tertiary,
+                modifier = modifier,
+            )
+        }
+        BoxWithConstraints(Modifier.pageReadableWidth(maxWidth = 1008.dp).fillMaxSize()) {
+            val twoColumns = LocalAdaptiveWindow.current.supportsWideContent &&
+                maxWidth - horizontalPadding * 2 >= 680.dp && LocalDensity.current.fontScale <= 1.3f
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = pageListPadding(contentPadding, bottomExtra = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                if (!monitoring.serviceRunning) {
+                    item("status") {
+                        MonitoringStatusHeader(
+                            title = stringResource(R.string.monitor_resource_cpu),
+                            value = "—",
+                            summary = stringResource(R.string.monitor_service_not_enabled),
+                            modifier = ResourceContentModifier,
+                            compactStatus = true,
+                        )
+                    }
                 }
-            }
-            if (monitoring.serviceRunning) {
-                item("range") {
-                    AsteriskSegmentedControl(
-                        items = ResourceChartRange.entries.map { option ->
-                            AsteriskSegmentItem(
-                                option,
-                                stringResource(
-                                    if (option == ResourceChartRange.FifteenMinutes) {
-                                        R.string.monitor_resource_15_minutes
-                                    } else {
-                                        R.string.monitor_resource_1_hour
-                                    },
-                                ),
-                            )
-                        },
-                        selectedValue = range,
-                        onSelected = { option -> range = option },
-                        modifier = ResourceContentModifier,
-                    )
-                }
-                item("cpu_card") {
-                    ResourceMetricCard(
-                        title = stringResource(R.string.monitor_resource_card_cpu),
-                        value = resource.cpuPercent?.let { "%.1f%%".format(it) } ?: "—",
-                        amplitudes = chart.cpu,
-                        scaleLabel = chart.cpuScaleLabel,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                }
-                item("memory_card") {
-                    ResourceMetricCard(
-                        title = stringResource(R.string.monitor_resource_card_memory),
-                        value = resource.memoryBytes?.toReadableBytes() ?: "—",
-                        amplitudes = chart.memory,
-                        scaleLabel = chart.memoryScaleLabel,
-                        color = MaterialTheme.colorScheme.tertiary,
-                    )
-                }
-                item("details") {
-                    ResourceDetails(
-                        resource = resource,
-                        todayTrafficBytes = monitoring.traffic.today.total,
-                        activeConnectionCount = monitoring.connections.activeCount,
-                    )
+                if (monitoring.serviceRunning) {
+                    item("range") {
+                        AsteriskSegmentedControl(
+                            items = ResourceChartRange.entries.map { option ->
+                                AsteriskSegmentItem(
+                                    option,
+                                    stringResource(
+                                        if (option == ResourceChartRange.FifteenMinutes) {
+                                            R.string.monitor_resource_15_minutes
+                                        } else {
+                                            R.string.monitor_resource_1_hour
+                                        },
+                                    ),
+                                )
+                            },
+                            selectedValue = range,
+                            onSelected = { option -> range = option },
+                            modifier = ResourceContentModifier,
+                        )
+                    }
+                    if (twoColumns) {
+                        item("metric_cards") {
+                            Row(
+                                modifier = ResourceContentModifier.height(IntrinsicSize.Min),
+                                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                            ) {
+                                cpuCard(Modifier.weight(1f).fillMaxHeight())
+                                memoryCard(Modifier.weight(1f).fillMaxHeight())
+                            }
+                        }
+                    } else {
+                        item("cpu_card") { cpuCard(ResourceContentModifier) }
+                        item("memory_card") { memoryCard(ResourceContentModifier) }
+                    }
+                    item("details") {
+                        ResourceDetails(
+                            resource = resource,
+                            todayTrafficBytes = monitoring.traffic.today.total,
+                            activeConnectionCount = monitoring.connections.activeCount,
+                        )
+                    }
                 }
             }
         }
@@ -152,8 +173,9 @@ private fun ResourceMetricCard(
     amplitudes: FloatArray,
     scaleLabel: String?,
     color: Color,
+    modifier: Modifier,
 ) {
-    MonitoringSectionCard(title, ResourceContentModifier) {
+    MonitoringSectionCard(title, modifier) {
         // The section card wraps its content in a Box, so the value and the plot need an explicit
         // column: without it the two would be drawn on top of each other.
         Column {

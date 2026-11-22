@@ -31,7 +31,8 @@ internal data class AdaptiveWindow(
     val height: Dp = 0.dp,
     val foldPadding: PaddingValues = PaddingValues(),
 ) {
-    val showNavigationRail: Boolean get() = width >= 600.dp
+    val showNavigationRail: Boolean
+        get() = width >= 840.dp || (width >= 600.dp && height / width < 1.2f)
     val supportsWideContent: Boolean get() = width >= 600.dp && height >= 480.dp
     val showTwoColumns: Boolean get() = width >= 840.dp && height >= 480.dp
 }

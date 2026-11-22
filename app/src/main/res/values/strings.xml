@@ -490,6 +490,7 @@
     <string name="mihomo_profile_save_sync_stage_verifying">profile verification</string>
     <string name="mihomo_profile_save_sync_success">Profile synced and saved</string>
     <string name="mihomo_profile_save_sync_verifying">Verifying profile…</string>
+    <string name="mihomo_profile_use">Use profile</string>
     <string name="mihomo_profile_selected">Selected</string>
     <string name="mihomo_profile_sync">Sync</string>
     <string name="mihomo_profile_sync_all">Update all subscriptions</string>

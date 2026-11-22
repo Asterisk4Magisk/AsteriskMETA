@@ -57,6 +57,7 @@ import ui.components.AsteriskFilterChip
 import ui.components.AsteriskPullToRefreshBox
 import ui.components.AsteriskScaffold
 import ui.layout.pageContentPaddingWithCutout
+import ui.layout.pageReadableWidth
 import ui.layout.pageListPadding
 import ui.icons.AsteriskIcons as Icons
 
@@ -246,7 +247,7 @@ private fun LogViewerPage(
             isRefreshing = refreshing,
             onRefresh = ::refresh,
             indicatorTopPadding = listPadding.calculateTopPadding(),
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.pageReadableWidth().fillMaxSize(),
         ) {
             LazyColumn(
                 state = lazyListState,

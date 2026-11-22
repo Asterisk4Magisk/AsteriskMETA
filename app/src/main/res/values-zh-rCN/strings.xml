@@ -479,6 +479,7 @@
     <string name="mihomo_profile_save_sync_stage_verifying">校验配置</string>
     <string name="mihomo_profile_save_sync_success">配置同步成功并已保存</string>
     <string name="mihomo_profile_save_sync_verifying">正在校验配置…</string>
+    <string name="mihomo_profile_use">使用此配置</string>
     <string name="mihomo_profile_selected">已选择</string>
     <string name="mihomo_profile_sync">同步</string>
     <string name="mihomo_profile_sync_all">更新所有订阅</string>
