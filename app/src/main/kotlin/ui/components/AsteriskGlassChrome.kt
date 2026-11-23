@@ -58,6 +58,7 @@ import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -118,6 +119,18 @@ internal fun AsteriskScaffold(
                 Box(
                     Modifier
                         .matchParentSize()
+                        .layout { measurable, constraints ->
+                            val barHeight = constraints.maxHeight
+                            // Give the fade room below the controls without adding layout padding.
+                            val overlap = if (barHeight == 0) 0 else {
+                                TopBarEdgeFade.roundToPx() - TopBarBottomSpacing.roundToPx()
+                            }
+                            val backdropHeight = barHeight + overlap
+                            val placeable = measurable.measure(
+                                constraints.copy(minHeight = backdropHeight, maxHeight = backdropHeight),
+                            )
+                            layout(placeable.width, barHeight) { placeable.placeRelative(0, 0) }
+                        }
                         .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
                         .drawWithContent {
                             drawContent()
@@ -392,5 +405,7 @@ internal fun RowScope.AsteriskFloatingNavigationItem(
     }
 }
 
+internal val TopBarBottomSpacing = 4.dp
+
 /** Height of the soft edge that blends the top bar's blur into the page. */
-internal val TopBarEdgeFade = 14.dp
+private val TopBarEdgeFade = 14.dp

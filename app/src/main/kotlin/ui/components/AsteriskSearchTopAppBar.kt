@@ -157,8 +157,8 @@ private fun AsteriskSearchTopBarTransition(
     val transition = updateTransition(targetState = searchActive, label = "search-top-bar")
     val searchSettled = transition.currentState && transition.targetState && !transition.isRunning
     transition.AnimatedContent(
-        // Reserve the feathered backdrop in both states so search does not move the page.
-        modifier = Modifier.padding(bottom = TopBarEdgeFade),
+        // Keep the same bottom spacing in the title and search states.
+        modifier = Modifier.padding(bottom = TopBarBottomSpacing),
         transitionSpec = { fadeTransition().using(null) },
     ) { showSearch ->
         content(showSearch, searchSettled)
