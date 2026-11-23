@@ -13,6 +13,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -30,9 +31,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -55,6 +58,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -68,6 +72,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavKey
@@ -99,6 +104,7 @@ import features.mihomo.MihomoOverrideScriptEditPage
 import features.mihomo.MihomoOverrideScriptListPage
 import features.mihomo.MihomoProfileEditPage
 import features.mihomo.MihomoProfileListPage
+import features.mihomo.MihomoProfileSourcePreview
 import features.mihomo.MihomoProxyPage
 import features.mihomo.provider.MihomoProviderManagementPage
 import features.mihomo.provider.MihomoProxyProviderDetailPage
@@ -121,12 +127,14 @@ import ui.components.asteriskNavigationSelection
 import ui.components.floatingActionChrome
 import ui.components.floatingActionContentColor
 import ui.icons.AsteriskIcons as Icons
+import ui.layout.FoldAdaptiveLayout
 import ui.layout.LocalAdaptiveWindow
 import ui.layout.avoidFold
 import ui.layout.pageWindowPadding
 import ui.layout.rememberAdaptiveWindow
 import ui.navigation.AsteriskNavDisplay
 import ui.theme.AsteriskMotion
+import ui.theme.AsteriskShapeTokens
 
 private data class MainNavigationItem(
     val destination: MainDestination,
@@ -183,13 +191,20 @@ fun AppContent(
         LocalMainDestinationState provides mainDestinationState,
         LocalHomeServiceControl provides serviceControl,
     ) {
-        Box(
+        FoldAdaptiveLayout(
+            window = window,
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.surface)
                 .avoidFold(window)
                 .clipToBounds()
                 .imePadding(),
+            companion = {
+                AppFoldOverview(
+                    showProfilePreview = backStack.lastOrNull() == Route.Main &&
+                        mainDestinationState.current == MainDestination.Configurations,
+                )
+            },
         ) {
             val entryProvider = remember(backStack) {
                 entryProvider<NavKey> {
@@ -288,6 +303,46 @@ fun AppContent(
                 onBack = { navigator.pop() },
             )
             features.proxy.ProxyErrorHost()
+        }
+    }
+}
+
+@Composable
+private fun AppFoldOverview(showProfilePreview: Boolean) {
+    val state by LocalAppStateStore.current.collectAppState()
+    val profile = state.mihomoProfiles.firstOrNull { it.id == state.selectedMihomoProfileId }
+    if (showProfilePreview && profile != null) {
+        Box(Modifier.fillMaxSize().padding(16.dp).clip(AsteriskShapeTokens.ListCard)) {
+            MihomoProfileSourcePreview(profile)
+        }
+        return
+    }
+
+    val status = stringResource(
+        if (state.proxyRunning) R.string.home_service_enabled else R.string.home_service_disabled,
+    )
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        item(key = "status") {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(status, style = MaterialTheme.typography.titleMedium)
+                    if (profile != null) {
+                        Text(
+                            stringResource(R.string.home_current_profile),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Text(profile.name, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+            }
         }
     }
 }

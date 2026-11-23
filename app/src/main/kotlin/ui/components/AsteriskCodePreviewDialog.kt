@@ -33,6 +33,7 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import app.LocalAppServices
@@ -45,6 +46,7 @@ import ui.clipboard.setPlainText
 import ui.layout.LocalAdaptiveWindow
 import ui.layout.avoidFold
 import ui.layout.pageListPadding
+import ui.layout.rememberPageGutter
 import ui.layout.CodeEditorFocusState
 import ui.theme.AsteriskMotion
 import ui.icons.AsteriskIcons as Icons
@@ -58,6 +60,8 @@ internal fun AsteriskCodePreviewDialog(
     keepSearchButtonVisible: Boolean = false,
     focusState: CodeEditorFocusState? = null,
     embedded: Boolean = false,
+    showBackButton: Boolean = true,
+    contentHorizontalPadding: Dp? = null,
     actions: @Composable RowScope.() -> Unit = {},
     topBarContent: @Composable ColumnScope.() -> Unit = {},
     content: @Composable (searchState: AsteriskCodeSearchState, editorModifier: Modifier) -> Unit,
@@ -90,8 +94,10 @@ internal fun AsteriskCodePreviewDialog(
                         AsteriskTopAppBar(
                             title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                             navigationIcon = {
-                                IconButton(onClick = onBack) {
-                                    Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.common_back))
+                                if (showBackButton || searchState.active) {
+                                    IconButton(onClick = onBack) {
+                                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.common_back))
+                                    }
                                 }
                             },
                             actions = { searchButton(); actions() },
@@ -106,7 +112,13 @@ internal fun AsteriskCodePreviewDialog(
                     }
                 },
             ) { innerPadding ->
-                Box(Modifier.fillMaxSize().padding(pageListPadding(innerPadding)).consumeWindowInsets(innerPadding).imePadding()) {
+                val contentPadding = pageListPadding(
+                    innerPadding,
+                    horizontalExtra = contentHorizontalPadding ?: rememberPageGutter(),
+                )
+                Box(
+                    Modifier.fillMaxSize().padding(contentPadding).consumeWindowInsets(innerPadding).imePadding(),
+                ) {
                     content(searchState, editorModifier)
                 }
             }

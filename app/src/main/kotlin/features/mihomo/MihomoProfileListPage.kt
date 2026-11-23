@@ -3,15 +3,10 @@
 
 package features.mihomo
 
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.draw.clip
-import androidx.compose.foundation.layout.consumeWindowInsets
-import androidx.compose.foundation.layout.calculateEndPadding
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
@@ -52,9 +47,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -114,13 +109,11 @@ import ui.layout.LocalAdaptiveWindow
 import ui.layout.pageContentPaddingWithCutout
 import ui.layout.pageListPadding
 import ui.layout.pageReadableWidth
-import ui.components.AsteriskActionButton
 import ui.components.AsteriskExpressiveCard
 import ui.components.AsteriskInfoChip
 import ui.components.AsteriskChipTone
 import ui.components.AsteriskExtendedFab
 import ui.components.AsteriskSelectionCard
-import ui.theme.AsteriskMotion
 import ui.theme.AsteriskShapeTokens
 import ui.text.formatTemplate
 import utils.ReadableByteUnit
@@ -152,7 +145,6 @@ fun MihomoProfileListPage(
     val activeSubscriptionUpdateRequests by subscriptionUpdateRequestCount.collectAsState()
     val profileSaveUseCase = rememberMihomoProfileSaveUseCase()
     var showImportDialog by remember { mutableStateOf(false) }
-    var viewedProfileId by rememberSaveable { mutableStateOf<Int?>(null) }
     var profilePreview by remember { mutableStateOf<MihomoProfilePreview?>(null) }
     var profilePreviewJob by remember { mutableStateOf<Job?>(null) }
     var syncingProfileIds by remember { mutableStateOf<Set<Int>>(emptySet()) }
@@ -348,7 +340,6 @@ fun MihomoProfileListPage(
 
     fun previewProfile(profile: MihomoProfileState) {
         closeProfilePreview()
-        viewedProfileId = profile.id
         profilePreviewJob = scope.launch {
             try {
                 val content = withContext(Dispatchers.IO) {
@@ -760,9 +751,7 @@ fun MihomoProfileListPage(
         val listPadding = pageListPadding(contentPadding, bottomExtra = 88.dp)
         val profiles = appState.mihomoProfiles
         val activeProfileId = appState.selectedMihomoProfileId
-        val viewedProfile = profiles.firstOrNull { it.id == viewedProfileId }
-            ?: profiles.firstOrNull { it.id == activeProfileId }
-            ?: profiles.firstOrNull()
+        val activeProfile = profiles.firstOrNull { it.id == activeProfileId }
         val profileCard: @Composable (MihomoProfileState, Boolean) -> Unit = { profile, showDetail ->
             val selected = profile.id == appState.selectedMihomoProfileId
             MihomoProfileCard(
@@ -822,9 +811,8 @@ fun MihomoProfileListPage(
         }
         BoxWithConstraints(modifier = Modifier.pageReadableWidth().fillMaxSize()) {
             val showDetailPane = LocalAdaptiveWindow.current.showTwoColumns &&
-                maxWidth >= 760.dp && LocalDensity.current.fontScale <= 1.3f && viewedProfile != null
-            val preview = profilePreview
-            BackHandler(enabled = showDetailPane && preview != null, onBack = ::closeProfilePreview)
+                maxWidth >= 760.dp && LocalDensity.current.fontScale <= 1.3f && activeProfile != null
+            val summaryMaxHeight = maxHeight / 3
             Row(
                 modifier = Modifier.fillMaxSize(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -845,14 +833,11 @@ fun MihomoProfileListPage(
                     }
                     items(profiles, key = { it.id }) { profile ->
                         if (showDetailPane) {
-                            val viewed = profile.id == viewedProfile.id
+                            val selected = profile.id == activeProfileId
                             AsteriskSelectionCard(
-                                selected = viewed,
-                                onClick = {
-                                    if (viewedProfileId != profile.id) closeProfilePreview()
-                                    viewedProfileId = profile.id
-                                },
-                                modifier = Modifier.fillMaxWidth().semantics { selected = viewed },
+                                selected = selected,
+                                onClick = { selectProfile(profile) },
+                                modifier = Modifier.fillMaxWidth().semantics { this.selected = selected },
                             ) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -888,60 +873,23 @@ fun MihomoProfileListPage(
                     }
                 }
                 if (showDetailPane) {
-                    AnimatedContent(
-                        targetState = viewedProfile to preview,
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
-                        transitionSpec = AsteriskMotion.fadeThrough(effectsSpec = AsteriskMotion.fastEffects()),
-                        contentKey = { (profile, renderedPreview) -> profile.id to (renderedPreview != null) },
-                        label = "profileDetail",
-                    ) { (profile, renderedPreview) ->
-                        if (renderedPreview != null) {
-                            Box(
-                                modifier = Modifier.fillMaxSize()
-                                    .padding(
-                                        top = listPadding.calculateTopPadding(),
-                                        end = listPadding.calculateEndPadding(LocalLayoutDirection.current),
-                                        bottom = contentPadding.calculateBottomPadding(),
-                                    )
-                                    .consumeWindowInsets(contentPadding)
-                                    .clip(AsteriskShapeTokens.ListCard),
-                            ) {
-                                MihomoProfilePreviewDialog(renderedPreview, ::closeProfilePreview, embedded = true)
-                            }
-                        } else {
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
-                                contentPadding = listPadding,
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                item(key = profile.id) {
-                                    profileCard(profile, true)
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-                                    ) {
-                                        AsteriskActionButton(
-                                            text = stringResource(R.string.mihomo_profile_preview),
-                                            icon = Icons.Rounded.Visibility,
-                                            onClick = { previewProfile(profile) },
-                                        )
-                                        if (profile.id != activeProfileId) {
-                                            AsteriskActionButton(
-                                                text = stringResource(R.string.mihomo_profile_use),
-                                                icon = Icons.Rounded.CheckCircle,
-                                                onClick = { selectProfile(profile) },
-                                            )
-                                        }
-                                    }
-                                }
-                            }
+                    Column(
+                        modifier = Modifier.weight(1f).fillMaxHeight().padding(listPadding),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = summaryMaxHeight)) {
+                            item(key = activeProfile.id) { profileCard(activeProfile, true) }
+                        }
+                        Box(
+                            modifier = Modifier.weight(1f).fillMaxWidth()
+                                .clip(AsteriskShapeTokens.ListCard),
+                        ) {
+                            MihomoProfileSourcePreview(activeProfile)
                         }
                     }
                 }
             }
-            if (!showDetailPane && preview != null) {
-                MihomoProfilePreviewDialog(preview, ::closeProfilePreview)
-            }
+            profilePreview?.let { MihomoProfilePreviewDialog(it, ::closeProfilePreview) }
         }
         MihomoProfileImportDialog(
             show = showImportDialog,
@@ -1349,23 +1297,76 @@ private fun MihomoProfileState.overrideScriptName(
 private data class MihomoProfilePreview(val name: String, val content: String)
 
 @Composable
+internal fun MihomoProfileSourcePreview(profile: MihomoProfileState) {
+    val contentStore = LocalAppServices.current.mihomoProfileContentStore
+    val result by produceState<Result<String>?>(null, profile.id, profile.providerMetadataContentKey()) {
+        value = null
+        if (!profile.hasContent) {
+            value = Result.success("")
+            return@produceState
+        }
+        value = try {
+            Result.success(withContext(Dispatchers.IO) {
+                contentStore.useReader(profile) { reader -> reader.readText() }
+            })
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            Result.failure(error)
+        }
+    }
+    val title = stringResource(R.string.mihomo_profile_preview_title)
+        .formatTemplate("name" to profile.name.ifBlank { "-" })
+    val content = result?.getOrNull()
+    val error = when {
+        result?.isFailure == true -> stringResource(R.string.mihomo_profile_preview_failed)
+        content != null && content.isBlank() -> stringResource(R.string.mihomo_profile_preview_empty)
+        else -> null
+    }
+    MihomoProfilePreviewEditor(title, content, error, onDismissRequest = null)
+}
+
+@Composable
 private fun MihomoProfilePreviewDialog(
     preview: MihomoProfilePreview,
     onDismissRequest: () -> Unit,
-    embedded: Boolean = false,
 ) {
-    val document = rememberCodePreviewDocument(preview.content)
+    val title = stringResource(R.string.mihomo_profile_preview_title)
+        .formatTemplate("name" to preview.name.ifBlank { "-" })
+    MihomoProfilePreviewEditor(title, preview.content, null, onDismissRequest)
+}
+
+@Composable
+private fun MihomoProfilePreviewEditor(
+    title: String,
+    content: String?,
+    error: String?,
+    onDismissRequest: (() -> Unit)?,
+) {
+    val document = if (error == null && content != null) rememberCodePreviewDocument(content) else null
     val editorState = remember(document) { document?.let { MihomoCodeEditorState(it, placeCursorAtEnd = false) } }
     AsteriskCodePreviewDialog(
-        title = stringResource(R.string.mihomo_profile_preview_title)
-            .formatTemplate("name" to preview.name.ifBlank { "-" }),
-        onDismissRequest = onDismissRequest,
-        embedded = embedded,
+        title = title,
+        onDismissRequest = onDismissRequest ?: {},
+        embedded = onDismissRequest == null,
+        showBackButton = onDismissRequest != null,
+        contentHorizontalPadding = if (onDismissRequest == null) 0.dp else null,
         searchAvailable = editorState != null,
         actions = { if (editorState != null) AsteriskCodeCopyButton(editorState::snapshotText) },
     ) { searchState, editorModifier ->
-        if (editorState == null) AsteriskCodePreviewLoading()
-        else YamlCodeEditor(editorState, Modifier.fillMaxSize().then(editorModifier), searchState = searchState, showFormatButton = false)
+        when {
+            error != null -> Box(Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
+                Text(error, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            editorState == null -> AsteriskCodePreviewLoading()
+            else -> YamlCodeEditor(
+                state = editorState,
+                modifier = Modifier.fillMaxSize().then(editorModifier),
+                readOnly = onDismissRequest == null,
+                searchState = searchState,
+                showFormatButton = false,
+            )
+        }
     }
 }
 
