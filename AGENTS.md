@@ -8,12 +8,12 @@ This document applies to this repository and all of its subdirectories. Current 
 
 AsteriskBOX, AsteriskNG, and AsteriskMETA belong to the same product family. When implementing shared capabilities, keep their code structure and UX consistent instead of creating three similar but subtly different implementations.
 
-- Before making a change, search sibling repositories for equivalent screens, state, use cases, and runtime components. When the other apps are present in the workspace, proactively assess and apply all relevant changes to them.
+- Before changing shared behavior, check available sibling repositories for equivalent implementations. Make changes in the affected apps within the requested scope.
 - Shared code should use the same top-level layers: `app`, `data`, `engine`, `features`, `system`, `ui`, and `utils`. Equivalent files should use consistent relative paths, names, interfaces, state models, error semantics, log fields, and test locations.
 - Keep information architecture, interaction order, component choices, copy semantics, loading/empty/error states, confirmation flows, notifications, quick settings, service controls, and accessibility behavior aligned across the apps.
 - Confine product differences to core adapters, configuration compilation, and resource packaging boundaries. META-specific Mihomo behavior belongs in dedicated areas such as `engine/mihomo` or `features/mihomo`; do not spread it into shared UI or runtime flows.
 - Do not invent unsupported capabilities in another app merely to create superficial consistency. When a difference is necessary, document its reason in the implementation, tests, or handoff notes.
-- If a shared capability is changed only in this repository, explain why the other two apps are not affected or are intentionally deferred.
+- If a shared change affects an app outside the requested scope, note that impact in the handoff.
 
 ### Keep VPN and ROOT Strictly Separate
 
@@ -52,7 +52,7 @@ The traffic statistics service (`engine.stats.MihomoTrafficStatsNotificationServ
 - For both VPN and ROOT, every runtime change supported by the Mihomo Clash API must use that hot-control path instead of rebuilding the configuration or restarting Mihomo/asteriskd. Current examples include Rule/Global/Direct mode, interactive profile reload, log level, selector changes, and provider operations.
 - Keep hot control in the Mihomo runtime/control layer. The API backend uses endpoints such as `PATCH /configs` for mode/log level and `PUT /configs?force=true` for profile reload; the embedded backend uses the equivalent Clash bridge operation. Do not move core-specific API calls into shared UI/state code.
 - A ROOT restriction or supervised restart is valid only for a change that the Mihomo Clash API cannot apply safely. Do not add a blanket `isRootRunMode` prohibition to an API-backed mutation.
-- Do not copy AsteriskBOX's supervised-restart workaround into AsteriskMETA. BOX intentionally avoids sing-box `experimental.clash_api` and therefore has a different ROOT mode-switch path.
+- Keep the ROOT mode-switch adapters separate. AsteriskMETA uses the Mihomo Clash API. AsteriskBOX uses the sing-box Command API and keeps sing-box `experimental.clash_api` disabled.
 - Mihomo's Clash API does not grant blanket permission to enable unrelated experimental Mihomo features; each new experimental dependency still requires explicit developer authorization.
 
 ## Repository Structure and Product Boundaries
@@ -63,7 +63,7 @@ The traffic statistics service (`engine.stats.MihomoTrafficStatsNotificationServ
 - ROOT modes: TPROXY, TUN, TUN2SOCKS, and BPF2SOCKS.
 - `app/`: Android application, Compose UI, data layer, VPN/ROOT orchestration, and core adapters.
 - `app/src/main/kotlin/engine/mihomo/binding/`: application models and coroutine adapters for the independently built AndroidLibClashLite AAR. Its gomobile JNI and bundled ROOT launcher share one native Core.
-- `asteriskd/`: the ROOT supervisor native submodule shared by all three apps.
+- `asteriskd/`: Gradle module for the shared ROOT supervisor. The native Git submodule is at `asteriskd/src/main/native`.
 - `bpfmatcher/`, `bpf2socks/`, and `hevtun/`: native helper modules.
 - `enhance/`: optional AsteriskEnhance packaging; native Git submodule at `enhance/src/main/module`.
 - `buildSrc/`: versions, package name, SDK levels, dependency versions, and build conventions.
@@ -124,24 +124,25 @@ Use the repository's Gradle wrapper on Windows/PowerShell. When native submodule
 - When changing another module, add that module's `test`, `lintDebug`, and `assembleDebug` tasks. ROOT/native changes must at least build `:asteriskd:assembleDebug` and `:app:assembleDebug`.
 - Keep lint clean. Do not hide new findings with a baseline, broad suppressions, or disabled rules.
 - Documentation-only changes require at least `git diff --check`; do not trigger a full Android build without a technical reason.
-- Sign release builds only when the user requests device verification. Treat the keystore path, passwords, and alias as external secrets; never persist them in the repository, scripts, logs, or documentation.
+- Use debug builds for routine device verification. Use the existing release workflow for standard release signing. Local release signing requires an explicit user request. Keep keystore paths, passwords, and aliases in external configuration and out of repository files, scripts, logs, and documentation.
 
 ## Test Requirements
 
-Scale verification to the affected surface. Verify shared behavior in all three apps, and never treat host/Gradle tests alone as sufficient proof of ROOT behavior.
+Scale verification to the affected behavior and apps in the requested scope. Prefer host checks where they can verify the behavior. Use device checks where the result depends on the Android or ROOT runtime. Apply the following checks when the corresponding behavior is affected.
 
 - VPN regression: start, run, and stop VPN without invoking any ROOT capability. Confirm there are no `asteriskd` control requests, ROOT permission requests, ROOT file publications, or ROOT network-resource changes.
-- ROOT matrix: cover every ROOT mode supported by this app with IPv6 both enabled and disabled.
+- ROOT matrix: cover affected modes and applicable IPv6 settings. For behavior shared across ROOT modes, cover all supported modes with IPv6 enabled and disabled where both settings are supported.
 - bpfmatcher: test matcher-supported modes with the matcher both enabled and disabled. For unsupported modes, verify it cannot be enabled incorrectly or alter behavior.
 - Service control: cover ordinary startup and the resident supervisor used when service control is enabled; verify `stop`, another start, and `shutdown`.
 - Lifecycle: at minimum cover startup, status, graceful stop, duplicate-start/mutual exclusion, failure exit, and subsequent startup.
 - Cross-app exclusion: when another `asteriskd` owner is active, the app must report a clear foreign-owner conflict and must not seize resources.
 
-For device testing on an authorized adb device:
+Select the authorized device or emulator by serial for adb commands. For ROOT tests that require a root `adbd`, use a target that supports `adb root`:
 
 ```powershell
-adb root
-adb shell id -u
+adb -s '<serial>' root
+adb -s '<serial>' wait-for-device
+adb -s '<serial>' shell id -u
 ```
 
-After `adb root`, use `adb shell` directly; do not wrap commands in `su`. Stop services or clean device state only within the user's authorization. Touch only resources clearly owned by the current test, and do not remove unknown or legacy remnants. At the end, record the APK, device, scenarios, and results, and restore the normal service state when practical.
+Once `id -u` returns `0`, run ROOT test commands directly through `adb -s '<serial>' shell`. Stop services or clean device state only within the user's authorization. Touch only resources clearly owned by the current test, and do not remove unknown or legacy remnants. At the end, record the APK, device, scenarios, and results, and restore the normal service state when practical.
