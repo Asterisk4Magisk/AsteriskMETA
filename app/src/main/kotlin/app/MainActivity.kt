@@ -30,10 +30,10 @@ import engine.vpn.AndroidVpnPermissionRequester
 import features.boot.BootAutoConnect
 import features.qr.AndroidQrCodeScanRequester
 import features.settings.locale.localizedAppContext
-import features.subscription.SubscriptionInstallConfigUseCase
 import features.subscription.isSubscriptionInstallConfigUri
 import features.subscription.runtime.AndroidMihomoProfilePreparer
 import features.subscription.toSubscriptionInstallConfigOrNull
+import features.subscription.usecase.SubscriptionInstallConfigUseCase
 import features.subscription.usecase.subscriptionUpdateMessage
 import kotlinx.coroutines.launch
 import system.AndroidDocumentLauncher
