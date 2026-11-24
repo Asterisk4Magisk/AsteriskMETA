@@ -5,9 +5,11 @@ package features.monitoring
 
 import android.content.Context
 import android.os.SystemClock
+import app.AppState
 import app.modes.RunModeVpnService
 import app.modes.isRootRunMode
 import data.AndroidAppStateStore
+import engine.mihomo.loadMihomoProfileObject
 import engine.mihomo.raw.loadSelectedRawConfig
 import engine.mihomo.raw.usesRawMihomoConfig
 import engine.mihomo.runtime.MihomoConnection
@@ -19,6 +21,8 @@ import engine.proxy.LocalProxyRuntime
 import engine.proxy.toLocalProxyOptions
 import engine.proxy.toLocalProxyOptionsOrNull
 import features.logs.AndroidAppLogger
+import features.monitoring.dns.MihomoDnsRecordCollector
+import features.monitoring.dns.MihomoDnsRouteResolver
 import features.monitoring.network.AddressFamily
 import features.monitoring.network.AndroidNetworkMonitor
 import features.monitoring.network.PublicNetworkProbeClient
@@ -77,6 +81,7 @@ internal class MonitoringRepository(
         proxyProvider = { resolvePublicProbeProxy() },
     )
     private val trafficLedgerStore = TrafficLedgerStore(context)
+    private val dnsRecordCollector = MihomoDnsRecordCollector(context)
     private var previousProcessSnapshot: ProcessTickSnapshot? = null
     private var previousProcessSource: ProcessStatsSourceKind? = null
     private var networkPageWasVisible = false
@@ -97,6 +102,10 @@ internal class MonitoringRepository(
     val state: StateFlow<MonitoringState> = mutableState.asStateFlow()
 
     init {
+        // The DNS collector follows the core's session on its own, independent of which
+        // page is on screen, so the records accumulate from the moment the proxy starts
+        // and survive the page navigations that restart the observer plan.
+        appScope.launch { collectDnsRecords() }
         appScope.launch {
             observerCounts
                 .map(::resolveMonitoringPlan)
@@ -180,6 +189,95 @@ internal class MonitoringRepository(
         val result = mihomoRuntime.closeAllConnections(stateStore.state.value)
         if (result.isSuccess) refreshConnections()
         return result
+    }
+
+    /**
+     * Streams the DNS lookups the core answered while the monitor is open.
+     *
+     * The core reports every lookup on its debug log stream, so the collector subscribes
+     * to that stream instead of polling a query history the controller does not expose.
+     */
+    /**
+     * Builds the route resolver from the name servers the core actually received.
+     *
+     * The truth is the configuration file the core loaded, whatever produced it: the
+     * profile, the raw YAML or the app settings.
+     */
+    private fun resolveDnsRouteResolver(appState: AppState): MihomoDnsRouteResolver {
+        var proxy = emptyList<String>()
+        var direct = emptyList<String>()
+        runCatching {
+            val dns = mihomoRuntime.publishedProfileText()
+                ?.loadMihomoProfileObject()?.get("dns") as? Map<*, *>
+            if (dns != null) {
+                proxy = dns.stringList("proxy-server-nameserver") +
+                    dns.mapValues("proxy-server-nameserver-policy")
+                direct = dns.stringList("nameserver") + dns.stringList("fallback") +
+                    dns.stringList("default-nameserver") + dns.stringList("direct-nameserver")
+            }
+        }
+        if (proxy.isEmpty() && direct.isEmpty()) {
+            proxy = appState.dnsProxyServerNameserver
+            direct = appState.dnsNameserver + appState.dnsFallback + appState.dnsDefaultNameserver
+        }
+        return MihomoDnsRouteResolver(proxy, direct)
+    }
+
+    private suspend fun collectDnsRecords() {
+        val running = stateStore.state.map { it.proxyRunning }.distinctUntilChanged()
+        val epoch = mihomoRuntime.state.map { it.runtimeEpoch }.distinctUntilChanged()
+        combine(running, epoch) { isRunning, runtimeEpoch -> runtimeEpoch.takeIf { isRunning } }
+            .distinctUntilChanged()
+            .collectLatest { session ->
+                val status = if (session == null) {
+                    ConnectionMonitorStatus.ServiceStopped
+                } else {
+                    ConnectionMonitorStatus.Loading
+                }
+                mutableState.update { current ->
+                    current.copy(dns = MonitoringDnsSummary(status = status))
+                }
+                if (session == null) {
+                    // Every session records its own lookups, so stopping the proxy
+                    // wipes the list right away.
+                    dnsRecordCollector.clear()
+                    return@collectLatest
+                }
+                val control = mihomoRuntime.resolveDnsControlConfig(stateStore.state.value).getOrElse { error ->
+                    mutableState.update { current ->
+                        current.copy(
+                            dns = current.dns.copy(
+                                status = ConnectionMonitorStatus.Error,
+                                error = error.message.orEmpty(),
+                            ),
+                        )
+                    }
+                    return@collectLatest
+                }
+                val appState = stateStore.state.value
+                val routeResolver = resolveDnsRouteResolver(appState)
+                coroutineScope {
+                    launch {
+                        dnsRecordCollector.records.collect { records ->
+                            mutableState.update { current ->
+                                current.copy(
+                                    dns = current.dns.copy(
+                                        records = records,
+                                        status = ConnectionMonitorStatus.Available,
+                                    ),
+                                )
+                            }
+                        }
+                    }
+                    dnsRecordCollector.collect(control, routeResolver)
+                }
+            }
+    }
+
+    /** Drops the collected DNS records. */
+    fun clearDnsRecords() {
+        dnsRecordCollector.clear()
+        mutableState.update { it.copy(dns = it.dns.copy(records = emptyList())) }
     }
 
     private suspend fun collectRules(intervalMillis: Long) {
@@ -655,3 +753,20 @@ private fun List<MihomoConnection>.sumKnownRates(selector: (MihomoConnection) ->
 
 private const val MemoryMonitoringIntervalMillis = 3_000L
 private const val LogTag = "MonitoringRepository"
+
+private fun Map<*, *>.stringList(key: String): List<String> = when (val value = get(key)) {
+    is List<*> -> value.mapNotNull { item -> item?.toString() }.filter(String::isNotBlank)
+    is String -> listOf(value)
+    else -> emptyList()
+}
+
+/** The servers of a policy map, which pairs a domain with one server or a list. */
+private fun Map<*, *>.mapValues(key: String): List<String> = when (val value = get(key)) {
+    is Map<*, *> -> value.values.flatMap { target ->
+        when (target) {
+            is List<*> -> target.mapNotNull { it?.toString() }
+            else -> listOfNotNull(target?.toString())
+        }
+    }.filter(String::isNotBlank)
+    else -> emptyList()
+}

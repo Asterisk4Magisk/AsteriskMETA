@@ -17,11 +17,18 @@ internal enum class ConnectionRouteFilter {
 
     /** Shows the rules of the loaded configuration instead of connections. */
     Rules,
+
+    /** Shows the DNS lookups the core answered instead of connections. */
+    Dns,
 }
 
 /** Whether the filter narrows connections by their route instead of regrouping them. */
 internal val ConnectionRouteFilter.restrictsRoute: Boolean
     get() = this == ConnectionRouteFilter.Proxy || this == ConnectionRouteFilter.Direct
+
+/** Whether the filter replaces the connection list with another view. */
+internal val ConnectionRouteFilter.replacesConnections: Boolean
+    get() = this == ConnectionRouteFilter.Rules || this == ConnectionRouteFilter.Dns
 
 internal enum class ConnectionSort {
     StartedAt,
@@ -71,9 +78,10 @@ internal fun reduceConnections(
     val filtered = connections.filter { connection ->
         val resolvedRoute = connection.resolvedConnectionRoute()
         val matchesRoute = when (route) {
-            ConnectionRouteFilter.App, ConnectionRouteFilter.Rules -> true
+            ConnectionRouteFilter.App -> true
             ConnectionRouteFilter.Proxy -> resolvedRoute == ConnectionRouteKind.Proxy
             ConnectionRouteFilter.Direct -> resolvedRoute == ConnectionRouteKind.Direct
+            ConnectionRouteFilter.Rules, ConnectionRouteFilter.Dns -> true
         }
         val matchesQuery = normalizedQuery.isEmpty() || connection.searchableText().contains(normalizedQuery)
         matchesRoute && matchesQuery

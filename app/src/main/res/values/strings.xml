@@ -120,6 +120,7 @@
     <string name="monitor_filter_direct">Direct</string>
     <string name="monitor_filter_proxy">Proxy</string>
     <string name="monitor_filter_rules">Rules</string>
+    <string name="monitor_filter_dns">DNS</string>
     <string name="monitor_loading">Loading live data…</string>
     <string name="monitor_milliseconds">%1$d ms</string>
     <string name="monitor_no_samples">No samples yet. Paused intervals remain as gaps.</string>
@@ -182,6 +183,36 @@
     <string name="monitor_rules_no_match">No matching rules</string>
     <string name="monitor_rules_search">Search rules</string>
     <string name="monitor_rules_total">Total rules</string>
+
+    <!-- Monitoring - DNS -->
+    <string name="monitor_dns_system">System DNS</string>
+    <string name="monitor_dns_cached">Cached</string>
+    <string name="monitor_dns_empty">No DNS lookups</string>
+    <string name="monitor_dns_elapsed">%1$d ms</string>
+    <string name="monitor_dns_failed">NXDOMAIN</string>
+    <string name="monitor_dns_filter">Filter</string>
+    <string name="monitor_dns_filter_clear">Clear filters</string>
+    <string name="monitor_dns_filter_https">HTTPS/SVCB</string>
+    <string name="monitor_dns_filter_sources">Source</string>
+    <string name="monitor_dns_filter_types">Query type</string>
+    <string name="monitor_dns_detail_title">DNS details</string>
+    <string name="monitor_dns_detail_basic">Basic information</string>
+    <string name="monitor_dns_detail_time">Time</string>
+    <string name="monitor_dns_detail_domain">Domain</string>
+    <string name="monitor_dns_detail_type">Query type</string>
+    <string name="monitor_dns_detail_initiator">Mode</string>
+    <string name="monitor_dns_detail_source">Source</string>
+    <string name="monitor_dns_detail_cached">Cached</string>
+    <string name="monitor_dns_detail_rcode">Response code</string>
+    <string name="monitor_dns_detail_delay">Delay</string>
+    <string name="monitor_dns_detail_answers">Answers</string>
+    <string name="monitor_dns_yes">Yes</string>
+    <string name="monitor_dns_no">No</string>
+    <string name="monitor_dns_no_match">No matching lookups</string>
+    <string name="monitor_dns_route_direct">Direct</string>
+    <string name="monitor_dns_route_proxy">Proxy</string>
+    <string name="monitor_dns_search">Search DNS lookups</string>
+    <string name="monitor_dns_total">Total lookups</string>
     <string name="monitor_rules_unknown_hit">Last hit unknown</string>
 
     <!-- Monitoring - Resources -->

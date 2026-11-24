@@ -451,7 +451,7 @@ private fun MutableMap<String, Any?>.putDnsOverrides(
 ) {
     val existingDnsEnabled = isMihomoDnsEnabled(this["dns"])
     val enableDns = appState.effectiveLocalDnsEnabled
-    if (forceDns || appState.overrideDns || !existingDnsEnabled) {
+    if (forceDns || appState.overrideDns) {
         put(
             "dns",
             appState.toMihomoDnsYamlMap(
@@ -459,8 +459,22 @@ private fun MutableMap<String, Any?>.putDnsOverrides(
                 enable = enableDns,
             ),
         )
+    } else if (this["dns"] is Map<*, *> && (this["dns"] as Map<*, *>).isNotEmpty()) {
+        // The profile carries its own DNS section, so it stays as written even when it
+        // lacks the enable switch. The resolver only turns on while the local DNS
+        // handling is on, because the VPN needs the core to answer the lookups its
+        // hijack rule sends over.
+        put("dns", normalizedMihomoDnsWithEnable(this["dns"], enable = enableDns))
     } else if (!enableDns) {
         put("dns", normalizedMihomoDnsWithEnable(this["dns"], enable = false))
+    } else {
+        put(
+            "dns",
+            appState.toMihomoDnsYamlMap(
+                appendSystemDns = enableDns,
+                enable = enableDns,
+            ),
+        )
     }
     val hosts = mergedMihomoHosts(
         existingHosts = this["hosts"],

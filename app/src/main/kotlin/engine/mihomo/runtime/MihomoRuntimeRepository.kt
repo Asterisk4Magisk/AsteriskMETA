@@ -461,7 +461,7 @@ internal class MihomoRuntimeRepository(
             }
             val proxies = state.value.proxies
             val outbounds = rules.mapTo(linkedSetOf(), RuntimeRouteRule::policy)
-                .associateWith(proxies::resolveRuleOutboundChain)
+                .associateWith { policy -> proxies.resolveRuleOutboundChain(policy) }
             rules.map { rule ->
                 rule.copy(
                     size = if (rule.needsRuleProviderSize) providerSizes[rule.payload]?.ruleCount else rule.size,
@@ -972,6 +972,30 @@ internal class MihomoRuntimeRepository(
         }
     }
 
+    /**
+     * The control endpoint the DNS monitor subscribes to.
+     *
+     * The monitor reads the core's debug log stream, so it needs the same endpoint the
+     * rest of the runtime uses.
+     */
+    fun resolveDnsControlConfig(appState: AppState): Result<MihomoControlConfig> = runCatching {
+        // The DNS monitor talks to the same endpoint the log bridge uses, which reads
+        // the session override of the running core instead of recomputing the control
+        // from the settings, so both streams follow the core wherever it listens.
+        if (appState.usesRawMihomoConfig()) {
+            require(appState.proxyRunning) { "Raw configuration API is available only while the proxy service is running" }
+            val controller = appContext.loadSelectedRawConfig(appState)?.snapshot?.controller
+                ?: error("Raw configuration is not available")
+            val override = controller.vpnSessionOverride(appContext.mihomoControllerSocket())
+            MihomoControlConfig(
+                secret = override.secret.orEmpty(),
+                unixSocketPath = override.externalControllerUnix,
+            )
+        } else {
+            appState.mihomoControlConfig(appContext)
+        }
+    }
+
     private fun resolveMihomoControlConfig(appState: AppState): MihomoControlConfig {
         if (!appState.usesRawMihomoConfig()) return appState.mihomoControlConfig(appContext)
         require(appState.proxyRunning) { "Raw configuration API is available only while the proxy service is running" }
@@ -1206,6 +1230,11 @@ internal class MihomoRuntimeRepository(
     }
 
     private fun publishedProfileFile(): File = File(appContext.mihomoResourceFilePaths().dataDir, "config.yaml")
+
+    /** The configuration the running core loaded, which is the truth about its settings. */
+    internal fun publishedProfileText(): String? = runCatching {
+        publishedProfileFile().takeIf(File::exists)?.readText()
+    }.getOrNull()
 
     private suspend fun loadProxyGroupSources(useBridge: Boolean): Map<String, MihomoProxyGroupSources> {
         return runRuntimeRequest {

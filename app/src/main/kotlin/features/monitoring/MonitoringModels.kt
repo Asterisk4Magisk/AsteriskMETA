@@ -4,6 +4,7 @@
 package features.monitoring
 
 import engine.mihomo.runtime.MihomoConnectionsState
+import engine.mihomo.runtime.MihomoDnsRecord
 import engine.mihomo.runtime.connectionCounts
 import engine.proxy.RuntimeRouteRule
 import features.monitoring.resource.ProcessStatsSample
@@ -53,6 +54,12 @@ internal data class MonitoringRulesSummary(
     val stale: Boolean = false,
 )
 
+internal data class MonitoringDnsSummary(
+    val records: List<MihomoDnsRecord> = emptyList(),
+    val status: ConnectionMonitorStatus = ConnectionMonitorStatus.ServiceStopped,
+    val error: String = "",
+)
+
 internal data class MonitoringConnectionsFocusState(
     val status: ConnectionMonitorStatus,
     val activeCount: Int?,
@@ -96,6 +103,7 @@ internal data class MonitoringState(
     val resource: MonitoringResourceSummary = MonitoringResourceSummary(),
     val connections: MonitoringConnectionsSummary = MonitoringConnectionsSummary(),
     val rules: MonitoringRulesSummary = MonitoringRulesSummary(),
+    val dns: MonitoringDnsSummary = MonitoringDnsSummary(),
     val traffic: MonitoringTrafficSummary = MonitoringTrafficSummary(),
     val network: MonitoringNetworkSummary = MonitoringNetworkSummary(),
 )

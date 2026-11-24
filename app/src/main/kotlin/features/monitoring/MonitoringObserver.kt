@@ -14,6 +14,7 @@ internal enum class MonitoringIntent {
     Home,
     Connections,
     Rules,
+    Dns,
     Resource,
     Traffic,
     Network,
