@@ -86,11 +86,11 @@ internal fun rememberAdaptiveWindow(): AdaptiveWindow {
 internal fun usableWindowPane(info: WindowLayoutInfo?, size: IntSize, direction: LayoutDirection): IntRect =
     separatingWindowPanes(info, size)?.primary(direction) ?: IntRect(0, 0, size.width, size.height)
 
-private fun separatingWindowPanes(info: WindowLayoutInfo?, size: IntSize): SeparatingWindowPanes? =
+internal fun separatingWindowPanes(info: WindowLayoutInfo?, size: IntSize): SeparatingWindowPanes? =
     info?.displayFeatures?.asSequence()?.filterIsInstance<FoldingFeature>()
         ?.firstNotNullOfOrNull { it.windowPanes(size) }
 
-private data class SeparatingWindowPanes(val first: IntRect, val second: IntRect, val vertical: Boolean) {
+internal data class SeparatingWindowPanes(val first: IntRect, val second: IntRect, val vertical: Boolean) {
     fun primary(direction: LayoutDirection, startTolerance: Int = 0): IntRect {
         if (!vertical) {
             // Keep the upper panel on equal halves so the keyboard can open below it.

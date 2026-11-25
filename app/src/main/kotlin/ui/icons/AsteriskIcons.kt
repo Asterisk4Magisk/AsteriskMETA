@@ -66,6 +66,7 @@ import androidx.compose.material.icons.rounded.MyLocation
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.PictureInPictureAlt
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Policy
 import androidx.compose.material.icons.rounded.PowerSettingsNew
@@ -99,7 +100,12 @@ import androidx.compose.material.icons.rounded.VpnLock
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material.icons.rounded.Widgets
 import androidx.compose.material.icons.rounded.Wifi
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathFillType
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.PathParser
+import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons as MaterialIcons
 
 /** Central ownership point for the app's Material/Google icon language. */
@@ -127,6 +133,7 @@ internal object AsteriskIcons {
         val CloudSync: ImageVector = MaterialIcons.Rounded.CloudSync
         val Code: ImageVector = MaterialIcons.Rounded.Code
         val ContentCopy: ImageVector = MaterialIcons.Rounded.ContentCopy
+        val Cpu: ImageVector = MaterialIcons.Rounded.Memory
         val DataObject: ImageVector = MaterialIcons.Rounded.DataObject
         val DataUsage: ImageVector = MaterialIcons.Rounded.DataUsage
         val Delete: ImageVector = MaterialIcons.Rounded.Delete
@@ -160,12 +167,26 @@ internal object AsteriskIcons {
         val Notifications: ImageVector = MaterialIcons.Rounded.Notifications
         val Palette: ImageVector = MaterialIcons.Rounded.Palette
         val Pause: ImageVector = MaterialIcons.Rounded.Pause
+        val PictureInPictureAlt: ImageVector = MaterialIcons.Rounded.PictureInPictureAlt
         val PlayArrow: ImageVector = MaterialIcons.Rounded.PlayArrow
         val Policy: ImageVector = MaterialIcons.Rounded.Policy
         val PowerSettingsNew: ImageVector = MaterialIcons.Rounded.PowerSettingsNew
         val Public: ImageVector = MaterialIcons.Rounded.Public
         val PublicOff: ImageVector = MaterialIcons.Rounded.PublicOff
         val QrCodeScanner: ImageVector = MaterialIcons.Rounded.QrCodeScanner
+        val Ram: ImageVector by lazy {
+            ImageVector.Builder("Ram", 24.dp, 24.dp, 24f, 24f)
+                .addPath(
+                    pathData = PathParser().parsePathString(
+                        "M4,6H20Q22,6 22,8V16Q22,17 21,17H20V19H18V17H15V19H13V17" +
+                            "H11V19H9V17H6V19H4V17H3Q2,17 2,16V8Q2,6 4,6Z" +
+                            "M5,9H8V14H5Z M10.5,9H13.5V14H10.5Z M16,9H19V14H16Z",
+                    ).toNodes(),
+                    pathFillType = PathFillType.EvenOdd,
+                    fill = SolidColor(Color.Black),
+                )
+                .build()
+        }
         val Refresh: ImageVector = MaterialIcons.Rounded.Refresh
         val Route: ImageVector = MaterialIcons.Rounded.Route
         val Router: ImageVector = MaterialIcons.Rounded.Router

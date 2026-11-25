@@ -72,16 +72,17 @@ internal fun AsteriskStatusCard(
 @Composable
 internal fun AsteriskStatusCardHeader(
     action: @Composable ((Modifier) -> Unit)?,
+    actionWidth: Dp = 48.dp,
     content: @Composable RowScope.() -> Unit,
 ) {
     if (action == null) {
         Row(content = content)
         return
     }
-    // Shift the button and its touch target together, with the title staying at the card inset.
+    // Align the header actions and their touch targets while keeping the title at the card inset.
     Box(modifier = Modifier.fillMaxWidth().offset(x = 12.dp)) {
         Row(
-            modifier = Modifier.fillMaxWidth().offset(x = (-12).dp).padding(end = 48.dp),
+            modifier = Modifier.fillMaxWidth().offset(x = (-12).dp).padding(end = actionWidth),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
             content = content,
@@ -90,7 +91,7 @@ internal fun AsteriskStatusCardHeader(
             Modifier
                 .matchParentSize()
                 .wrapContentSize(Alignment.CenterEnd, unbounded = true)
-                .size(48.dp),
+                .size(width = actionWidth, height = 48.dp),
         )
     }
 }

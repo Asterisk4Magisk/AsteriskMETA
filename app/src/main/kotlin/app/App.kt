@@ -28,7 +28,6 @@ import engine.proxy.ProxyServiceUseCase
 import features.logs.AndroidAsteriskdLogRepository
 import features.logs.AndroidCoreLogRepository
 import features.logs.AndroidLogcatRepository
-import features.monitoring.MonitoringRepository
 import features.resources.ResourceFileUseCase
 import features.settings.locale.ProvideAppLanguage
 import features.settings.usecase.RootBootScriptUseCase
@@ -54,6 +53,7 @@ fun App(
     backupFileCreator: suspend (String) -> Uri?,
     logFileCreator: suspend (String) -> Uri?,
     requestVpnPermission: VpnPermissionRequester,
+    requestConnectionOverlayPermission: () -> Boolean,
 ) {
     val appContext = LocalContext.current.applicationContext
     val systemUiSnapshot = appContext.currentSystemUiSnapshot()
@@ -102,9 +102,7 @@ fun App(
     }
     val mihomoRuntime = application.mihomoRuntime
     val mihomoProviderUsage = application.mihomoProviderUsage
-    val monitoring = remember(appScope, appContext, rootAccess, stateStore, mihomoRuntime) {
-        MonitoringRepository(appScope, appContext, rootAccess, stateStore, mihomoRuntime)
-    }
+    val monitoring = application.monitoring
     val proxyEngine = remember(application) { application.proxyEngine }
     val enhancementModuleCoordinator = remember(appContext) {
         EnhancementModuleCoordinator { AndroidEnhancementModuleBackend(appContext) }
@@ -156,6 +154,7 @@ fun App(
         monitoring,
         proxyServiceUseCase,
         requestVpnPermission,
+        requestConnectionOverlayPermission,
         switchRunModeUseCase,
         applyServiceControlUseCase,
         rootBootScriptUseCase,
@@ -182,8 +181,10 @@ fun App(
             mihomoRuntime = mihomoRuntime,
             mihomoProviderUsage = mihomoProviderUsage,
             monitoring = monitoring,
+            connectionMonitorOverlay = application.connectionMonitorOverlay,
             proxyServiceUseCase = proxyServiceUseCase,
             requestVpnPermission = requestVpnPermission,
+            requestConnectionOverlayPermission = requestConnectionOverlayPermission,
             switchRunModeUseCase = switchRunModeUseCase,
             applyServiceControlUseCase = applyServiceControlUseCase,
             rootBootScriptUseCase = rootBootScriptUseCase,

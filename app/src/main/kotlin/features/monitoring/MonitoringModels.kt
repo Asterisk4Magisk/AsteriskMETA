@@ -4,8 +4,10 @@
 package features.monitoring
 
 import engine.mihomo.runtime.MihomoConnectionsState
+import engine.mihomo.runtime.MihomoTrafficSample
 import engine.mihomo.runtime.connectionCounts
 import engine.proxy.RuntimeRouteRule
+import features.monitoring.dns.DnsRecord
 import features.monitoring.resource.ProcessStatsSample
 import features.monitoring.resource.ProcessStatsSourceKind
 import features.monitoring.network.LocalNetworkSnapshot
@@ -31,6 +33,18 @@ internal enum class ConnectionMonitorStatus {
     Available,
     Error,
 }
+
+internal const val ConnectionOverlayTrafficSampleLimit = 32
+
+internal data class ConnectionOverlayStats(
+    val uploadRate: Long? = null,
+    val downloadRate: Long? = null,
+    val sessionUploadBytes: Long? = null,
+    val sessionDownloadBytes: Long? = null,
+    val trafficSamples: List<MihomoTrafficSample> = emptyList(),
+    val cpuPercent: Double? = null,
+    val memoryBytes: Long? = null,
+)
 
 internal data class MonitoringConnectionsSummary(
     val activeCount: Int? = null,
@@ -89,6 +103,12 @@ internal data class MonitoringNetworkSummary(
     val proxyConnected: Boolean = false,
     val local: LocalNetworkSnapshot = LocalNetworkSnapshot(),
     val publicProbe: PublicNetworkProbeState = PublicNetworkProbeState(),
+)
+
+internal data class MonitoringDnsSummary(
+    val records: List<DnsRecord> = emptyList(),
+    val status: ConnectionMonitorStatus = ConnectionMonitorStatus.ServiceStopped,
+    val unsupported: Boolean = false,
 )
 
 internal data class MonitoringState(

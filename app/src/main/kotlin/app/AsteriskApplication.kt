@@ -25,6 +25,8 @@ import engine.proxy.ProxyServiceResult
 import engine.proxy.ProxyServiceUseCase
 import features.home.HomeServiceOperation
 import features.logs.AndroidAppLogger
+import features.monitoring.MonitoringRepository
+import features.monitoring.overlay.ConnectionMonitorOverlay
 import features.resources.ResourceFileUpdateResult
 import features.resources.isBusy
 import kotlinx.coroutines.flow.first
@@ -41,6 +43,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import system.AndroidAppIconFetcher
 import app.effects.AppActivityForegroundTracker
+import app.effects.observeRootProxyStatus
 import app.effects.MihomoRuntimeLifecycleCoordinator
 import engine.mihomo.MihomoProfileContentStore
 import engine.mihomo.CoreCapabilitiesStore
@@ -56,6 +59,7 @@ import features.mihomo.provider.loadSelectedMihomoProviderUsageState
 import features.subscription.runtime.AndroidMihomoProfilePreparer
 import features.subscription.runtime.AndroidSubscriptionScheduleGateway
 import features.subscription.runtime.SubscriptionScheduler
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -79,6 +83,14 @@ class AsteriskApplication : Application(), SingletonImageLoader.Factory {
         AndroidMihomoProfilePreparer(applicationContext)
     }
     internal val mihomoRuntime: MihomoRuntimeRepository by lazy { MihomoRuntimeRepository(appScope, this) }
+    internal val monitoring: MonitoringRepository by lazy {
+        MonitoringRepository(appScope, this, AndroidRootShellGateway(), stateStore, mihomoRuntime)
+    }
+    internal val connectionMonitorOverlay: ConnectionMonitorOverlay by lazy {
+        ConnectionMonitorOverlay(this, appScope, monitoring, stateStore.state) { active, connectionsVisible ->
+            foregroundTracker.setOverlayObservation(active, connectionsVisible)
+        }
+    }
     internal val mihomoProfileContentStore: MihomoProfileContentStore by lazy {
         MihomoProfileContentStore(this)
     }
@@ -312,6 +324,11 @@ class AsteriskApplication : Application(), SingletonImageLoader.Factory {
         )
         foregroundTracker = AppActivityForegroundTracker(mihomoRuntimeLifecycle)
         registerActivityLifecycleCallbacks(foregroundTracker)
+        appScope.launch {
+            foregroundTracker.statusWatchRequired.collectLatest { required ->
+                if (required) observeRootProxyStatus(stateStore, proxyEngine, stateStore::update)
+            }
+        }
         appScope.launch {
             stateStore.state
                 .map { state ->

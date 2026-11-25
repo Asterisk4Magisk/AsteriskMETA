@@ -14,6 +14,7 @@ import engine.mihomo.runtime.MihomoRuntimeRepository
 import features.mihomo.provider.MihomoProviderUsageStateHolder
 import features.logs.CoreLogRepository
 import features.monitoring.MonitoringRepository
+import features.monitoring.overlay.ConnectionMonitorOverlay
 import features.resources.ResourceFileUpdateCoordinator
 import features.resources.ResourceFileUseCase
 import features.settings.usecase.SwitchRunModeUseCase
@@ -48,8 +49,10 @@ internal data class AppServices(
     val mihomoRuntime: MihomoRuntimeRepository,
     val mihomoProviderUsage: MihomoProviderUsageStateHolder,
     val monitoring: MonitoringRepository,
+    val connectionMonitorOverlay: ConnectionMonitorOverlay,
     val proxyServiceUseCase: ProxyServiceUseCase,
     val requestVpnPermission: VpnPermissionRequester,
+    val requestConnectionOverlayPermission: () -> Boolean,
     val switchRunModeUseCase: SwitchRunModeUseCase,
     val applyServiceControlUseCase: ApplyServiceControlUseCase,
     val enhancementModuleCoordinator: EnhancementModuleCoordinator,

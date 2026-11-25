@@ -75,8 +75,9 @@ fun rememberDottedWaveformRamp(baseColor: Color): DottedWaveformRamp {
 /**
  * Draws [amplitudes] as one vertical column of dots per slot.
  *
- * The x axis is always [slotCount] columns wide: the newest sample sits in the rightmost slot, and a
- * column's dots use the column pitch as their vertical pitch, so the chart is a square lattice.
+ * The x axis covers [slotCount] slots, with the newest sample at the right edge. A positive
+ * [horizontalDotPitch] fixes the column spacing by interpolating between the original slots.
+ * By default the vertical pitch matches the column spacing.
  * Colour follows the absolute distance from the axis, therefore two dots at the same height always
  * share the same tone. A zero sample still draws its base dot; a slot with no sample at all must be
  * passed as `NaN` (the convention shared with the other chart painters here) and stays empty.
@@ -88,14 +89,15 @@ fun DrawScope.drawDottedWaveform(
     direction: Float,
     ramp: DottedWaveformRamp,
     verticalDotPitch: Float = 0f,
+    horizontalDotPitch: Float = 0f,
 ) {
     if (amplitudes.isEmpty() || slotCount < 2) return
-    val slotWidth = (size.width - dotRadius * 2f) / (slotCount - 1)
-    if (slotWidth <= 0f) return
-    val dotPitch = slotWidth
-    // The lattice pitch doubles as the vertical step, which leaves a wide chart with only a handful
-    // of rows. Callers on a wide, short plot pass a finer pitch to keep the columns readable.
-    val verticalPitch = if (verticalDotPitch > 0f) verticalDotPitch else dotPitch
+    val chartWidth = size.width - dotRadius * 2f
+    if (chartWidth <= 0f) return
+    val fixedPitch = horizontalDotPitch > 0f
+    val columnPitch = if (fixedPitch) horizontalDotPitch else chartWidth / (slotCount - 1)
+    val columnCount = if (fixedPitch) (chartWidth / columnPitch).toInt() + 1 else slotCount
+    val verticalPitch = if (verticalDotPitch > 0f) verticalDotPitch else columnPitch
     // The first dot starts one pitch away from the anchor, which leaves an empty seam between two
     // opposing series (or above the baseline of a single one), and the last dot stays inside.
     val firstDotOffset = verticalPitch
@@ -110,13 +112,23 @@ fun DrawScope.drawDottedWaveform(
     val visible = minOf(amplitudes.size, slotCount)
     // The newest sample owns the rightmost slot, so the axis grows from the right edge.
     val firstSample = amplitudes.size - visible
-    val initialSlot = slotCount - visible
-    for (slot in 0 until visible) {
-        val raw = amplitudes[firstSample + slot]
+    val columnIntervals = (columnCount - 1).coerceAtLeast(1)
+    for (column in 0 until columnCount) {
+        val columnsFromEnd = columnCount - 1 - column
+        val slotsFromEnd = if (fixedPitch) {
+            columnsFromEnd.toFloat() / columnIntervals * (slotCount - 1)
+        } else columnsFromEnd.toFloat()
+        val sample = (visible - 1) - slotsFromEnd
+        if (sample < 0f) continue
+        val offset = sample.toInt()
+        val index = firstSample + offset
+        val fraction = sample - offset
+        val start = amplitudes[index]
+        val raw = if (fraction == 0f) start else start + (amplitudes[index + 1] - start) * fraction
         if (raw.isNaN()) continue
         val amplitude = raw.coerceIn(0f, 1f)
         val columnDots = 1 + (amplitude * (maxDots - 1)).roundToInt()
-        val x = dotRadius + slotWidth * (initialSlot + slot)
+        val x = size.width - dotRadius - columnsFromEnd * columnPitch
         for (dot in 0 until columnDots) {
             val offset = firstDotOffset + dot * verticalPitch
             drawCircle(

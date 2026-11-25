@@ -57,6 +57,7 @@ internal fun AsteriskSearchTopAppBar(
     scrollBehavior: TopAppBarScrollBehavior? = null,
     searchAvailable: Boolean = true,
     searchContentMaxWidth: Dp? = null,
+    beforeSearch: @Composable RowScope.() -> Unit = {},
     searchField: @Composable (Modifier) -> Unit = { fieldModifier ->
         AsteriskSearchField(
             query = query,
@@ -135,6 +136,7 @@ internal fun AsteriskSearchTopAppBar(
                 navigationIcon = navigationIcon,
                 scrollBehavior = scrollBehavior,
                 actions = {
+                    beforeSearch()
                     if (searchAvailable) {
                         IconButton(onClick = { searchActive = true }) {
                             Icon(Icons.Rounded.Search, stringResource(R.string.common_search))

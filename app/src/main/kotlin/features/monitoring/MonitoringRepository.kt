@@ -19,6 +19,8 @@ import engine.proxy.LocalProxyRuntime
 import engine.proxy.toLocalProxyOptions
 import engine.proxy.toLocalProxyOptionsOrNull
 import features.logs.AndroidAppLogger
+import features.monitoring.dns.DnsMonitorCollector
+import features.monitoring.dns.DnsMonitorTarget
 import features.monitoring.network.AddressFamily
 import features.monitoring.network.AndroidNetworkMonitor
 import features.monitoring.network.PublicNetworkProbeClient
@@ -40,10 +42,12 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -77,6 +81,7 @@ internal class MonitoringRepository(
         proxyProvider = { resolvePublicProbeProxy() },
     )
     private val trafficLedgerStore = TrafficLedgerStore(context)
+    private val dnsCollector by lazy { DnsMonitorCollector(context.applicationContext) }
     private var previousProcessSnapshot: ProcessTickSnapshot? = null
     private var previousProcessSource: ProcessStatsSourceKind? = null
     private var networkPageWasVisible = false
@@ -95,11 +100,24 @@ internal class MonitoringRepository(
     )
 
     val state: StateFlow<MonitoringState> = mutableState.asStateFlow()
+    val dns get() = dnsCollector.state
 
     init {
         appScope.launch {
+            var dnsJob: Job? = null
             observerCounts
                 .map(::resolveMonitoringPlan)
+                .distinctUntilChanged()
+                .map { plan ->
+                    if (plan.observeDnsEvents && dnsJob == null) {
+                        dnsJob = launch { collectDnsEvents() }
+                    } else if (!plan.observeDnsEvents && dnsJob != null) {
+                        dnsJob?.cancelAndJoin()
+                        dnsJob = null
+                    }
+                    // Changes to other monitoring demands do not restart DNS.
+                    plan.copy(observeDnsEvents = false)
+                }
                 .distinctUntilChanged()
                 .collectLatest { plan ->
                     updateNetworkPageVisibility(plan.networkPageVisible)
@@ -134,6 +152,34 @@ internal class MonitoringRepository(
                     }
                 }
         }
+    }
+
+    private suspend fun collectDnsEvents() {
+        val target = combine(stateStore.state, mihomoRuntime.state) { app, runtime ->
+            DnsMonitorTarget(app.runMode, runtime.runtimeEpoch, runtime.running).takeIf { app.proxyRunning }
+        }.distinctUntilChanged()
+        dnsCollector.observe(target) { mihomoRuntime.dnsEvents(stateStore.state.value) }
+    }
+
+    fun connectionOverlayStats(): Flow<ConnectionOverlayStats> {
+        val traffic = mihomoRuntime.state
+            .map { runtime -> runtime.traffic.takeIf { runtime.running && it.connected } }
+            .distinctUntilChanged()
+            .map { current ->
+                ConnectionOverlayStats(
+                    uploadRate = current?.latest?.up,
+                    downloadRate = current?.latest?.down,
+                    sessionUploadBytes = current?.totalUp,
+                    sessionDownloadBytes = current?.totalDown,
+                    trafficSamples = current?.let {
+                        mihomoRuntime.trafficHistorySnapshot(ConnectionOverlayTrafficSampleLimit)
+                    }.orEmpty(),
+                )
+            }
+        val resources = state.map { it.resource.cpuPercent to it.resource.memoryBytes }.distinctUntilChanged()
+        return combine(traffic, resources) { stats, (cpuPercent, memoryBytes) ->
+            stats.copy(cpuPercent = cpuPercent, memoryBytes = memoryBytes)
+        }.distinctUntilChanged()
     }
 
     fun observe(intent: MonitoringIntent, pageSessionId: String? = null): MonitoringObservation {

@@ -163,14 +163,10 @@ private fun LogViewerPage(
                         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text(
-                                text = stringResource(
-                                    R.string.logs_page_subtitle,
-                                    pluralStringResource(
-                                        R.plurals.logs_total_count,
-                                        logEntries.size,
-                                        logEntries.size,
-                                    ),
-                                    stringResource(if (paused) R.string.logs_paused else R.string.logs_live),
+                                text = pluralStringResource(
+                                    R.plurals.logs_total_count,
+                                    logEntries.size,
+                                    logEntries.size,
                                 ),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,

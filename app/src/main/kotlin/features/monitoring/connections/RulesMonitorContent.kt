@@ -4,36 +4,41 @@
 package features.monitoring.connections
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -48,17 +53,27 @@ import features.monitoring.ConnectionMonitorStatus
 import features.monitoring.MonitoringRulesSummary
 import java.text.DateFormat
 import java.util.Date
-import ui.components.AsteriskExpressiveCard
+import ui.components.AsteriskSelectionCard
 import ui.components.AsteriskInfoChip
 import ui.components.AsteriskStatusCard
-import ui.layout.LocalAdaptiveWindow
-import ui.layout.pageListPadding
-import ui.layout.pageReadableWidth
-import ui.layout.rememberPageGutter
+import ui.icons.AsteriskIcons as Icons
 import ui.theme.AsteriskShapeTokens
 
-internal val RulesMonitorPageMaxWidth = 1008.dp
 private val RuleCardSpacing = 12.dp
+
+private data class RuleDetailKey(val index: Int, val type: String, val payload: String, val policy: String) {
+    fun matches(rule: RuntimeRouteRule): Boolean =
+        index == rule.index && type == rule.type && payload == rule.payload && policy == rule.policy
+}
+
+private val RuleDetailKeySaver = listSaver<RuleDetailKey?, Any>(
+    save = { key -> key?.let { listOf(it.index, it.type, it.payload, it.policy) }.orEmpty() },
+    restore = { (index, type, payload, policy) ->
+        RuleDetailKey(index as Int, type as String, payload as String, policy as String)
+    },
+)
+
+private fun RuntimeRouteRule.detailKey() = RuleDetailKey(index, type, payload, policy)
 
 @Composable
 internal fun RulesMonitorContent(
@@ -68,7 +83,6 @@ internal fun RulesMonitorContent(
     listState: LazyListState,
     contentPadding: PaddingValues,
 ) {
-    val gutter = rememberPageGutter()
     val numberStyle = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum")
     val widestNumber = remember(state.rules) {
         val digits = ((state.rules.maxOfOrNull { it.index } ?: 0) + 1).toString().length
@@ -78,63 +92,61 @@ internal fun RulesMonitorContent(
     val measuredNumber = rememberTextMeasurer().measure(widestNumber, style = numberStyle).size.width
     val numberWidth = with(density) { maxOf(32.dp, measuredNumber.toDp() + 16.dp) }
 
-    BoxWithConstraints(Modifier.pageReadableWidth(RulesMonitorPageMaxWidth).fillMaxSize()) {
-        val twoColumns = LocalAdaptiveWindow.current.showTwoColumns &&
-            maxWidth - gutter * 2 >= 720.dp && density.fontScale <= 1.3f
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            state = listState,
-            contentPadding = pageListPadding(contentPadding, bottomExtra = 20.dp, horizontalExtra = gutter),
-            verticalArrangement = Arrangement.spacedBy(RuleCardSpacing),
-        ) {
-            when (state.status) {
-                ConnectionMonitorStatus.ServiceStopped -> {
-                    item("rules-stopped") { StatusCard(stringResource(R.string.monitor_service_not_enabled)) }
-                    return@LazyColumn
-                }
-                ConnectionMonitorStatus.Loading -> {
-                    item("rules-loading") { StatusCard(stringResource(R.string.monitor_loading), loading = true) }
-                    return@LazyColumn
-                }
-                ConnectionMonitorStatus.Error -> if (!state.stale) {
-                    item("rules-error") {
-                        StatusCard(state.error.ifBlank { stringResource(R.string.monitor_data_unavailable) })
-                    }
-                    return@LazyColumn
-                }
-                ConnectionMonitorStatus.Available -> Unit
+    var selectedRuleKey by rememberSaveable(stateSaver = RuleDetailKeySaver) { mutableStateOf<RuleDetailKey?>(null) }
+    var lastSelectedRule by remember { mutableStateOf<RuntimeRouteRule?>(null) }
+    val selectedRule = selectedRuleKey?.let { key ->
+        filteredRules.firstOrNull(key::matches)
+    }.takeIf { state.status == ConnectionMonitorStatus.Available || state.stale }
+    LaunchedEffect(selectedRule, state.status) {
+        when {
+            selectedRule != null -> lastSelectedRule = selectedRule
+            state.status == ConnectionMonitorStatus.Available ||
+                state.status == ConnectionMonitorStatus.ServiceStopped -> {
+                selectedRuleKey = null
+                lastSelectedRule = null
             }
-            item("rules-summary") { RulesMonitorStatus(state) }
-            if (state.stale) item("rules-stale") { StatusCard(stringResource(R.string.monitor_data_stale)) }
-            when {
-                filteredRules.isEmpty() -> item("rules-empty") {
-                    StatusCard(stringResource(if (searching) R.string.monitor_rules_no_match else R.string.monitor_rules_empty))
+        }
+    }
+
+    MonitoringRecordList(
+        state = listState,
+        contentPadding = contentPadding,
+        selection = selectedRule ?: lastSelectedRule?.takeIf {
+            selectedRuleKey?.matches(it) == true && state.status == ConnectionMonitorStatus.Loading
+        },
+        title = stringResource(R.string.monitor_rules_detail_title),
+        onDismiss = { selectedRuleKey = null },
+        selectionKey = RuntimeRouteRule::detailKey,
+        details = { RuleDetailContent(it) },
+    ) {
+        when (state.status) {
+            ConnectionMonitorStatus.ServiceStopped -> {
+                item("rules-stopped") { StatusCard(stringResource(R.string.monitor_service_not_enabled)) }
+                return@MonitoringRecordList
+            }
+            ConnectionMonitorStatus.Loading -> {
+                item("rules-loading") { StatusCard(stringResource(R.string.monitor_loading), loading = true) }
+                return@MonitoringRecordList
+            }
+            ConnectionMonitorStatus.Error -> if (!state.stale) {
+                item("rules-error") {
+                    StatusCard(state.error.ifBlank { stringResource(R.string.monitor_data_unavailable) })
                 }
-                twoColumns -> items(
-                    count = (filteredRules.size + 1) / 2,
-                    key = { row -> "rule-${filteredRules[row * 2].index}" },
-                ) { row ->
-                    val first = row * 2
-                    Row(
-                        modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
-                        horizontalArrangement = Arrangement.spacedBy(RuleCardSpacing),
-                    ) {
-                        RuleCard(
-                            filteredRules[first],
-                            numberWidth,
-                            numberStyle,
-                            modifier = Modifier.weight(1f).fillMaxHeight(),
-                        )
-                        val next = filteredRules.getOrNull(first + 1)
-                        if (next == null) {
-                            Spacer(Modifier.weight(1f))
-                        } else {
-                            RuleCard(next, numberWidth, numberStyle, modifier = Modifier.weight(1f).fillMaxHeight())
-                        }
-                    }
-                }
-                else -> items(filteredRules, key = { "rule-${it.index}" }) { rule ->
-                    RuleCard(rule, numberWidth, numberStyle, modifier = Modifier.fillMaxWidth())
+                return@MonitoringRecordList
+            }
+            ConnectionMonitorStatus.Available -> Unit
+        }
+        item("rules-summary") { RulesMonitorStatus(state) }
+        if (state.stale) item("rules-stale") { StatusCard(stringResource(R.string.monitor_data_stale)) }
+        if (filteredRules.isEmpty()) {
+            item("rules-empty") {
+                StatusCard(stringResource(if (searching) R.string.monitor_rules_no_match else R.string.monitor_rules_empty))
+            }
+        } else {
+            items(filteredRules, key = { "rule-${it.index}" }) { rule ->
+                val selected = selectedRule?.index == rule.index
+                RuleCard(rule, numberWidth, numberStyle, selected) {
+                    selectedRuleKey = rule.detailKey().takeUnless { selected }
                 }
             }
         }
@@ -169,7 +181,7 @@ private fun RulesMonitorStatus(state: MonitoringRulesSummary) {
 
 @Composable
 private fun RulesMetric(label: String, value: String?, modifier: Modifier = Modifier) {
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelLarge,
@@ -200,16 +212,19 @@ private fun RuleCard(
     rule: RuntimeRouteRule,
     numberWidth: Dp,
     numberStyle: TextStyle,
-    modifier: Modifier = Modifier,
+    selected: Boolean,
+    onDetail: () -> Unit,
 ) {
-    AsteriskExpressiveCard(
-        modifier = modifier,
+    AsteriskSelectionCard(
+        selected = selected,
+        onClick = onDetail,
+        modifier = Modifier.fillMaxWidth().semantics { this.selected = selected },
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(18.dp),
             horizontalArrangement = Arrangement.spacedBy(RuleCardSpacing),
-            verticalAlignment = Alignment.Top,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             AsteriskInfoChip(
                 text = (rule.index + 1).toString(),
@@ -220,36 +235,60 @@ private fun RuleCard(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = rule.payload.ifBlank { rule.type },
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                val summary = listOfNotNull(
+                    rule.type.takeIf { rule.payload.isNotBlank() },
+                    rule.policy.takeIf(String::isNotBlank),
+                    rule.hits?.let { stringResource(R.string.monitor_rules_hits, it) },
+                )
+                if (summary.isNotEmpty()) {
                     Text(
-                        text = rule.payload.ifBlank { rule.type },
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    if (rule.payload.isNotBlank() || rule.size != null) {
-                        val type = rule.type.takeIf { rule.payload.isNotBlank() }
-                        val size = rule.size?.let { count ->
-                            pluralStringResource(R.plurals.mihomo_rule_provider_rules_count, count, count)
-                        }
-                        Text(
-                            text = listOfNotNull(type, size).joinToString(" · "),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-                if (rule.outbound.isNotEmpty()) RulePolicyChain(rule.outbound)
-                if (rule.hits != null) {
-                    Text(
-                        text = ruleHitSummary(rule.hits, rule.lastHitAtMillis),
+                        text = summary.joinToString(" · "),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
+            Icon(
+                Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                contentDescription = stringResource(R.string.monitor_rules_detail_title),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
+    }
+}
+
+@Composable
+private fun RuleDetailContent(rule: RuntimeRouteRule) {
+    Text(
+        text = rule.payload.ifBlank { rule.type },
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.SemiBold,
+    )
+    val dividerColor = MaterialTheme.colorScheme.outlineVariant
+    MonitoringDetailRow(stringResource(R.string.monitor_rules_detail_type), rule.type)
+    HorizontalDivider(color = dividerColor)
+    rule.size?.let { count ->
+        MonitoringDetailRow(stringResource(R.string.monitor_rules_total), count.toString())
+        HorizontalDivider(color = dividerColor)
+    }
+    if (rule.policy.isNotBlank()) {
+        MonitoringDetailRow(stringResource(R.string.monitor_rules_detail_policy), rule.policy)
+        HorizontalDivider(color = dividerColor)
+    }
+    val hitSummary = rule.hits?.let { ruleHitSummary(it, rule.lastHitAtMillis) }
+        ?: stringResource(R.string.monitor_rules_hits_unavailable)
+    Text(hitSummary, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    if (rule.outbound.size > 1 || rule.outbound.singleOrNull()?.name?.let { it != rule.policy } == true) {
+        RulePolicyChain(rule.outbound)
     }
 }
 
@@ -303,7 +342,7 @@ private fun ruleHitSummary(hits: Long, lastHitAtMillis: Long?): String {
     val lastHit = if (lastHitAtMillis == null) {
         stringResource(R.string.monitor_rules_unknown_hit)
     } else {
-        val formatted = DateFormat.getDateTimeInstance().format(Date(lastHitAtMillis))
+        val formatted = remember(lastHitAtMillis) { DateFormat.getDateTimeInstance().format(Date(lastHitAtMillis)) }
         stringResource(R.string.monitor_rules_last_hit, formatted)
     }
     return "$count · $lastHit"

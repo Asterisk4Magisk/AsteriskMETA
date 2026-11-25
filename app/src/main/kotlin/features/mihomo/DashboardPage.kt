@@ -123,8 +123,7 @@ import features.home.buildHomeControllerState
 import features.home.buildHomeModeChange
 import features.home.buildHomeMonitoringOverviewState
 import features.home.buildHomeNetworkActivityState
-import features.home.buildNetworkActivityLineBands
-import features.home.buildNetworkActivityWaveform
+import ui.charts.buildNetworkActivityLineBands
 import features.home.buildHomeSubscriptionContent
 import features.home.formatHomeRuntimeBytes
 import features.home.formatHomeServiceUptime
@@ -153,6 +152,7 @@ import ui.components.AsteriskSegmentItem
 import ui.components.AsteriskSegmentedControl
 import ui.components.AsteriskTopAppBar
 import ui.charts.DottedWaveformDotRadius
+import ui.charts.buildNetworkActivityWaveform
 import ui.charts.drawDottedWaveform
 import ui.charts.drawSmoothAreaLine
 import ui.charts.rememberDottedWaveformRamp
@@ -917,7 +917,7 @@ private fun NetworkActivityLineChart(
     modifier: Modifier = Modifier,
 ) {
     val samples = state.networkSamples
-    val bands = remember(samples) { buildNetworkActivityLineBands(samples, NetworkActivitySlotCount) }
+    val bands = remember(samples) { buildNetworkActivityLineBands(samples, NetworkActivitySlotCount, download = { it.down }, upload = { it.up }) }
     val downloadColor = MaterialTheme.colorScheme.primary
     val uploadColor = MaterialTheme.colorScheme.tertiary
     Column(modifier = modifier) {
@@ -980,7 +980,9 @@ private fun NetworkActivityChart(
     modifier: Modifier = Modifier,
 ) {
     val samples = state.networkSamples
-    val waveform = remember(samples) { buildNetworkActivityWaveform(samples, NetworkActivitySlotCount) }
+    val waveform = remember(samples) {
+        buildNetworkActivityWaveform(samples, NetworkActivitySlotCount, download = { it.down }, upload = { it.up })
+    }
     val downloadRamp = rememberDottedWaveformRamp(MaterialTheme.colorScheme.primary)
     val uploadRamp = rememberDottedWaveformRamp(MaterialTheme.colorScheme.tertiary)
     Column(modifier = modifier) {

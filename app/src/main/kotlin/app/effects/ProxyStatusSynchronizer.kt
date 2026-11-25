@@ -13,7 +13,6 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.lifecycle.repeatOnLifecycle
 import app.AppState
 import features.settings.servicecontrol.ServiceControlSettings
 import app.modes.isRootRunMode
@@ -21,6 +20,7 @@ import data.AndroidAppStateStore
 import engine.proxy.AndroidProxyEngine
 import engine.proxy.ProxyEngineStatus
 import features.logs.AndroidAppLogger
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
@@ -56,49 +56,62 @@ internal fun ProxyStatusSynchronizer(
             updateAppState = updateAppState,
         )
     }
+}
 
-    LaunchedEffect(lifecycleOwner, stateStore, proxyEngine) {
-        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            combine(
-                stateStore.state,
-                proxyEngine.rootStatusWatchGeneration,
-            ) { state, runtimeGeneration ->
-                state.rootStatusWatchTarget(runtimeGeneration)
-            }
-                .distinctUntilChanged()
-                .collectLatest { target ->
-                    if (target == null) return@collectLatest
-                    try {
-                        proxyEngine.observeRootStatus(target.runMode).collect { status ->
-                            updateAppState { state ->
-                                reduceObservedProxyStatus(
-                                    currentState = state,
-                                    target = target,
-                                    status = status,
-                                    currentRuntimeGeneration =
-                                        proxyEngine.rootStatusWatchGeneration.value,
-                                )
-                            }
-                        }
-                    } catch (error: CancellationException) {
-                        throw error
-                    } catch (error: Throwable) {
-                        AndroidAppLogger.warn(
-                            ProxyStatusWatchLogTag,
-                            "asteriskd status watch failed",
-                            error,
-                        )
-                    }
-                    synchronizeProxyStatus(
-                        currentState = { stateStore.state.value },
-                        readStatus = { snapshot ->
-                            runCatching { proxyEngine.status(snapshot.runMode, snapshot) }.getOrNull()
-                        },
-                        updateAppState = updateAppState,
+internal suspend fun observeRootProxyStatus(
+    stateStore: AndroidAppStateStore,
+    proxyEngine: AndroidProxyEngine,
+    updateAppState: ((AppState) -> AppState) -> Unit,
+) {
+    combine(
+        stateStore.state,
+        proxyEngine.rootStatusWatchGeneration,
+    ) { state, runtimeGeneration ->
+        state.rootStatusWatchTarget(runtimeGeneration)
+    }
+        .distinctUntilChanged()
+        .collectLatest { target ->
+            if (target == null) return@collectLatest
+            fun applyStatus(status: ProxyEngineStatus) {
+                updateAppState { state ->
+                    reduceObservedProxyStatus(
+                        currentState = state,
+                        target = target,
+                        status = status,
+                        currentRuntimeGeneration = proxyEngine.rootStatusWatchGeneration.value,
                     )
                 }
+            }
+            while (true) {
+                try {
+                    proxyEngine.observeRootStatus(target.runMode).collect { status -> applyStatus(status) }
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (error: Throwable) {
+                    AndroidAppLogger.warn(
+                        ProxyStatusWatchLogTag,
+                        "asteriskd status watch failed",
+                        error,
+                    )
+                }
+                val snapshot = stateStore.state.value
+                if (snapshot.rootStatusWatchTarget(proxyEngine.rootStatusWatchGeneration.value) == target) {
+                    val status = try {
+                        proxyEngine.status(target.runMode, snapshot)
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (_: Exception) {
+                        null
+                    }
+                    status?.let(::applyStatus)
+                }
+                val currentTarget = stateStore.state.value.rootStatusWatchTarget(
+                    proxyEngine.rootStatusWatchGeneration.value,
+                )
+                if (!target.expectedRunning || currentTarget != target) break
+                delay(RootStatusWatchRetryMillis)
+            }
         }
-    }
 }
 
 internal suspend fun observeProxyStatus(
@@ -182,4 +195,5 @@ private fun AppState.withSynchronizedProxyStatus(status: ProxyEngineStatus): App
     }
 }
 
+private const val RootStatusWatchRetryMillis = 5_000L
 private const val ProxyStatusWatchLogTag = "ProxyStatusSynchronizer"

@@ -15,6 +15,8 @@ import engine.mihomo.mihomoProxyServers
 import engine.mihomo.mihomoLogLevelName
 import engine.mihomo.mihomoControlConfig
 import engine.mihomo.mihomoControllerSocket
+import engine.network.DnsEventUpdate
+import engine.network.DnsEventsUnavailable
 import engine.network.ProxyIpProbeException
 import engine.network.ProxyIpProbeRequest
 import engine.network.ProxyIpProbeResponse
@@ -50,9 +52,14 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -65,6 +72,7 @@ import java.io.File
 import java.net.ConnectException
 import kotlin.time.Duration.Companion.milliseconds
 import app.effects.MihomoRuntimeLifecycleTarget
+import app.effects.RuntimeObservation
 
 /**
  * Rate limit for background probes, per node: the same node is probed at most once per
@@ -104,6 +112,7 @@ internal class MihomoRuntimeRepository(
     private val proxyRefreshMutex = Mutex()
     private val delayJobs = MihomoDelayJobs()
     private var monitorJob: Job? = null
+    private val pollInteractiveState = MutableStateFlow(true)
     private val delayProbeThrottle = MihomoDelayProbeThrottle(DelayProbeThrottleMillis)
     private var activeSignature: MihomoRuntimeSignature? = null
     private var preparedRuntimeSignature: MihomoPreparedRuntimeSignature? = null
@@ -227,12 +236,16 @@ internal class MihomoRuntimeRepository(
                 }
             }
             launch {
-                pollRuntime(
-                    control = control,
-                    useBridge = backend.useBridge(),
-                    generation = generation,
-                    configKey = signature.runtimeConfigKey,
-                )
+                pollInteractiveState.collectLatest { enabled ->
+                    if (enabled) {
+                        pollRuntime(
+                            control = control,
+                            useBridge = backend.useBridge(),
+                            generation = generation,
+                            configKey = signature.runtimeConfigKey,
+                        )
+                    }
+                }
             }
         }
     }
@@ -321,7 +334,8 @@ internal class MihomoRuntimeRepository(
         client.getProxies(control, useBridge = false, mode = mode).activeNodeId()?.name?.takeIf(String::isNotBlank)
     }
 
-    override fun resumeForForeground(appState: AppState) {
+    override fun resumeObservation(appState: AppState, observation: RuntimeObservation) {
+        pollInteractiveState.value = observation == RuntimeObservation.Foreground
         start(appState)
     }
 
@@ -661,7 +675,7 @@ internal class MihomoRuntimeRepository(
     suspend fun probeProxyIp(appState: AppState, request: ProxyIpProbeRequest): ProxyIpProbeResponse =
         withContext(Dispatchers.IO) {
             val epoch = state.value.runtimeEpoch
-            val control = localProxyIpProbeControl(appState) ?: throw ProxyIpProbeException("UNSUPPORTED")
+            val control = localAsteriskControl(appState) ?: throw ProxyIpProbeException("UNSUPPORTED")
             val token = readOrCreateProxyIpProbeToken(appContext.mihomoResourceFilesDir())
             if (state.value.runtimeEpoch != epoch || !state.value.running) throw ProxyIpProbeException("RUNTIME_CHANGED")
             val result = client.probeProxyIp(control, request, token)
@@ -669,7 +683,13 @@ internal class MihomoRuntimeRepository(
             result
         }
 
-    private fun localProxyIpProbeControl(appState: AppState): MihomoControlConfig? {
+    fun dnsEvents(appState: AppState): Flow<DnsEventUpdate> = flow {
+        val control = localAsteriskControl(appState) ?: throw DnsEventsUnavailable()
+        val token = readOrCreateProxyIpProbeToken(appContext.mihomoResourceFilesDir())
+        emitAll(client.dnsEvents(control, token))
+    }.flowOn(Dispatchers.IO)
+
+    private fun localAsteriskControl(appState: AppState): MihomoControlConfig? {
         if (!appState.proxyRunning || appContext.skipsBundledCoreConfigCheck(appState.runMode)) return null
         if (appState.runMode == RunModeVpnService) {
             if (!VpnSession.isRunning(appContext)) return null

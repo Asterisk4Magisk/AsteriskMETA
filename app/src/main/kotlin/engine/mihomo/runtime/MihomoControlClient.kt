@@ -18,9 +18,12 @@ import engine.mihomo.DefaultMihomoDelayTestUrl
 import engine.mihomo.DefaultMihomoDelayTimeoutMillis
 import engine.mihomo.MihomoAutoSwitchOptions
 import engine.mihomo.MihomoControlConfig
+import engine.network.DnsEventUpdate
+import engine.network.DnsEventsUnavailable
 import engine.network.ProxyIpProbeException
 import engine.network.ProxyIpProbeRequest
 import engine.network.ProxyIpProbeResponse
+import engine.network.decodeDnsEvent
 import engine.proxy.RuntimeRouteRule
 import engine.vpn.AndroidMihomoRuntime
 import kotlinx.coroutines.CancellationException
@@ -752,6 +755,37 @@ internal class MihomoControlClient(
             }
             delay(StreamReconnectDelayMillis.milliseconds)
         }
+    }
+
+    fun dnsEvents(config: MihomoControlConfig, token: String): Flow<DnsEventUpdate> = callbackFlow {
+        val connection = openConnection(config, "/asterisk/dns-events", readTimeoutMillis = 0, direct = true)
+        connection.instanceFollowRedirects = false
+        connection.setRequestProperty("X-Asterisk-Probe-Token", token)
+        launch(Dispatchers.IO) {
+            try {
+                val status = connection.responseCode
+                if (status == HttpURLConnection.HTTP_NOT_FOUND) throw DnsEventsUnavailable()
+                if (status != HttpURLConnection.HTTP_OK) throw IOException("DNS events HTTP $status")
+                if (connection.contentType?.substringBefore(';') != "application/x-ndjson") {
+                    throw DnsEventsUnavailable()
+                }
+                send(DnsEventUpdate.Ready)
+                connection.inputStream.bufferedReader().use { reader ->
+                    while (currentCoroutineContext().isActive) {
+                        val line = reader.readNextNonBlankLine() ?: break
+                        val event = decodeDnsEvent(line) ?: continue
+                        send(DnsEventUpdate.Received(event))
+                    }
+                }
+            } catch (error: Exception) {
+                if (error is CancellationException) throw error
+                close(error)
+            } finally {
+                connection.disconnect()
+                close()
+            }
+        }
+        awaitClose { connection.disconnect() }
     }
 
     fun streamLogs(config: MihomoControlConfig, level: String): Flow<LogRecord> = callbackFlow {

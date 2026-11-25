@@ -13,6 +13,7 @@ import android.os.Looper
 import android.provider.Settings
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -57,6 +58,7 @@ import ui.theme.AsteriskSpacing
 import ui.theme.AsteriskTypography
 import ui.theme.LocalReduceMotion
 import ui.theme.LocalSpacing
+import ui.theme.ThemeResolution
 import ui.theme.resolveTheme
 
 val LocalColorMode = compositionLocalOf { ColorModeSystem }
@@ -79,49 +81,9 @@ fun AppTheme(
         supportsSystemDynamicColor = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S,
         hasCustomSeed = keyColor != null,
     )
-    val context = LocalContext.current
-    val configuration = LocalConfiguration.current
-    var animationsEnabled by remember(context) {
-        mutableStateOf(systemAnimationsEnabled())
-    }
-    DisposableEffect(context.contentResolver) {
-        val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
-            override fun onChange(selfChange: Boolean) {
-                animationsEnabled = systemAnimationsEnabled()
-            }
-        }
-        context.contentResolver.registerContentObserver(
-            Settings.Global.getUriFor(Settings.Global.ANIMATOR_DURATION_SCALE),
-            false,
-            observer,
-        )
-        onDispose { context.contentResolver.unregisterContentObserver(observer) }
-    }
+    val animationsEnabled = rememberSystemAnimationsEnabled()
     val themeTransitionMotion = AsteriskMotion.effects<Float>(reducedMotion = !animationsEnabled)
-    val fallbackSeed = if (resolution.usesCustomSeed) keyColor!! else DefaultSeedColor
-    val fallbackScheme = rememberDynamicColorScheme(
-        seedColor = fallbackSeed,
-        isDark = resolution.isDark,
-        style = PaletteStyle.TonalSpot,
-        specVersion = ColorSpec.SpecVersion.SPEC_2025,
-    )
-    val systemDynamicScheme = if (
-        resolution.usesSystemDynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-    ) {
-        remember(context, configuration, resolution.isDark) {
-            if (resolution.isDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-    } else {
-        null
-    }
-    val baseScheme = systemDynamicScheme ?: fallbackScheme
-    val materialScheme = baseScheme.copy(
-        background = if (resolution.isDark) {
-            lerp(baseScheme.background, Color.Black, 0.1f)
-        } else {
-            lerp(baseScheme.background, Color.White, 0.3f)
-        },
-    ).let { scheme -> if (resolution.isDark) scheme.withExpandedContainerRamp() else scheme }
+    val materialScheme = rememberAsteriskColorScheme(resolution, keyColor)
     var displayedScheme by remember { mutableStateOf(materialScheme) }
     var displayedIsDark by remember { mutableStateOf(resolution.isDark) }
     var systemBarIsDark by remember { mutableStateOf(resolution.isDark) }
@@ -185,6 +147,81 @@ fun AppTheme(
             }
         }
     }
+}
+
+@Composable
+internal fun AsteriskOverlayTheme(
+    colorMode: Int,
+    seedIndex: Int,
+    content: @Composable () -> Unit,
+) {
+    val keyColor = keyColorFor(seedIndex)
+    val resolution = resolveTheme(
+        colorMode = colorMode,
+        systemDark = isSystemInDarkTheme(),
+        supportsSystemDynamicColor = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S,
+        hasCustomSeed = keyColor != null,
+    )
+    CompositionLocalProvider(
+        LocalColorMode provides colorMode,
+        LocalResolvedDarkTheme provides resolution.isDark,
+        LocalReduceMotion provides !rememberSystemAnimationsEnabled(),
+        LocalSpacing provides AsteriskSpacing(),
+    ) {
+        AsteriskMaterialTheme(rememberAsteriskColorScheme(resolution, keyColor), content)
+    }
+}
+
+@Composable
+private fun rememberSystemAnimationsEnabled(): Boolean {
+    val context = LocalContext.current
+    var animationsEnabled by remember(context) {
+        mutableStateOf(systemAnimationsEnabled())
+    }
+    DisposableEffect(context.contentResolver) {
+        val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) {
+                animationsEnabled = systemAnimationsEnabled()
+            }
+        }
+        context.contentResolver.registerContentObserver(
+            Settings.Global.getUriFor(Settings.Global.ANIMATOR_DURATION_SCALE),
+            false,
+            observer,
+        )
+        onDispose { context.contentResolver.unregisterContentObserver(observer) }
+    }
+    return animationsEnabled
+}
+
+@Composable
+private fun rememberAsteriskColorScheme(resolution: ThemeResolution, keyColor: Color?): ColorScheme {
+    val context = LocalContext.current
+    val configuration = LocalConfiguration.current
+    val fallbackSeed = if (resolution.usesCustomSeed) keyColor!! else DefaultSeedColor
+    val fallbackScheme = rememberDynamicColorScheme(
+        seedColor = fallbackSeed,
+        isDark = resolution.isDark,
+        style = PaletteStyle.TonalSpot,
+        specVersion = ColorSpec.SpecVersion.SPEC_2025,
+    )
+    val systemDynamicScheme = if (
+        resolution.usesSystemDynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    ) {
+        remember(context, configuration, resolution.isDark) {
+            if (resolution.isDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+        }
+    } else {
+        null
+    }
+    val baseScheme = systemDynamicScheme ?: fallbackScheme
+    return baseScheme.copy(
+        background = if (resolution.isDark) {
+            lerp(baseScheme.background, Color.Black, 0.1f)
+        } else {
+            lerp(baseScheme.background, Color.White, 0.3f)
+        },
+    ).let { scheme -> if (resolution.isDark) scheme.withExpandedContainerRamp() else scheme }
 }
 
 @Composable

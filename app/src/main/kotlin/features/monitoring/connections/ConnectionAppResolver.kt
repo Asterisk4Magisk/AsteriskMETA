@@ -5,7 +5,7 @@ package features.monitoring.connections
 
 import android.content.Context
 import engine.mihomo.runtime.MihomoConnection
-import system.getApplicationInfoCompat
+import features.monitoring.MonitoringAppLookup
 import java.util.Locale
 
 /**
@@ -20,19 +20,17 @@ import java.util.Locale
  * refreshes at most once per second and only hosts a small number of owners.
  */
 internal class ConnectionAppResolver(context: Context) {
-    private val packageManager = context.applicationContext.packageManager
-    private val packageByUid = HashMap<Int, String?>()
-    private val labelByPackage = HashMap<String, String?>()
+    private val appLookup = MonitoringAppLookup(context)
 
     fun resolve(connection: MihomoConnection): ConnectionAppIdentity {
         val processName = connection.appProcessName()
         val packageName = connection.uid?.let { uid -> packageForUid(uid, processName) }
-            ?: processName?.takeIf { name -> labelForPackage(name) != null }
+            ?: processName?.takeIf { name -> appLookup.labelForPackage(name) != null }
         if (packageName != null) {
             return ConnectionAppIdentity(
                 key = "package:$packageName",
                 packageName = packageName,
-                label = labelForPackage(packageName) ?: packageName,
+                label = appLookup.labelForPackage(packageName) ?: packageName,
             )
         }
         if (processName != null) {
@@ -45,32 +43,11 @@ internal class ConnectionAppResolver(context: Context) {
     }
 
     private fun packageForUid(uid: Long, processName: String?): String? {
-        if (uid <= 0L || uid > Int.MAX_VALUE) return null
-        val appUid = uid.toInt()
-        if (packageByUid.containsKey(appUid)) return packageByUid[appUid]
-        val resolved = runCatching {
-            val candidates = packageManager.getPackagesForUid(appUid)
-                .orEmpty()
-                .filter(String::isNotBlank)
-            // A shared UID exposes several packages; prefer the one the core named.
-            candidates.firstOrNull { candidate -> candidate == processName }
-                ?: candidates.minWithOrNull(String.CASE_INSENSITIVE_ORDER)
-        }.getOrNull()
-        packageByUid[appUid] = resolved
-        return resolved
-    }
-
-    private fun labelForPackage(packageName: String): String? {
-        if (labelByPackage.containsKey(packageName)) return labelByPackage[packageName]
-        val label: String? = runCatching {
-            packageManager.getApplicationInfoCompat(packageName)
-                .loadLabel(packageManager)
-                .toString()
-                .trim()
-                .takeIf(String::isNotBlank)
-        }.getOrNull()
-        labelByPackage[packageName] = label
-        return label
+        if (uid <= 0L) return null
+        val candidates = appLookup.packagesForUid(uid)
+        // A shared UID exposes several packages; prefer the one the core named.
+        return candidates.firstOrNull { it == processName }
+            ?: candidates.minWithOrNull(String.CASE_INSENSITIVE_ORDER)
     }
 }
 

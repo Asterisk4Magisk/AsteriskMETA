@@ -13,7 +13,9 @@ import app.LocalAppServices
 internal enum class MonitoringIntent {
     Home,
     Connections,
+    ConnectionOverlay,
     Rules,
+    Dns,
     Resource,
     Traffic,
     Network,
@@ -21,6 +23,7 @@ internal enum class MonitoringIntent {
 
 internal data class MonitoringPlan(
     val observeRuntimeSummary: Boolean = false,
+    val observeDnsEvents: Boolean = false,
     val connectionIntervalMillis: Long? = null,
     val ruleIntervalMillis: Long? = null,
     val resourceIntervalMillis: Long? = null,
@@ -35,6 +38,7 @@ internal fun resolveMonitoringPlan(counts: Map<MonitoringIntent, Int>): Monitori
     fun observes(intent: MonitoringIntent): Boolean = counts[intent]?.let { count -> count > 0 } == true
 
     val home = observes(MonitoringIntent.Home)
+    val connectionOverlay = observes(MonitoringIntent.ConnectionOverlay)
     val connections = observes(MonitoringIntent.Connections)
     val resource = observes(MonitoringIntent.Resource)
     val traffic = observes(MonitoringIntent.Traffic)
@@ -43,7 +47,8 @@ internal fun resolveMonitoringPlan(counts: Map<MonitoringIntent, Int>): Monitori
     val any = home || connections || rules || resource || traffic || network
 
     return MonitoringPlan(
-        observeRuntimeSummary = any,
+        observeRuntimeSummary = any || connectionOverlay,
+        observeDnsEvents = connectionOverlay || observes(MonitoringIntent.Dns),
         // The resource page only shows the connection count and today's traffic, so it uses the
         // lightweight home cadence: polling connection details would load the core it is measuring.
         connectionIntervalMillis = when {
@@ -54,7 +59,7 @@ internal fun resolveMonitoringPlan(counts: Map<MonitoringIntent, Int>): Monitori
         ruleIntervalMillis = RuleMonitoringIntervalMillis.takeIf { rules },
         resourceIntervalMillis = when {
             resource || traffic -> DetailMonitoringIntervalMillis
-            home -> HomeMonitoringIntervalMillis
+            home || connectionOverlay -> HomeMonitoringIntervalMillis
             else -> null
         },
         trafficIntervalMillis = when {
