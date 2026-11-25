@@ -126,11 +126,6 @@ internal fun DnsMonitorContent(
                     DnsFilterMenu(
                         filter = filter,
                         onFilterChange = onFilterChange,
-                        canClear = filter != null || selectedUpstream != null,
-                        onClear = {
-                            onFilterChange(null)
-                            onUpstreamSelect(null)
-                        },
                     )
                 },
                 statusRowOffset = 4.dp,
@@ -420,8 +415,6 @@ private fun dnsResultLabel(record: DnsRecord): String =
 private fun DnsFilterMenu(
     filter: DnsRecordFilter?,
     onFilterChange: (DnsRecordFilter?) -> Unit,
-    canClear: Boolean,
-    onClear: () -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
     val filterLabel = stringResource(R.string.monitor_dns_filter)
@@ -430,16 +423,6 @@ private fun DnsFilterMenu(
         expanded = expanded,
         onExpandedChange = { expanded = it },
     ) {
-        if (canClear) {
-            AsteriskDropdownMenuItem(
-                text = stringResource(R.string.monitor_dns_filter_clear),
-                selected = false,
-                onClick = {
-                    expanded = false
-                    onClear()
-                },
-            )
-        }
         MonitoringMenuGroupHeader(stringResource(R.string.monitor_dns_filter_routes))
         DnsRouteFilters.forEach { option ->
             AsteriskDropdownMenuItem(
