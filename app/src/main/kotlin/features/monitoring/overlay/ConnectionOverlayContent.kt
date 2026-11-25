@@ -666,14 +666,15 @@ private fun OverlayConnectionRanking(
             Triple(summary.status, rankOverlayConnections(connections), pinned)
         }.flowOn(Dispatchers.Default)
     }.collectAsState(Triple(ConnectionMonitorStatus.Loading, emptyList(), null))
-    val (status, rows, pinned) = ranking
+    val (status, rows, resolvedPinned) = ranking
+    val pinned = resolvedPinned?.takeIf { it.row.id == selectedId }
     val pinnedKey = pinned?.row?.id
     val remaining = remember(rows, pinnedKey) { rows.withRoomForPinned(pinnedKey, OverlayConnectionRank::id) }
     OverlayRankList(
         status = status,
         emptyLabel = R.string.monitor_connections_empty,
         rows = remaining,
-        key = OverlayConnectionRank::id,
+        itemKey = OverlayConnectionRank::id,
         pinnedKey = pinnedKey,
         pinnedContent = {
             OverlayPinnedItem(
@@ -838,7 +839,7 @@ private fun OverlayDnsRanking(
         status = status,
         emptyLabel = R.string.monitor_dns_empty,
         rows = rows,
-        pinned = pinned,
+        pinned = pinned?.takeIf { it.domain == selectedDomain },
         itemKey = OverlayDnsRank::domain,
         title = OverlayDnsRank::domain,
         count = { it.lookups.toString() },
@@ -889,7 +890,7 @@ private fun OverlayRuleRanking(
         status = status,
         emptyLabel = emptyLabel,
         rows = rows,
-        pinned = pinned,
+        pinned = pinned?.takeIf { it.index == ruleIndex },
         itemKey = { it.index.toString() },
         title = { it.payload.ifBlank { it.type } },
         count = { it.hits?.toString() ?: "—" },
@@ -953,7 +954,7 @@ private fun <T : Any> OverlayExpandableRankList(
         status = status,
         emptyLabel = emptyLabel,
         rows = remaining,
-        key = itemKey,
+        itemKey = itemKey,
         unsupported = unsupported,
         pinnedKey = pinnedKey,
         pinnedContent = {
@@ -972,7 +973,7 @@ private fun <T> OverlayRankList(
     status: ConnectionMonitorStatus,
     emptyLabel: Int,
     rows: List<T>,
-    key: (T) -> String,
+    itemKey: (T) -> String,
     unsupported: Boolean = false,
     pinnedKey: String?,
     pinnedContent: @Composable () -> Unit,
@@ -981,7 +982,6 @@ private fun <T> OverlayRankList(
     val spacing = LocalSpacing.current
     val listState = rememberLazyListState()
     val reducedMotion = LocalReduceMotion.current
-    val placement = AsteriskMotion.contentPlacement()
     val fade = AsteriskMotion.contentFade()
     LaunchedEffect(pinnedKey) {
         if (pinnedKey != null) {
@@ -1011,9 +1011,11 @@ private fun <T> OverlayRankList(
                 state = listState,
             ) {
                 item(key = "pinned") { pinnedContent() }
-                items(rows, key = { row -> "rank:${key(row)}" }) { row ->
-                    Column(Modifier.animateItem(fadeInSpec = fade, placementSpec = placement, fadeOutSpec = fade)) {
-                        rowContent(row)
+                // Keep the viewport anchored to rank positions as the order changes.
+                items(rows) { row ->
+                    // The pinned item's size transition already moves the rows below it.
+                    Column(Modifier.animateItem(fadeInSpec = fade, placementSpec = null, fadeOutSpec = fade)) {
+                        key(itemKey(row)) { rowContent(row) }
                     }
                 }
             }
