@@ -101,6 +101,11 @@ internal class MonitoringRepository(
 
     val state: StateFlow<MonitoringState> = mutableState.asStateFlow()
     val dns get() = dnsCollector.state
+    val dnsAvailable: Flow<Boolean> = stateStore.state
+        .map { it.runMode to it.proxyRunning }
+        .distinctUntilChanged()
+        .map { (runMode, _) -> mihomoRuntime.usesBundledCore(runMode) }
+        .distinctUntilChanged()
 
     init {
         appScope.launch {

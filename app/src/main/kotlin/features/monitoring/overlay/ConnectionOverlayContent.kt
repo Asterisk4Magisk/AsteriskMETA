@@ -209,6 +209,17 @@ internal fun ConnectionOverlayContent(
                     )
                 }
                 if (panelVisible && hasCustomSize) {
+                    val dnsAvailable by monitoring.dnsAvailable.collectAsState(initial = null)
+                    val dimensions = remember(dnsAvailable) {
+                        OverlayDimension.entries.filter { it != OverlayDimension.Dns || dnsAvailable == true }
+                    }
+                    val activeDimension = dimension.takeIf { it in dimensions } ?: OverlayDimension.Connections
+                    LaunchedEffect(dnsAvailable) {
+                        if (dnsAvailable == false && dimension == OverlayDimension.Dns) {
+                            dimension = OverlayDimension.Connections
+                            selectedRankId = null
+                        }
+                    }
                     BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
                         val detailsFit = maxWidth >= 200.dp &&
                             maxHeight >= 124.dp * LocalDensity.current.fontScale.coerceAtLeast(1f)
@@ -221,15 +232,17 @@ internal fun ConnectionOverlayContent(
                                 OverlayRankings(
                                     monitoring = monitoring,
                                     active = detailsFit,
-                                    dimension = dimension,
+                                    dimensions = dimensions,
+                                    dimension = activeDimension,
                                     onDimensionChange = { next ->
                                         if (dimension != next) selectedRankId = null
                                         dimension = next
                                     },
-                                    selectedRankId = selectedRankId,
+                                    selectedRankId = selectedRankId.takeIf { dimension == activeDimension },
                                     onConnectionsVisibilityChanged = onConnectionsVisibilityChanged,
                                     onSelectRank = { id ->
-                                        selectedRankId = id.takeUnless { it == selectedRankId }
+                                        selectedRankId = id.takeUnless { dimension == activeDimension && it == selectedRankId }
+                                        dimension = activeDimension
                                     },
                                 )
                             }
@@ -314,6 +327,7 @@ private fun OverlayIconButton(
 private fun OverlayRankings(
     monitoring: MonitoringRepository,
     active: Boolean,
+    dimensions: List<OverlayDimension>,
     dimension: OverlayDimension,
     onDimensionChange: (OverlayDimension) -> Unit,
     selectedRankId: String?,
@@ -340,23 +354,26 @@ private fun OverlayRankings(
     }
     val colors = MaterialTheme.colorScheme
     Column(Modifier.fillMaxSize()) {
-        AsteriskSegmentedControl(
-            items = OverlayDimension.entries.map { AsteriskSegmentItem(it, stringResource(it.label)) },
-            selectedValue = dimension,
-            onSelected = onDimensionChange,
-            modifier = Modifier.padding(horizontal = spacing.medium, vertical = spacing.extraSmall),
-            containerColor = Color.Transparent,
-            checkedContainerColor = colors.primary.copy(alpha = 0.14f),
-            checkedContentColor = colors.primary,
-            contentPadding = PaddingValues(vertical = spacing.extraSmall),
-            textStyle = MaterialTheme.typography.labelMedium,
-        )
+        if (dimensions.size > 1) {
+            AsteriskSegmentedControl(
+                items = dimensions.map { AsteriskSegmentItem(it, stringResource(it.label)) },
+                selectedValue = dimension,
+                onSelected = onDimensionChange,
+                modifier = Modifier.padding(horizontal = spacing.medium, vertical = spacing.extraSmall),
+                containerColor = Color.Transparent,
+                checkedContainerColor = colors.primary.copy(alpha = 0.14f),
+                checkedContentColor = colors.primary,
+                contentPadding = PaddingValues(vertical = spacing.extraSmall),
+                textStyle = MaterialTheme.typography.labelMedium,
+            )
+        }
         Crossfade(
             targetState = dimension,
             modifier = Modifier.weight(1f),
             animationSpec = AsteriskMotion.contentFade(),
             label = "overlay-ranking-dimension",
         ) { content ->
+            if (content !in dimensions) return@Crossfade
             val selection = selectedRankId.takeIf { content == dimension }
             val onSelect: (String) -> Unit = { id -> if (content == dimension) onSelectRank(id) }
             when (content) {
