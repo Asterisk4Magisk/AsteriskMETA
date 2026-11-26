@@ -81,6 +81,7 @@ import features.monitoring.ObserveMonitoring
 import features.monitoring.buildMonitoringConnectionsFocusState
 import features.monitoring.clearDisplayedConnections
 import features.monitoring.discardDisplayedConnection
+import features.monitoring.dns.DnsRecord
 import features.monitoring.dns.DnsRecordFilter
 import features.monitoring.dns.filterDnsRecords
 import features.monitoring.reduceConnections
@@ -240,12 +241,21 @@ internal fun ConnectionsMonitorPage(padding: PaddingValues) {
             MonitoringDnsSummary(status = ConnectionMonitorStatus.Loading)
         } else dns
     } else MonitoringDnsSummary()
-    val filteredDnsRecords = if (showDns) {
-        remember(dnsState.records, dnsFilter, dnsQuery, selectedDnsUpstream) {
-            filterDnsRecords(dnsState.records, dnsFilter, dnsQuery, selectedDnsUpstream)
+    val filteredDnsRecords = when {
+        !showDns -> emptyList()
+        dnsFilter == null && dnsQuery.isBlank() && selectedDnsUpstream == null -> dnsState.records
+        else -> {
+            val filter = dnsFilter
+            val query = dnsQuery
+            val upstream = selectedDnsUpstream
+            val records = dnsState.records
+            key(filter, query, upstream) {
+                val filtered by produceState<List<DnsRecord>?>(null, records) {
+                    value = withContext(Dispatchers.Default) { filterDnsRecords(records, filter, query, upstream) }
+                }
+                filtered
+            }
         }
-    } else {
-        emptyList()
     }
 
     fun closeConnection(connection: MihomoConnection) {

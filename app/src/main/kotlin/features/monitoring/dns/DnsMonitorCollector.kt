@@ -19,7 +19,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -29,6 +28,8 @@ internal data class DnsMonitorTarget(
     val runtimeEpoch: Long?,
     val connected: Boolean,
 )
+
+private data class DnsEventKey(val sequence: Long, val time: Long)
 
 internal class DnsMonitorCollector(context: Context) {
     private val dispatcher = Dispatchers.IO.limitedParallelism(1)
@@ -63,6 +64,7 @@ internal class DnsMonitorCollector(context: Context) {
             val records = ArrayDeque<DnsRecord>(MaxRecords).apply {
                 addAll(mutableState.value.records)
             }
+            val recordKeys = records.mapTo(HashSet(MaxRecords)) { DnsEventKey(it.event.seq, it.event.time) }
             while (true) {
                 var unpublished = false
                 try {
@@ -76,12 +78,28 @@ internal class DnsMonitorCollector(context: Context) {
 
                                 is DnsEventUpdate.Received -> {
                                     val event = update.event
+                                    val eventKey = DnsEventKey(event.seq, event.time)
+                                    if (!recordKeys.add(eventKey)) return@collect
+                                    var index = records.size
+                                    if (event.seq < (records.lastOrNull()?.event?.seq ?: event.seq)) {
+                                        // Reconnect may fill gaps behind records already delivered.
+                                        val position = records.binarySearchBy(event.seq) { it.event.seq }
+                                        index = if (position < 0) -position - 1 else position
+                                    }
+                                    if (records.size == MaxRecords) {
+                                        if (index == 0) {
+                                            recordKeys.remove(eventKey)
+                                            return@collect
+                                        }
+                                        val oldest = records.removeFirst().event
+                                        recordKeys.remove(DnsEventKey(oldest.seq, oldest.time))
+                                        index--
+                                    }
                                     val packageName = event.uid?.let { uid ->
                                         appLookup.packagesForUid(uid).singleOrNull()
                                     }
                                     val app = packageName?.let(appLookup::labelForPackage) ?: packageName.orEmpty()
-                                    if (records.size == MaxRecords) records.removeFirst()
-                                    records.addLast(DnsRecord(nextId++, event, app, packageName.orEmpty()))
+                                    records.add(index, DnsRecord(nextId++, event, app, packageName.orEmpty()))
                                     unpublished = true
                                     if (pendingPublish == null) {
                                         pendingPublish = launch {
@@ -125,7 +143,7 @@ internal class DnsMonitorCollector(context: Context) {
 
     private companion object {
         const val LogTag = "DnsMonitorCollector"
-        const val MaxRecords = 500
+        const val MaxRecords = 2_000
         const val PublishIntervalMillis = 250L
         const val ReconnectDelayMillis = 1_000L
     }

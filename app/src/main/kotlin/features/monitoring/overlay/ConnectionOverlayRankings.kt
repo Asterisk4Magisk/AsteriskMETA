@@ -74,9 +74,8 @@ internal fun rankOverlayDns(
         lookups[domain] = lookups.getOrDefault(domain, 0) + 1
         if (domain == selectedDomain) latestSelection = record
     }
-    val rows = lookups.entries.sortedWith(
-        compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key },
-    ).take(OverlayRankLimit).map { OverlayDnsRank(it.key, it.value) }
+    val order = compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key }
+    val rows = topOverlayRows(lookups.entries.asSequence(), order).map { OverlayDnsRank(it.key, it.value) }
     val selection = selectedDomain?.let { domain ->
         latestSelection?.let { OverlayDnsRank(domain, lookups.getValue(domain), it) }
     }
@@ -85,16 +84,19 @@ internal fun rankOverlayDns(
 
 internal fun rankOverlayRules(rules: List<RuntimeRouteRule>): List<RuntimeRouteRule> {
     val order = compareByDescending<RuntimeRouteRule> { it.hits }.thenBy { it.index }
+    return topOverlayRows(rules.asSequence().filter { it.hits != null }, order)
+}
+
+private fun <T> topOverlayRows(entries: Sequence<T>, order: Comparator<T>): List<T> {
     val highest = PriorityQueue(OverlayRankLimit, order.reversed())
-    for (rule in rules) {
-        if (rule.hits == null) continue
+    for (entry in entries) {
         if (highest.size == OverlayRankLimit) {
-            if (order.compare(rule, highest.element()) >= 0) continue
+            if (order.compare(entry, highest.element()) >= 0) continue
             highest.poll()
         }
-        highest.add(rule)
+        highest.add(entry)
     }
     return highest.sortedWith(order)
 }
 
-private const val OverlayRankLimit = 10
+private const val OverlayRankLimit = 100

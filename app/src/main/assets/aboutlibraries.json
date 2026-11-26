@@ -15,7 +15,7 @@
         },
         {
             "uniqueId": "github:Asterisk4Magisk/AndroidLibClashLite",
-            "artifactVersion": "v1.19.34-android.6",
+            "artifactVersion": "v1.19.34-android.7",
             "name": "AndroidLibClashLite",
             "description": "Gomobile Android bindings and standalone CLI sharing one Mihomo core.",
             "website": "https://github.com/Asterisk4Magisk/AndroidLibClashLite",
@@ -54,7 +54,7 @@
         },
         {
             "uniqueId": "github:Asterisk4Magisk/AsteriskEnhance",
-            "artifactVersion": "v1.0.9",
+            "artifactVersion": "v1.0.10",
             "name": "Asterisk Enhance",
             "description": "System DNS enhancement for Asterisk apps, powered by Zygisk Next.",
             "website": "https://github.com/Asterisk4Magisk/AsteriskEnhance",
@@ -67,7 +67,7 @@
         },
         {
             "uniqueId": "github:Asterisk4Magisk/asteriskd",
-            "artifactVersion": "v2.3.2",
+            "artifactVersion": "v2.3.3",
             "name": "asteriskd",
             "description": "A root Android daemon that synchronizes local-address bypass rules and pinned eBPF maps.",
             "website": "https://github.com/Asterisk4Magisk/asteriskd",

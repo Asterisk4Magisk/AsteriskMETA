@@ -56,7 +56,7 @@ import ui.icons.AsteriskIcons as Icons
 internal fun DnsMonitorContent(
     status: ConnectionMonitorStatus,
     records: List<DnsRecord>,
-    filteredRecords: List<DnsRecord>,
+    filteredRecords: List<DnsRecord>?,
     paused: Boolean,
     onTogglePaused: () -> Unit,
     error: String,
@@ -73,7 +73,7 @@ internal fun DnsMonitorContent(
     val listTimeFormat = remember(locale) { SimpleDateFormat("HH:mm:ss", locale) }
     val detailTimeFormat = remember(locale) { SimpleDateFormat("yyyy-MM-dd HH:mm:ss", locale) }
     var detailRecord by remember { mutableStateOf<DnsRecord?>(null) }
-    val visibleRecords = remember(filteredRecords) { filteredRecords.asReversed() }
+    val visibleRecords = remember(filteredRecords) { filteredRecords?.asReversed() }
     val sessionActive = status != ConnectionMonitorStatus.ServiceStopped &&
         status != ConnectionMonitorStatus.Loading
     LaunchedEffect(sessionActive) {
@@ -145,12 +145,15 @@ internal fun DnsMonitorContent(
             item("dns-upstream-filter") {
                 ActiveUpstreamFilter(
                     upstream = selectedUpstream,
-                    count = visibleRecords.size,
+                    count = visibleRecords?.size,
                     onClear = { onUpstreamSelect(null) },
                 )
             }
         }
         when {
+            visibleRecords == null -> item("dns-filtering") {
+                StatusCard(stringResource(R.string.monitor_loading), loading = true)
+            }
             visibleRecords.isEmpty() -> item("dns-empty") {
                 StatusCard(
                     stringResource(
@@ -179,14 +182,14 @@ internal fun DnsMonitorContent(
 @Composable
 private fun ActiveUpstreamFilter(
     upstream: String,
-    count: Int,
+    count: Int?,
     onClear: () -> Unit,
 ) {
     Row(modifier = Modifier.fillMaxWidth()) {
         AsteriskFilterChip(
             selected = true,
             onClick = onClear,
-            label = "${upstream} · $count",
+            label = count?.let { "$upstream · $it" } ?: upstream,
             trailingIcon = {
                 Icon(
                     Icons.Rounded.Clear,
