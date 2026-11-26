@@ -30,6 +30,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive
 import system.AndroidLauncherIcon
+import system.ScreenInteractiveObserver
 import utils.toReadableBytes
 import kotlin.time.Duration.Companion.milliseconds
 

@@ -113,28 +113,37 @@ internal class MonitoringObservation(
     }
 }
 
+internal fun MonitoringRepository.observeWhileStarted(
+    intent: MonitoringIntent,
+    lifecycle: Lifecycle,
+    pageSessionId: String? = null,
+): MonitoringObservation {
+    var observation: MonitoringObservation? = null
+    fun synchronizeObservation() {
+        val started = lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
+        if (started && observation == null) {
+            observation = observe(intent, pageSessionId)
+        } else if (!started) {
+            observation?.close()
+            observation = null
+        }
+    }
+    val observer = LifecycleEventObserver { _, _ -> synchronizeObservation() }
+    lifecycle.addObserver(observer)
+    synchronizeObservation()
+    return MonitoringObservation {
+        lifecycle.removeObserver(observer)
+        observation?.close()
+    }
+}
+
 @Composable
 internal fun ObserveMonitoring(intent: MonitoringIntent, pageSessionId: String? = null) {
     val repository = LocalAppServices.current.monitoring
-    val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(repository, intent, pageSessionId, lifecycleOwner) {
-        var observation: MonitoringObservation? = null
-        fun synchronizeObservation() {
-            val visible = lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
-            if (visible && observation == null) {
-                observation = repository.observe(intent, pageSessionId)
-            } else if (!visible) {
-                observation?.close()
-                observation = null
-            }
-        }
-        val observer = LifecycleEventObserver { _, _ -> synchronizeObservation() }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        synchronizeObservation()
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-            observation?.close()
-        }
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(repository, intent, pageSessionId, lifecycle) {
+        val observation = repository.observeWhileStarted(intent, lifecycle, pageSessionId)
+        onDispose { observation.close() }
     }
 }
 

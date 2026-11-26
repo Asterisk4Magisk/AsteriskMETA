@@ -16,7 +16,6 @@ import androidx.annotation.MainThread
 import androidx.compose.animation.core.Animatable
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.geometry.Offset
@@ -29,6 +28,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.core.content.edit
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleRegistry
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.SavedStateRegistryController
@@ -41,6 +41,7 @@ import app.R
 import features.logs.AndroidAppLogger
 import features.monitoring.MonitoringIntent
 import features.monitoring.MonitoringRepository
+import features.monitoring.observeWhileStarted
 import features.settings.locale.ProvideAppLanguage
 import java.lang.ref.WeakReference
 import kotlinx.coroutines.CoroutineScope
@@ -52,6 +53,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import system.ScreenInteractiveObserver
 import ui.AsteriskOverlayTheme
 
 internal class ConnectionMonitorOverlay(
@@ -115,6 +117,19 @@ internal class ConnectionMonitorOverlay(
         var connectionsVisible = false
         var windowAttached = false
 
+        fun updateRuntimeDemand() {
+            val active = owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
+            onRuntimeDemandChanged(active, active && connectionsVisible)
+        }
+        fun updateScreenState(interactive: Boolean) {
+            owner.setInteractive(interactive)
+            if (windowAttached) updateRuntimeDemand()
+        }
+        val screenObserver = ScreenInteractiveObserver(context) { interactive ->
+            if (windowAttached) updateScreenState(interactive)
+        }
+        updateScreenState(screenObserver.isInteractive)
+
         fun updateWindow() {
             if (!windowAttached) return
             try {
@@ -158,7 +173,7 @@ internal class ConnectionMonitorOverlay(
             val locale = LocalConfiguration.current.locales[0]
             val appearance by remember(appState) {
                 appState.map { Triple(it.languageMode, it.colorMode, it.seedIndex) }.distinctUntilChanged()
-            }.collectAsState(initialAppearance)
+            }.collectAsStateWithLifecycle(initialAppearance)
             val (languageMode, colorMode, seedIndex) = appearance
             ProvideAppLanguage(languageMode, locale) {
                 AsteriskOverlayTheme(colorMode, seedIndex, content)
@@ -216,7 +231,7 @@ internal class ConnectionMonitorOverlay(
                     },
                     onConnectionsVisibilityChanged = { visible ->
                         connectionsVisible = visible
-                        if (windowAttached) onRuntimeDemandChanged(true, visible)
+                        if (windowAttached) updateRuntimeDemand()
                     },
                 )
             }
@@ -254,7 +269,7 @@ internal class ConnectionMonitorOverlay(
             return false
         }
 
-        val observation = monitoring.observe(MonitoringIntent.ConnectionOverlay)
+        val observation = monitoring.observeWhileStarted(MonitoringIntent.ConnectionOverlay, owner.lifecycle)
         val runtimePresence = scope.launch(Dispatchers.Main.immediate, start = CoroutineStart.LAZY) {
             appState.map { it.proxyRunning to it.allowScreenshots }.distinctUntilChanged().collect { (running, _) ->
                 if (!running) {
@@ -274,6 +289,7 @@ internal class ConnectionMonitorOverlay(
             windowAttached = false
             saveButtonPosition()
             runtimePresence.cancel()
+            screenObserver.unregister()
             onRuntimeDemandChanged(false, false)
             observation.close()
             appOps.stopWatchingMode(permissionListener)
@@ -287,6 +303,7 @@ internal class ConnectionMonitorOverlay(
         buttonView.addOnAttachStateChangeListener(detachListener)
         try {
             appOps.startWatchingMode(AppOpsManager.OPSTR_SYSTEM_ALERT_WINDOW, context.packageName, permissionListener)
+            screenObserver.register()
         } catch (_: SecurityException) {
             dismiss()
             return false
@@ -295,7 +312,7 @@ internal class ConnectionMonitorOverlay(
             dismiss()
             return false
         }
-        onRuntimeDemandChanged(true, connectionsVisible)
+        updateScreenState(screenObserver.isInteractive)
         mutableVisible.value = true
         runtimePresence.start()
         return mutableVisible.value
@@ -330,7 +347,11 @@ private class OverlayViewLifecycle : SavedStateRegistryOwner {
 
     init {
         controller.performRestore(null)
-        lifecycle.currentState = Lifecycle.State.RESUMED
+        lifecycle.currentState = Lifecycle.State.CREATED
+    }
+
+    fun setInteractive(interactive: Boolean) {
+        lifecycle.currentState = if (interactive) Lifecycle.State.RESUMED else Lifecycle.State.CREATED
     }
 
     fun destroy() {
