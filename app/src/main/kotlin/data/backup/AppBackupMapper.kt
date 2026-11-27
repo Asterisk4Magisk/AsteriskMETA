@@ -3,6 +3,7 @@
 
 package data.backup
 
+import features.subscription.legacySubscriptionRequestHeaders
 import features.settings.withNormalizedConnectionTestSettings
 import features.settings.ConnectionTestDefaultsVersion
 import app.AppState
@@ -269,7 +270,7 @@ private fun MihomoProfileState.toBackup(content: String): AppBackupMihomoProfile
         type = type.storageValue,
         url = url,
         userAgent = userAgent,
-        hwid = hwid,
+        requestHeaders = requestHeaders,
         updateInterval = updateInterval,
         updateViaProxy = updateViaProxy,
         ageSecretKey = ageSecretKey,
@@ -436,7 +437,7 @@ private fun AppBackupMihomoProfile.toState(): MihomoProfileState =
         type = MihomoProfileType.fromStorageValue(type),
         url = url,
         userAgent = userAgent,
-        hwid = hwid,
+        requestHeaders = requestHeaders ?: legacySubscriptionRequestHeaders(hwid),
         updateInterval = updateInterval,
         updateViaProxy = updateViaProxy,
         ageSecretKey = ageSecretKey,

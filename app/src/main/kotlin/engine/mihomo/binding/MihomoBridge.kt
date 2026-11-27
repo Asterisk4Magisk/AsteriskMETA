@@ -27,14 +27,13 @@ internal object MihomoBridge {
     private val initialized by lazy {
         AndroidPlatform.initialize(application)
         val home = application.filesDir.resolve("clash").apply { mkdirs() }
-        Libclash.init(home.absolutePath, app.ProjectInfo.VERSION_NAME, Build.VERSION.SDK_INT, object : ContentResolver {
-            override fun openContent(uri: String): Int {
-                val parsed = uri.toUri()
-                require(parsed.scheme == "content") { "Unsupported content scheme" }
-                return application.contentResolver.openFileDescriptor(parsed, "r")?.detachFd()
-                    ?: throw java.io.FileNotFoundException("Content provider returned no descriptor")
-            }
-        })
+        Libclash.init(home.absolutePath, app.ProjectInfo.VERSION_NAME, Build.VERSION.SDK_INT
+        ) { uri ->
+            val parsed = uri.toUri()
+            require(parsed.scheme == "content") { "Unsupported content scheme" }
+            application.contentResolver.openFileDescriptor(parsed, "r")?.detachFd()
+                ?: throw java.io.FileNotFoundException("Content provider returned no descriptor")
+        }
         AndroidMihomoPlatformContext.start(application)
         true
     }
@@ -60,9 +59,7 @@ internal object MihomoBridge {
         return Libclash.queryProvider(type.toString(), name)
     }
 
-    enum class OverrideSlot {
-        Persist, Session
-    }
+    private const val SessionOverrideSlot = 1
 
     private val ConfigurationOverrideJson = Json {
         ignoreUnknownKeys = true
@@ -94,11 +91,6 @@ internal object MihomoBridge {
     fun queryMemory(): Long {
         ensureInitialized()
         return Libclash.queryMemory()
-    }
-
-    fun queryConnectionCount(): Int {
-        ensureInitialized()
-        return Libclash.queryConnectionCount()
     }
 
     fun queryConnections(): String {
@@ -184,7 +176,7 @@ internal object MihomoBridge {
         expectedStatus: String = "",
     ): Int {
         ensureInitialized()
-        val response = Json.Default.decodeFromString(
+        val response = Json.decodeFromString(
             JsonObject.serializer(),
             Libclash.queryProxyDelay(name, url, timeoutMillis, expectedStatus),
         )
@@ -202,7 +194,7 @@ internal object MihomoBridge {
         expectedStatus: String,
     ): Int {
         ensureInitialized()
-        val response = Json.Default.decodeFromString(
+        val response = Json.decodeFromString(
             JsonObject.serializer(),
             Libclash.queryProviderProxyDelay(
                 providerName,
@@ -225,7 +217,7 @@ internal object MihomoBridge {
         expectedStatus: String = "",
     ): Map<String, Int> {
         ensureInitialized()
-        val response = Json.Default.decodeFromString(
+        val response = Json.decodeFromString(
             JsonObject.serializer(),
             Libclash.queryGroupDelay(name, url, timeoutMillis, expectedStatus),
         )
@@ -260,15 +252,12 @@ internal object MihomoBridge {
     ) {
         ensureInitialized()
         val taskId = nextFetchTaskId.getAndIncrement()
-        if (options.hwid.isNotEmpty()) {
-            check(Libclash.supportsSubscriptionHwid()) { "The bundled core does not support subscription HWID" }
-        }
         val completion = CompletableDeferred<Unit>()
         Libclash.fetchAndValid(
             object : FetchCallback {
                 override fun report(statusJson: String) {
                     reportStatus(
-                        Json.Default.decodeFromString(
+                        Json.decodeFromString(
                             FetchStatus.serializer(),
                             statusJson
                         )
@@ -286,7 +275,7 @@ internal object MihomoBridge {
             taskId,
             path.absolutePath,
             url,
-            Json.Default.encodeToString(FetchOptions.serializer(), options),
+            Json.encodeToString(FetchOptions.serializer(), options),
         )
         try {
             completion.await()
@@ -316,10 +305,10 @@ internal object MihomoBridge {
     fun queryProviders(): List<Provider> {
         ensureInitialized()
         val providers =
-            Json.Default.decodeFromString(JsonArray.serializer(), Libclash.queryProviders())
+            Json.decodeFromString(JsonArray.serializer(), Libclash.queryProviders())
 
         return List(providers.size) {
-            Json.Default.decodeFromJsonElement(Provider.serializer(), providers[it])
+            Json.decodeFromJsonElement(Provider.serializer(), providers[it])
         }
     }
 
@@ -330,22 +319,22 @@ internal object MihomoBridge {
         }
     }
 
-    fun queryOverride(slot: OverrideSlot): ConfigurationOverride {
+    fun readSessionOverride(): ConfigurationOverride {
         ensureInitialized()
         return try {
             ConfigurationOverrideJson.decodeFromString(
                 ConfigurationOverride.serializer(),
-                Libclash.readOverride(slot.ordinal)
+                Libclash.readOverride(SessionOverrideSlot)
             )
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             ConfigurationOverride()
         }
     }
 
-    fun patchOverride(slot: OverrideSlot, configuration: ConfigurationOverride) {
+    fun writeSessionOverride(configuration: ConfigurationOverride) {
         ensureInitialized()
         Libclash.writeOverride(
-            slot.ordinal,
+            SessionOverrideSlot,
             ConfigurationOverrideJson.encodeToString(
                 ConfigurationOverride.serializer(),
                 configuration
@@ -353,9 +342,9 @@ internal object MihomoBridge {
         )
     }
 
-    fun clearOverride(slot: OverrideSlot) {
+    fun clearSessionOverride() {
         ensureInitialized()
-        Libclash.clearOverride(slot.ordinal)
+        Libclash.clearOverride(SessionOverrideSlot)
     }
 
     fun subscribeLogcat(): ReceiveChannel<LogMessage> {
@@ -401,9 +390,7 @@ private fun JsonObject.errorOrNull(): String? {
 
 private class MihomoCoreException(message: String) : Exception(message)
 
-private fun CompletableDeferred<Unit>.asCompletion(): Completion = object : Completion {
-    override fun complete(errorText: String) {
-        if (errorText.isEmpty()) this@asCompletion.complete(Unit)
-        else this@asCompletion.completeExceptionally(MihomoCoreException(errorText))
-    }
+private fun CompletableDeferred<Unit>.asCompletion(): Completion = Completion { errorText ->
+    if (errorText.isEmpty()) this@asCompletion.complete(Unit)
+    else this@asCompletion.completeExceptionally(MihomoCoreException(errorText))
 }

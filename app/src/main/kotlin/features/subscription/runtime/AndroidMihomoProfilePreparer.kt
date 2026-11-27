@@ -6,6 +6,7 @@ package features.subscription.runtime
 import android.content.Context
 import app.MihomoSubscriptionInfo
 import data.AndroidAppStateStore
+import data.AppSettingsPreferences
 import engine.mihomo.binding.MihomoBridge as Clash
 import engine.mihomo.binding.model.FetchOptions
 import engine.mihomo.binding.model.FetchStatus
@@ -13,6 +14,7 @@ import engine.mihomo.requireMihomoProfileSize
 import features.logs.AndroidAppLogger
 import features.resources.runtime.prepareMihomoResourceFilePaths
 import features.resources.runtime.skipsBundledCoreConfigCheck
+import features.subscription.resolveSubscriptionRequestHeaders
 import java.io.File
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -51,7 +53,7 @@ internal class AndroidMihomoProfilePreparer(
         profileContent: String?,
         sourceUrl: String,
         userAgent: String,
-        hwid: String,
+        requestHeaders: Map<String, String>?,
         ageSecretKey: String,
         fetchOptions: AndroidSubscriptionFetchOptions,
         onStatus: (FetchStatus) -> Unit = {},
@@ -92,6 +94,14 @@ internal class AndroidMihomoProfilePreparer(
                         }
                     }
                     try {
+                        val headers = if (profileContent == null &&
+                            (sourceUrl.startsWith("https://", ignoreCase = true) ||
+                                sourceUrl.startsWith("http://", ignoreCase = true))
+                        ) {
+                            resolveSubscriptionRequestHeaders(
+                                requestHeaders,
+                            ) { AppSettingsPreferences(appContext).getOrCreateSubscriptionHwid() }
+                        } else emptyMap()
                         withMihomoAgeSecretKey(ageSecretKey) {
                             Clash.fetchAndValid(
                                 path = processingDir,
@@ -99,14 +109,7 @@ internal class AndroidMihomoProfilePreparer(
                                 options = FetchOptions(
                                     force = profileContent == null,
                                     userAgent = userAgent,
-                                    hwid = if (profileContent == null &&
-                                        (sourceUrl.startsWith("https://", ignoreCase = true) ||
-                                            sourceUrl.startsWith("http://", ignoreCase = true))
-                                    ) {
-                                        features.subscription.resolveSubscriptionHwid(hwid) {
-                                            data.AppSettingsPreferences(appContext).getOrCreateSubscriptionHwid()
-                                        }
-                                    } else "",
+                                    requestHeaders = headers,
                                     proxy = fetchOptions.toCoreFetchProxy(),
                                 ),
                                 reportStatus = { status -> statuses.trySend(status) },
@@ -173,7 +176,6 @@ internal class AndroidMihomoProfilePreparer(
         val message = when (error.message) {
             "HWID_LIMIT_REACHED" -> app.R.string.subscription_hwid_limit_reached
             "HWID_NOT_SUPPORTED" -> app.R.string.subscription_hwid_not_supported
-            "HWID_INVALID" -> app.R.string.subscription_hwid_invalid
             else -> return error
         }
         return IllegalStateException(appContext.getString(message), error)

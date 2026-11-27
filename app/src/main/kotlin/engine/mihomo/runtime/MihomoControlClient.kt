@@ -437,11 +437,8 @@ internal class MihomoControlClient(
         useBridge: Boolean,
     ) {
         if (useBridge) {
-            val override = Clash.queryOverride(Clash.OverrideSlot.Session)
-            Clash.patchOverride(
-                Clash.OverrideSlot.Session,
-                override.copyMode(mode.toTunnelMode()),
-            )
+            val override = Clash.readSessionOverride()
+            Clash.writeSessionOverride(override.copyMode(mode.toTunnelMode()))
             AndroidMihomoRuntime.reloadProfile()
             return
         }
@@ -457,11 +454,8 @@ internal class MihomoControlClient(
         useBridge: Boolean,
     ) {
         if (useBridge) {
-            val override = Clash.queryOverride(Clash.OverrideSlot.Session)
-            Clash.patchOverride(
-                Clash.OverrideSlot.Session,
-                override.copyLogLevel(logLevel.toLogMessageLevel()),
-            )
+            val override = Clash.readSessionOverride()
+            Clash.writeSessionOverride(override.copyLogLevel(logLevel.toLogMessageLevel()))
             AndroidMihomoRuntime.reloadProfile()
             return
         }

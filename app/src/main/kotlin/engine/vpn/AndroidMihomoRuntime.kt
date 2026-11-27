@@ -161,7 +161,7 @@ internal object AndroidMihomoRuntime {
         if (resetCore) {
             runCatching { Clash.reset() }
                 .onFailure { error -> AndroidAppLogger.warn(LogTag, "Failed to reset mihomo runtime", error) }
-            runCatching { Clash.clearOverride(Clash.OverrideSlot.Session) }
+            runCatching { Clash.clearSessionOverride() }
                 .onFailure { error -> AndroidAppLogger.warn(LogTag, "Failed to clear mihomo session override", error) }
             runCatching { Clash.setAgeSecretKey(null) }
                 .onFailure { error -> AndroidAppLogger.warn(LogTag, "Failed to clear mihomo age secret key", error) }
@@ -246,8 +246,8 @@ internal object AndroidMihomoRuntime {
                     // Both facades retain this context across reset/load.
                     tunCallbacks?.let(::installTunCallbacks)
                     Clash.reset()
-                    Clash.clearOverride(Clash.OverrideSlot.Session)
-                    config.sessionOverride?.let { Clash.patchOverride(Clash.OverrideSlot.Session, it) }
+                    Clash.clearSessionOverride()
+                    config.sessionOverride?.let(Clash::writeSessionOverride)
                     setRuntimeAgeSecretKey(config.ageSecretKey)
                     loadProfile(profileDir, profileContent)
                 }

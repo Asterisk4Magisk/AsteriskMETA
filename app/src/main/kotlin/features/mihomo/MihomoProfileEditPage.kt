@@ -3,6 +3,11 @@
 
 package features.mihomo
 
+import features.subscription.formatSubscriptionRequestHeaders
+import features.subscription.defaultSubscriptionRequestHeaders
+import data.AppSettingsPreferences
+import features.subscription.parseSubscriptionRequestHeaders
+import features.subscription.withoutImplicitSubscriptionHeaders
 import ui.layout.pageReadableWidth
 import ui.layout.EditorListPane
 import ui.layout.EditorListItem
@@ -98,7 +103,6 @@ import engine.mihomo.raw.provesDnsHijack
 import utils.sha256Hex
 import features.settings.SettingsActionRow
 import features.settings.SettingsDropdownRow
-import features.subscription.isValidSubscriptionHwid
 import features.subscription.isPlainHttpSubscriptionUrl
 import features.subscription.isValidSubscriptionIntervalInput
 import features.subscription.isValidManualSubscriptionUrl
@@ -169,8 +173,16 @@ fun MihomoProfileEditPage(
     val urlState = key(activeProfileId) { rememberTextFieldState(initialText = targetProfile?.url.orEmpty()) }
     val initialUserAgent = targetProfile?.userAgent ?: app.DefaultMihomoProfileUserAgent
     val userAgentState = key(activeProfileId) { rememberTextFieldState(initialText = initialUserAgent) }
-    val hwidState = key(activeProfileId) { rememberTextFieldState(initialText = targetProfile?.hwid.orEmpty()) }
-    val invalidHwidMessage = stringResource(R.string.subscription_hwid_invalid)
+    val appContext = LocalContext.current.applicationContext
+    val defaultRequestHeaders = remember(appContext) {
+        defaultSubscriptionRequestHeaders(AppSettingsPreferences(appContext).getOrCreateSubscriptionHwid())
+    }
+    val initialRequestHeaders = remember(activeProfileId, defaultRequestHeaders) {
+        formatSubscriptionRequestHeaders(targetProfile?.requestHeaders ?: defaultRequestHeaders)
+    }
+    val requestHeadersState = key(activeProfileId) { rememberTextFieldState(initialText = initialRequestHeaders) }
+    val requestHeadersText = requestHeadersState.text.toString()
+    val requestHeaders = remember(requestHeadersText) { parseSubscriptionRequestHeaders(requestHeadersText) }
     val ageSecretKeyState = key(activeProfileId) {
         rememberTextFieldState(initialText = targetProfile?.ageSecretKey.orEmpty())
     }
@@ -372,11 +384,7 @@ fun MihomoProfileEditPage(
 
         val trimmedUrl = urlState.text.toString().trim()
         val cleanUserAgent = userAgentState.text.toString().trim().ifBlank { app.DefaultMihomoProfileUserAgent }
-        val cleanHwid = hwidState.text.toString().trim()
-        if (!cleanHwid.isValidSubscriptionHwid()) {
-            scope.launch { services.tipNotifier.show(invalidHwidMessage) }
-            return
-        }
+        val parsedHeaders = requestHeaders ?: return
         val cleanAgeSecretKey = ageSecretKeyState.text.toString().trim()
         val cleanInterval = updateIntervalState.text.toString().trim()
         if (!isValidSubscriptionIntervalInput(cleanInterval)) return
@@ -394,12 +402,15 @@ fun MihomoProfileEditPage(
         }
 
         showHttpSubscriptionWarning = false
+        val storedRequestHeaders = parsedHeaders.withoutImplicitSubscriptionHeaders(
+            targetProfile?.requestHeaders, defaultRequestHeaders,
+        )
         val urlChanged = targetProfile?.url != trimmedUrl
         val cleanOverrideScriptId = selectedOverrideScriptId()
         val remoteOptionsChanged = targetProfile == null ||
             urlChanged ||
             targetProfile.userAgent != cleanUserAgent ||
-            targetProfile.hwid != cleanHwid ||
+            targetProfile.requestHeaders != storedRequestHeaders ||
             targetProfile.ageSecretKey != cleanAgeSecretKey ||
             targetProfile.updateViaProxy != updateViaProxy
         val desiredProfile = targetProfile?.copy(
@@ -407,7 +418,7 @@ fun MihomoProfileEditPage(
             type = MihomoProfileType.Url,
             url = trimmedUrl,
             userAgent = cleanUserAgent,
-            hwid = cleanHwid,
+            requestHeaders = storedRequestHeaders,
             updateInterval = cleanInterval,
             updateViaProxy = updateViaProxy,
             ageSecretKey = cleanAgeSecretKey,
@@ -421,7 +432,7 @@ fun MihomoProfileEditPage(
                 type = MihomoProfileType.Url,
                 url = trimmedUrl,
                 userAgent = cleanUserAgent,
-                hwid = cleanHwid,
+                requestHeaders = storedRequestHeaders,
                 updateInterval = cleanInterval,
                 updateViaProxy = updateViaProxy,
                 ageSecretKey = cleanAgeSecretKey,
@@ -514,7 +525,7 @@ fun MihomoProfileEditPage(
         val dirty = nameState.text.toString() != targetProfile?.name.orEmpty() ||
             urlState.text.toString() != targetProfile?.url.orEmpty() ||
             userAgentState.text.toString() != initialUserAgent ||
-            hwidState.text.toString() != targetProfile?.hwid.orEmpty() ||
+            requestHeadersState.text.toString() != initialRequestHeaders ||
             ageSecretKeyState.text.toString() != targetProfile?.ageSecretKey.orEmpty() ||
             updateIntervalState.text.toString() != initialUpdateInterval ||
             updateViaProxy != (targetProfile?.updateViaProxy ?: false) ||
@@ -567,7 +578,8 @@ fun MihomoProfileEditPage(
                             icon = Icons.Rounded.Save,
                             label = stringResource(R.string.common_save),
                             onClick = ::onSave,
-                            enabled = !saving && (profileType != MihomoProfileType.Url || updateIntervalValid),
+                            enabled = !saving && (profileType != MihomoProfileType.Url ||
+                                (updateIntervalValid && (editsUrlContent || requestHeaders != null))),
                         )
                     },
                 )
@@ -633,7 +645,8 @@ fun MihomoProfileEditPage(
                                     enabled = !saving,
                                     urlState = urlState,
                                     userAgentState = userAgentState,
-                                    hwidState = hwidState,
+                                    requestHeadersState = requestHeadersState,
+                                    invalidRequestHeaders = requestHeaders == null,
                                     ageSecretKeyState = ageSecretKeyState,
                                     updateIntervalState = updateIntervalState,
                                     updateViaProxy = updateViaProxy,
@@ -964,7 +977,8 @@ private fun ColumnScope.UrlProfileFields(
     enabled: Boolean,
     urlState: TextFieldState,
     userAgentState: TextFieldState,
-    hwidState: TextFieldState,
+    requestHeadersState: TextFieldState,
+    invalidRequestHeaders: Boolean,
     ageSecretKeyState: TextFieldState,
     updateIntervalState: TextFieldState,
     updateViaProxy: Boolean,
@@ -1060,10 +1074,14 @@ private fun ColumnScope.UrlProfileFields(
             )
             OutlinedTextField(
                 shape = AsteriskShapeTokens.InnerContainer,
-                state = hwidState,
+                state = requestHeadersState,
                 enabled = enabled,
-                label = { Text(stringResource(R.string.subscription_hwid)) },
-                lineLimits = TextFieldLineLimits.SingleLine,
+                label = { Text(stringResource(R.string.subscription_request_headers)) },
+                isError = invalidRequestHeaders,
+                supportingText = if (invalidRequestHeaders) {
+                    { Text(stringResource(R.string.subscription_request_headers_invalid)) }
+                } else null,
+                lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = 5),
                 modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
             )
             ProfileRuleOverrideRow(

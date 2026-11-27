@@ -3,6 +3,8 @@
 
 package data
 
+import features.subscription.encodeSubscriptionRequestHeaders
+import features.subscription.decodeSubscriptionRequestHeaders
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
@@ -22,7 +24,7 @@ internal data class MihomoProfileEntity(
     val type: Int,
     val url: String,
     val userAgent: String,
-    @ColumnInfo(defaultValue = "''") val hwid: String,
+    val requestHeaders: String?,
     val updateInterval: String,
     val updateViaProxy: Boolean,
     @ColumnInfo(defaultValue = "")
@@ -52,7 +54,7 @@ internal data class MihomoProfileEntity(
             type = MihomoProfileType.fromStorageValue(type),
             url = url,
             userAgent = userAgent,
-            hwid = hwid,
+            requestHeaders = requestHeaders?.let(::decodeSubscriptionRequestHeaders),
             updateInterval = updateInterval,
             updateViaProxy = updateViaProxy,
             ageSecretKey = ageSecretKey,
@@ -84,7 +86,7 @@ internal data class MihomoProfileEntity(
                 type = profile.type.storageValue,
                 url = profile.url,
                 userAgent = profile.userAgent,
-                hwid = profile.hwid,
+                requestHeaders = profile.requestHeaders?.let(::encodeSubscriptionRequestHeaders),
                 updateInterval = profile.updateInterval,
                 updateViaProxy = profile.updateViaProxy,
                 ageSecretKey = profile.ageSecretKey,

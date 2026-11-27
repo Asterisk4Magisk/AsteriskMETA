@@ -11,6 +11,7 @@ import app.DefaultMihomoProfileUpdateInterval
 import app.DefaultMihomoProfileUserAgent
 import app.MihomoProfileType
 import app.MihomoRuleOverrideState
+import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -220,7 +221,9 @@ internal data class AppBackupMihomoProfile(
     val type: Int = MihomoProfileType.File.storageValue,
     val url: String = "",
     val userAgent: String = DefaultMihomoProfileUserAgent,
-    val hwid: String = "",
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val hwid: String? = null,
+    val requestHeaders: Map<String, String>? = null,
     val updateInterval: String = DefaultMihomoProfileUpdateInterval,
     val updateViaProxy: Boolean = false,
     val ageSecretKey: String = "",

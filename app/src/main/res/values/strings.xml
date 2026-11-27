@@ -432,8 +432,8 @@
     <string name="settings_auto_switch_summary">Regions, failure threshold and check interval</string>
 
     <!-- Subscription groups -->
-    <string name="subscription_hwid">HWID</string>
-    <string name="subscription_hwid_invalid">Invalid HWID</string>
+    <string name="subscription_request_headers">Custom request headers (JSON)</string>
+    <string name="subscription_request_headers_invalid">Enter a JSON object with unique, valid header names and string values.</string>
     <string name="subscription_hwid_limit_reached">Subscription device limit reached</string>
     <string name="subscription_hwid_not_supported">HWID rejected by server</string>
     <string name="subscription_install_config_failed">Failed to import subscription</string>
