@@ -8,6 +8,13 @@ import app.modes.RunModeTun
 import app.modes.RunModeTun2Socks
 import app.modes.RunModeTproxy
 import app.modes.RunModeVpnService
+import engine.proxy.FlowMetadataInboundTag
+import engine.proxy.usesFlowMetadata
+
+internal fun MihomoRawConfigSnapshot.provesDnsHijack(runMode: Int, vpnUsesHev: Boolean = false): Boolean {
+    val hijack = dnsHijack.value ?: return false
+    return if (usesFlowMetadata(runMode, vpnUsesHev)) hijack.bridgeProven else hijack.proven
+}
 
 internal fun MihomoRawConfigParseResult.check(
     runMode: Int,
@@ -46,9 +53,7 @@ internal fun MihomoRawConfigSnapshot.check(
             api.problem ?: "Mihomo API is not configured; dependent features are unavailable",
         )
     }
-    val requiresSocksInbound = runMode == RunModeTun2Socks ||
-        runMode == RunModeBpf2Socks ||
-        runMode == RunModeVpnService && vpnUsesHev
+    val requiresSocksInbound = usesFlowMetadata(runMode, vpnUsesHev)
     when (runMode) {
         RunModeTproxy -> if (tproxyPort.value == null) {
             issue(RawConfigReadiness.Blocked, tproxyPort.path, tproxyPort.problem ?: "TPROXY requires tproxy-port")
@@ -70,11 +75,15 @@ internal fun MihomoRawConfigSnapshot.check(
             socksInbound.problem ?: "Local proxy features are unavailable because YAML has no SOCKS or Mixed inbound",
         )
     }
-    if (dnsHijackRequested && dnsHijack.value?.proven != true) {
+    if (dnsHijackRequested && !provesDnsHijack(runMode, vpnUsesHev)) {
         issue(
             RawConfigReadiness.Degraded,
             "rules",
-            "DNS hijack is not installed because YAML does not prove enabled DNS outbound rules for both TCP and UDP port 53",
+            if (requiresSocksInbound) {
+                "DNS hijack requires enabled DNS outbound rules covering TCP and UDP port 53 on $FlowMetadataInboundTag"
+            } else {
+                "DNS hijack is not installed because YAML does not prove enabled DNS outbound rules for both TCP and UDP port 53"
+            },
         )
     }
     val readiness = when {

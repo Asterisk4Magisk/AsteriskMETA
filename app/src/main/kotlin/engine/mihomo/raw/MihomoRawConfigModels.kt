@@ -41,6 +41,7 @@ internal data class MihomoRawTunInbound(
 internal data class MihomoRawDnsHijack(
     val dnsEnabled: Boolean,
     val proven: Boolean,
+    val bridgeProven: Boolean,
     val matchedRule: String? = null,
     val outbound: String? = null,
 )

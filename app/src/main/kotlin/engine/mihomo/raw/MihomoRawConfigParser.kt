@@ -9,6 +9,7 @@ import engine.mihomo.MihomoTunCongestionControllers
 import utils.sha256Hex
 import engine.network.isCidrAddress
 import engine.network.toPortOrNull
+import engine.proxy.FlowMetadataInboundTag
 import org.snakeyaml.engine.v2.api.Load
 
 internal object MihomoRawConfigParser {
@@ -207,12 +208,16 @@ private fun parseDnsHijack(root: Map<*, *>): RawConfigField<MihomoRawDnsHijack> 
         }
     val tcp = matches.firstOrNull { dnsConditionCoversProtocol(it.condition, "TCP") }
     val udp = matches.firstOrNull { dnsConditionCoversProtocol(it.condition, "UDP") }
+    val bridgeProven = dnsEnabled && listOf("TCP", "UDP").all { protocol ->
+        matches.any { dnsConditionCoversProtocol(it.condition, protocol, inboundName = FlowMetadataInboundTag) }
+    }
     val match = listOfNotNull(tcp, udp).distinct().joinToString("; ") { it.rule }.takeIf(String::isNotEmpty)
     val outbound = (tcp ?: udp)?.target
     return RawConfigField(
         value = MihomoRawDnsHijack(
             dnsEnabled = dnsEnabled,
             proven = dnsEnabled && tcp != null && udp != null,
+            bridgeProven = bridgeProven,
             matchedRule = match,
             outbound = outbound,
         ),
@@ -225,7 +230,12 @@ private data class DnsRuleMatch(val rule: String, val target: String, val condit
 // A condition covers a transport only when every port 53 packet of that transport matches it.
 // AND needs all clauses, OR needs one, nested logic is followed; NOT and unknown rule types
 // can restrict traffic in ways that cannot be proven here.
-private fun dnsConditionCoversProtocol(condition: String, protocol: String, depth: Int = 0): Boolean {
+private fun dnsConditionCoversProtocol(
+    condition: String,
+    protocol: String,
+    inboundName: String? = null,
+    depth: Int = 0,
+): Boolean {
     if (depth > 8) return false
     val fields = splitRuleFields(condition)
     if (fields.size < 2) return false
@@ -233,9 +243,14 @@ private fun dnsConditionCoversProtocol(condition: String, protocol: String, dept
     return when (fields[0].uppercase()) {
         "DST-PORT" -> portSpecContains53(payload)
         "NETWORK" -> payload.equals(protocol, true)
-        "IN-NAME", "IN-TYPE" -> payload.isNotEmpty()
-        "AND" -> logicClauses(payload)?.all { dnsConditionCoversProtocol(it, protocol, depth + 1) } == true
-        "OR" -> logicClauses(payload)?.any { dnsConditionCoversProtocol(it, protocol, depth + 1) } == true
+        "IN-NAME" -> if (inboundName == null) payload.isNotEmpty() else payload == inboundName
+        "IN-TYPE" -> inboundName == null && payload.isNotEmpty()
+        "AND" -> logicClauses(payload)?.all {
+            dnsConditionCoversProtocol(it, protocol, inboundName, depth + 1)
+        } == true
+        "OR" -> logicClauses(payload)?.any {
+            dnsConditionCoversProtocol(it, protocol, inboundName, depth + 1)
+        } == true
         else -> false
     }
 }

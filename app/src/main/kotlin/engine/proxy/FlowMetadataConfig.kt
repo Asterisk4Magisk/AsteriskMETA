@@ -17,8 +17,11 @@ internal const val FlowMetadataPort = 65530
 internal const val FlowMetadataUsername = "__asterisk_flow_v1"
 
 internal fun AppState.usesFlowMetadata(runMode: Int = this.runMode): Boolean =
+    usesFlowMetadata(runMode, enableVpnHevTun)
+
+internal fun usesFlowMetadata(runMode: Int, vpnUsesHev: Boolean): Boolean =
     runMode == RunModeTun2Socks || runMode == RunModeBpf2Socks ||
-        (runMode == RunModeVpnService && enableVpnHevTun)
+        (runMode == RunModeVpnService && vpnUsesHev)
 
 /** Compiled in the app process; the service only receives the resulting config. */
 @Synchronized

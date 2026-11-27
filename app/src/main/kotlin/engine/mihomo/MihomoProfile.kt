@@ -256,6 +256,7 @@ internal fun Map<String, Any?>.toAsteriskRuntimeProfileYaml(
 ): String = dumpMihomoProfileYaml(
     toAsteriskRuntimeProfileObject(
         appState, runMode, forceDns, exposePorts, tunApplicationUids, useRootProviderPaths, controllerSocketPath,
+        usesFlowMetadata = flowMetadata != null,
     ).withFlowMetadata(flowMetadata),
 )
 
@@ -268,6 +269,7 @@ internal fun Map<String, Any?>.toAsteriskRuntimeProfileObject(
     tunApplicationUids: List<Int>,
     useRootProviderPaths: Boolean = runMode.isRootRunMode(),
     controllerSocketPath: String? = null,
+    usesFlowMetadata: Boolean = false,
 ): Map<String, Any?> {
     val updated = linkedMapOf<String, Any?>()
     val managedKeys = if (appState.overrideUnifiedDelay) {
@@ -283,7 +285,9 @@ internal fun Map<String, Any?>.toAsteriskRuntimeProfileObject(
     if (useRootProviderPaths) {
         updated.putCmfaRootProviderPaths()
     }
-    updated.putAsteriskRuntimeOverrides(appState, runMode, forceDns = forceDns, exposePorts = exposePorts, tunApplicationUids = tunApplicationUids, controllerSocketPath = controllerSocketPath)
+    updated.putAsteriskRuntimeOverrides(
+        appState, runMode, forceDns, exposePorts, tunApplicationUids, controllerSocketPath, usesFlowMetadata,
+    )
     @Suppress("UNCHECKED_CAST")
     return normalizeYamlValue(updated) as Map<String, Any?>
 }
@@ -298,6 +302,7 @@ private fun MutableMap<String, Any?>.putAsteriskRuntimeOverrides(
     exposePorts: Boolean = true,
     tunApplicationUids: List<Int>,
     controllerSocketPath: String?,
+    usesFlowMetadata: Boolean,
 ) {
     val mixedPort = appState.localProxyPort.toPortOrNull() ?: VpnDefaults.LOCAL_PROXY_PORT
     val tproxyPort = appState.transparentProxyPort.toPortOrNull() ?: RootModeEngine.DefaultTproxyPort
@@ -364,7 +369,7 @@ private fun MutableMap<String, Any?>.putAsteriskRuntimeOverrides(
         put(MihomoAutoSwitchConfigKey, options.toYamlMap())
     }
     putDnsOverrides(appState, forceDns)
-    putDnsHijackOverrides(appState, runMode)
+    putDnsHijackOverrides(appState, runMode, usesFlowMetadata)
     putNtpWriteToSystemOverride()
 }
 
@@ -533,6 +538,7 @@ private fun AppState.toMihomoDnsYamlMap(
 private fun MutableMap<String, Any?>.putDnsHijackOverrides(
     appState: AppState,
     runMode: Int,
+    usesFlowMetadata: Boolean,
 ) {
     val requiresDnsHijackRule = runMode.isRootRunMode() ||
         (runMode == RunModeVpnService && appState.enableVpnHevTun)
@@ -540,7 +546,8 @@ private fun MutableMap<String, Any?>.putDnsHijackOverrides(
         return
     }
     put("proxies", normalizedProxiesWithDnsOut(this["proxies"]))
-    put("rules", managedMihomoDnsRules((this["rules"] as? List<*>)?.map(::normalizeYamlValue).orEmpty(), runMode))
+    val rules = (this["rules"] as? List<*>)?.map(::normalizeYamlValue).orEmpty()
+    put("rules", managedMihomoDnsRules(rules, runMode, usesFlowMetadata))
 }
 
 private fun MutableMap<String, Any?>.putNtpWriteToSystemOverride() {
