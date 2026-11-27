@@ -288,7 +288,7 @@
         },
         {
             "uniqueId": "io.ktor:ktor-http",
-            "artifactVersion": "3.6.1",
+            "artifactVersion": "3.6.2",
             "name": "ktor-http",
             "description": "Ktor is a framework for quickly creating web applications in Kotlin with minimal effort.",
             "website": "https://github.com/ktorio/ktor",
@@ -366,7 +366,7 @@
         },
         {
             "uniqueId": "io.github.dokar3:quickjs-kt-android",
-            "artifactVersion": "1.0.18",
+            "artifactVersion": "1.0.19",
             "name": "quickjs-kt",
             "description": "A QuickJS binding for idiomatic Kotlin, with Async/DSL/ES Modules support.",
             "website": "https://github.com/dokar3/quickjs-kt",
