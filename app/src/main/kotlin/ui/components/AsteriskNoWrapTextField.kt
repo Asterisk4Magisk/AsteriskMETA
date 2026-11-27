@@ -15,6 +15,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldDecorator
 import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material3.LocalTextStyle
@@ -71,6 +72,36 @@ internal fun AsteriskNoWrapTextField(
         }
     }
 
+    AsteriskNoWrapTextField(
+        state = state,
+        modifier = modifier,
+        label = label,
+        placeholder = placeholder,
+        supportingText = supportingText,
+        isError = isError,
+        textStyle = textStyle,
+        keyboardOptions = keyboardOptions,
+        minLines = minLines,
+        maxLines = maxLines,
+        shape = shape,
+    )
+}
+
+@Composable
+internal fun AsteriskNoWrapTextField(
+    state: TextFieldState,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    label: @Composable (() -> Unit)? = null,
+    placeholder: @Composable (() -> Unit)? = null,
+    supportingText: @Composable (() -> Unit)? = null,
+    isError: Boolean = false,
+    textStyle: TextStyle = LocalTextStyle.current,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    minLines: Int = 1,
+    maxLines: Int = Int.MAX_VALUE,
+    shape: Shape = AsteriskShapeTokens.InnerContainer,
+) {
     val interactionSource = remember { MutableInteractionSource() }
     val focused by interactionSource.collectIsFocusedAsState()
     val colors = OutlinedTextFieldDefaults.colors()
@@ -101,7 +132,7 @@ internal fun AsteriskNoWrapTextField(
 
     val materialDecorator = OutlinedTextFieldDefaults.decorator(
         state = state,
-        enabled = true,
+        enabled = enabled,
         lineLimits = lineLimits,
         outputTransformation = null,
         interactionSource = interactionSource,
@@ -112,7 +143,7 @@ internal fun AsteriskNoWrapTextField(
         colors = colors,
         container = {
             OutlinedTextFieldDefaults.Container(
-                enabled = true,
+                enabled = enabled,
                 isError = isError,
                 interactionSource = interactionSource,
                 colors = colors,
@@ -123,12 +154,14 @@ internal fun AsteriskNoWrapTextField(
 
     BasicTextField(
         state = state,
+        enabled = enabled,
         // Like OutlinedTextField, reserve room for the label that floats above the outline, so a
         // clipping parent such as a scrolling column does not cut it off.
         modifier = if (label != null) modifier.padding(top = NoWrapLabelTopPadding) else modifier,
         textStyle = textStyle.merge(
             TextStyle(
                 color = when {
+                    !enabled -> colors.disabledTextColor
                     isError -> colors.errorTextColor
                     focused -> colors.focusedTextColor
                     else -> colors.unfocusedTextColor
@@ -148,7 +181,7 @@ internal fun AsteriskNoWrapTextField(
                     modifier = Modifier
                         .fillMaxWidth()
                         .onSizeChanged { size -> viewportWidth = size.width }
-                        .horizontalScroll(horizontalScrollState),
+                        .horizontalScroll(horizontalScrollState, enabled = enabled),
                 ) {
                     Box(modifier = Modifier.widthIn(min = with(density) { viewportWidth.toDp() })) {
                         innerTextField()

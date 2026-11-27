@@ -121,6 +121,7 @@ import ui.components.AsteriskCodeSearchHost
 import ui.components.rememberAsteriskCodeSearchState
 import ui.components.AsteriskExpansionIndicator
 import ui.components.AsteriskModalBottomSheet
+import ui.components.AsteriskNoWrapTextField
 import ui.layout.pageContentPaddingWithCutout
 import ui.theme.AsteriskMotion
 import kotlin.coroutines.cancellation.CancellationException
@@ -1072,7 +1073,7 @@ private fun ColumnScope.UrlProfileFields(
                 lineLimits = TextFieldLineLimits.SingleLine,
                 modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
             )
-            OutlinedTextField(
+            AsteriskNoWrapTextField(
                 shape = AsteriskShapeTokens.InnerContainer,
                 state = requestHeadersState,
                 enabled = enabled,
@@ -1081,7 +1082,7 @@ private fun ColumnScope.UrlProfileFields(
                 supportingText = if (invalidRequestHeaders) {
                     { Text(stringResource(R.string.subscription_request_headers_invalid)) }
                 } else null,
-                lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = 5),
+                maxLines = 5,
                 modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
             )
             ProfileRuleOverrideRow(
