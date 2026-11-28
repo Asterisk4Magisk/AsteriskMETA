@@ -14,9 +14,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -52,23 +50,22 @@ internal fun EditorListPane(
     selectedId: Int?,
     padding: PaddingValues,
     show: Boolean = true,
+    animateFocusLayout: Boolean = false,
     onSelect: ((Int) -> Unit)? = null,
     selectionEnabled: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     val visible = show && entries.isNotEmpty() && LocalAdaptiveWindow.current.showTwoColumns
-    val sizeMotion = AsteriskMotion.fastSpatial<IntSize>()
+    val sizeMotion = if (animateFocusLayout) codeEditorFocusSize() else AsteriskMotion.fastSpatial<IntSize>()
     val fadeMotion = AsteriskMotion.fastEffects<Float>()
+    val sidebarFade = if (animateFocusLayout) codeEditorFocusFade() else fadeMotion
     val colors = MaterialTheme.colorScheme
     val shape = RoundedCornerShape(16.dp)
-    Row(
-        modifier = if (visible) Modifier.pageReadableWidth(maxWidth = 1080.dp).fillMaxHeight()
-        else Modifier.fillMaxSize(),
-    ) {
+    CodeEditorPaneLayout(sidebarVisible = visible, animateFocusLayout = animateFocusLayout) {
         AnimatedVisibility(
             visible = visible,
-            enter = expandHorizontally(sizeMotion, expandFrom = Alignment.Start) + fadeIn(fadeMotion),
-            exit = shrinkHorizontally(sizeMotion, shrinkTowards = Alignment.Start) + fadeOut(fadeMotion),
+            enter = expandHorizontally(sizeMotion, expandFrom = Alignment.Start) + fadeIn(sidebarFade),
+            exit = shrinkHorizontally(sizeMotion, shrinkTowards = Alignment.Start) + fadeOut(sidebarFade),
         ) {
             LazyColumn(
                 modifier = Modifier

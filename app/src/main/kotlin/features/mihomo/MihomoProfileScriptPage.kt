@@ -3,6 +3,7 @@
 
 package features.mihomo
 
+import ui.layout.CodeEditorFocusLayout
 import ui.layout.rememberCodeEditorFocusState
 import androidx.compose.foundation.layout.BoxWithConstraints
 import ui.components.AsteriskCancelButton
@@ -17,7 +18,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -567,12 +568,10 @@ fun MihomoOverrideScriptEditPage(
                     }
                 } else {
                     key(targetScript?.id, isNew) {
-                        AnimatedVisibility(
-                            visible = !editorFocus.expanded,
-                            enter = AsteriskMotion.contentEnter(),
-                            exit = AsteriskMotion.contentExit(),
-                        ) {
-                            Column {
+                        CodeEditorFocusLayout(
+                            expanded = editorFocus.expanded,
+                            modifier = Modifier.fillMaxSize().consumeWindowInsets(contentPadding),
+                            supportingContent = {
                                 OutlinedTextField(
                                     shape = AsteriskShapeTokens.InnerContainer,
                                     state = nameState,
@@ -586,18 +585,15 @@ fun MihomoOverrideScriptEditPage(
                                     onSelectedProfileIdChange = { debugProfileId = it },
                                     modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
                                 )
-                            }
+                            },
+                        ) { modifier ->
+                            JavaScriptCodeEditor(
+                                state = scriptEditorState,
+                                showFormatButton = false,
+                                searchState = codeSearch,
+                                modifier = modifier.then(editorModifier),
+                            )
                         }
-                        JavaScriptCodeEditor(
-                            state = scriptEditorState,
-                            showFormatButton = false,
-                            searchState = codeSearch,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f)
-                                .imePadding()
-                                .then(editorModifier),
-                        )
                     }
                 }
             }
@@ -714,6 +710,7 @@ private fun MihomoOverrideScriptDebugDialog(
                 ) {
                     Column(
                         modifier = Modifier.fillMaxWidth()
+                            .padding(bottom = if (hasDiagnostics) 8.dp else 0.dp)
                             .heightIn(max = diagnosticsMaxHeight)
                             .verticalScroll(rememberScrollState()),
                     ) {
@@ -748,7 +745,7 @@ private fun MihomoOverrideScriptDebugDialog(
                 }
                 AnimatedContent(
                     targetState = showOutput,
-                    modifier = Modifier.fillMaxWidth().weight(1f).padding(top = if (hasDiagnostics && !outputFocus.expanded) 8.dp else 0.dp),
+                    modifier = Modifier.fillMaxWidth().weight(1f),
                     transitionSpec = AsteriskMotion.fadeThrough(outputEffectsMotion),
                     contentAlignment = Alignment.TopStart,
                     label = "script-debug-output",

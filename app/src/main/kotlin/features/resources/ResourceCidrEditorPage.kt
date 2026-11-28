@@ -5,12 +5,9 @@ package features.resources
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -43,6 +40,7 @@ import ui.components.AsteriskCodeActionButton
 import ui.components.AsteriskScaffold
 import ui.components.AsteriskTopAppBar
 import ui.components.rememberAsteriskCodeSearchState
+import ui.layout.CodeEditorFocusLayout
 import ui.layout.pageContentPaddingWithCutout
 import ui.layout.pageListPadding
 import ui.layout.rememberCodeEditorFocusState
@@ -161,25 +159,27 @@ internal fun ResourceCidrEditorPage(padding: PaddingValues, kind: ResourceFileKi
             Box(
                 modifier = Modifier.fillMaxSize()
                     .padding(contentPadding)
-                    .consumeWindowInsets(contentPadding)
-                    .imePadding(),
+                    .consumeWindowInsets(contentPadding),
                 contentAlignment = Alignment.Center,
             ) {
                 when {
                     loading -> CircularProgressIndicator()
                     original == null -> Text(unavailableMessage, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    else -> Column(Modifier.fillMaxSize()) {
-                        if (!editorFocus.expanded) {
+                    else -> CodeEditorFocusLayout(
+                        expanded = editorFocus.expanded,
+                        modifier = Modifier.fillMaxSize(),
+                        supportingContent = {
                             Text(
                                 stringResource(R.string.settings_resource_cidr_editor_hint),
                                 modifier = Modifier.padding(bottom = 8.dp),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                        }
+                        },
+                    ) { modifier ->
                         PlainTextCodeEditor(
                             state = editorState,
-                            modifier = Modifier.fillMaxWidth().weight(1f).then(editorModifier),
+                            modifier = modifier.then(editorModifier),
                             readOnly = saving,
                             searchState = codeSearch,
                         )

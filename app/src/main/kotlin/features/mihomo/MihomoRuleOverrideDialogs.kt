@@ -3,14 +3,15 @@
 
 package features.mihomo
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
@@ -58,8 +59,8 @@ import ui.components.AsteriskCodePreviewTabs
 import ui.components.AsteriskActionButton
 import ui.components.AsteriskInfoChip
 import ui.components.AsteriskSearchField
+import ui.layout.CodeEditorFocusLayout
 import ui.layout.rememberCodeEditorFocusState
-import ui.theme.AsteriskMotion
 import ui.icons.AsteriskIcons as Icons
 
 /**
@@ -252,19 +253,19 @@ internal fun MihomoRuleOverridePreviewDialog(
                     modifier = Modifier.verticalScroll(rememberScrollState()),
                 )
             }
-            is RuleOverridePreview.Compiled -> Column(Modifier.fillMaxSize()) {
-                AnimatedVisibility(
-                    visible = !editorFocus.expanded,
-                    enter = AsteriskMotion.contentEnter(),
-                    exit = AsteriskMotion.contentExit(),
-                ) {
+            is RuleOverridePreview.Compiled -> CodeEditorFocusLayout(
+                expanded = editorFocus.expanded,
+                modifier = Modifier.fillMaxSize(),
+                supportingContent = {
                     PreviewNotes(current, sourceIsCachedSubscription)
-                }
+                    Spacer(Modifier.height(8.dp))
+                },
+            ) { modifier ->
                 YamlCodeEditor(
                     state = editorState,
                     showFormatButton = false,
                     searchState = searchState,
-                    modifier = Modifier.fillMaxWidth().weight(1f).padding(top = 8.dp).then(editorModifier),
+                    modifier = modifier.then(editorModifier),
                 )
             }
         }
