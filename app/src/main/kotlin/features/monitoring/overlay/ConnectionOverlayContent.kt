@@ -38,6 +38,7 @@ import androidx.compose.foundation.systemGestureExclusion
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -51,6 +52,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.AbsoluteAlignment
@@ -112,6 +114,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import ui.charts.buildNetworkActivityLineBands
 import ui.charts.buildNetworkActivityWaveform
 import ui.charts.drawDottedWaveform
@@ -120,6 +123,7 @@ import ui.charts.rememberDottedWaveformRamp
 import ui.components.AsteriskExpansionIndicator
 import ui.components.AsteriskSegmentItem
 import ui.components.AsteriskSegmentedControl
+import ui.feedback.AndroidToastTipNotifier
 import ui.theme.AsteriskMotion
 import ui.theme.AsteriskShapeTokens
 import ui.theme.LocalReduceMotion
@@ -155,6 +159,11 @@ internal fun ConnectionOverlayContent(
 ) {
     var dimension by remember { mutableStateOf(OverlayDimension.Connections) }
     var selectedRankId by remember { mutableStateOf<String?>(null) }
+    var closingConnection by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val tipNotifier = remember(context) { AndroidToastTipNotifier(context) }
+    val closeFailed = stringResource(R.string.monitor_connections_close_failed)
     val colors = MaterialTheme.colorScheme
     var laidOut by remember { mutableStateOf(false) }
     val spatial = AsteriskMotion.spatial<Float>()
@@ -164,6 +173,21 @@ internal fun ConnectionOverlayContent(
         if (minimized && panelVisible) onMinimizeFinished()
     }
     val panelInteractive = panelVisible && !minimized && expansion.targetValue == 1f && !expansion.isRunning
+    fun closeConnection(id: String) {
+        if (closingConnection || dimension != OverlayDimension.Connections || selectedRankId != id) return
+        closingConnection = true
+        scope.launch {
+            try {
+                monitoring.closeConnection(id)
+                    .onSuccess {
+                        if (dimension == OverlayDimension.Connections && selectedRankId == id) selectedRankId = null
+                    }
+                    .onFailure { tipNotifier.showError(it, closeFailed) }
+            } finally {
+                closingConnection = false
+            }
+        }
+    }
     val (running, chartStyle) = if (panelVisible) {
         remember(appState) {
             appState.map { it.proxyRunning to it.networkActivityStyle }.distinctUntilChanged()
@@ -240,6 +264,7 @@ internal fun ConnectionOverlayContent(
                                         dimension = next
                                     },
                                     selectedRankId = selectedRankId.takeIf { dimension == activeDimension },
+                                    onCloseConnection = if (panelInteractive && !closingConnection) ::closeConnection else null,
                                     onConnectionsVisibilityChanged = onConnectionsVisibilityChanged,
                                     onSelectRank = { id ->
                                         selectedRankId = id.takeUnless { dimension == activeDimension && it == selectedRankId }
@@ -332,6 +357,7 @@ private fun OverlayRankings(
     dimension: OverlayDimension,
     onDimensionChange: (OverlayDimension) -> Unit,
     selectedRankId: String?,
+    onCloseConnection: ((String) -> Unit)?,
     onConnectionsVisibilityChanged: (Boolean) -> Unit,
     onSelectRank: (String) -> Unit,
 ) {
@@ -379,7 +405,9 @@ private fun OverlayRankings(
             val selection = selectedRankId.takeIf { content == dimension }
             val onSelect: (String) -> Unit = { id -> if (content == dimension) onSelectRank(id) }
             when (content) {
-                OverlayDimension.Connections -> OverlayConnectionRanking(monitoring, selection, onSelect)
+                OverlayDimension.Connections -> OverlayConnectionRanking(
+                    monitoring, selection, onSelect, onCloseConnection.takeIf { active && content == dimension },
+                )
                 OverlayDimension.Dns -> OverlayDnsRanking(monitoring, selection, onSelect)
                 OverlayDimension.Rules -> OverlayRuleRanking(monitoring, selection, onSelect)
             }
@@ -673,6 +701,7 @@ private fun OverlayConnectionRanking(
     monitoring: MonitoringRepository,
     selectedId: String?,
     onSelect: (String) -> Unit,
+    onCloseConnection: ((String) -> Unit)?,
 ) {
     val context = LocalContext.current
     val ranking by remember(monitoring, selectedId, context) {
@@ -700,7 +729,13 @@ private fun OverlayConnectionRanking(
                 pinned = pinned,
                 itemKey = { it.row.id },
                 header = { OverlayPinnedHeader(it, onSelect) },
-                details = { OverlayConnectionDetails(it) },
+                details = { item ->
+                    OverlayConnectionDetails(
+                        connection = item,
+                        onCollapse = { onSelect(item.row.id) },
+                        onClose = onCloseConnection.takeIf { item.row.id == pinnedKey },
+                    )
+                },
             )
         },
     ) { row ->
@@ -763,7 +798,7 @@ private fun OverlayPinnedHeader(connection: OverlayPinnedConnection, onSelect: (
         modifier = Modifier.fillMaxWidth().clickable(
             onClickLabel = stringResource(R.string.monitor_connections_details),
             onClick = { onSelect(row.id) },
-        ).padding(horizontal = spacing.small, vertical = spacing.extraSmall),
+        ).padding(start = spacing.small, top = spacing.extraSmall, end = spacing.small),
         horizontalArrangement = Arrangement.spacedBy(spacing.small),
         verticalAlignment = Alignment.Top,
     ) {
@@ -771,13 +806,6 @@ private fun OverlayPinnedHeader(connection: OverlayPinnedConnection, onSelect: (
             OverlayRankTitle(
                 text = row.destination.ifBlank { stringResource(R.string.monitor_value_unknown) },
                 style = styles.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-            )
-            Text(
-                text = connection.packageName ?: stringResource(R.string.monitor_connections_unknown_source),
-                style = styles.labelSmall,
-                color = colors.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
             )
         }
         AsteriskExpansionIndicator(
@@ -789,15 +817,56 @@ private fun OverlayPinnedHeader(connection: OverlayPinnedConnection, onSelect: (
 }
 
 @Composable
-private fun OverlayConnectionDetails(connection: OverlayPinnedConnection) {
+private fun OverlayConnectionDetails(
+    connection: OverlayPinnedConnection,
+    onCollapse: () -> Unit,
+    onClose: ((String) -> Unit)?,
+) {
+    val spacing = LocalSpacing.current
+    val colors = MaterialTheme.colorScheme
+    val closeButtonSize = 48.dp
     OverlayDetailContent {
-        if (connection.sourceAddress.isNotBlank()) {
-            OverlayDetailValue(R.string.monitor_connections_source, connection.sourceAddress)
+        Box {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(end = closeButtonSize),
+                verticalArrangement = Arrangement.spacedBy(spacing.extraSmall),
+            ) {
+                Text(
+                    text = connection.packageName ?: stringResource(R.string.monitor_connections_unknown_source),
+                    modifier = Modifier.fillMaxWidth().clickable(
+                        onClickLabel = stringResource(R.string.monitor_connections_details),
+                        onClick = onCollapse,
+                    ),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = colors.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (connection.sourceAddress.isNotBlank()) {
+                    OverlayDetailValue(R.string.monitor_connections_source, connection.sourceAddress)
+                }
+                OverlayDetailValue(
+                    R.string.monitor_connections_rate,
+                    formatMonitoringRatePair(connection.uploadRate, connection.downloadRate),
+                )
+            }
+            Box(
+                modifier = Modifier.matchParentSize(),
+                contentAlignment = Alignment.CenterEnd,
+            ) {
+                IconButton(
+                    onClick = { onClose?.invoke(connection.row.id) },
+                    modifier = Modifier.size(closeButtonSize),
+                    enabled = onClose != null,
+                    colors = IconButtonDefaults.iconButtonColors(contentColor = colors.error),
+                ) {
+                    // Align the visible icon edge with the chevron above.
+                    Box(Modifier.fillMaxSize().padding(end = 2.5.dp), contentAlignment = Alignment.CenterEnd) {
+                        Icon(Icons.Rounded.LinkOff, stringResource(R.string.monitor_connections_close_one))
+                    }
+                }
+            }
         }
-        OverlayDetailValue(
-            R.string.monitor_connections_rate,
-            formatMonitoringRatePair(connection.uploadRate, connection.downloadRate),
-        )
     }
 }
 
