@@ -3,7 +3,13 @@
 
 package ui.layout
 
-import androidx.compose.material3.TopAppBarScrollBehavior
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -17,21 +23,81 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Modifier
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import ui.theme.AsteriskMotion
 
 fun Modifier.pageReadableWidth(maxWidth: Dp = 1120.dp): Modifier = this
     .fillMaxWidth()
     .wrapContentWidth(Alignment.CenterHorizontally)
     .widthIn(max = maxWidth)
     .fillMaxWidth()
+
+internal val LocalDetailPaneActive = compositionLocalOf { true }
+
+@Composable
+internal fun <T : Any> DetailPaneTransition(
+    detail: T?,
+    detailKey: (T) -> Any = { Unit },
+    content: @Composable (T) -> Unit,
+) {
+    val sizeMotion = AsteriskMotion.fastSpatial<IntSize>()
+    val fadeMotion = AsteriskMotion.fastEffects<Float>()
+    val activeKey by rememberUpdatedState(detail?.let(detailKey))
+    AnimatedContent(
+        targetState = detail,
+        contentKey = { it?.let(detailKey) },
+        contentAlignment = Alignment.CenterEnd,
+        transitionSpec = {
+            if (initialState != null && targetState != null) {
+                (fadeIn(fadeMotion) togetherWith fadeOut(fadeMotion)).using(null)
+            } else {
+                ((expandHorizontally(sizeMotion, expandFrom = Alignment.End) + fadeIn(fadeMotion)) togetherWith
+                    (shrinkHorizontally(sizeMotion, shrinkTowards = Alignment.End) + fadeOut(fadeMotion))).using(null)
+            }
+        },
+        label = "detailPane",
+    ) { item ->
+        if (item != null) {
+            val active = detailKey(item) == activeKey
+            val modifier = if (active) Modifier else Modifier
+                .clearAndSetSemantics { hideFromAccessibility() }
+                .focusProperties { canFocus = false }
+                .onPreviewKeyEvent { true }
+                .pointerInput(Unit) {
+                    awaitPointerEventScope {
+                        while (true) {
+                            awaitPointerEvent(PointerEventPass.Initial).changes.forEach { it.consume() }
+                        }
+                    }
+                }
+            Box(modifier) {
+                CompositionLocalProvider(LocalDetailPaneActive provides active) {
+                    content(item)
+                }
+            }
+        }
+    }
+}
 
 internal val SingleColumnPageMaxWidth = 760.dp
 

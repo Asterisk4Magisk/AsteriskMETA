@@ -40,6 +40,7 @@ import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import app.LocalIsWideScreen
 import app.R
+import ui.layout.LocalDetailPaneActive
 import ui.layout.pageHorizontalPadding
 import ui.layout.rememberPageGutter
 import ui.theme.AsteriskMotion
@@ -70,6 +71,7 @@ internal fun AsteriskSearchTopAppBar(
     },
 ) {
     var searchActive by rememberSaveable { mutableStateOf(false) }
+    val paneActive = LocalDetailPaneActive.current
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val searchFieldWidth = if (searchContentMaxWidth != null && LocalIsWideScreen.current) {
@@ -89,7 +91,7 @@ internal fun AsteriskSearchTopAppBar(
     }
 
     // Outgoing content remains composed during the fade, but must not handle back events.
-    if (searchActive && searchAvailable) {
+    if (searchActive && searchAvailable && paneActive) {
         val backState = rememberNavigationEventState(NavigationEventInfo.None)
         NavigationBackHandler(
             state = backState,
@@ -101,8 +103,9 @@ internal fun AsteriskSearchTopAppBar(
     AsteriskSearchTopBarTransition(searchActive = searchActive && searchAvailable) { showSearch, searchSettled ->
         if (showSearch) {
             val focusRequester = remember { FocusRequester() }
-            LaunchedEffect(searchSettled, searchActive, searchAvailable) {
-                if (searchSettled && searchActive && searchAvailable) focusRequester.requestFocus()
+            val shouldFocus = searchSettled && searchActive && searchAvailable && paneActive
+            LaunchedEffect(shouldFocus) {
+                if (shouldFocus) focusRequester.requestFocus()
             }
             AsteriskTopAppBar(
                 modifier = modifier,

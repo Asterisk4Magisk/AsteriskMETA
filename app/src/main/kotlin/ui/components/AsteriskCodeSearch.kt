@@ -85,6 +85,7 @@ import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import ui.layout.LocalDetailPaneActive
 import ui.theme.AsteriskMotion
 import ui.theme.AsteriskShapeTokens
 import kotlin.math.roundToInt
@@ -122,7 +123,7 @@ internal fun AsteriskCodeSearchHost(
         state.search(state.query, state.matchCase, state.useRegex)
         state.pending = false
     }
-    if (state.active) {
+    if (state.active && LocalDetailPaneActive.current) {
         val backState = rememberNavigationEventState(NavigationEventInfo.None)
         NavigationBackHandler(state = backState, isBackEnabled = true, onBackCompleted = state::close)
     }
@@ -323,8 +324,9 @@ private fun CodeSearchPanel(
         val scope = rememberCoroutineScope()
         val tipNotifier = LocalAppServices.current.tipNotifier
         val contentChanged = stringResource(R.string.code_editor_replace_changed)
-        LaunchedEffect(searchActive) {
-            if (searchActive) focusRequester.requestFocus()
+        val shouldFocus = searchActive && LocalDetailPaneActive.current
+        LaunchedEffect(shouldFocus) {
+            if (shouldFocus) focusRequester.requestFocus()
         }
         Box(Modifier.matchParentSize().floatingChrome(AsteriskShapeTokens.SmallContainer))
         CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurfaceVariant) {

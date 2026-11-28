@@ -105,6 +105,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import ui.layout.DetailPaneTransition
 import ui.layout.LocalAdaptiveWindow
 import ui.layout.pageContentPaddingWithCutout
 import ui.layout.pageListPadding
@@ -810,19 +811,14 @@ fun MihomoProfileListPage(
             )
         }
         BoxWithConstraints(modifier = Modifier.pageReadableWidth().fillMaxSize()) {
-            val showDetailPane = LocalAdaptiveWindow.current.showTwoColumns &&
-                maxWidth >= 760.dp && LocalDensity.current.fontScale <= 1.3f && activeProfile != null
+            val useDetailPane = LocalAdaptiveWindow.current.showTwoColumns &&
+                maxWidth >= 760.dp && LocalDensity.current.fontScale <= 1.3f
+            val detailProfile = activeProfile.takeIf { useDetailPane }
+            val detailWidth = maxWidth - 320.dp
             val summaryMaxHeight = maxHeight / 3
-            Row(
-                modifier = Modifier.fillMaxSize(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
+            Row(Modifier.fillMaxSize()) {
                 LazyColumn(
-                    modifier = if (showDetailPane) {
-                        Modifier.width(320.dp).fillMaxHeight()
-                    } else {
-                        Modifier.weight(1f).fillMaxHeight()
-                    },
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
                     contentPadding = listPadding,
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
@@ -832,7 +828,7 @@ fun MihomoProfileListPage(
                         }
                     }
                     items(profiles, key = { it.id }) { profile ->
-                        if (showDetailPane) {
+                        if (detailProfile != null) {
                             val selected = profile.id == activeProfileId
                             AsteriskSelectionCard(
                                 selected = selected,
@@ -872,19 +868,21 @@ fun MihomoProfileListPage(
                         }
                     }
                 }
-                if (showDetailPane) {
-                    Column(
-                        modifier = Modifier.weight(1f).fillMaxHeight().padding(listPadding),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = summaryMaxHeight)) {
-                            item(key = activeProfile.id) { profileCard(activeProfile, true) }
-                        }
-                        Box(
-                            modifier = Modifier.weight(1f).fillMaxWidth()
-                                .clip(AsteriskShapeTokens.ListCard),
+                if (useDetailPane) {
+                    DetailPaneTransition(detail = detailProfile, detailKey = MihomoProfileState::id) { profile ->
+                        Column(
+                            modifier = Modifier.width(detailWidth).fillMaxHeight().padding(start = 8.dp).padding(listPadding),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            MihomoProfileSourcePreview(activeProfile)
+                            LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = summaryMaxHeight)) {
+                                item(key = profile.id) { profileCard(profile, true) }
+                            }
+                            Box(
+                                modifier = Modifier.weight(1f).fillMaxWidth()
+                                    .clip(AsteriskShapeTokens.ListCard),
+                            ) {
+                                MihomoProfileSourcePreview(profile)
+                            }
                         }
                     }
                 }

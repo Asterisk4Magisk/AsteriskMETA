@@ -44,6 +44,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import ui.clipboard.setPlainText
 import ui.layout.LocalAdaptiveWindow
+import ui.layout.LocalDetailPaneActive
 import ui.layout.avoidFold
 import ui.layout.pageListPadding
 import ui.layout.rememberPageGutter
@@ -125,7 +126,7 @@ internal fun AsteriskCodePreviewDialog(
         }
     }
     if (embedded) {
-        BackHandler(enabled = searchState.active, onBack = onBack)
+        BackHandler(enabled = searchState.active && LocalDetailPaneActive.current, onBack = onBack)
         preview()
     } else {
         Dialog(

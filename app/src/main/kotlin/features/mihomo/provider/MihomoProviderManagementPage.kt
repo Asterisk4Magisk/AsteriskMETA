@@ -5,11 +5,6 @@ package features.mihomo.provider
 
 import android.content.Context
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandHorizontally
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -53,7 +48,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import app.LocalAppServices
 import app.LocalAppStateStore
@@ -81,12 +75,18 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import ui.components.AsteriskScaffold
 import ui.components.AsteriskTopAppBar
+import ui.layout.DetailPaneTransition
 import ui.layout.LocalAdaptiveWindow
 import ui.layout.pageContentPaddingWithCutout
 import ui.layout.pageReadableWidth
 import ui.theme.AsteriskMotion
 import java.io.File
 import ui.icons.AsteriskIcons as Icons
+
+private sealed interface ProviderDetail {
+    data class Proxy(val name: String) : ProviderDetail
+    data class Preview(val state: MihomoProviderPreviewState) : ProviderDetail
+}
 
 @Composable
 fun MihomoProviderManagementPage(
@@ -435,9 +435,11 @@ fun MihomoProviderManagementPage(
         proxyDetailContent(activeProxyName, padding)
         return
     }
-    val detailVisible = useDetailPane && (activeProxyName != null || showPreview)
-    val detailSpatial = AsteriskMotion.fastSpatial<IntSize>()
-    val detailEffects = AsteriskMotion.fastEffects<Float>()
+    val detail = when {
+        activeProxyName != null -> ProviderDetail.Proxy(activeProxyName)
+        showPreview -> ProviderDetail.Preview(previewState)
+        else -> null
+    }
     AsteriskScaffold(
         topBar = {
             Column {
@@ -552,26 +554,23 @@ fun MihomoProviderManagementPage(
                         )
                     }
                 }
-                AnimatedVisibility(
-                    visible = detailVisible,
-                    enter = expandHorizontally(detailSpatial, expandFrom = Alignment.End) + fadeIn(detailEffects),
-                    exit = shrinkHorizontally(detailSpatial, shrinkTowards = Alignment.End) + fadeOut(detailEffects),
-                ) {
-                    Box(
-                        Modifier.width(detailWidth).fillMaxHeight()
-                            .padding(contentPadding)
-                            .consumeWindowInsets(contentPadding),
-                    ) {
-                        if (activeProxyName != null) {
-                            proxyDetailContent(activeProxyName, PaddingValues())
-                        } else if (showPreview) {
-                            MihomoProviderPreviewDialog(
-                                providerName = previewState.providerName,
-                                loading = previewState.loading,
-                                rawContent = previewState.rawContent,
-                                onDismissRequest = ::closePreview,
-                                embedded = true,
-                            )
+                if (useDetailPane) {
+                    DetailPaneTransition(detail = detail) { item ->
+                        Box(
+                            Modifier.width(detailWidth).fillMaxHeight()
+                                .padding(contentPadding)
+                                .consumeWindowInsets(contentPadding),
+                        ) {
+                            when (item) {
+                                is ProviderDetail.Proxy -> proxyDetailContent(item.name, PaddingValues())
+                                is ProviderDetail.Preview -> MihomoProviderPreviewDialog(
+                                    providerName = item.state.providerName,
+                                    loading = item.state.loading,
+                                    rawContent = item.state.rawContent,
+                                    onDismissRequest = ::closePreview,
+                                    embedded = true,
+                                )
+                            }
                         }
                     }
                 }
